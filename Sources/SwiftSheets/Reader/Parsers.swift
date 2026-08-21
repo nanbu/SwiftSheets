@@ -226,6 +226,7 @@ final class SheetParser: SAXParser {
             var d = ColumnDimension()
             d.width = Double(a["width"] ?? ""); d.hidden = a["hidden"] == "1"; d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0
             d.collapsed = a["collapsed"] == "1"; d.bestFit = a["bestFit"] == "1"
+            if let st = Int(a["style"] ?? ""), st > 0 { d.style = styles.style(st) }
             for c in mn...min(mx, mn + 16383) { ws.columnDimensions[CellReference.columnLetter(c)] = d }
         case "row":
             currentRow = Int(a["r"] ?? "") ?? (currentRow + 1)

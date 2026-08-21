@@ -100,6 +100,7 @@ enum WorkbookWriter {
                 if let w = d.width { s += " width=\"\(XML.num(w))\" customWidth=\"1\"" }
                 s += "\(XML.attr("hidden", d.hidden))\(XML.attr("bestFit", d.bestFit))"
                 if d.outlineLevel > 0 { s += " outlineLevel=\"\(d.outlineLevel)\"" }
+                if let st = d.style { s += " style=\"\(styles.index(for: st))\"" }
                 s += "\(XML.attr("collapsed", d.collapsed))/>"
             }
             s += "</cols>"

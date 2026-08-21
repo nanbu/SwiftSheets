@@ -45,7 +45,7 @@ exposed as `.richText`, the 1900 / 1904 epochs and the phantom 1900-02-29 are ha
 | `cell.font / fill / border / alignment / number_format / protection` | same names | ✅ (PatternFill; GradientFill: roadmap) |
 | `cell.hyperlink` | `hyperlink` | ✅ |
 | `cell.comment` | `comment` | ⚠️ held in memory only — not written (needs VML): roadmap |
-| `ws.row_dimensions / column_dimensions` (height, width, hidden, outline_level, collapsed) | `rowDimension(_:)`, `columnDimension(_:)`, setters | ✅ |
+| `ws.row_dimensions / column_dimensions` (height, width, hidden, outline_level, collapsed, column `fill`/style) | `rowDimension(_:)`, `columnDimension(_:)`, setters, `ColumnDimension.style` | ✅ |
 | `ws.merge_cells / unmerge_cells / merged_cells` | `mergeCells`, `unmergeCells`, `mergedCells` | ✅ |
 | `ws.freeze_panes` | `freezePanes` | ✅ |
 | `ws.sheet_properties` (tabColor, outlinePr) | `properties` | ✅ |

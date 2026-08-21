@@ -56,10 +56,13 @@ public struct ColumnDimension: Hashable, Sendable {
     public var outlineLevel = 0
     public var collapsed = false
     public var bestFit = false
-    public init(width: Double? = nil, hidden: Bool = false, outlineLevel: Int = 0, collapsed: Bool = false, bestFit: Bool = false) {
-        self.width = width; self.hidden = hidden; self.outlineLevel = outlineLevel; self.collapsed = collapsed; self.bestFit = bestFit
+    /// Default style for cells of this column that have no style of their own (`<col style>`). Lets a whole column
+    /// be filled without creating a cell per row.
+    public var style: CellStyle?
+    public init(width: Double? = nil, hidden: Bool = false, outlineLevel: Int = 0, collapsed: Bool = false, bestFit: Bool = false, style: CellStyle? = nil) {
+        self.width = width; self.hidden = hidden; self.outlineLevel = outlineLevel; self.collapsed = collapsed; self.bestFit = bestFit; self.style = style
     }
-    var isDefault: Bool { width == nil && !hidden && outlineLevel == 0 && !collapsed && !bestFit }
+    var isDefault: Bool { width == nil && !hidden && outlineLevel == 0 && !collapsed && !bestFit && style == nil }
 }
 
 public struct SheetProperties: Hashable, Sendable {
