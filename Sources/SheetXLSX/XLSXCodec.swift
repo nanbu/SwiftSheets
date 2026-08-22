@@ -6,13 +6,10 @@ import SheetCore
 public enum XLSXCodec: SpreadsheetCodec {
     public static var format: SheetFormat { .xlsx }
 
-    public static func canDecode(_ container: ZipInspection) -> Bool {
-        guard let ct = container.entry(named: "[Content_Types].xml") else { return false }
-        return !String(decoding: ct, as: UTF8.self).contains("macroEnabled")
-    }
+    public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
 
-    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> Workbook {
-        try WorkbookReader.read(data, options: options)
+    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        ReadResult(workbook: try WorkbookReader.read(data, options: options))
     }
 
     public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
@@ -25,13 +22,10 @@ public enum XLSXCodec: SpreadsheetCodec {
 public enum XLSMCodec: SpreadsheetCodec {
     public static var format: SheetFormat { .xlsm }
 
-    public static func canDecode(_ container: ZipInspection) -> Bool {
-        guard let ct = container.entry(named: "[Content_Types].xml") else { return false }
-        return String(decoding: ct, as: UTF8.self).contains("macroEnabled")
-    }
+    public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
 
-    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> Workbook {
-        try WorkbookReader.read(data, options: options)
+    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        ReadResult(workbook: try WorkbookReader.read(data, options: options))
     }
 
     public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {

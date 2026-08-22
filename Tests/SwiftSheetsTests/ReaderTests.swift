@@ -10,7 +10,7 @@ func fixture(_ name: String) throws -> Data {
 
 @Suite struct ReaderTests {
     @Test func readsValuesTypesAndStyles() throws {
-        let wb = try XLSXCodec.read(try fixture("styled"))
+        let wb = try XLSXCodec.read(try fixture("styled")).workbook
         #expect(wb.sheetNames == ["Data", "Hidden"])
         #expect(wb.sheets["Hidden"]?.state == .hidden)
         #expect(wb.metadata.creator == "fixture" && wb.metadata.title == "Styled")
@@ -43,14 +43,14 @@ func fixture(_ name: String) throws -> Data {
     }
 
     @Test func dataOnlyReturnsCachedValues() throws {
-        let wb = try XLSXCodec.read(try fixture("rph"), options: ReadOptions(dataOnly: true))
+        let wb = try XLSXCodec.read(try fixture("rph"), options: ReadOptions(dataOnly: true)).workbook
         #expect(wb.activeSheet["D1"] == .text("要件定義"))
-        let full = try XLSXCodec.read(try fixture("rph"))
+        let full = try XLSXCodec.read(try fixture("rph")).workbook
         #expect(full.activeSheet["D1"] == .formula(FormulaExpr.parse("=A1"), cached: .text("要件定義")))
     }
 
     @Test func japaneseExcelShapes() throws {
-        let wb = try XLSXCodec.read(try fixture("rph"))
+        let wb = try XLSXCodec.read(try fixture("rph")).workbook
         let ws = wb.activeSheet
         #expect(ws.name == "工程表")
         #expect(ws["A1"] == .text("要件定義"))                                // furigana skipped
@@ -69,7 +69,7 @@ func fixture(_ name: String) throws -> Data {
     }
 
     @Test func date1904() throws {
-        let wb = try XLSXCodec.read(try fixture("date1904"))
+        let wb = try XLSXCodec.read(try fixture("date1904")).workbook
         #expect(wb.epoch == .mac1904)
         #expect(wb.activeSheet["A1"]?.dateValue?.date.description == "2026-09-01")
         #expect(wb.activeSheet["B1"] == .integer(7))

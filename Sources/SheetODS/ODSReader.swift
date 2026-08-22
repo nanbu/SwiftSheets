@@ -12,10 +12,9 @@ enum ODSReader {
     /// this many the reader stops materialising and says so (`degraded`), the same judgement `paddingRepeat` makes
     /// for empty runs: a repeat that large is a description of a sheet, not its content.
     ///
-    /// A million is where this model stops being able to hold a sheet anyway (a `Cell` carries its whole style, so
-    /// this many already costs well over a gigabyte); a read that goes past it cannot succeed usefully, and stopping
-    /// with a warning beats being killed. It belongs in `ReadOptions` once the caller has a reason to choose.
-    static let maxCells = 1_000_000
+    /// The default lives on `ReadOptions.cellLimit`; a caller with a genuinely huge sheet (or a tight memory
+    /// budget) chooses their own.
+    static var maxCells: Int { ReadOptions().cellLimit }
     static let maxColumns = CellRef.maxCol + 1
     static let maxRows = CellRef.maxRow + 1
 
@@ -29,7 +28,7 @@ enum ODSReader {
         let catalog = ODSStyleCatalog()
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }
 
-        let content = ContentParser(catalog: catalog, dataOnly: options.dataOnly)
+        let content = ContentParser(catalog: catalog, dataOnly: options.dataOnly, cellLimit: options.cellLimit)
         try content.run(try zip.read("content.xml"), part: "content.xml")
         guard !content.sheets.isEmpty else { throw SheetError.invalidWorkbook("the spreadsheet has no tables") }
 
@@ -116,6 +115,8 @@ final class ContentParser: SAXHandler {
     var rootAttributes: [String: String] = [:]
     let catalog: ODSStyleCatalog
     let dataOnly: Bool
+    /// How many cells this document may expand to (`ReadOptions.cellLimit`).
+    let cellLimit: Int
     var sheets: [Sheet] = []
     var definedNames: [String: String] = [:]
     var warnings: [ConversionWarning] = []
@@ -164,7 +165,11 @@ final class ContentParser: SAXHandler {
     private var noteAuthor = ""
     private var inCreator = false
 
-    init(catalog: ODSStyleCatalog, dataOnly: Bool) { self.catalog = catalog; self.dataOnly = dataOnly }
+    init(catalog: ODSStyleCatalog, dataOnly: Bool, cellLimit: Int) {
+        self.catalog = catalog
+        self.dataOnly = dataOnly
+        self.cellLimit = cellLimit
+    }
 
     func start(_ name: String, _ a: [String: String]) {
         depth += 1
@@ -312,7 +317,7 @@ final class ContentParser: SAXHandler {
             if truncated {
                 truncated = false
                 warnings.append(ConversionWarning(.degraded, sheet: sheet?.name,
-                                                  message: "the repeated rows / cells of this sheet describe more than \(ODSReader.maxCells) cells; reading stopped there"))
+                                                  message: "the repeated rows / cells of this sheet describe more than \(cellLimit) cells; reading stopped there"))
             }
             if let s = sheet { sheets.append(s) }
             sheet = nil
@@ -475,7 +480,7 @@ final class ContentParser: SAXHandler {
         else { expand = 0 }
         // a repeated row of repeated cells multiplies: clip it to what the document may still spend
         if !rowCells.isEmpty, expand > 0 {
-            let affordable = (ODSReader.maxCells - cellsMaterialised) / rowCells.count
+            let affordable = (cellLimit - cellsMaterialised) / rowCells.count
             if expand > affordable {
                 expand = Swift.max(0, affordable)
                 truncated = true

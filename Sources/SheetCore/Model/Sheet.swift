@@ -136,6 +136,9 @@ public struct Sheet: Hashable, Sendable {
     public func columns(in range: CellRange? = nil) -> [[CellValue?]] { table.columns(in: range) }
     public func columns(in a1: String) -> [[CellValue?]] { table.columns(in: a1) }
     public func values(in range: CellRange? = nil) -> [[CellValue?]] { table.values(in: range) }
+    /// A lazy view over a rectangle (spec §14.4): `for row in sheet.range("A2:D100")`.
+    public func range(_ range: CellRange) -> RangeView { table.range(range) }
+    public func range(_ a1: String) -> RangeView { table.range(a1) }
     public func values(in a1: String) -> [[CellValue?]] { table.values(in: a1) }
     public func cells(in range: CellRange) -> [[Cell]] { table.cells(in: range) }
     public func column(_ name: String) -> [CellValue?] { table.column(name) }

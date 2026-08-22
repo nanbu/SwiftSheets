@@ -212,6 +212,15 @@ public struct Table: Hashable, Sendable {
     }
     public func columns(in a1: String) -> [[CellValue?]] { CellRange(a1).map { columns(in: $0) } ?? [] }
 
+    /// A lazy view over a rectangle: rows on demand, nothing materialised, the cells shared rather than copied
+    /// (spec §14.4). `rows(in:)` is the eager form of the same thing.
+    public func range(_ range: CellRange) -> RangeView { RangeView(table: self, range: range) }
+    /// The same from an A1 range string ("A1:C3"). An unparsable string is a programming error, as it is for `style`.
+    public func range(_ a1: String) -> RangeView {
+        guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
+        return range(r)
+    }
+
     /// Same as `rows(in:)` — the two-dimensional value array.
     public func values(in range: CellRange? = nil) -> [[CellValue?]] { rows(in: range) }
     public func values(in a1: String) -> [[CellValue?]] { rows(in: a1) }

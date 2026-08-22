@@ -4,8 +4,9 @@ import SheetCore
 /// Collects what the write could not express.
 final class ODSWarningSink {
     var warnings: [ConversionWarning] = []
-    func add(_ kind: ConversionWarning.Kind, sheet: String? = nil, at location: CellRef? = nil, _ message: String) {
-        warnings.append(ConversionWarning(kind, sheet: sheet, location: location, message: message))
+    func add(_ kind: ConversionWarning.Kind, subject: ConversionWarning.Subject = .other, sheet: String? = nil,
+             at location: CellRef? = nil, _ message: String) {
+        warnings.append(ConversionWarning(kind, subject: subject, sheet: sheet, location: location, message: message))
     }
 }
 
@@ -166,7 +167,7 @@ final class ODSStyleRegistry {
 /// preserved opaque parts.
 enum ODSWriter {
     static let mimeType = "application/vnd.oasis.opendocument.spreadsheet"
-    static let generator = "SwiftSheets/0.1.0"
+    static let generator = SwiftSheetsInfo.generator
     static let xmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
     static let namespaces = [
         "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
@@ -205,9 +206,9 @@ enum ODSWriter {
         content += "<office:body><office:spreadsheet>" + body + "</office:spreadsheet></office:body></office:document-content>"
 
         // warnings about what the styles could not say
-        if styles.nonRGBColour { sink.add(.degraded, "theme/indexed colours written as default") }
-        for code in styles.unexpressibleCodes { sink.add(.substituted, "number format \(code) has no ODF data style; General used") }
-        for code in styles.partialCodes { sink.add(.substituted, "number format \(code): only its first section is written") }
+        if styles.nonRGBColour { sink.add(.degraded, subject: .formatting, "theme/indexed colours written as default") }
+        for code in styles.unexpressibleCodes { sink.add(.substituted, subject: .formatting, "number format \(code) has no ODF data style; General used") }
+        for code in styles.partialCodes { sink.add(.substituted, subject: .formatting, "number format \(code): only its first section is written") }
 
         // preserved parts: same-format ones travel along (unlinked); foreign ones cannot
         let preserved = wb.preserved
@@ -216,9 +217,9 @@ enum ODSWriter {
             opaque = preserved.opaqueParts
             // only drawn content is worth a warning: metadata parts (manifest.rdf, Configurations2) are re-packed as they are
             let drawn = opaque.keys.filter { $0.hasPrefix("Pictures/") || $0.hasPrefix("Object ") || $0.hasPrefix("ObjectReplacements/") || $0.hasPrefix("media/") }
-            if !drawn.isEmpty { sink.add(.dropped, "\(drawn.count) embedded object(s)/picture(s) of the source ODS are not re-linked: content.xml is regenerated") }
+            if !drawn.isEmpty { sink.add(.dropped, subject: .objects, "\(drawn.count) embedded object(s)/picture(s) of the source ODS are not re-linked: content.xml is regenerated") }
         } else if !preserved.opaqueParts.isEmpty {
-            sink.add(.dropped, "\(preserved.opaqueParts.count) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
+            sink.add(.dropped, subject: .objects, "\(preserved.opaqueParts.count) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
         }
 
         var archive = ZipWriter()
@@ -462,7 +463,7 @@ enum ODSWriter {
         case nil: break
         case .formula(let f, let cached)?:
             if case .unparsed(_, let dialect) = f, dialect != .ods {
-                sink.add(.degraded, sheet: sheet, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
+                sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
             } else {
                 attrs += " table:formula=\"\(XML.esc(f.rendered(as: .ods)))\""
             }

@@ -36,8 +36,9 @@ enum XMLWriter {
 /// Collects what the write could not express.
 final class WarningSink {
     var warnings: [ConversionWarning] = []
-    func add(_ kind: ConversionWarning.Kind, sheet: String? = nil, at location: CellRef? = nil, _ message: String) {
-        warnings.append(ConversionWarning(kind, sheet: sheet, location: location, message: message))
+    func add(_ kind: ConversionWarning.Kind, subject: ConversionWarning.Subject = .other, sheet: String? = nil,
+             at location: CellRef? = nil, _ message: String) {
+        warnings.append(ConversionWarning(kind, subject: subject, sheet: sheet, location: location, message: message))
     }
 }
 
@@ -69,11 +70,11 @@ enum WorkbookWriter {
             if !vba.isEmpty {
                 for k in vba { opaque[k] = nil }
                 droppedRelTypes = ["/vbaProject", "/vbaProjectSignature"]
-                sink.add(.dropped, "VBA project dropped: macros cannot be kept in .xlsx (write .xlsm to keep them)")
+                sink.add(.dropped, subject: .macros, "VBA project dropped: macros cannot be kept in .xlsx (write .xlsm to keep them)")
             }
         }
         if !sameFamily, !preserved.opaqueParts.isEmpty {
-            sink.add(.dropped, "\(preserved.opaqueParts.count) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
+            sink.add(.dropped, subject: .objects, "\(preserved.opaqueParts.count) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
         }
 
         // sheet part paths and workbook relationship ids: existing ones are immutable, new ones follow the maximum
@@ -137,7 +138,7 @@ enum WorkbookWriter {
         rootRels += "<Relationship Id=\"rId\(rootNext)\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/>"; rootNext += 1
         rootRels += "<Relationship Id=\"rId\(rootNext)\" Type=\"\(XMLWriter.nsRel)/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>"
         archive.add("_rels/.rels", Data(rootRels.utf8))
-        archive.add("docProps/app.xml", Data((XMLWriter.header + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>SwiftSheets</Application><AppVersion>0.2</AppVersion></Properties>").utf8))
+        archive.add("docProps/app.xml", Data((XMLWriter.header + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>\(SwiftSheetsInfo.name)</Application><AppVersion>\(SwiftSheetsInfo.appVersion)</AppVersion></Properties>").utf8))
         archive.add("docProps/core.xml", Data((XMLWriter.header + coreXML(wb.metadata)).utf8))
 
         // xl/workbook.xml
@@ -309,12 +310,12 @@ enum WorkbookWriter {
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
                 let a1 = ref.a1
                 if let h = c.hyperlink { hyperlinks.append((a1, h)) }
-                if c.comment != nil { sink.add(.dropped, sheet: ws.name, at: ref, "cell notes are not written yet (they need a VML part)") }
+                if c.comment != nil { sink.add(.dropped, subject: .objects, sheet: ws.name, at: ref, "cell notes are not written yet (they need a VML part)") }
                 switch c.value {
                 case nil: s += "<c r=\"\(a1)\"\(st)/>"
                 case .formula(let f, let cached)?:
                     if case .unparsed(_, let dialect) = f, dialect != .xlsx {
-                        sink.add(.degraded, sheet: ws.name, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
+                        sink.add(.degraded, subject: .formulas, sheet: ws.name, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
                         if let cached {
                             let (t, body) = valueXML(cached, epoch: epoch, strings: strings, inline: false)
                             s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"

@@ -159,7 +159,7 @@ import Testing
         wb.metadata.modified = modified
         let data = try XLSXCodec.write(wb).data
         // openpyxl stamps "now" on save; SwiftSheets keeps the value as set so output is reproducible
-        let back = try XLSXCodec.read(data)
+        let back = try XLSXCodec.read(data).workbook
         #expect(wb.metadata.modified == modified && back.metadata.modified == modified)
     }
 }

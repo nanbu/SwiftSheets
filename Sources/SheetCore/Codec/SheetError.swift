@@ -2,7 +2,7 @@ import Foundation
 
 /// Failures of reading and writing. "Could not read / write" is an error; "wrote it, but something degraded" is a
 /// `ConversionWarning` on the `WriteResult` instead — nothing is lost silently.
-public enum SheetError: Error, Sendable, CustomStringConvertible, Equatable {
+public enum SheetError: Error, Sendable, CustomStringConvertible, LocalizedError, Equatable {
     case unrecognizedFormat
     /// The ZIP (or other container) layer failed.
     case corruptedContainer(detail: String)
@@ -27,4 +27,8 @@ public enum SheetError: Error, Sendable, CustomStringConvertible, Equatable {
         case .invalidWorkbook(let s): "invalid workbook: \(s)"
         }
     }
+
+    /// What `error.localizedDescription` shows. Without this, Foundation falls back to "The operation couldn’t be
+    /// completed. (SheetCore.SheetError error 0.)", which tells nobody anything.
+    public var errorDescription: String? { description }
 }

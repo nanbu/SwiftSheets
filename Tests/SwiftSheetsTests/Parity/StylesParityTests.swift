@@ -413,7 +413,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
 
     // openpyxl: styles/tests/test_stylesheet.py::test_no_stylesheet
     @Test func noStylesheet() throws {
-        let wb = try XLSXCodec.read(minimalPackage(sheet: "<sheetData><row r=\"1\"><c r=\"A1\" s=\"3\"><v>1</v></c></row></sheetData>", styles: nil))
+        let wb = try XLSXCodec.read(minimalPackage(sheet: "<sheetData><row r=\"1\"><c r=\"A1\" s=\"3\"><v>1</v></c></row></sheetData>", styles: nil)).workbook
         #expect(wb.activeSheet[cell: "A1"].style == .default && wb.activeSheet["A1"] == .integer(1))   // no styles part: every cell is default
     }
 

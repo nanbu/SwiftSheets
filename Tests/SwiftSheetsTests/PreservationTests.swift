@@ -12,7 +12,7 @@ import SwiftSheets
 
     @Test func editOneCellKeepsEverythingElse() throws {
         let original = try Self.fixture("charts-and-friends.xlsx")
-        var wb = try XLSXCodec.read(original)
+        var wb = try XLSXCodec.read(original).workbook
         #expect(wb.sheetNames == ["Data", "Notes"])
         #expect(wb.sheets[0]["A1"] == .text("Item"))
         #expect(wb.sheets[0]["E1"]?.formula?.text == "=SUM(B2:B4)")
@@ -28,7 +28,7 @@ import SwiftSheets
         let result = try XLSXCodec.write(wb)
         #expect(result.warnings.isEmpty)
 
-        let again = try XLSXCodec.read(result.data)
+        let again = try XLSXCodec.read(result.data).workbook
         #expect(again.sheets[0]["B2"] == .integer(30))
         for (ref, cell) in wb.sheets[0].cells where ref.a1 != "B2" {
             #expect(again.sheets[0].cells[ref]?.value == cell.value, "\(ref.a1)")
@@ -62,7 +62,7 @@ import SwiftSheets
     }
 
     @Test func styleTablesKeepTheirIndices() throws {
-        let wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"))
+        let wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx")).workbook
         let out = try XLSXCodec.write(wb).data
         let styles = String(decoding: try ZipArchive(data: out).read("xl/styles.xml"), as: UTF8.self)
         #expect(styles.contains("<dxfs"))
@@ -76,7 +76,7 @@ import SwiftSheets
     }
 
     @Test func addedHyperlinkNumbersAfterPreservedRelationships() throws {
-        var wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"))
+        var wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx")).workbook
         wb.sheets[0][cell: "A6"].hyperlink = Hyperlink(target: "https://example.com")
         let out = try ZipArchive(data: try XLSXCodec.write(wb).data)
         let rels = String(decoding: try out.read("xl/worksheets/_rels/sheet1.xml.rels"), as: UTF8.self)
@@ -119,7 +119,7 @@ import SwiftSheets
     }
 
     @Test func removingASheetDoesNotLeaveDanglingReferences() throws {
-        var wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"))
+        var wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx")).workbook
         wb.removeSheet(named: "Notes")
         let out = try ZipArchive(data: try XLSXCodec.write(wb).data)
         let workbookRels = String(decoding: try out.read("xl/_rels/workbook.xml.rels"), as: UTF8.self)
@@ -133,7 +133,7 @@ import SwiftSheets
     }
 
     @Test func readWithoutPreservationIsLean() throws {
-        let wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"), options: ReadOptions(preserveUnknownParts: false))
+        let wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"), options: ReadOptions(preserveUnknownParts: false)).workbook
         #expect(wb.preserved.opaqueParts.isEmpty)
         #expect(wb.sheets[0]["A1"] == .text("Item"))
     }
@@ -169,7 +169,7 @@ import SwiftSheets
 
     @Test func aPreservedThemeIsNotDuplicated() throws {
         let source = try Data(contentsOf: PreservationTests.fixtures.appendingPathComponent("charts-and-friends.xlsx"))
-        let wb = try XLSXCodec.read(source)
+        let wb = try XLSXCodec.read(source).workbook
         #expect(wb.preserved.opaqueParts["xl/theme/theme1.xml"] != nil)
         let out = try XLSXCodec.write(wb).data
         let (zip, contentTypes, rels) = try Self.parts(out)

@@ -9,21 +9,33 @@ import Foundation
 /// format or by file extension. Reading one format and writing another *is* the conversion — the model mediates.
 extension Workbook {
     /// Opens a file. The format is detected from its content; the extension only breaks ties for plain text.
+    /// Anything the file held that the model cannot say is on `readWarnings` (and on `ReadResult` from `read`).
     public init(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws {
-        var opts = options
-        if opts.filename == nil { opts.filename = url.lastPathComponent }
-        try self.init(data: try Data(contentsOf: url), options: opts)
+        self = try Workbook.read(contentsOf: url, options: options).workbook
     }
 
     /// Parses bytes. `format` overrides detection.
     public init(data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws {
+        self = try Workbook.read(data, format: format, options: options).workbook
+    }
+
+    /// Opens a file and hands back the workbook together with what reading it could not carry over.
+    public static func read(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        var opts = options
+        if opts.filename == nil { opts.filename = url.lastPathComponent }
+        // the file is mapped rather than copied when it is big enough to matter and stable enough to be safe
+        return try read(try Data(contentsOf: url, options: .mappedIfSafe), format: nil, options: opts)
+    }
+
+    /// Parses bytes and hands back the workbook together with what reading them could not carry over.
+    public static func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
         switch f {
-        case .xlsx: self = try XLSXCodec.read(data, options: options)
-        case .xlsm: self = try XLSMCodec.read(data, options: options)
-        case .csv: self = try CSVCodec.read(data, options: options)
-        case .ods: self = try ODSCodec.read(data, options: options)
-        case .numbers: self = try NumbersCodec.read(data, options: options)
+        case .xlsx: return try XLSXCodec.read(data, options: options)
+        case .xlsm: return try XLSMCodec.read(data, options: options)
+        case .csv: return try CSVCodec.read(data, options: options)
+        case .ods: return try ODSCodec.read(data, options: options)
+        case .numbers: return try NumbersCodec.read(data, options: options)
         }
     }
 

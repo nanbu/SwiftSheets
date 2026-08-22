@@ -1822,6 +1822,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.2 Draft</td><td>2026-08-22</td><td>Numbers 書き出しを正式対応へ格上げ（警告機構を全形式共通の契約として再定義）。第9章 CSV コーデックを新設（UTF-8 BOM 自動判別・文字コード指定）</td></tr>
     <tr><td>1.3 Draft</td><td>2026-08-22</td><td>P1・P2（SheetCore・XLSX/XLSM・CSV・数式 AST・F3 保全）の実装に伴う決定と逸脱を付録 B に記録。名称を SwiftSheets に確定</td></tr>
     <tr><td>1.4 Draft</td><td>2026-08-22</td><td>P3（ODS）・P4/P5（Numbers）の実装方針を付録 B.8 に固定: Protobuf は依存ゼロの動的ツリー、Numbers の数式書き出しはキャッシュ値＋警告に退避</td></tr>
+    <tr><td>1.6 Draft</td><td>2026-08-22</td><td>1.0 前の API 確定を付録 B.11 に記録: 読み込みも <code>ReadResult</code>、<code>ReadOptions.cellLimit</code>、警告の主題と代替形式の選び方、判別の一本化、§14.4 の範囲ビュー実装、名前添字のインプレース編集、<code>LocalizedError</code>、版数の一本化。B.1 に Linux / visionOS 未達を追記</td></tr>
     <tr><td>1.5 Draft</td><td>2026-08-22</td><td>§12 柱5（不正入力でクラッシュしない）を満たすための上限と検証を付録 B.9 に固定: 座標・数式の深さ・ZIP の長さ検証、結合と ODS の RLE が展開してよいセル数、保存のアトミック化。大量データのための実装（Cell の書式共有・使用範囲の逐次維持・一時コピーの排除）を B.10 に記録</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
@@ -1842,7 +1843,11 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <ul>
     <li><strong>名称は SwiftSheets</strong>（オーナー決定 2026-08-22。本文の SwiftSheets は仮称）。リポジトリは <code>~/Developer/Lab/SwiftSheets</code>（Stream の <code>app/SwiftSheets</code> から履歴ごと切り出し）。</li>
     <li>ターゲットは <code>SheetCore</code> / <code>SheetXLSX</code> / <code>SheetCSV</code> / 全部入り <code>SwiftSheets</code>。未実装の <code>SheetODS</code> / <code>SheetNumbers</code> は空ターゲットを作らない（P3・P4 で追加）。CSV は §9 の方針どおり独立ターゲット。</li>
-    <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ Compression による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。</li>
+    <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ Compression による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。
+      <strong>代償として §1.1 の「Linux 上で動作する」は未達</strong>: Compression は Apple のフレームワークで、Linux にも
+      visionOS の宣言にも無い（<code>Package.swift</code> の platforms は macOS 14 / iOS 17）。§12.2 が外部審判に据えた
+      Linux CI も同じ理由で成立しない。README の Limits に明記した。復帰するなら ZIP の deflate を自前実装するか、
+      <code>#if canImport(Compression)</code> で zlib を呼ぶ経路を足す。</li>
     <li>ZIP / XML の基盤は SheetCore に置き、<code>package</code> アクセスでコーデックへ公開する（L1 を別ターゲットにしない — 利用者に見せる必要がない）。</li>
   </ul>
 
@@ -1976,6 +1981,41 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <code>withUnsafeBytes</code> でその場で読む。XLSX / ODS のライタは行ごとにセルを詰め直していたので、キーだけをまとめる。</li>
     <li><strong>残る上限</strong>: ストリーミング読み書きは引き続きロードマップ（§14.11）。1 セルあたりの実測はおよそ
       100〜200 B（辞書のオーバーヘッド込み）で、100 万セルで 100〜200 MB。</li>
+  </ul>
+
+  <h3>B.11 API の確定（Rev 1.6・1.0 前の破壊的変更）</h3>
+  <p>
+    1.0 で固定すると直せなくなるものを、この時点でまとめて直した。いずれも本文の意図に近づける変更であり、
+    本文（§4.1・§14）の記述はここが優先する。
+  </p>
+  <ul>
+    <li><strong>読み込みも結果型を返す</strong>: <code>SpreadsheetCodec.read</code> は <code>Workbook</code> ではなく
+      <code>ReadResult</code>（workbook ＋ warnings）を返す。従来は ODS / CSV / Numbers だけが <code>readWithWarnings</code> という
+      抜け道を持ち、ファサード（<code>Workbook(contentsOf:)</code>）からは読み込み警告が一切見えなかった — §6 の
+      「損失を黙って落とさない」は読みにも掛かる契約なので、抜け道を廃してひとつの形に揃えた。
+      <code>Workbook.read(contentsOf:)</code> / <code>read(_:format:options:)</code> が結果型を返し、
+      利便のための <code>Workbook(contentsOf:)</code> は残す — 警告は <code>Workbook.readWarnings</code> に載って一緒に運ばれるので、
+      どちらの入口でも黙って消えることはない。</li>
+    <li><strong>展開量の上限は <code>ReadOptions.cellLimit</code></strong>（既定 1,000,000）。B.9 で内部定数として入れたものを
+      設定値へ移した（「本来は <code>ReadOptions</code> の設定値」と書いた持ち越しの解消）。</li>
+    <li><strong>警告は主題を持つ</strong>: <code>ConversionWarning.subject</code>（<code>.macros</code> / <code>.objects</code> /
+      <code>.formatting</code> / <code>.formulas</code> / <code>.sheets</code> / <code>.other</code>）。
+      <code>WriteResult.suggest</code> は書き出し先ではなく<strong>失われた物</strong>から代替形式を選ぶ
+      （マクロが落ちたなら XLSM、それ以外は XLSX、既にその形式なら提案しない）。従来は xlsx へ書くたびに
+      「XLSM なら残せます」と言いかねなかった。</li>
+    <li><strong>形式判別はひとつの実装</strong>: <code>SheetFormat.detect(in: ZipInspection)</code> を追加し、各コーデックの
+      <code>canDecode</code> はそれと自分の形式を比べるだけにした。§4.2 の判別順序が二重に書かれている状態を解消。</li>
+    <li><strong>§14.4 の範囲ビューを実装</strong>: <code>sheet.range("A1:C3")</code> が <code>RangeView</code> を返す。
+      行は要求されたときに 1 行ずつ作られ、セルはテーブルと共有する（値の二次元配列を作るのは <code>.values</code> を呼んだときだけ）。
+      スナップショットであり、後からシートを編集してもビューの見え方は変わらない。</li>
+    <li><strong>名前で取ったシートはその場で編集できる</strong>: <code>wb.sheets["集計"]?["A1"] = 1</code> が
+      <code>_modify</code> 経路（コレクションから一時的に取り出して戻す）になり、セル辞書の複製が起きない。
+      <code>activeSheet</code> も同じ。§15.1 の「コピーして書き戻す」書き方はそのまま使える。</li>
+    <li><strong><code>SheetError</code> は <code>LocalizedError</code></strong>。<code>localizedDescription</code> が
+      「The operation couldn’t be completed.」ではなく理由を返す。</li>
+    <li><strong>版数はひとつ</strong>: <code>SwiftSheetsInfo</code>（name / version / generator / appVersion）。
+      <code>docProps/app.xml</code>・ODS の <code>meta:generator</code>・README の Status 行が同じ値を指し、
+      README との一致はテストが検査する（<code>APIContractTests</code>）。</li>
   </ul>
 
   <p>

@@ -39,7 +39,7 @@ import Testing
         wb.definedNames["Plan"] = "Plan!$A$1:$H$6"
 
         let data = try XLSXCodec.write(wb).data
-        let back = try XLSXCodec.read(data)
+        let back = try XLSXCodec.read(data).workbook
         let r = back.sheets["Plan"]!
         #expect(back.sheetNames == ["Plan", "Hidden"] && back.sheets["Hidden"]?.state == .hidden)
         #expect(back.metadata.creator == "test" && back.metadata.title == "Round trip")
@@ -66,10 +66,10 @@ import Testing
     }
 
     @Test func readModifySave() throws {
-        var wb = try XLSXCodec.read(try fixture("styled"))
+        var wb = try XLSXCodec.read(try fixture("styled")).workbook
         wb.sheets["Data"]!["B1"] = .integer(43)
         wb.sheets["Data"]!.append([.text("new"), .integer(1), nil, .bool(false)])
-        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         let ws = back.sheets["Data"]!
         #expect(ws["B1"] == .integer(43))
         #expect(ws[6, 0] == .text("new") && ws[6, 3] == .bool(false))
@@ -78,7 +78,7 @@ import Testing
 
     @Test func emptyWorkbookIsValid() throws {
         let wb = Workbook()
-        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         #expect(back.sheetNames == ["Sheet1"] && back.activeSheet.cells.isEmpty)
     }
 

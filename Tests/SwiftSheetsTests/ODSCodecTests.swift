@@ -119,7 +119,8 @@ import SwiftSheets
         let original = sampleWorkbook()
         let result = try ODSCodec.write(original)
         #expect(result.warnings.isEmpty, Comment(rawValue: "\(result.warnings)"))
-        let (back, readWarnings) = try ODSCodec.readWithWarnings(result.data)
+        let reread = try ODSCodec.read(result.data)
+        let (back, readWarnings) = (reread.workbook, reread.warnings)
         #expect(readWarnings.isEmpty, Comment(rawValue: "\(readWarnings)"))
         #expect(back.sheetNames == ["Data", "Hidden"])
         let ws = back.sheets[0], src = original.sheets[0]
@@ -159,7 +160,7 @@ import SwiftSheets
         #expect(back.metadata.description == "round trip")
         #expect(back.metadata.keywords == "ods, test")
         #expect(back.metadata.created == Date(timeIntervalSince1970: 1_767_225_600))
-        #expect(back.sourceInfo == SourceInfo(format: .ods, application: "SwiftSheets/0.1.0"))
+        #expect(back.sourceInfo == SourceInfo(format: .ods, application: SwiftSheetsInfo.generator))
         #expect(back.preserved.sourceFormat == .ods)
         #expect(back.preserved.opaqueParts.isEmpty)
         #expect(back.activeIndex == 0)
@@ -167,7 +168,7 @@ import SwiftSheets
 
     @Test func dataOnlyReadingYieldsCachedValues() throws {
         let data = try ODSCodec.write(sampleWorkbook()).data
-        let wb = try ODSCodec.read(data, options: ReadOptions(dataOnly: true))
+        let wb = try ODSCodec.read(data, options: ReadOptions(dataOnly: true)).workbook
         #expect(wb.sheets[0]["J1"] == .number(Decimal(string: "45.14159")!))
         #expect(wb.dataOnly)
     }
@@ -182,7 +183,7 @@ import SwiftSheets
         let xml = try contentXML(data)
         #expect(xml.components(separatedBy: "<table:table-row").count - 1 < 50)
         #expect(xml.contains("table:number-rows-repeated=\"998\""))
-        let back = try ODSCodec.read(data).sheets[0]
+        let back = try ODSCodec.read(data).workbook.sheets[0]
         #expect(back.rowCount == 1000)
         #expect(back.columnCount == 10)
         #expect(back["J1000"] == .integer(7))
@@ -198,11 +199,11 @@ import SwiftSheets
         sheet.merge("E1:E3")     // vertical, anchor empty
         sheet["A2"] = "body"
         wb.sheets[0] = sheet
-        let back = try ODSCodec.read(try ODSCodec.write(wb).data)
+        let back = try ODSCodec.read(try ODSCodec.write(wb).data).workbook
         #expect(back.sheets[0].merges.map(\.a1).sorted() == ["A1:C1", "E1:E3"])
         #expect(back.sheets[0]["A2"] == .text("body"))
         // and again, so that reading does not lose the anchor the next write needs
-        let twice = try ODSCodec.read(try ODSCodec.write(back).data)
+        let twice = try ODSCodec.read(try ODSCodec.write(back).data).workbook
         #expect(twice.sheets[0].merges.map(\.a1).sorted() == ["A1:C1", "E1:E3"])
     }
 
@@ -218,7 +219,7 @@ import SwiftSheets
         let data = try ODSCodec.write(wb).data
         #expect(Date().timeIntervalSince(start) < 5.0)
         #expect(data.count < 100_000)
-        let back = try ODSCodec.read(data)
+        let back = try ODSCodec.read(data).workbook
         #expect(back.sheets[0].merges.map(\.a1) == ["A1:XFD1048576"])
         #expect(back.sheets[0]["A1"] == .text("everything"))
     }
@@ -239,7 +240,8 @@ import SwiftSheets
         zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
         zip.add("content.xml", Data(content.utf8))
         let start = Date()
-        let (wb, warnings) = try ODSCodec.readWithWarnings(zip.finish())
+        let result = try ODSCodec.read(zip.finish())
+        let (wb, warnings) = (result.workbook, result.warnings)
         #expect(Date().timeIntervalSince(start) < 30.0)
         #expect(wb.sheets[0].cells.count <= ODSReader.maxCells)
         #expect(warnings.contains { $0.kind == .degraded && $0.message.contains("stopped there") })
@@ -262,7 +264,7 @@ import SwiftSheets
         zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
         zip.add("content.xml", Data(content.utf8))
         let start = Date()
-        let wb = try ODSCodec.read(zip.finish())
+        let wb = try ODSCodec.read(zip.finish()).workbook
         #expect(Date().timeIntervalSince(start) < 1.0)
         let ws = wb.sheets[0]
         #expect(ws.rowCount == 4)
@@ -285,7 +287,7 @@ import SwiftSheets
         #expect(xml.contains("table:formula=\"of:=SUM([.A1:.B2];[.C3])\""))
         #expect(result.warnings.count == 1)
         #expect(result.warnings[0].kind == .degraded && result.warnings[0].location == CellRef("E1"))
-        let back = try ODSCodec.read(result.data).sheets[0]
+        let back = try ODSCodec.read(result.data).workbook.sheets[0]
         #expect(back["D1"]?.formula == FormulaExpr.parse("=SUM(A1:B2,C3)"))
         #expect(back["D1"]?.cachedValue == .integer(6))
         #expect(back["E1"] == .text("fallback"))
@@ -294,7 +296,7 @@ import SwiftSheets
     // MARK: - 6. Cross-format warnings
 
     @Test func foreignOpaquePartsAreReportedWhenWritingODS() throws {
-        let wb = try XLSXCodec.read(fixture("preservation/charts-and-friends.xlsx"))
+        let wb = try XLSXCodec.read(fixture("preservation/charts-and-friends.xlsx")).workbook
         let count = wb.preserved.opaqueParts.count
         #expect(count > 0)
         let result = try ODSCodec.write(wb)
@@ -302,7 +304,7 @@ import SwiftSheets
         #expect(dropped.count == 1)
         #expect(dropped.first?.message.contains("\(count) part(s)") == true)
         #expect(result.suggestion?.format == .xlsx)
-        let back = try ODSCodec.read(result.data)
+        let back = try ODSCodec.read(result.data).workbook
         for (ref, cell) in wb.sheets[0].cells where cell.value != nil {
             #expect(back.sheets[0][ref]?.cachedValue == cell.value?.cachedValue, Comment(rawValue: "\(ref)"))
         }
@@ -332,7 +334,7 @@ import SwiftSheets
         var zip = ZipWriter()
         zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
         zip.add("content.xml", Data(content.utf8))
-        let ws = try ODSCodec.read(zip.finish()).sheets[0]
+        let ws = try ODSCodec.read(zip.finish()).workbook.sheets[0]
         #expect(ws["A1"] == .date(CivilDateTime(date: CivilDate(year: 2026, month: 9, day: 1)!, time: TimeOfDay(hour: 13, minute: 30))))
         #expect(ws["B1"] == .date(CivilDateTime(date: CivilDate(year: 2026, month: 9, day: 1)!)))
         #expect(ws["C1"] == .duration(.seconds(26 * 3600)))
@@ -358,7 +360,7 @@ import SwiftSheets
         #expect(substituted.count == 2)
         #expect(substituted.contains { $0.message.contains("#,##0_);(#,##0)") && $0.message.contains("first section") })
         #expect(substituted.contains { $0.message.contains("# ?/?") && $0.message.contains("General") })
-        let back = try ODSCodec.read(result.data).sheets[0]
+        let back = try ODSCodec.read(result.data).workbook.sheets[0]
         #expect(back.style("A1").numberFormat == "#,##0 ")   // the `_)` padding of the first section is a space in ODF
         #expect(back.style("A3").numberFormat == "General")
         #expect(back["A1"] == .integer(1))
@@ -367,16 +369,16 @@ import SwiftSheets
     @Test func missingContentIsAMalformedPart() throws {
         var zip = ZipWriter()
         zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
-        #expect(throws: SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package")) { try ODSCodec.read(zip.finish()) }
+        #expect(throws: SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package")) { try ODSCodec.read(zip.finish()).workbook }
         zip.add("content.xml", Data("<office:document-content><unclosed>".utf8))
-        #expect(throws: SheetError.self) { try ODSCodec.read(zip.finish()) }
+        #expect(throws: SheetError.self) { try ODSCodec.read(zip.finish()).workbook }
     }
 
     // MARK: - LibreOffice-generated corpus (read without LibreOffice present)
 
     @Test func readsLibreOfficeGeneratedFixtures() throws {
-        let ods = try ODSCodec.read(fixture("ods/styled.ods"))
-        let xlsx = try XLSXCodec.read(fixture("styled.xlsx"))
+        let ods = try ODSCodec.read(fixture("ods/styled.ods")).workbook
+        let xlsx = try XLSXCodec.read(fixture("styled.xlsx")).workbook
         #expect(ods.sheetNames == xlsx.sheetNames)
         #expect(ods.sheets[1].state == .hidden)
         #expect(ods.sourceInfo?.application?.hasPrefix("LibreOffice") == true)
@@ -402,8 +404,8 @@ import SwiftSheets
         #expect(a.style("E1").numberFormat == "yyyy/m/d")
         #expect(a.style("H1").numberFormat == "0%")
 
-        let charts = try ODSCodec.read(fixture("ods/charts-and-friends.ods"))
-        let source = try XLSXCodec.read(fixture("preservation/charts-and-friends.xlsx"))
+        let charts = try ODSCodec.read(fixture("ods/charts-and-friends.ods")).workbook
+        let source = try XLSXCodec.read(fixture("preservation/charts-and-friends.xlsx")).workbook
         for (ref, cell) in source.sheets[0].cells where cell.value?.cachedValue != nil {   // LibreOffice computes the formula the source left uncached
             #expect(charts.sheets[0][ref]?.cachedValue == cell.value?.cachedValue, Comment(rawValue: "\(ref)"))
         }
@@ -432,7 +434,7 @@ import SwiftSheets
         try ODSCodec.write(wb).data.write(to: file)
         let (xlsx, log) = try convert(file, to: "xlsx")
         #expect(log.contains("-> "), Comment(rawValue: log))
-        let back = try XLSXCodec.read(try Data(contentsOf: xlsx))
+        let back = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
         #expect(back.sheets[0].merges.map(\.a1) == ["A1:C1"])
         #expect(back.sheets[0]["A2"] == .text("body"))
     }
@@ -444,7 +446,7 @@ import SwiftSheets
         try ODSCodec.write(wb).data.write(to: file)
         let (xlsx, log) = try convert(file, to: "xlsx")
         #expect(log.contains("-> "), Comment(rawValue: log))
-        let back = try XLSXCodec.read(try Data(contentsOf: xlsx))
+        let back = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
         #expect(back.sheetNames == ["Data", "Hidden"])
         let ws = back.sheets[0], src = wb.sheets[0]
         #expect(ws["A1"] == src["A1"])
@@ -481,10 +483,10 @@ import SwiftSheets
     @Test(.enabled(if: ODSCodecTests.hasLibreOffice, "LibreOffice is not installed at \(ODSCodecTests.soffice)"))
     func libreOfficeConvertsXLSXFixturesThatWeRead() throws {
         for (name, path) in [("styled", "styled.xlsx"), ("charts-and-friends", "preservation/charts-and-friends.xlsx")] {
-            let source = try XLSXCodec.read(fixture(path))
+            let source = try XLSXCodec.read(fixture(path)).workbook
             let (ods, log) = try convert(Self.fixtures.appendingPathComponent(path), to: "ods")
             #expect(log.contains("-> "), Comment(rawValue: log))
-            let back = try ODSCodec.read(try Data(contentsOf: ods))
+            let back = try ODSCodec.read(try Data(contentsOf: ods)).workbook
             #expect(back.sheetNames == source.sheetNames, Comment(rawValue: name))
             for (i, sheet) in source.sheets.enumerated() {
                 let got = back.sheets[i]
@@ -510,12 +512,12 @@ import SwiftSheets
     @Test(.enabled(if: ODSCodecTests.hasLibreOffice, "LibreOffice is not installed at \(ODSCodecTests.soffice)"))
     func libreOfficeReadsOurRewriteOfItsOwnFile() throws {
         // ODS → model → ODS (with the opaque chart parts re-registered) → LibreOffice must still open it
-        let wb = try ODSCodec.read(fixture("ods/charts-and-friends.ods"))
+        let wb = try ODSCodec.read(fixture("ods/charts-and-friends.ods")).workbook
         let file = Self.tmp.appendingPathComponent("rewritten.ods")
         try ODSCodec.write(wb).data.write(to: file)
         let (xlsx, log) = try convert(file, to: "xlsx")
         #expect(log.contains("-> "), Comment(rawValue: log))
-        let back = try XLSXCodec.read(try Data(contentsOf: xlsx))
+        let back = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
         #expect(back.sheets[0]["A1"] == wb.sheets[0]["A1"])
         #expect(back.sheets[0].cell("A1")?.comment?.text == "first column" || back.preserved.opaqueParts.keys.contains { $0.hasPrefix("xl/comments") })
     }
@@ -534,7 +536,7 @@ import SwiftSheets
         #expect(xml.contains("<table:database-ranges>"))
         #expect(xml.contains(#"table:display-filter-buttons="true""#))
         #expect(xml.contains(#"table:target-range-address="Data.A1:Data.B2""#))
-        let back = try ODSCodec.read(ods)
+        let back = try ODSCodec.read(ods).workbook
         #expect(back.sheets[0].autoFilter == CellRange("A1:B2"))
         #expect(back.sheets[1].autoFilter == nil)
 
@@ -544,11 +546,11 @@ import SwiftSheets
             try ods.write(to: url)
             let (xlsx, log) = try convert(url, to: "xlsx")
             #expect(log.contains("convert"))
-            let viaLO = try XLSXCodec.read(try Data(contentsOf: xlsx))
+            let viaLO = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
             #expect(viaLO.sheets[0].autoFilter == CellRange("A1:B2"), "LibreOffice kept the filter")
             // and a LibreOffice-produced ODS reads back the same way
             let (roundTrip, _) = try convert(xlsx, to: "ods")
-            #expect(try ODSCodec.read(try Data(contentsOf: roundTrip)).sheets[0].autoFilter == CellRange("A1:B2"))
+            #expect(try ODSCodec.read(try Data(contentsOf: roundTrip)).workbook.sheets[0].autoFilter == CellRange("A1:B2"))
         } when: {
             !Self.hasLibreOffice
         }

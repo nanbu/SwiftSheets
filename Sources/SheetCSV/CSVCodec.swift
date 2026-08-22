@@ -13,12 +13,13 @@ public enum CSVCodec: SpreadsheetCodec {
     /// CSV is not a ZIP container; detection happens in `SheetFormat.detect` via `TextEncodingSniffer`.
     public static func canDecode(_ container: ZipInspection) -> Bool { false }
 
-    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> Workbook {
-        try readWithWarnings(data, options: options).workbook
+    /// Reading reports what the decoding had to repair (only with `CSVReadOptions.lossy`: undecodable bytes → U+FFFD).
+    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        let (wb, warnings) = try readParsing(data, options: options)
+        return ReadResult(workbook: wb, warnings: warnings)
     }
 
-    /// `read` plus what the decoding had to repair (only with `CSVReadOptions.lossy`: undecodable bytes → U+FFFD).
-    public static func readWithWarnings(_ data: Data, options: ReadOptions = ReadOptions()) throws -> (workbook: Workbook, warnings: [ConversionWarning]) {
+    static func readParsing(_ data: Data, options: ReadOptions = ReadOptions()) throws -> (workbook: Workbook, warnings: [ConversionWarning]) {
         let csv = options.csv
         let (text, warnings) = try decode(data, options: csv)
         var body = Substring(text)
@@ -62,7 +63,7 @@ public enum CSVCodec: SpreadsheetCodec {
 
         var warnings: [ConversionWarning] = []
         if workbook.sheets.count > 1 {
-            warnings.append(ConversionWarning(.dropped, message: "\(workbook.sheets.count - 1) other sheet(s) not written: CSV holds a single sheet"))
+            warnings.append(ConversionWarning(.dropped, subject: .sheets, message: "\(workbook.sheets.count - 1) other sheet(s) not written: CSV holds a single sheet"))
         }
         let table = sheet.table
         // a date value's automatic number format is not formatting the user applied — it does not count
@@ -73,7 +74,7 @@ public enum CSVCodec: SpreadsheetCodec {
             return !(c.value?.dataType == "d" && NumberFormat.isDateFormat(c.style.numberFormat))
         }
         if table.cells.values.contains(where: { hasFormatting($0) || $0.value?.formula != nil }) {
-            warnings.append(ConversionWarning(.degraded, message: "formatting and formula structure are not kept in CSV"))
+            warnings.append(ConversionWarning(.degraded, subject: .formatting, message: "formatting and formula structure are not kept in CSV"))
         }
 
         let renderer = FieldRenderer(options: csv)

@@ -335,18 +335,18 @@ private enum ReaderParity {
 @Suite struct ExcelReaderParityTests {
     // openpyxl: reader/tests/test_excel.py::test_read_empty_file
     @Test func readEmptyFile() throws {
-        #expect(throws: SheetError.self) { try XLSXCodec.read(try ReaderParity.fixture("reader/null_file.xlsx")) }
+        #expect(throws: SheetError.self) { try XLSXCodec.read(try ReaderParity.fixture("reader/null_file.xlsx")).workbook }
     }
 
     // openpyxl: reader/tests/test_excel.py::test_load_workbook_from_fileobj
     @Test func loadWorkbookFromFileobj() throws {
-        _ = try XLSXCodec.read(try ReaderParity.fixture("reader/empty_with_no_properties.xlsx"))   // no docProps: loads without exceptions
+        _ = try XLSXCodec.read(try ReaderParity.fixture("reader/empty_with_no_properties.xlsx")).workbook   // no docProps: loads without exceptions
     }
 
     // openpyxl: reader/tests/test_excel.py::test_style_assignment
     @Test func styleAssignment() throws {
         let data = try ReaderParity.fixture("reader/complex-styles.xlsx")
-        let wb = try XLSXCodec.read(data)
+        let wb = try XLSXCodec.read(data).workbook
         let sheet = try ReaderParity.styles(String(decoding: try ZipArchive(data: data).read("xl/styles.xml"), as: UTF8.self))
         #expect(Set(sheet.cellXfs.map(\.alignment)).count == 9 && sheet.fills.count == 6 && sheet.fonts.count == 8)
         // 7 + 4 borders: the top-left cell of each merged range gets a new border and the old ones are kept
@@ -358,7 +358,7 @@ private enum ReaderParity {
 
     // openpyxl: reader/tests/test_excel.py::test_read_stringio
     @Test func readStringio() {
-        #expect(throws: SheetError.self) { try XLSXCodec.read(Data("certainly not a valid XSLX content".utf8)) }
+        #expect(throws: SheetError.self) { try XLSXCodec.read(Data("certainly not a valid XSLX content".utf8)).workbook }
     }
 
     // openpyxl: reader/tests/test_excel.py::test_ctor
@@ -377,12 +377,12 @@ private enum ReaderParity {
 
     // openpyxl: reader/tests/test_excel.py::test_read_workbook
     @Test func readWorkbook() throws {
-        #expect(try XLSXCodec.read(try ReaderParity.fixture("reader/complex-styles.xlsx")).sheetNames == ["Sheet1"])
+        #expect(try XLSXCodec.read(try ReaderParity.fixture("reader/complex-styles.xlsx")).workbook.sheetNames == ["Sheet1"])
     }
 
     // openpyxl: reader/tests/test_excel.py::test_read_workbook_hidden
     @Test func readWorkbookHidden() throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("reader/hidden_sheets.xlsx"))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("reader/hidden_sheets.xlsx")).workbook
         #expect(wb.sheetNames == ["Sheet", "Hidden", "VeryHidden"] && wb.sheets[1].state == .hidden && wb.sheets[2].state == .veryHidden)
     }
 }
@@ -440,7 +440,7 @@ private enum ReaderParity {
 
     // openpyxl: reader/tests/test_workbook.py::test_print_area_title
     @Test func printAreaTitle() throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("reader/print_settings.xlsx"))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("reader/print_settings.xlsx")).workbook
         #expect(wb.definedNames.count == 2)
         let ws = wb.sheets["Sheet"]!
         #expect(ws.printTitleRows == 0...0 && ws.printTitles == "'Sheet'!$1:$1")
@@ -486,27 +486,27 @@ private enum ReaderParity {
     // openpyxl: tests/test_read.py::test_read_general_style
     @Test(arguments: generalStyleCases)
     func readGeneralStyle(_ cell: String, _ numberFormat: String) throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/empty-with-styles.xlsx"))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/empty-with-styles.xlsx")).workbook
         #expect(wb.sheets["Sheet1"]![cell: cell].numberFormat == numberFormat)
     }
 
     // openpyxl: tests/test_read.py::test_read_no_theme
     @Test func readNoTheme() throws {
-        #expect(try XLSXCodec.read(try ReaderParity.fixture("genuine/libreoffice_nrt.xlsx")).sheets.count >= 1)
+        #expect(try XLSXCodec.read(try ReaderParity.fixture("genuine/libreoffice_nrt.xlsx")).workbook.sheets.count >= 1)
     }
 
     // openpyxl: tests/test_iter.py::test_nonstandard_name
     @Test func nonstandardName() throws {
-        #expect(try XLSXCodec.read(try ReaderParity.fixture("reader/nonstandard_workbook_name.xlsx")).sheetNames == ["Sheet1"])
+        #expect(try XLSXCodec.read(try ReaderParity.fixture("reader/nonstandard_workbook_name.xlsx")).workbook.sheetNames == ["Sheet1"])
     }
 
     // openpyxl: tests/test_iter.py::test_calculate_dimension
     @Test func calculateDimension() throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx")).workbook
         #expect(wb.sheets["Sheet2 - Numbers"]!.dimensions == "D1:AA30")
     }
 
-    func sample() throws -> Workbook { try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(dataOnly: true)) }
+    func sample() throws -> Workbook { try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(dataOnly: true)).workbook }
 
     // openpyxl: tests/test_iter.py::test_get_missing_cell
     @Test func getMissingCell() throws {
@@ -591,7 +591,7 @@ private enum ReaderParity {
     // openpyxl: tests/test_iter.py::test_read_single_cell_formula
     @Test(arguments: formulaCases)
     func readSingleCellFormula(_ dataOnly: Bool, _ expected: CellValue) throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(dataOnly: dataOnly))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(dataOnly: dataOnly)).workbook
         #expect(wb.dataOnly == dataOnly && wb.sheets["Sheet3 - Formulas"]!["D2"] == expected)
     }
 
@@ -600,7 +600,7 @@ private enum ReaderParity {
         var wb = Workbook()
         let ft = Font(name: "Times New Roman", size: 15)
         wb.sheets[0][cell: "A1"].font = ft
-        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         #expect(back.sheets[0][cell: "A1"].font == ft)
     }
 
@@ -619,13 +619,13 @@ private enum ReaderParity {
 
     // openpyxl: tests/test_iter.py::test_read_empty_sheet
     @Test func readEmptySheet() throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/empty.xlsx"))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/empty.xlsx")).workbook
         #expect(wb.activeSheet.rows().isEmpty)
     }
 
     // openpyxl: tests/test_iter.py::test_read_mac_date
     @Test func readMacDate() throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/mac_date.xlsx"))
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/mac_date.xlsx")).workbook
         #expect(wb.activeSheet["A1"] == CellValue(CivilDate(year: 2016, month: 10, day: 3)!))
     }
 

@@ -41,7 +41,8 @@ import SwiftSheets
         #expect(SheetFormat.detect(from: result.data) == .numbers)
         let url = Self.outDir.appendingPathComponent("sample.numbers")
         try result.data.write(to: url)
-        let (back, warnings) = try NumbersCodec.readWithWarnings(result.data)
+        let reread = try NumbersCodec.read(result.data)
+        let (back, warnings) = (reread.workbook, reread.warnings)
         #expect(warnings.isEmpty, "\(warnings)")
         #expect(back.sheetNames == ["売上", "Notes"])
         let s = back.sheets[0]
@@ -107,7 +108,7 @@ import SwiftSheets
         let doc = try NumbersDocument(data: out)
         let model = doc.identifiers(ofType: "TST.TableModelArchive").compactMap { doc.object($0) }.first { $0.string("table_name") == "Table 1" }
         #expect(model?.message("base_data_store")?.message("tiles")?.messages("tiles").count == 3)
-        let back = try NumbersCodec.read(out)
+        let back = try NumbersCodec.read(out).workbook
         #expect(back.sheets[0][599, 1] == .text("row 599") && back.sheets[0][300, 0] == .integer(300) && back.sheets[0].rowCount == 600)
     }
 
@@ -124,7 +125,7 @@ import SwiftSheets
         let wb = try Workbook(contentsOf: xlsx)
         let result = try wb.write(as: .numbers)
         #expect(result.warnings.contains { $0.kind == .dropped })
-        let back = try NumbersCodec.read(result.data)
+        let back = try NumbersCodec.read(result.data).workbook
         #expect(back.sheetNames == ["Data", "Notes"])
         #expect(back.sheets[0]["A1"] == .text("Item") && back.sheets[0]["B3"] == .integer(5))
         try result.data.write(to: Self.outDir.appendingPathComponent("from-xlsx.numbers"))

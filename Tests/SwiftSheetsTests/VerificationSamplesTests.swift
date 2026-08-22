@@ -15,7 +15,8 @@ import SwiftSheets
     @Test func convertsTheLibreOfficeSourceToEveryFormat() throws {
         guard let dir = Self.dir else { return }
         let source = dir.appendingPathComponent(Self.sourceName)
-        let (read, readWarnings) = try ODSCodec.readWithWarnings(try Data(contentsOf: source))
+        let result = try ODSCodec.read(try Data(contentsOf: source))
+        let (read, readWarnings) = (result.workbook, result.warnings)
         var wb = read
         var report = "# SwiftSheets 変換レポート\n\n入力: \(Self.sourceName)（LibreOffice が書いた ODF）\n\n"
         report += "## 読み込み\n\n- シート: \(wb.sheetNames.joined(separator: " / "))\n"

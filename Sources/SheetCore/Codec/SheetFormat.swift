@@ -28,17 +28,23 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
     public static func detect(from data: Data) -> SheetFormat? {
         if ZipInspection.looksLikeZip(data) {
             guard let zip = try? ZipInspection(data: data) else { return nil }
-            if let mime = zip.entry(named: "mimetype"), String(decoding: mime, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) == "application/vnd.oasis.opendocument.spreadsheet" {
-                return .ods
-            }
-            if let ct = zip.entry(named: "[Content_Types].xml") {
-                let text = String(decoding: ct, as: UTF8.self)
-                return text.contains("ms-excel.sheet.macroEnabled.main+xml") ? .xlsm : .xlsx
-            }
-            if zip.contains("Index/Document.iwa") || zip.contains("Index.zip") { return .numbers }
-            return nil
+            return detect(in: zip)
         }
         return TextEncodingSniffer.looksLikeText(data) ? .csv : nil
+    }
+
+    /// Steps 1–3 of the same rules, for a container that is already open. Every codec's `canDecode` answers from
+    /// here: the order in which a package is recognised is one decision, and it lives in one place.
+    public static func detect(in zip: ZipInspection) -> SheetFormat? {
+        if let mime = zip.entry(named: "mimetype"), String(decoding: mime, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) == "application/vnd.oasis.opendocument.spreadsheet" {
+            return .ods
+        }
+        if let ct = zip.entry(named: "[Content_Types].xml") {
+            let text = String(decoding: ct, as: UTF8.self)
+            return text.contains("ms-excel.sheet.macroEnabled.main+xml") ? .xlsm : .xlsx
+        }
+        if zip.contains("Index/Document.iwa") || zip.contains("Index.zip") { return .numbers }
+        return nil
     }
 
     /// Detection with a filename hint: the content decides, the extension only breaks ties (plain text → `.csv`).

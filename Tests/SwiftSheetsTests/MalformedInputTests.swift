@@ -69,7 +69,7 @@ import SwiftSheets
 
     @Test func anImpossibleCellReferenceInAFileDoesNotTakeTheProcessDown() throws {
         let data = Self.xlsx(worksheetBody: "<sheetData><row r=\"1\"><c r=\"A99999999999999999999\"><v>1</v></c></row></sheetData>")
-        let wb = try XLSXCodec.read(data)
+        let wb = try XLSXCodec.read(data).workbook
         // the reference is unusable, so the cell lands where the reader's cursor is — the file still opens
         #expect(wb.sheets[0].cells.count == 1)
     }
@@ -77,7 +77,7 @@ import SwiftSheets
     /// `r` is written with an exponent by some producers, so it goes through `Double` — and `Int(1e300)` traps.
     @Test func anImpossibleRowNumberIsReportedAsMalformed() {
         let data = Self.xlsx(worksheetBody: "<sheetData><row r=\"1e300\"><c r=\"A1\"><v>1</v></c></row></sheetData>")
-        #expect(throws: SheetError.self) { try XLSXCodec.read(data) }
+        #expect(throws: SheetError.self) { try XLSXCodec.read(data).workbook }
         #expect(SheetParser.rowNumber("1e300") == nil)
         #expect(SheetParser.rowNumber("0") == nil)
         #expect(SheetParser.rowNumber("-1") == nil)
@@ -98,10 +98,10 @@ import SwiftSheets
         #expect(expr.rendered(as: .xlsx) == text)
 
         let data = Self.xlsx(worksheetBody: "<sheetData><row r=\"1\"><c r=\"A1\"><f>\(text)</f><v>1</v></c></row></sheetData>")
-        let wb = try XLSXCodec.read(data)
+        let wb = try XLSXCodec.read(data).workbook
         #expect(wb.sheets[0]["A1"]?.formula?.isUnparsed == true)
         // and it survives the trip back out
-        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         #expect(again.sheets[0]["A1"]?.formula?.rendered(as: .xlsx) == text)
     }
 
@@ -161,14 +161,14 @@ import SwiftSheets
         <mergeCells count="1"><mergeCell ref="A1:XFD1048576"/></mergeCells>
         """)
         let start = Date()
-        let wb = try XLSXCodec.read(data)
+        let wb = try XLSXCodec.read(data).workbook
         #expect(Date().timeIntervalSince(start) < 1.0)
         let ws = wb.sheets[0]
         #expect(ws.cells.count == 1)
         #expect(ws["A1"] == .integer(1))
         #expect(ws.merges.map(\.a1) == ["A1:XFD1048576"])
         // and it comes back out unchanged
-        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         #expect(again.sheets[0].merges.map(\.a1) == ["A1:XFD1048576"])
         #expect(again.sheets[0].cells.count == 1)
     }
@@ -195,7 +195,7 @@ import SwiftSheets
 
         var wb = Workbook()
         wb.sheets[0] = ws
-        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         #expect(again.sheets[0].merges.map(\.a1) == ["A1:C1"])
     }
 

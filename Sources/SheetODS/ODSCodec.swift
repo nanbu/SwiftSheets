@@ -16,19 +16,13 @@ import SheetCore
 public enum ODSCodec: SpreadsheetCodec {
     public static var format: SheetFormat { .ods }
 
-    public static func canDecode(_ container: ZipInspection) -> Bool {
-        guard let mime = container.entry(named: "mimetype") else { return false }
-        return String(decoding: mime, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) == "application/vnd.oasis.opendocument.spreadsheet"
-    }
+    public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
 
-    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> Workbook {
-        try readWithWarnings(data, options: options).workbook
-    }
-
-    /// `read` plus what the file held that the model cannot express (data styles with no Excel number-format form).
-    public static func readWithWarnings(_ data: Data, options: ReadOptions = ReadOptions()) throws -> (workbook: Workbook, warnings: [ConversionWarning]) {
+    /// Reading reports what the file held that the model cannot express: data styles with no Excel number-format
+    /// form, and rows the cell budget stopped short of.
+    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         let (wb, warnings) = try ODSReader.read(data, options: options)
-        return (wb, warnings)
+        return ReadResult(workbook: wb, warnings: warnings)
     }
 
     public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {

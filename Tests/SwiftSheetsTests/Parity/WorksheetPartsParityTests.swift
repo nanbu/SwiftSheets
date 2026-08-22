@@ -603,7 +603,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
 
     // openpyxl: worksheet/tests/test_worksheet_copy.py::test_copy_worksheet
     @Test func copyWorksheet() throws {
-        var wb = try XLSXCodec.read(try openpyxlFixture("worksheet/copy_test.xlsx"))
+        var wb = try XLSXCodec.read(try openpyxlFixture("worksheet/copy_test.xlsx")).workbook
         let ws1 = wb.sheets["original_sheet"]!
         let ws2 = wb.sheets[wb.duplicateSheet(named: "original_sheet")!]
         // PORT-NOTE: `column("A")` now yields values, so the cells of column A are fetched by reference to compare their parts.

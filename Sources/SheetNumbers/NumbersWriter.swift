@@ -296,12 +296,12 @@ struct NumbersWriter {
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
             guard var value = cell.value else { continue }
             if case .formula(_, let cached) = value {
-                warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: ref, message: "formula written as its cached value (Numbers formula archives are not generated)"))
+                warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheetName, location: ref, message: "formula written as its cached value (Numbers formula archives are not generated)"))
                 guard let c = cached else { continue }
                 value = c
             }
             if cell.style != .default, !formattedWarned {
-                warnings.append(ConversionWarning(.degraded, sheet: sheetName, message: "cell formatting is not written to Numbers yet"))
+                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheetName, message: "cell formatting is not written to Numbers yet"))
                 formattedWarned = true
             }
             records[ref.row][ref.col] = record(for: value, key: key)

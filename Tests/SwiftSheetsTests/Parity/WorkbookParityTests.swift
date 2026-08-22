@@ -350,7 +350,7 @@ import Testing
     @Test func autofilter() throws {
         var wb = unicodeWorkbook(); wb.sheets[0].autoFilter = CellRange("A1:A10")
         #expect(try workbookXML(wb).contains("<definedNames><definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"0\" hidden=\"1\">'D\u{fc}sseldorf Sheet'!$A$1:$A$10</definedName></definedNames>"))
-        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data)
+        let back = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
         #expect(back.activeSheet.autoFilter?.a1 == "A1:A10" && back.activeSheet.definedNames.isEmpty)
     }
 
@@ -365,6 +365,6 @@ import Testing
         var wb = unicodeWorkbook()
         wb.sheets[0].definedNames["MyReference"] = "\(CellRef.quoteSheetName(wb.activeSheet.name))!$A$1:$A$10"
         #expect(try workbookXML(wb).contains("<definedNames><definedName name=\"MyReference\" localSheetId=\"0\">'D\u{fc}sseldorf Sheet'!$A$1:$A$10</definedName></definedNames>"))
-        #expect(try XLSXCodec.read(try XLSXCodec.write(wb).data).activeSheet.definedNames["MyReference"] == "'D\u{fc}sseldorf Sheet'!$A$1:$A$10")
+        #expect(try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook.activeSheet.definedNames["MyReference"] == "'D\u{fc}sseldorf Sheet'!$A$1:$A$10")
     }
 }

@@ -78,9 +78,9 @@ import Testing
     }
 
     @Test(.enabled(if: dir != nil)) func readsVerificationWorkbook() throws {
-        let wb = try XLSXCodec.read(try Data(contentsOf: Self.dir!.appendingPathComponent("openpyxl.xlsx")))
+        let wb = try XLSXCodec.read(try Data(contentsOf: Self.dir!.appendingPathComponent("openpyxl.xlsx"))).workbook
         Self.check(wb)
-        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data)   // and survives a SwiftSheets round trip
+        let again = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook   // and survives a SwiftSheets round trip
         Self.check(again)
     }
 }

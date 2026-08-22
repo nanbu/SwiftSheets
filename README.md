@@ -2,7 +2,7 @@
 
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
 workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
-as they went in. Foundation + the Compression framework only; no external dependencies. macOS 14+ / iOS 17+.
+as they went in. Foundation + the Compression framework only; no external dependencies. macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
 
 The design is written down in [docs/implementation-spec.html](docs/implementation-spec.html) (Japanese; the spec is
 revised first, then the code).
@@ -18,21 +18,41 @@ sheet.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7"
 wb.sheets["集計"] = sheet                       // value types: copy out, edit, put back
 let result = try wb.write(to: URL(filePath: "月次報告.xlsx"))   // charts, comments, VBA… untouched (F3)
 print(result.warnings)                        // whatever the format could not express — never dropped silently
+print(wb.readWarnings)                        // …and whatever the file held that the model cannot say
 ```
+
+Both directions answer with a result — `Workbook.read(contentsOf:)` returns a `ReadResult` (workbook + warnings), and
+`wb.write(to:)` a `WriteResult` (bytes + warnings + a suggested format when the losses are serious). The convenience
+`Workbook(contentsOf:)` keeps the warnings on `readWarnings`, so nothing is ever dropped in silence.
 
 ## Installation
 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.1.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.2.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
 ]
 ```
 
-Status: **0.1** — XLSX / XLSM / CSV are usable today; the API may still change before 1.0 (see the roadmap below).
+Status: **0.3.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
+version here is what the library writes into the files it generates, and a test keeps the two in step.
+
+## Limits
+
+Worth knowing before you point this at a very large or a very strange file. None of them is silent: a file that goes
+past a limit comes back with a `degraded` warning, and a file that breaks a rule throws.
+
+| | |
+|---|---|
+| Whole workbook in memory | No streaming reader or writer yet (roadmap). Reckon on 100–200 bytes per cell — a million cells is a few hundred megabytes, and that is the working size, not the file size. |
+| Cell budget | A read stops at `ReadOptions.cellLimit` cells (default 1,000,000) and says so. ODS run-length compression can otherwise describe seventeen billion cells in a kilobyte of XML. |
+| Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
+| ZIP64 | Not supported: packages over 4 GB, or with more than 65,535 parts, are reported as `corruptedContainer`. |
+| Apple platforms only | The ZIP layer uses Apple's Compression framework, so there is no Linux or visionOS build today (the spec's §1.1 goal; recorded as a deviation in Appendix B.1). |
+| Encrypted files | Not supported; they fail to open rather than being decrypted. |
 
 ## Formats
 
@@ -93,7 +113,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 
 | openpyxl | SwiftSheets |
 |---|---|
-| `load_workbook(path)` / `data_only=True` | `Workbook(contentsOf:)` / `ReadOptions(dataOnly: true)` |
+| `load_workbook(path)` / `data_only=True` | `Workbook(contentsOf:)` / `ReadOptions(dataOnly: true)`; `Workbook.read(contentsOf:)` for the warnings too |
 | `keep_vba=True` | not needed — VBA is always preserved |
 | `Workbook()`, `wb.save(path)` | `Workbook()`, `wb.write(to:)` → `WriteResult` (`@discardableResult`) |
 | `wb.sheetnames`, `wb['Sales']`, `wb.active` | `wb.sheetNames`, `wb.sheets["Sales"]`, `wb.activeSheet` |
@@ -102,6 +122,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ws['A1'].value`, `ws['A1'] = 42`, `ws.cell(row=1, column=2)` | `sheet["A1"]`, `sheet["A1"] = 42`, `sheet[0, 1]` |
 | `cell.font = Font(bold=True)` | `sheet.style("A1") { $0.font.bold = true }` or `sheet[cell: "A1"].font.bold = true` |
 | `ws.iter_rows(values_only=True)`, `ws.values` | `sheet.rows(in: "A2:D100")`, `sheet.values(in:)` |
+| `ws['A1':'C3']` | `sheet.range("A1:C3")` — a lazy view: rows on demand, cells shared, nothing materialised |
 | `ws.append([...])` | `sheet.append([...])` |
 | `ws.max_row` | `sheet.extent` (`CellRange?`, nil when empty) / `sheet.rowCount` |
 | `insert_rows`, `delete_rows`, `insert_cols`, `delete_cols` | `insertRows(at:count:)`, … — formula references follow (openpyxl's do not) |
@@ -113,7 +134,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
 | charts / images / conditional formatting / data validation / comments / pivots | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
-| `read_only` / `write_only` streaming | — (whole workbook in memory) |
+| `read_only` / `write_only` streaming | — (whole workbook in memory; see [Limits](#limits)) |
 
 ### openpyxl test parity
 

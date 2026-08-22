@@ -9,7 +9,7 @@ import SheetCore
     private func bytes(_ s: String, _ encoding: String.Encoding = .utf8) -> Data { s.data(using: encoding)! }
 
     private func read(_ s: String, encoding: String.Encoding = .utf8, options: ReadOptions = ReadOptions()) throws -> Sheet {
-        try CSVCodec.read(bytes(s, encoding), options: options).sheets[0]
+        try CSVCodec.read(bytes(s, encoding), options: options).workbook.sheets[0]
     }
 
     private func values(_ sheet: Sheet) -> [[CellValue?]] { sheet.rows() }
@@ -29,7 +29,7 @@ import SheetCore
 
     @Test func utf8WithAndWithoutBOMReadIdentically() throws {
         let plain = try read("a,b\n1,2\n")
-        let withBOM = try CSVCodec.read(Data([0xEF, 0xBB, 0xBF]) + bytes("a,b\n1,2\n")).sheets[0]
+        let withBOM = try CSVCodec.read(Data([0xEF, 0xBB, 0xBF]) + bytes("a,b\n1,2\n")).workbook.sheets[0]
         #expect(values(plain) == [[.text("a"), .text("b")], [.text("1"), .text("2")]])
         #expect(values(withBOM) == values(plain))
         #expect(plain.name == "Sheet1")
@@ -37,47 +37,47 @@ import SheetCore
 
     @Test func utf16LittleEndianBOMIsDetected() throws {
         let data = Data([0xFF, 0xFE]) + bytes("名前,値\n太郎,1\n", .utf16LittleEndian)
-        let sheet = try CSVCodec.read(data).sheets[0]
+        let sheet = try CSVCodec.read(data).workbook.sheets[0]
         #expect(values(sheet) == [[.text("名前"), .text("値")], [.text("太郎"), .text("1")]])
     }
 
     @Test func utf16BigEndianBOMIsDetected() throws {
         let data = Data([0xFE, 0xFF]) + bytes("x;y\n", .utf16BigEndian)
-        #expect(values(try CSVCodec.read(data).sheets[0]) == [[.text("x"), .text("y")]])
+        #expect(values(try CSVCodec.read(data).workbook.sheets[0]) == [[.text("x"), .text("y")]])
     }
 
     @Test func explicitShiftJIS() throws {
         let data = bytes("品名,数量\nりんご,3\n", .shiftJIS)
         #expect(String(data: data, encoding: .utf8) == nil)   // the fixture really is not UTF-8
         let options = ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS))
-        let sheet = try CSVCodec.read(data, options: options).sheets[0]
+        let sheet = try CSVCodec.read(data, options: options).workbook.sheets[0]
         #expect(values(sheet) == [[.text("品名"), .text("数量")], [.text("りんご"), .text("3")]])
     }
 
     @Test func explicitUTF8StillStripsBOM() throws {
         let data = Data([0xEF, 0xBB, 0xBF]) + bytes("a\n")
-        let sheet = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .utf8))).sheets[0]
+        let sheet = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .utf8))).workbook.sheets[0]
         #expect(sheet[0, 0] == .text("a"))
     }
 
     @Test func invalidUTF8ReportsByteOffset() throws {
         let data = bytes("ab,") + Data([0xFF]) + bytes("\n")
         #expect(throws: SheetError.malformedPart(path: "offset 3", detail: "invalid UTF-8 sequence")) {
-            try CSVCodec.read(data)
+            try CSVCodec.read(data).workbook
         }
     }
 
     @Test func invalidUTF8OffsetCountsTheBOM() throws {
         let data = Data([0xEF, 0xBB, 0xBF]) + bytes("x") + Data([0xC3])   // truncated 2-byte sequence
         #expect(throws: SheetError.malformedPart(path: "offset 4", detail: "invalid UTF-8 sequence")) {
-            try CSVCodec.read(data)
+            try CSVCodec.read(data).workbook
         }
     }
 
     @Test func invalidShiftJISReportsOffset() throws {
         let data = bytes("あ,", .shiftJIS) + Data([0x82]) + bytes("\n")   // lone lead byte at offset 3
         do {
-            _ = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS)))
+            _ = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS))).workbook
             Issue.record("expected malformedPart")
         } catch let SheetError.malformedPart(path, _) {
             #expect(path == "offset 3")
@@ -86,25 +86,27 @@ import SheetCore
 
     @Test func lossyReadReplacesBadBytesAndWarns() throws {
         let data = bytes("ab,") + Data([0xFF]) + bytes("c\n")
-        let (wb, warnings) = try CSVCodec.readWithWarnings(data, options: ReadOptions(csv: CSVReadOptions(lossy: true)))
+        let result = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(lossy: true)))
+        let (wb, warnings) = (result.workbook, result.warnings)
         #expect(wb.sheets[0][0, 1] == .text("\u{FFFD}c"))
         #expect(warnings.count == 1)
         #expect(warnings[0].kind == .degraded)
         #expect(warnings[0].message.contains("offset 3"))
         // `read` is the same thing minus the warnings
-        #expect(try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(lossy: true))).sheets[0][0, 1] == .text("\u{FFFD}c"))
+        #expect(try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(lossy: true))).workbook.sheets[0][0, 1] == .text("\u{FFFD}c"))
     }
 
     @Test func lossyReadOfLegacyEncoding() throws {
         let data = bytes("あ,", .shiftJIS) + Data([0xFF]) + bytes("い\n", .shiftJIS)
-        let (wb, warnings) = try CSVCodec.readWithWarnings(data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS, lossy: true)))
+        let result = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS, lossy: true)))
+        let (wb, warnings) = (result.workbook, result.warnings)
         #expect(wb.sheets[0][0, 0] == .text("あ"))
         #expect(wb.sheets[0][0, 1] == .text("\u{FFFD}い"))
         #expect(warnings.count == 1)
     }
 
     @Test func readSetsSourceInfo() throws {
-        let wb = try CSVCodec.read(bytes("a\n"))
+        let wb = try CSVCodec.read(bytes("a\n")).workbook
         #expect(wb.sourceInfo == SourceInfo(format: .csv))
         #expect(wb.preserved.sourceFormat == .csv)
         #expect(wb.sheets.count == 1)
@@ -241,12 +243,12 @@ import SheetCore
     @Test func explicitUTF16HonoursBOMAndDefaultsToBigEndian() throws {
         let options = ReadOptions(csv: CSVReadOptions(encoding: .utf16))
         let le = Data([0xFF, 0xFE]) + bytes("a,b\n", .utf16LittleEndian)
-        #expect(values(try CSVCodec.read(le, options: options).sheets[0]) == [[.text("a"), .text("b")]])
+        #expect(values(try CSVCodec.read(le, options: options).workbook.sheets[0]) == [[.text("a"), .text("b")]])
         let be = bytes("a,b\n", .utf16BigEndian)
-        #expect(values(try CSVCodec.read(be, options: options).sheets[0]) == [[.text("a"), .text("b")]])
+        #expect(values(try CSVCodec.read(be, options: options).workbook.sheets[0]) == [[.text("a"), .text("b")]])
         let odd = Data([0xFF, 0xFE, 0x61])
         #expect(throws: SheetError.malformedPart(path: "offset 2", detail: "truncated UTF-16 code unit")) {
-            try CSVCodec.read(odd)
+            try CSVCodec.read(odd).workbook
         }
     }
 
@@ -268,7 +270,7 @@ import SheetCore
         let utf16 = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(encoding: .utf16LittleEndian, includeBOM: true)))
         #expect([UInt8](utf16.data.prefix(4)) == [0xFF, 0xFE, 0x61, 0x00])
         // and the result reads back through BOM detection
-        #expect(try CSVCodec.read(utf16.data).sheets[0][0, 0] == .text("a"))
+        #expect(try CSVCodec.read(utf16.data).workbook.sheets[0][0, 0] == .text("a"))
     }
 
     @Test func writeTSVWithLF() throws {
@@ -304,7 +306,7 @@ import SheetCore
         let wb = workbook([[.text("日本語"), .text("テスト")]])
         let result = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(encoding: .shiftJIS)))
         #expect(result.data == "日本語,テスト\r\n".data(using: .shiftJIS)!)
-        let back = try CSVCodec.read(result.data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS)))
+        let back = try CSVCodec.read(result.data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS))).workbook
         #expect(values(back.sheets[0]) == [[.text("日本語"), .text("テスト")]])
     }
 
@@ -338,7 +340,7 @@ import SheetCore
         sheet[1, 0] = .integer(1)
         let result = try CSVCodec.write(Workbook(sheets: [sheet]))
         #expect(result.warnings.count == 1)
-        #expect(result.warnings[0] == ConversionWarning(.degraded, message: "formatting and formula structure are not kept in CSV"))
+        #expect(result.warnings[0] == ConversionWarning(.degraded, subject: .formatting, message: "formatting and formula structure are not kept in CSV"))
         #expect(result.warnings[0].location == nil)
         #expect(String(decoding: result.data, as: UTF8.self) == "a,b\r\n1,\r\n")
     }
@@ -384,9 +386,9 @@ import SheetCore
 
     @Test func readWriteReadRoundTrip() throws {
         let source = "name,qty,note\r\n\"Smith, J\",01234,\"said \"\"ok\"\"\"\r\n\r\n太郎,,\"multi\nline\"\r\n"
-        let first = try CSVCodec.read(bytes(source))
+        let first = try CSVCodec.read(bytes(source)).workbook
         let written = try CSVCodec.write(first)
-        let second = try CSVCodec.read(written.data)
+        let second = try CSVCodec.read(written.data).workbook
         #expect(values(second.sheets[0]) == values(first.sheets[0]))
         #expect(second.sheets[0].nextAppendRow == first.sheets[0].nextAppendRow)
         // the empty record comes back as a row of empty fields (every row gets `columnCount` fields)
@@ -395,10 +397,10 @@ import SheetCore
 
     @Test func inferredTypesSurviveRoundTrip() throws {
         let options = ReadOptions(csv: CSVReadOptions(inferTypes: true))
-        let first = try CSVCodec.read(bytes("1,2.5,TRUE,2026-08-22,text\n"), options: options)
+        let first = try CSVCodec.read(bytes("1,2.5,TRUE,2026-08-22,text\n"), options: options).workbook
         let written = try CSVCodec.write(first, options: WriteOptions(csv: CSVWriteOptions(newline: .lf)))
         #expect(String(decoding: written.data, as: UTF8.self) == "1,2.5,TRUE,2026-08-22,text\n")
-        let second = try CSVCodec.read(written.data, options: options)
+        let second = try CSVCodec.read(written.data, options: options).workbook
         #expect(values(second.sheets[0]) == values(first.sheets[0]))
     }
 }

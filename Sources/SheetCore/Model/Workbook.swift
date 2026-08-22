@@ -2,7 +2,7 @@ import Foundation
 
 /// docProps/core.xml — author, title and friends.
 public struct DocumentProperties: Hashable, Sendable {
-    public var creator = "SwiftSheets"
+    public var creator = SwiftSheetsInfo.name
     public var lastModifiedBy: String?
     public var title: String?
     public var subject: String?
@@ -50,8 +50,28 @@ public struct Sheets: RandomAccessCollection, MutableCollection, RangeReplaceabl
 
     /// `sheets["Sales"]`. Assigning replaces the sheet with that name, or appends it under that name when absent;
     /// assigning nil removes it.
+    ///
+    /// `wb.sheets["Sales"]?["A1"] = 1` edits in place: the sheet is moved out of the collection for the duration of
+    /// the mutation and moved back, so a million cells are not copied on the way through.
     public subscript(name: String) -> Sheet? {
         get { storage.first { $0.name == name } }
+        _modify {
+            if let i = storage.firstIndex(where: { $0.name == name }) {
+                let old = storage[i].name
+                var sheet: Sheet? = storage.remove(at: i)   // moved out: the yielded value is the only reference
+                defer {
+                    if let s = sheet {
+                        storage.insert(s, at: i)
+                        if s.name != old { didRename(at: i, from: old) }
+                    }
+                }
+                yield &sheet
+            } else {
+                var sheet: Sheet? = nil
+                defer { if var s = sheet { s.name = name; append(s) } }
+                yield &sheet
+            }
+        }
         set {
             if let i = storage.firstIndex(where: { $0.name == name }) {
                 if let newValue { self[i] = newValue } else { storage.remove(at: i) }
@@ -114,6 +134,9 @@ public struct Workbook: Hashable, Sendable {
     public var preserved = PreservationStore()
     /// The source file's format and generating application, when read from a file.
     public var sourceInfo: SourceInfo?
+    /// What the file held that this model cannot say (spec §6). Filled in by every reader, so a plain
+    /// `Workbook(contentsOf:)` never loses the report — `ReadResult` hands back the same list.
+    public var readWarnings: [ConversionWarning] = []
     private var _activeIndex = 0
 
     /// A new workbook with one empty sheet named "Sheet1".
@@ -132,9 +155,11 @@ public struct Workbook: Hashable, Sendable {
         }
     }
 
-    /// The active sheet. Assigning replaces it in place.
+    /// The active sheet. Assigning replaces it in place, and mutating it through this property edits it where it
+    /// lies rather than copying it out and back.
     public var activeSheet: Sheet {
         get { sheets[activeIndex] }
+        _modify { yield &sheets[activeIndex] }
         set { sheets[activeIndex] = newValue }
     }
 

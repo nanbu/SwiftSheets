@@ -34,7 +34,8 @@ import SwiftSheets
 
     @Test(arguments: names) func matchesNumbersParser(_ name: String) throws {
         let data = try Data(contentsOf: Self.fixtures.appendingPathComponent(name + ".numbers"))
-        let (wb, warnings) = try NumbersCodec.readWithWarnings(data)
+        let result = try NumbersCodec.read(data)
+        let (wb, warnings) = (result.workbook, result.warnings)
         let expected = try JSONDecoder().decode(Expected.self, from: try Data(contentsOf: Self.fixtures.appendingPathComponent(name + ".expected.json")))
         #expect(wb.sheetNames == expected.sheets.map(\.name), "\(name): sheet names")
         #expect(wb.sourceInfo?.format == .numbers)
