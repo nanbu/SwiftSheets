@@ -1,8 +1,8 @@
 {
  "openpyxl": "3.1.5",
  "totals": {
-  "ported": 231,
-  "adapted": 289,
+  "ported": 224,
+  "adapted": 296,
   "na_api": 981,
   "na_python": 210,
   "total": 1711,
@@ -10,8 +10,8 @@
  },
  "modules": {
   "cell": {
-   "ported": 18,
-   "adapted": 34,
+   "ported": 17,
+   "adapted": 35,
    "na_api": 23,
    "na_python": 23,
    "total": 98,
@@ -130,8 +130,8 @@
    "cases": 276
   },
   "workbook": {
-   "ported": 24,
-   "adapted": 22,
+   "ported": 20,
+   "adapted": 26,
    "na_api": 50,
    "na_python": 7,
    "total": 103,
@@ -146,8 +146,8 @@
    "cases": 9
   },
   "worksheet": {
-   "ported": 117,
-   "adapted": 154,
+   "ported": 115,
+   "adapted": 156,
    "na_api": 191,
    "na_python": 9,
    "total": 471,
@@ -172,8 +172,8 @@
  },
  "files": {
   "cell/tests/test_cell.py": {
-   "ported": 10,
-   "adapted": 22,
+   "ported": 9,
+   "adapted": 23,
    "na_api": 0,
    "na_python": 8,
    "total": 40,
@@ -1220,8 +1220,8 @@
    "cases": 6
   },
   "workbook/tests/test_workbook.py": {
-   "ported": 16,
-   "adapted": 7,
+   "ported": 12,
+   "adapted": 11,
    "na_api": 9,
    "na_python": 5,
    "total": 37,
@@ -1404,8 +1404,8 @@
    "cases": 6
   },
   "worksheet/tests/test_worksheet.py": {
-   "ported": 53,
-   "adapted": 22,
+   "ported": 51,
+   "adapted": 24,
    "na_api": 4,
    "na_python": 3,
    "total": 82,
@@ -1468,8 +1468,8 @@
    "name": "test_ctor",
    "key": "test_ctor",
    "params": 1,
-   "status": "ported",
-   "reason": "pandas / numpy / エンコーディング / pivotButton・quotePrefix（StyleArray）",
+   "status": "adapted",
+   "reason": "セルは値型で位置を持たない — 位置は CellRef で検証",
    "api": "—",
    "swift": [
     "CellParityTests.swift"
@@ -1955,7 +1955,7 @@
    "key": "TestMergedCell::test_coordinate",
    "params": 1,
    "status": "adapted",
-   "reason": "同上",
+   "reason": "同上。値型 API: セルは値型で位置を持たない — 位置は CellRef で検証",
    "api": "—",
    "swift": [
     "CellParityTests.swift"
@@ -15055,8 +15055,8 @@
    "name": "test_get_active_sheet",
    "key": "test_get_active_sheet",
    "params": 1,
-   "status": "ported",
-   "reason": "テンプレート / VBA / テーブル / チャートシート / read_only / write_only は未実装",
+   "status": "adapted",
+   "reason": "同一性ではなく activeIndex と値の等価で検証",
    "api": "Templates / VBA",
    "swift": [
     "WorkbookParityTests.swift"
@@ -15069,8 +15069,8 @@
    "name": "test_set_active_by_sheet",
    "key": "test_set_active_by_sheet",
    "params": 1,
-   "status": "ported",
-   "reason": "テンプレート / VBA / テーブル / チャートシート / read_only / write_only は未実装",
+   "status": "adapted",
+   "reason": "オブジェクトではなく名前→添字で active を指定",
    "api": "Templates / VBA",
    "swift": [
     "WorkbookParityTests.swift"
@@ -15120,7 +15120,7 @@
    "key": "test_set_invalid_child_as_active",
    "params": 1,
    "status": "adapted",
-   "reason": "例外ではなく無視",
+   "reason": "例外ではなく無視。値型 API: 他ブックのシート＝存在しない名前。無変更／クランプで検証（例外ではない）",
    "api": "Templates / VBA",
    "swift": [
     "WorkbookParityTests.swift"
@@ -15247,8 +15247,8 @@
    "name": "test_move_sheet",
    "key": "test_move_sheet",
    "params": 1,
-   "status": "ported",
-   "reason": "テンプレート / VBA / テーブル / チャートシート / read_only / write_only は未実装",
+   "status": "adapted",
+   "reason": "既定シート名が Sheet1 なので連番が変わる。移動は名前＋絶対位置で指定",
    "api": "Templates / VBA",
    "swift": [
     "WorkbookParityTests.swift"
@@ -15353,8 +15353,8 @@
    "name": "test_get_sheet_names",
    "key": "test_get_sheet_names",
    "params": 1,
-   "status": "ported",
-   "reason": "テンプレート / VBA / テーブル / チャートシート / read_only / write_only は未実装",
+   "status": "adapted",
+   "reason": "既定シート名が Sheet1 なので連番は Sheet1, Sheet, Sheet2… になる",
    "api": "Templates / VBA",
    "swift": [
     "WorkbookParityTests.swift"
@@ -20503,8 +20503,8 @@
    "name": "test_min_column",
    "key": "test_min_column",
    "params": 1,
-   "status": "ported",
-   "reason": "数式翻訳 / テーブル / グラフ / 画像は未実装",
+   "status": "adapted",
+   "reason": "空シートの extent は nil（openpyxl は 1）",
    "api": "Formula translation",
    "swift": [
     "WorksheetParityTests.swift"
@@ -20531,8 +20531,8 @@
    "name": "test_min_row",
    "key": "test_min_row",
    "params": 1,
-   "status": "ported",
-   "reason": "数式翻訳 / テーブル / グラフ / 画像は未実装",
+   "status": "adapted",
+   "reason": "空シートの extent は nil（openpyxl は 1）",
    "api": "Formula translation",
    "swift": [
     "WorksheetParityTests.swift"

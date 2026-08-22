@@ -1,6 +1,6 @@
 """Cross-checks SwiftSheets against openpyxl in both directions with one shared workbook definition.
 
-    uv run --project ../../web python Tests/OpenpyxlParity/verify_with_openpyxl.py    # from app/SwiftSheets
+    uv run --project ../Stream/web python Tests/OpenpyxlParity/verify_with_openpyxl.py    # from the repository root
 
 1. `swift test` writes swiftsheets.xlsx (OpenpyxlInteropTests.writesVerificationWorkbook); openpyxl loads it and
    checks every value, style, dimension, merge, link and name.

@@ -115,7 +115,8 @@
    "api": "—",
    "tests": {
     "test_ctor": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "セルは値型で位置を持たない — 位置は CellRef で検証"
     },
     "test_null": {
      "status": "adapted",
@@ -250,7 +251,7 @@
     },
     "TestMergedCell::test_coordinate": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "同上。値型 API: セルは値型で位置を持たない — 位置は CellRef で検証"
     },
     "TestMergedCell::test_repr": {
      "status": "na_python",
@@ -263,6 +264,10 @@
     "test_write_numpy_to_cell": {
      "status": "na_python",
      "reason": "numpy"
+    },
+    "test_write_cell": {
+     "status": "adapted",
+     "reason": "数式は AST で保持し関数名を大文字に正規化するため sum(1+1) は SUM(1+1) として書かれる"
     }
    }
   },
@@ -904,6 +909,18 @@
     "test_read_empty_rows": {
      "status": "adapted",
      "reason": "rows() は 1 行目から"
+    },
+    "test_getitem": {
+     "status": "adapted",
+     "reason": "同一性ではなく値の等価で検証（値型）"
+    },
+    "test_read_boolean": {
+     "status": "adapted",
+     "reason": "セルは位置を持たない — CellRef の往復で検証"
+    },
+    "test_read_single_cell": {
+     "status": "adapted",
+     "reason": "同一性ではなく値の等価で検証（値型）"
     }
    }
   },
@@ -1153,6 +1170,10 @@
     "TestWorkbookChild::test_empty_title": {
      "status": "adapted",
      "reason": "例外ではなく以前の名前を維持"
+    },
+    "test_ctor": {
+     "status": "adapted",
+     "reason": "シートはワークブックへの逆参照を持たない — 収納の有無で検証"
     }
    }
   },
@@ -1172,6 +1193,14 @@
     "TestDefinitionList::test_by_sheet": {
      "status": "adapted",
      "reason": "localSheetId ごとの辞書で検証"
+    },
+    "test_read": {
+     "status": "adapted",
+     "reason": "断片保持のため <workbook> で包んで解析"
+    },
+    "test_by_sheet": {
+     "status": "adapted",
+     "reason": "断片保持のため <workbook> で包んで解析"
     }
    }
   },
@@ -1260,10 +1289,12 @@
      "reason": "`_duplicate_name` は無い — 大文字小文字を無視した照合で検証"
     },
     "test_get_active_sheet": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "同一性ではなく activeIndex と値の等価で検証"
     },
     "test_set_active_by_sheet": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "オブジェクトではなく名前→添字で active を指定"
     },
     "test_set_active_by_index": {
      "status": "ported"
@@ -1278,7 +1309,7 @@
     },
     "test_set_invalid_child_as_active": {
      "status": "adapted",
-     "reason": "例外ではなく無視"
+     "reason": "例外ではなく無視。値型 API: 他ブックのシート＝存在しない名前。無変更／クランプで検証（例外ではない）"
     },
     "test_set_hidden_sheet_as_active": {
      "status": "adapted",
@@ -1314,7 +1345,8 @@
      "status": "ported"
     },
     "test_move_sheet": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "既定シート名が Sheet1 なので連番が変わる。移動は名前＋絶対位置で指定"
     },
     "test_getitem": {
      "status": "ported"
@@ -1341,7 +1373,8 @@
      "status": "ported"
     },
     "test_get_sheet_names": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "既定シート名が Sheet1 なので連番は Sheet1, Sheet, Sheet2… になる"
     },
     "test_add_invalid_worksheet_class_instance": {
      "status": "na_python",
@@ -1404,6 +1437,10 @@
     },
     "TestWorkbookWriter::test_defined_name_locall": {
      "status": "ported"
+    },
+    "test_hidden_worksheet": {
+     "status": "adapted",
+     "reason": "既定シート名が Sheet1"
     }
    }
   },
@@ -2390,13 +2427,15 @@
      "reason": "同上"
     },
     "test_min_column": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "空シートの extent は nil（openpyxl は 1）"
     },
     "test_max_column": {
      "status": "ported"
     },
     "test_min_row": {
-     "status": "ported"
+     "status": "adapted",
+     "reason": "空シートの extent は nil（openpyxl は 1）"
     },
     "test_max_row": {
      "status": "ported"
@@ -2483,6 +2522,30 @@
     "TestEditableWorksheet::test_move_range_with_formula": {
      "status": "na_api",
      "reason": "数式の翻訳は未実装"
+    },
+    "test_deleta_all_rows": {
+     "status": "adapted",
+     "reason": "空シートの rowCount は 0（openpyxl の max_row は 1）"
+    },
+    "test_move_cell": {
+     "status": "adapted",
+     "reason": "_move_cell は無い — 1 セルの moveRange で検証"
+    },
+    "test_move_translated_fomula": {
+     "status": "adapted",
+     "reason": "_move_cell は無い — 1 セルの moveRange で検証"
+    },
+    "test_new_worksheet": {
+     "status": "adapted",
+     "reason": "シートはワークブックへの逆参照を持たない — 収納の有無で検証"
+    },
+    "test_one_cell": {
+     "status": "adapted",
+     "reason": "読み取りはセルを作らない — 書式だけのセルで検証、同一性は値の等価に"
+    },
+    "test_remainder": {
+     "status": "adapted",
+     "reason": "_gutter は無い — 削除後に remainder 行が空であることで検証"
     }
    }
   },
@@ -2541,6 +2604,10 @@
     "test_copy_worksheet": {
      "status": "adapted",
      "reason": "`compare_cells` 相当を値・型・注釈・リンク・スタイルで"
+    },
+    "test_ctor": {
+     "status": "adapted",
+     "reason": "シートは値型 — 複製が別名で収納されることを検証"
     }
    }
   },
