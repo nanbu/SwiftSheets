@@ -15,25 +15,33 @@ final class WorkbookXMLParser: SAXParser {
     struct SheetInfo { let name: String; let rId: String; let state: SheetState }
     var sheets: [SheetInfo] = []
     var date1904 = false
+    var codeName: String?
     var activeTab = 0
     var definedNames: [String: String] = [:]
+    /// Sheet-scoped names: localSheetId → (name → text).
+    var localNames: [Int: [String: String]] = [:]
     private var currentName: String?
+    private var currentLocal: Int?
     private var nameText = ""
 
     override func start(_ name: String, _ a: [String: String]) {
         switch name {
-        case "workbookPr": let v = a["date1904"]?.lowercased(); date1904 = v == "1" || v == "true"
+        case "workbookPr": let v = a["date1904"]?.lowercased(); date1904 = v == "1" || v == "true"; codeName = a["codeName"]
         case "workbookView": activeTab = Int(a["activeTab"] ?? "0") ?? 0
         case "sheet":
             let rId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value ?? a["id"] ?? ""
             let state = SheetState(rawValue: a["state"] ?? "visible") ?? .visible
             sheets.append(SheetInfo(name: a["name"] ?? "", rId: rId, state: state))
-        case "definedName": currentName = a["name"]; nameText = ""
+        case "definedName": currentName = a["name"]; currentLocal = a["localSheetId"].flatMap { Int($0) }; nameText = ""
         default: break
         }
     }
     override func text(_ s: String) { if currentName != nil { nameText += s } }
-    override func end(_ name: String) { if name == "definedName", let n = currentName { definedNames[n] = nameText; currentName = nil } }
+    override func end(_ name: String) {
+        guard name == "definedName", let n = currentName else { return }
+        if let i = currentLocal { localNames[i, default: [:]][n] = nameText } else { definedNames[n] = nameText }
+        currentName = nil
+    }
 }
 
 /// sharedStrings.xml → values. Plain `<t>` → .string; `<r>` runs → .richText; `<rPh>` (furigana) is skipped.
@@ -86,12 +94,13 @@ struct FontAttributes {
         case "b": font.bold = a["val"].map { $0 != "0" && $0 != "false" } ?? true
         case "i": font.italic = a["val"].map { $0 != "0" && $0 != "false" } ?? true
         case "strike": font.strikethrough = a["val"].map { $0 != "0" && $0 != "false" } ?? true
-        case "u": font.underline = Font.Underline(rawValue: a["val"] ?? "single") ?? .single
+        case "u": let v = a["val"] ?? "single"; font.underline = v == "none" ? nil : (Font.Underline(rawValue: v) ?? .single)   // val="none" means no underline
         case "sz": font.size = Double(a["val"] ?? "")
         case "name", "rFont": font.name = a["val"]
         case "family": font.family = Int(a["val"] ?? "")
-        case "scheme": font.scheme = a["val"]
-        case "vertAlign": font.vertAlign = a["val"]
+        case "scheme": font.scheme = a["val"] == "none" ? nil : a["val"]
+        case "vertAlign": font.vertAlign = a["val"] == "none" ? nil : a["val"]
+        case "charset": font.charset = Int(a["val"] ?? "")
         case "color": font.color = StylesParser.color(a)
         default: break
         }
@@ -105,6 +114,7 @@ final class StylesParser: SAXParser {
     var fills: [PatternFill] = []
     var borders: [Border] = []
     var cellXfs: [CellStyle] = []
+    var indexedColors: [String] = []
     private var section = ""
     private var fontAttrs = FontAttributes()
     private var fill = PatternFill()
@@ -124,8 +134,9 @@ final class StylesParser: SAXParser {
 
     override func start(_ name: String, _ a: [String: String]) {
         switch name {
-        case "numFmts", "fonts", "fills", "borders", "cellXfs", "cellStyleXfs", "dxfs": section = name
+        case "numFmts", "fonts", "fills", "borders", "cellXfs", "cellStyleXfs", "dxfs", "colors": section = name
         case "numFmt": if let id = Int(a["numFmtId"] ?? ""), let code = a["formatCode"] { numFmts[id] = code }
+        case "rgbColor" where section == "colors": if let rgb = a["rgb"] { indexedColors.append(rgb.uppercased()) }
         case "font" where section == "fonts": fontAttrs = FontAttributes()
         case "fill" where section == "fills": fill = PatternFill()
         case "patternFill" where section == "fills":
@@ -135,8 +146,9 @@ final class StylesParser: SAXParser {
         case "bgColor" where inPatternFill: fill.backgroundColor = StylesParser.color(a)
         case "border" where section == "borders":
             border = Border()
-            border.diagonalUp = a["diagonalUp"] == "1"; border.diagonalDown = a["diagonalDown"] == "1"
-        case "left", "right", "top", "bottom", "diagonal" where section == "borders":
+            border.diagonalUp = a["diagonalUp"] == "1"; border.diagonalDown = a["diagonalDown"] == "1"; border.outline = a["outline"] != "0"
+        case "left", "right", "top", "bottom", "diagonal":
+            guard section == "borders" else { return }
             side = name
             let s = Side(style: a["style"].flatMap(Side.Style.init(rawValue:)), color: nil)
             setSide(s)
@@ -180,12 +192,14 @@ final class StylesParser: SAXParser {
         case "left", "right", "top", "bottom", "diagonal": side = ""
         case "border" where section == "borders": borders.append(border)
         case "xf" where section == "cellXfs": if let xf { cellXfs.append(xf) }; xf = nil
-        case "numFmts", "fonts", "fills", "borders", "cellXfs", "cellStyleXfs", "dxfs": section = ""
+        case "numFmts", "fonts", "fills", "borders", "cellXfs", "cellStyleXfs", "dxfs", "colors": section = ""
         default: break
         }
     }
 
     func style(_ index: Int) -> CellStyle { cellXfs.indices.contains(index) ? cellXfs[index] : CellStyle() }
+    /// The number-format codes in use, custom ones only (openpyxl `stylesheet.number_formats`).
+    var customNumberFormats: [String] { numFmts.sorted { $0.key < $1.key }.map(\.value).filter { !NumberFormat.isBuiltin($0) } }
 }
 
 /// worksheet XML → Worksheet.
@@ -202,6 +216,7 @@ final class SheetParser: SAXParser {
     private var cellType = "", cellStyle = 0
     private var vText = "", fText = "", isText = ""
     private var inV = false, inF = false, inIS = false, inT = false
+    private var isRuns: [TextRun] = [], isHasRuns = false, inR = false, inRPr = false, runText = "", runFont: FontAttributes?
     private var skipDepth = 0
     private var hyperlinkRels: [String: String] = [:]
 
@@ -216,11 +231,20 @@ final class SheetParser: SAXParser {
         case "outlinePr": ws.properties.summaryBelow = a["summaryBelow"] != "0"; ws.properties.summaryRight = a["summaryRight"] != "0"
         case "tabColor": ws.properties.tabColor = StylesParser.color(a)
         case "dimension": ws.declaredDimension = a["ref"].flatMap(CellRange.init)
+        case "sheetPr": ws.properties.codeName = a["codeName"]; ws.properties.filterMode = a["filterMode"].map { $0 == "1" || $0 == "true" }
+        case "pageSetUpPr": ws.properties.fitToPage = a["fitToPage"].map { $0 == "1" || $0 == "true" }
         case "sheetView":
             ws.view.showGridLines = a["showGridLines"] != "0"
             ws.view.zoomScale = Int(a["zoomScale"] ?? "100") ?? 100
             ws.view.tabSelected = a["tabSelected"] == "1"
-        case "pane": if a["state"] == "frozen", let tl = a["topLeftCell"] { ws.freezePanes = CellReference(tl) }
+        case "selection": if let ac = a["activeCell"] { ws.view.activeCell = ac }; if let sq = a["sqref"] { ws.view.sqref = sq }
+        case "sheetFormatPr":
+            var f = SheetFormat()
+            f.baseColWidth = Int(a["baseColWidth"] ?? "") ?? f.baseColWidth; f.defaultColWidth = Double(a["defaultColWidth"] ?? "")
+            f.defaultRowHeight = Double(a["defaultRowHeight"] ?? "") ?? f.defaultRowHeight
+            f.customHeight = a["customHeight"] == "1"; f.zeroHeight = a["zeroHeight"] == "1"
+            ws.sheetFormat = f
+        case "pane": if a["state"] == "frozen" || a["state"] == "frozenSplit", let tl = a["topLeftCell"] { ws.freezePanes = CellReference(tl) }
         case "col":
             guard let mn = Int(a["min"] ?? ""), let mx = Int(a["max"] ?? "") else { return }
             var d = ColumnDimension()
@@ -229,11 +253,15 @@ final class SheetParser: SAXParser {
             if let st = Int(a["style"] ?? ""), st > 0 { d.style = styles.style(st) }
             for c in mn...min(mx, mn + 16383) { ws.columnDimensions[CellReference.columnLetter(c)] = d }
         case "row":
-            currentRow = Int(a["r"] ?? "") ?? (currentRow + 1)
+            // `r` may be written with an exponent ("1.048573e6"); a non-integral value is invalid (openpyxl raises).
+            if let r = a["r"] { guard let n = SheetParser.rowNumber(r) else { fail(SheetsError(.invalid, "invalid row number \(r)")); return }; currentRow = n } else { currentRow += 1 }
             lastColumn = 0
+            ws.currentRow = currentRow
             var d = RowDimension()
             if a["customHeight"] == "1" || a["ht"] != nil { d.height = Double(a["ht"] ?? "") }
             d.hidden = a["hidden"] == "1"; d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0; d.collapsed = a["collapsed"] == "1"
+            d.thickTop = a["thickTop"] == "1"; d.thickBottom = a["thickBot"] == "1"
+            if let st = Int(a["s"] ?? ""), st > 0 { d.style = styles.style(st) }
             if !d.isDefault { ws.rowDimensions[currentRow] = d }
         case "c":
             if let r = a["r"], let ref = CellReference(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
@@ -245,17 +273,26 @@ final class SheetParser: SAXParser {
             cell.style = styles.style(cellStyle)
         case "v": inV = true
         case "f": inF = true
-        case "is": inIS = true
+        case "is": inIS = true; isRuns = []; isHasRuns = false
+        case "r" where inIS: inR = true; isHasRuns = true; runText = ""; runFont = nil
+        case "rPr" where inIS: inRPr = true; runFont = FontAttributes()
         case "t" where inIS: inT = true
         case "rPh": skipDepth = 1
+        case _ where inRPr: runFont?.apply(name, a)
         case "mergeCell": if let r = a["ref"].flatMap(CellRange.init) { ws.mergedCells.append(r) }
         case "autoFilter": ws.autoFilter = a["ref"].flatMap(CellRange.init)
         case "hyperlink":
-            if let ref = a["ref"].flatMap(CellReference.init) {
+            // `ref` may be a range ("B4:B7"); the link goes on its first cell. A link on a merged cell goes to the anchor.
+            if var ref = a["ref"].flatMap(CellRange.init)?.topLeft {
+                if let m = ws.mergedRange(containing: ref) { ref = m.topLeft }
                 let rid = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value
-                if let rid, let target = hyperlinkRels[rid] { ws[ref].hyperlink = Hyperlink(target: target, tooltip: a["tooltip"]) }
-                else if let loc = a["location"] { ws[ref].hyperlink = Hyperlink(target: loc, tooltip: a["tooltip"], isInternal: true) }
+                if let rid, let target = hyperlinkRels[rid] { ws[ref].hyperlink = Hyperlink(target: target, tooltip: a["tooltip"], display: a["display"]) }
+                else if let loc = a["location"] { ws[ref].hyperlink = Hyperlink(target: loc, tooltip: a["tooltip"], display: a["display"], isInternal: true) }
+                else if let display = a["display"] { ws[ref].hyperlink = Hyperlink(target: display, tooltip: a["tooltip"], display: display) }   // neither r:id nor location: Excel shows the display text
             }
+        case "printOptions":
+            ws.printOptions.horizontalCentered = a["horizontalCentered"] == "1"; ws.printOptions.verticalCentered = a["verticalCentered"] == "1"
+            ws.printOptions.headings = a["headings"] == "1"; ws.printOptions.gridLines = a["gridLines"] == "1"
         case "pageMargins":
             var m = PageMargins()
             m.left = Double(a["left"] ?? "") ?? m.left; m.right = Double(a["right"] ?? "") ?? m.right; m.top = Double(a["top"] ?? "") ?? m.top
@@ -265,13 +302,14 @@ final class SheetParser: SAXParser {
             var p = PageSetup()
             p.orientation = a["orientation"].flatMap(PageSetup.Orientation.init(rawValue:)); p.paperSize = Int(a["paperSize"] ?? "")
             p.fitToWidth = Int(a["fitToWidth"] ?? ""); p.fitToHeight = Int(a["fitToHeight"] ?? ""); p.scale = Int(a["scale"] ?? "")
+            p.firstPageNumber = Int(a["firstPageNumber"] ?? ""); p.useFirstPageNumber = a["useFirstPageNumber"].map { $0 == "1" }
             ws.pageSetup = p
         default: break
         }
     }
 
     override func text(_ s: String) {
-        if inV { vText += s } else if inF { fText += s } else if inT, skipDepth == 0 { isText += s }
+        if inV { vText += s } else if inF { fText += s } else if inT, skipDepth == 0 { if inR { runText += s } else { isText += s } }
     }
 
     override func end(_ name: String) {
@@ -280,13 +318,24 @@ final class SheetParser: SAXParser {
         case "v": inV = false
         case "f": inF = false
         case "t": inT = false
+        case "rPr" where inIS: inRPr = false
+        case "r" where inIS: isRuns.append(TextRun(runText, font: runFont?.font)); inR = false
         case "is": inIS = false
         case "c":
             guard let ref = cellRef else { return }
             ws.cell(row: ref.row, column: ref.column).value = value()
             cellRef = nil
+        case "sheetData": if !ws.cells.isEmpty { ws.currentRow = ws.maxRow }   // cells, not trailing empty rows, decide where `append` continues
+        case "mergeCells": for r in ws.mergedCells { ws.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
         default: break
         }
+    }
+
+    /// "23" → 23, "1.048573e6" → 1048573; nil for non-integral values.
+    static func rowNumber(_ text: String) -> Int? {
+        if let i = Int(text) { return i }
+        guard let d = Double(text), d == d.rounded(), d >= 1 else { return nil }
+        return Int(d)
     }
 
     private func value() -> CellValue? {
@@ -300,14 +349,19 @@ final class SheetParser: SAXParser {
         case "s":
             guard let i = Int(vText.trimmingCharacters(in: .whitespaces)), sst.indices.contains(i) else { return nil }
             return sst[i]
-        case "inlineStr": return .string(isText)
+        case "inlineStr":
+            if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .string(isRuns.map(\.text).joined()) }
+            return .string(isText)
         case "str": return .string(vText)
         case "b": return .bool(vText.trimmingCharacters(in: .whitespaces) == "1")
         case "e": return .error(vText)
+        case "d": return ExcelDate.fromISO8601(vText)
         default:
             let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty, let d = Double(raw) else { return nil }
-            if NumberFormat.isDateFormat(styles.style(cellStyle).numberFormat) { return ExcelDate.fromSerial(d, epoch: epoch) }
+            let fmt = styles.style(cellStyle).numberFormat
+            if NumberFormat.isTimedeltaFormat(fmt) { return ExcelDate.durationFromSerial(d).map { .duration($0) } }
+            if NumberFormat.isDateFormat(fmt) { return ExcelDate.fromSerial(d, epoch: epoch) }
             if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
             return .number(d)
         }
@@ -328,8 +382,16 @@ final class CorePropertiesParser: SAXParser {
         case "title": props.title = buf
         case "subject": props.subject = buf
         case "description": props.description = buf
+        case "keywords": props.keywords = buf
+        case "category": props.category = buf
+        case "contentStatus": props.contentStatus = buf
+        case "identifier": props.identifier = buf
+        case "language": props.language = buf
+        case "version": props.version = buf
+        case "revision": props.revision = buf
         case "created": props.created = f.date(from: buf.trimmingCharacters(in: .whitespacesAndNewlines))
         case "modified": props.modified = f.date(from: buf.trimmingCharacters(in: .whitespacesAndNewlines))
+        case "lastPrinted": props.lastPrinted = f.date(from: buf.trimmingCharacters(in: .whitespacesAndNewlines))
         default: break
         }
         current = ""

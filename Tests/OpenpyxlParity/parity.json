@@ -1,0 +1,2667 @@
+{
+ "openpyxl": "3.1.5",
+ "statuses": {
+  "ported": "同じ入力と期待値を Swift で検証",
+  "adapted": "同じ振る舞いを Swift の形で検証（例外→nil、XML 比較→読み戻し など）",
+  "na_api": "対応する API が SwiftSheets に無い（ロードマップ）",
+  "na_python": "Python 固有で Swift に概念が無い"
+ },
+ "modules": {
+  "chart": {
+   "default": "na_api",
+   "reason": "グラフ（chart パート）は未実装",
+   "api": "Charts"
+  },
+  "chartsheet": {
+   "default": "na_api",
+   "reason": "チャートシートは未実装",
+   "api": "Chartsheet"
+  },
+  "comments": {
+   "default": "na_api",
+   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
+   "api": "Comment"
+  },
+  "compat": {
+   "default": "na_python",
+   "reason": "Python 互換層（numpy / 文字列型）",
+   "api": "—"
+  },
+  "descriptors": {
+   "default": "na_python",
+   "reason": "openpyxl 内部の属性ディスクリプタ機構",
+   "api": "—"
+  },
+  "drawing": {
+   "default": "na_api",
+   "reason": "図形・画像（drawing パート）は未実装",
+   "api": "Drawings / Images"
+  },
+  "formatting": {
+   "default": "na_api",
+   "reason": "条件付き書式は未実装",
+   "api": "Conditional formatting"
+  },
+  "formula": {
+   "default": "na_api",
+   "reason": "数式トークナイザ / 翻訳は未実装（数式は文字列として保持）",
+   "api": "Formula tokenizer"
+  },
+  "pivot": {
+   "default": "na_api",
+   "reason": "ピボットテーブルは未実装",
+   "api": "Pivot tables"
+  },
+  "packaging": {
+   "default": "na_api",
+   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
+   "api": "Packaging"
+  },
+  "xml": {
+   "default": "na_python",
+   "reason": "lxml / ElementTree の関数",
+   "api": "—"
+  },
+  "workbook/external_link": {
+   "default": "na_api",
+   "reason": "外部リンクは未実装",
+   "api": "External links"
+  },
+  "openpyxl": {
+   "default": "na_api",
+   "reason": "read_only / VBA / カスタム文書プロパティは未実装",
+   "api": "read_only / VBA"
+  },
+  "utils": {
+   "default": "na_python",
+   "reason": "Python 固有のユーティリティ",
+   "api": "—"
+  },
+  "styles": {
+   "default": "na_api",
+   "reason": "未実装のスタイル機能",
+   "api": "Styles"
+  },
+  "cell": {
+   "default": "na_api",
+   "reason": "未実装",
+   "api": "Cell"
+  },
+  "workbook": {
+   "default": "na_api",
+   "reason": "未実装",
+   "api": "Workbook"
+  },
+  "worksheet": {
+   "default": "na_api",
+   "reason": "未実装",
+   "api": "Worksheet"
+  },
+  "reader": {
+   "default": "na_api",
+   "reason": "未実装",
+   "api": "Reader"
+  },
+  "writer": {
+   "default": "na_api",
+   "reason": "未実装",
+   "api": "Writer"
+  }
+ },
+ "files": {
+  "cell/tests/test_cell.py": {
+   "default": "na_python",
+   "reason": "pandas / numpy / エンコーディング / pivotButton・quotePrefix（StyleArray）",
+   "api": "—",
+   "tests": {
+    "test_ctor": {
+     "status": "ported"
+    },
+    "test_null": {
+     "status": "adapted",
+     "reason": "data_type の直接代入は無い — 値から導出"
+    },
+    "test_string": {
+     "status": "adapted",
+     "reason": "`CellValue(inferring:)` で推論"
+    },
+    "test_formula": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_not_formula": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_boolean": {
+     "status": "ported"
+    },
+    "test_error_codes": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_insert_date": {
+     "status": "ported"
+    },
+    "test_timstamp": {
+     "status": "na_python",
+     "reason": "pandas"
+    },
+    "test_time_format_datetime_subclass": {
+     "status": "adapted",
+     "reason": "サブクラスは無い — 時刻付き日付で検証"
+    },
+    "test_time_format_date_subclass": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_time_format_no_date_subclass": {
+     "status": "adapted",
+     "reason": "文字列は書式を変えない"
+    },
+    "test_not_overwrite_time_format": {
+     "status": "ported"
+    },
+    "test_cell_formatted_as_date": {
+     "status": "ported"
+    },
+    "test_illegal_characters": {
+     "status": "adapted",
+     "reason": "例外ではなく `containsIllegalCharacters` と書き出し時の除去で検証"
+    },
+    "test_timedelta": {
+     "status": "adapted",
+     "reason": "`Duration` で検証（openpyxl では xfail）"
+    },
+    "test_repr": {
+     "status": "adapted",
+     "reason": "repr は無い — 同じ文字列を組み立てて検証"
+    },
+    "test_repr_object": {
+     "status": "na_python",
+     "reason": "任意オブジェクトの代入"
+    },
+    "test_comment_assignment": {
+     "status": "ported"
+    },
+    "test_only_one_cell_per_comment": {
+     "status": "adapted",
+     "reason": "Comment は値型なので親の付け替えは起きない"
+    },
+    "test_remove_comment": {
+     "status": "ported"
+    },
+    "test_cell_offset": {
+     "status": "ported"
+    },
+    "TestEncoding::test_bad_encoding": {
+     "status": "na_python",
+     "reason": "bytes のエンコーディング"
+    },
+    "TestEncoding::test_good_encoding": {
+     "status": "na_python",
+     "reason": "bytes のエンコーディング"
+    },
+    "test_font": {
+     "status": "adapted",
+     "reason": "IndexedList は無い — 代入と取得で検証"
+    },
+    "test_fill": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_border": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_number_format": {
+     "status": "ported"
+    },
+    "test_alignment": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_protection": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_pivot_button": {
+     "status": "na_python",
+     "reason": "StyleArray の内部フラグ"
+    },
+    "test_quote_prefix": {
+     "status": "na_python",
+     "reason": "StyleArray の内部フラグ"
+    },
+    "test_remove_hyperlink": {
+     "status": "ported"
+    },
+    "TestMergedCell::test_value": {
+     "status": "adapted",
+     "reason": "MergedCell 型は無い — 結合で非アンカーの値が消えることを検証"
+    },
+    "TestMergedCell::test_data_type": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestMergedCell::test_comment": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestMergedCell::test_coordinate": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestMergedCell::test_repr": {
+     "status": "na_python",
+     "reason": "repr（MergedCell 型は無い）"
+    },
+    "TestMergedCell::test_hyperlink": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_write_numpy_to_cell": {
+     "status": "na_python",
+     "reason": "numpy"
+    }
+   }
+  },
+  "cell/tests/test_read_only.py": {
+   "default": "na_api",
+   "reason": "read_only モードは未実装",
+   "api": "read_only"
+  },
+  "cell/tests/test_rich_text.py": {
+   "default": "na_python",
+   "reason": "CellRichText のリスト操作（append / extend / setitem / inline / opt）",
+   "api": "—",
+   "tests": {
+    "TestTextBlock::test_ctor": {
+     "status": "ported"
+    },
+    "TestTextBlock::test_eq": {
+     "status": "ported"
+    },
+    "TestTextBlock::test_ne": {
+     "status": "ported"
+    },
+    "TestTextBlock::test_str": {
+     "status": "adapted",
+     "reason": "pythonString で検証"
+    },
+    "TestCellRichText::test_rich_text_create_single": {
+     "status": "ported"
+    },
+    "TestCellRichText::test_rich_text_create_multi": {
+     "status": "ported"
+    },
+    "TestCellRichText::test_rich_text_create_text_block": {
+     "status": "ported"
+    },
+    "TestCellRichText::test_rich_text_from_element_simple_text": {
+     "status": "adapted",
+     "reason": "SharedStringsParser で読む"
+    },
+    "TestCellRichText::test_rich_text_from_element_rich_text_only_text": {
+     "status": "adapted",
+     "reason": "書式の無いランは平文に畳む"
+    },
+    "TestCellRichText::test_rich_text_from_element_rich_text_only_text_block": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestCellRichText::test_rich_text_from_element_rich_text_mixed": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestCellRichText::test_str": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestCellRichText::test_to_tree": {
+     "status": "adapted",
+     "reason": "sharedStrings.xml で検証"
+    }
+   }
+  },
+  "cell/tests/test_text.py": {
+   "default": "na_api",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は読み飛ばし）",
+   "api": "Phonetic text"
+  },
+  "cell/tests/test_writer.py": {
+   "default": "na_api",
+   "reason": "ArrayFormula / DataTableFormula / tz 付き日時 は未実装",
+   "api": "Array formulas",
+   "tests": {
+    "test_write_cell": {
+     "status": "adapted",
+     "reason": "文字列は常に共有文字列テーブル（inlineStr ではない）、空セルは `t` 属性なし"
+    },
+    "test_write_date": {
+     "status": "adapted",
+     "reason": "ISO 日付書き出し（iso_dates）は無い — シリアル値のみ"
+    },
+    "test_write_epoch": {
+     "status": "ported"
+    },
+    "test_write_hyperlink": {
+     "status": "ported"
+    },
+    "test_attributes": {
+     "status": "adapted",
+     "reason": "`_set_attributes` は無い — 書き出した `<c>` で検証"
+    },
+    "test_whitespace": {
+     "status": "adapted",
+     "reason": "sharedStrings.xml で検証"
+    },
+    "test_rich_text": {
+     "status": "adapted",
+     "reason": "同上"
+    }
+   }
+  },
+  "packaging/tests/test_core.py": {
+   "default": "na_python",
+   "reason": "名前空間プレフィックスの登録（lxml）",
+   "api": "—",
+   "tests": {
+    "test_ctor": {
+     "status": "adapted",
+     "reason": "部分文字列で検証"
+    },
+    "test_from_tree": {
+     "status": "adapted",
+     "reason": "CorePropertiesParser"
+    },
+    "test_qualified_datetime": {
+     "status": "adapted",
+     "reason": "秒まで"
+    },
+    "test_settable_times": {
+     "status": "ported"
+    },
+    "test_qualified_datetime_ns": {
+     "status": "na_python",
+     "reason": "lxml の名前空間登録"
+    }
+   }
+  },
+  "packaging/tests/test_relationship.py": {
+   "default": "na_api",
+   "reason": "—",
+   "api": "Relationships",
+   "tests": {
+    "test_ctor": {
+     "status": "adapted",
+     "reason": "RelsParser で読む（書き出しは固定）"
+    },
+    "test_sequence": {
+     "status": "adapted",
+     "reason": "workbook.xml.rels で検証"
+    },
+    "TestRelationshipList::test_read": {
+     "status": "adapted",
+     "reason": "RelsParser"
+    },
+    "TestRelationshipList::test_to_dict": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_get_dependents": {
+     "status": "adapted",
+     "reason": "`resolvePart`"
+    },
+    "test_get_external_link": {
+     "status": "ported"
+    }
+   }
+  },
+  "packaging/tests/test_workbook.py": {
+   "default": "na_api",
+   "reason": "—",
+   "api": "Packaging",
+   "tests": {
+    "TestWorkbookPackage::test_ctor": {
+     "status": "adapted",
+     "reason": "書き出した workbook.xml"
+    },
+    "TestWorkbookPackage::test_from_xml": {
+     "status": "adapted",
+     "reason": "WorkbookXMLParser"
+    },
+    "test_read_workbook_code_name": {
+     "status": "adapted",
+     "reason": "`codeName`"
+    }
+   }
+  },
+  "reader/tests/test_drawings.py": {
+   "default": "na_api",
+   "reason": "図形・画像は未実装",
+   "api": "Drawings"
+  },
+  "reader/tests/test_excel.py": {
+   "default": "na_api",
+   "reason": "manifest / 拡張子検査 / VBA / 外部リンク / テーマ / チャートシート / read_only は未実装",
+   "api": "Packaging",
+   "tests": {
+    "test_read_empty_file": {
+     "status": "adapted",
+     "reason": "BadZipfile ではなく SheetsError"
+    },
+    "test_load_workbook_from_fileobj": {
+     "status": "ported"
+    },
+    "test_invalid_file_extension": {
+     "status": "na_python",
+     "reason": "ファイル名の拡張子検査（Data から読むので拡張子は無い）"
+    },
+    "test_style_assignment": {
+     "status": "adapted",
+     "reason": "スタイルシートの表で数える（結合セルの中間 Border は数えない）"
+    },
+    "test_close_read": {
+     "status": "na_python",
+     "reason": "close / ファイルハンドル"
+    },
+    "test_close_write": {
+     "status": "na_python",
+     "reason": "close / ファイルハンドル"
+    },
+    "test_read_stringio": {
+     "status": "adapted",
+     "reason": "SheetsError"
+    },
+    "test_file_closes": {
+     "status": "na_python",
+     "reason": "close / ファイルハンドル"
+    },
+    "TestExcelReader::test_ctor": {
+     "status": "adapted",
+     "reason": "ZipArchive のエントリ集合"
+    },
+    "TestExcelReader::test_read_strings": {
+     "status": "adapted",
+     "reason": "SharedStringsParser"
+    },
+    "TestExcelReader::test_read_workbook": {
+     "status": "adapted",
+     "reason": "sheetNames"
+    },
+    "TestExcelReader::test_read_workbook_hidden": {
+     "status": "ported"
+    }
+   }
+  },
+  "reader/tests/test_strings.py": {
+   "tests": {
+    "test_read_string_table": {
+     "status": "ported"
+    },
+    "test_empty_string": {
+     "status": "ported"
+    },
+    "test_formatted_string_table": {
+     "status": "adapted",
+     "reason": "InlineFont ではなく Font"
+    }
+   }
+  },
+  "reader/tests/test_workbook.py": {
+   "default": "na_api",
+   "reason": "外部リンク / ワークブック保護 / 壊れた sheet 参照の警告 / 印刷範囲の警告は未実装",
+   "api": "Workbook protection",
+   "tests": {
+    "TestWorkbookParser::test_ctor": {
+     "status": "adapted",
+     "reason": "WorkbookXMLParser"
+    },
+    "TestWorkbookParser::test_parse_calendar": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorkbookParser::test_find_sheets": {
+     "status": "adapted",
+     "reason": "rels と突き合わせて検証"
+    },
+    "TestWorkbookParser::test_print_area_title": {
+     "status": "ported"
+    },
+    "TestWorkbookParser::test_assign_names": {
+     "status": "adapted",
+     "reason": "`assignLocalNames`"
+    },
+    "TestWorkbookParser::test_name_invalid_index": {
+     "status": "adapted",
+     "reason": "警告なしで捨てる"
+    },
+    "TestWorkbookParser::test_book_views": {
+     "status": "adapted",
+     "reason": "activeTab"
+    }
+   }
+  },
+  "styles/tests/test_alignments.py": {
+   "tests": {
+    "test_default": {
+     "status": "adapted",
+     "reason": "dict ではなく既定値で検証"
+    },
+    "test_round_trip": {
+     "status": "adapted",
+     "reason": "書き出し→読み戻しで検証"
+    },
+    "test_alias": {
+     "status": "adapted",
+     "reason": "属性名の別名は無い — 書き出し XML で検証"
+    }
+   }
+  },
+  "styles/tests/test_borders.py": {
+   "tests": {
+    "TestBorder::test_create": {
+     "status": "adapted",
+     "reason": "`<borders>` 断片を StylesParser で読む"
+    },
+    "TestBorder::test_serialise": {
+     "status": "adapted",
+     "reason": "styles.xml の部分文字列で検証"
+    }
+   }
+  },
+  "styles/tests/test_cell_style.py": {
+   "default": "na_python",
+   "reason": "StyleArray（内部インデックス配列）",
+   "api": "—"
+  },
+  "styles/tests/test_colors.py": {
+   "default": "na_python",
+   "reason": "Color ディスクリプタ / 演算子（Python 固有）",
+   "api": "—",
+   "tests": {
+    "test_argb": {
+     "status": "adapted",
+     "reason": "`Color(hex:)` が 8 桁 ARGB に正規化することを検証"
+    },
+    "TestColor::test_rgb": {
+     "status": "ported"
+    },
+    "TestColor::test_indexed": {
+     "status": "ported"
+    },
+    "TestColor::test_auto": {
+     "status": "ported"
+    },
+    "TestColor::test_theme": {
+     "status": "ported"
+    },
+    "TestColor::test_tint": {
+     "status": "ported"
+    },
+    "TestColor::test_highlander": {
+     "status": "adapted",
+     "reason": "属性の優先順位 rgb > theme > indexed > auto で検証"
+    },
+    "TestColorList::test_ctor_indexed": {
+     "status": "adapted",
+     "reason": "StylesParser で読み、6 桁→8 桁の補正は行わない"
+    },
+    "TestColorList::test_write": {
+     "status": "adapted",
+     "reason": "`<colors>` を styles.xml の部分文字列で検証"
+    },
+    "TestColorList::test_from_xml": {
+     "status": "adapted",
+     "reason": "StylesParser で `<colors>` を読む"
+    },
+    "TestColorList::test_empty": {
+     "status": "adapted",
+     "reason": "空リスト"
+    },
+    "TestColorList::test_no_colors": {
+     "status": "adapted",
+     "reason": "空なら `<colors>` を書かない"
+    }
+   }
+  },
+  "styles/tests/test_differential.py": {
+   "default": "na_api",
+   "reason": "差分スタイル（dxf）は未実装",
+   "api": "DifferentialStyle"
+  },
+  "styles/tests/test_fills.py": {
+   "default": "na_api",
+   "reason": "GradientFill / Stop は未実装",
+   "api": "GradientFill",
+   "tests": {
+    "TestPatternFill::test_ctor": {
+     "status": "ported"
+    },
+    "TestPatternFill::test_dict_interface": {
+     "status": "adapted",
+     "reason": "dict インターフェースは無い — 値型の等価性で検証"
+    },
+    "TestPatternFill::test_serialise": {
+     "status": "adapted",
+     "reason": "styles.xml の部分文字列で検証"
+    },
+    "TestPatternFill::test_create": {
+     "status": "adapted",
+     "reason": "`<fills>` 断片を StylesParser で読む"
+    },
+    "test_create_empty_fill": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_read_fills": {
+     "status": "ported"
+    }
+   }
+  },
+  "styles/tests/test_fonts.py": {
+   "tests": {
+    "TestFont::test_ctor": {
+     "status": "ported"
+    },
+    "TestFont::test_serialise": {
+     "status": "adapted",
+     "reason": "XML 比較ではなく要素の部分文字列で検証"
+    },
+    "TestFont::test_create": {
+     "status": "adapted",
+     "reason": "`<fonts>` 断片を StylesParser で読む"
+    },
+    "TestFont::test_nested_empty": {
+     "status": "adapted",
+     "reason": "同上"
+    }
+   }
+  },
+  "styles/tests/test_named_style.py": {
+   "default": "na_api",
+   "reason": "名前付きスタイルは未実装",
+   "api": "NamedStyle"
+  },
+  "styles/tests/test_number_style.py": {
+   "default": "na_python",
+   "reason": "ディスクリプタ",
+   "api": "—",
+   "tests": {
+    "test_builtin_format": {
+     "status": "ported"
+    },
+    "test_number_descriptor": {
+     "status": "adapted",
+     "reason": "ディスクリプタは無い — `CellStyle().numberFormat` の既定値 General で検証"
+    },
+    "test_strip_quotes": {
+     "status": "adapted",
+     "reason": "正規表現ではなく `NumberFormat.stripLiterals` で同じ入出力を検証"
+    },
+    "test_is_date_format": {
+     "status": "ported"
+    },
+    "test_is_timedelta_format": {
+     "status": "ported"
+    },
+    "test_datetime": {
+     "status": "ported"
+    }
+   }
+  },
+  "styles/tests/test_protection.py": {
+   "tests": {
+    "test_default": {
+     "status": "adapted",
+     "reason": "dict ではなく既定値で検証"
+    },
+    "test_round_trip": {
+     "status": "adapted",
+     "reason": "書き出し→読み戻しで検証"
+    }
+   }
+  },
+  "styles/tests/test_proxy.py": {
+   "default": "na_python",
+   "reason": "スタイルプロキシ（内部）",
+   "api": "—"
+  },
+  "styles/tests/test_styleable.py": {
+   "default": "na_python",
+   "reason": "StyleableObject（内部）",
+   "api": "—"
+  },
+  "styles/tests/test_stylesheet.py": {
+   "default": "na_api",
+   "reason": "名前付きスタイル",
+   "api": "NamedStyle",
+   "tests": {
+    "TestStylesheet::test_from_simple": {
+     "status": "ported"
+    },
+    "TestStylesheet::test_from_complex": {
+     "status": "ported"
+    },
+    "TestStylesheet::test_unprotected_cell": {
+     "status": "adapted",
+     "reason": "StyleArray ではなく解決済み `CellStyle` で検証"
+    },
+    "TestStylesheet::test_read_cell_style": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestStylesheet::test_read_xf_no_number_format": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestStylesheet::test_none_values": {
+     "status": "ported"
+    },
+    "TestStylesheet::test_alignment": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestStylesheet::test_rgb_colors": {
+     "status": "ported"
+    },
+    "TestStylesheet::test_custom_number_formats": {
+     "status": "adapted",
+     "reason": "`customNumberFormats` と isDateFormat で検証"
+    },
+    "TestStylesheet::test_remove_duplicate_number_formats": {
+     "status": "adapted",
+     "reason": "組み込み書式は custom に数えない"
+    },
+    "TestStylesheet::test_assign_number_formats": {
+     "status": "adapted",
+     "reason": "組み込み id を上書きした書式は書き出し時に 164+ へ"
+    },
+    "test_no_stylesheet": {
+     "status": "adapted",
+     "reason": "styles パートの無いパッケージを手組みで読む"
+    },
+    "test_no_styles": {
+     "status": "adapted",
+     "reason": "警告は出さず既定値にフォールバック"
+    },
+    "test_write_worksheet": {
+     "status": "adapted",
+     "reason": "既定 styles.xml の要素を部分文字列で検証"
+    },
+    "test_simple_styles": {
+     "status": "adapted",
+     "reason": "登録順を合わせて同じ cellXfs になることを検証"
+    },
+    "test_no_default_style": {
+     "status": "adapted",
+     "reason": "書き出し側が常に Normal を補う"
+    }
+   }
+  },
+  "styles/tests/test_table.py": {
+   "default": "na_api",
+   "reason": "テーブルスタイルは未実装",
+   "api": "Table styles"
+  },
+  "tests/test_backend.py": {
+   "default": "na_python",
+   "reason": "lxml バックエンド",
+   "api": "—"
+  },
+  "tests/test_iter.py": {
+   "default": "na_api",
+   "reason": "read_only モード（ReadOnlyWorksheet）/ 1024 シートの遅延読み込み / ファイル記述子は未実装",
+   "api": "read_only",
+   "tests": {
+    "test_open_many_sheets": {
+     "status": "na_api",
+     "reason": "read_only（bigfoot.xlsx は 1024 シート）"
+    },
+    "test_ctor": {
+     "status": "na_api",
+     "reason": "ReadOnlyWorksheet"
+    },
+    "test_force_dimension": {
+     "status": "na_api",
+     "reason": "ReadOnlyWorksheet"
+    },
+    "test_calculate_dimension": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_file_descriptor_leak": {
+     "status": "na_python",
+     "reason": "ファイル記述子"
+    },
+    "test_nonstandard_name": {
+     "status": "adapted",
+     "reason": "read_only は無い"
+    },
+    "test_get_max_cell": {
+     "status": "na_api",
+     "reason": "ReadOnlyWorksheet"
+    },
+    "TestRead::test_get_missing_cell": {
+     "status": "ported"
+    },
+    "TestRead::test_getitem": {
+     "status": "adapted",
+     "reason": "`rows(...)` と `ws[range:]`"
+    },
+    "TestRead::test_max_row": {
+     "status": "ported"
+    },
+    "TestRead::test_max_column": {
+     "status": "ported"
+    },
+    "TestRead::test_read_fast_integrated_text": {
+     "status": "ported"
+    },
+    "TestRead::test_read_single_cell_range": {
+     "status": "ported"
+    },
+    "TestRead::test_read_single_cell": {
+     "status": "ported"
+    },
+    "TestRead::test_read_fast_integrated_numbers": {
+     "status": "ported"
+    },
+    "TestRead::test_read_fast_integrated_numbers_2": {
+     "status": "ported"
+    },
+    "TestRead::test_read_single_cell_date": {
+     "status": "ported"
+    },
+    "TestRead::test_read_boolean": {
+     "status": "ported"
+    },
+    "test_read_single_cell_formula": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_read_style_iter": {
+     "status": "adapted",
+     "reason": "read_only は無い — 通常読み込み"
+    },
+    "test_read_hyperlinks_read_only": {
+     "status": "adapted",
+     "reason": "SheetParser"
+    },
+    "test_read_with_missing_cells": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_read_empty_sheet": {
+     "status": "adapted",
+     "reason": "rows() が空"
+    },
+    "test_read_mac_date": {
+     "status": "adapted",
+     "reason": "read_only は無い"
+    },
+    "test_read_empty_rows": {
+     "status": "adapted",
+     "reason": "rows() は 1 行目から"
+    }
+   }
+  },
+  "tests/test_read.py": {
+   "default": "na_api",
+   "reason": "—",
+   "api": "Reader",
+   "tests": {
+    "test_read_general_style": {
+     "status": "ported"
+    },
+    "test_read_no_theme": {
+     "status": "adapted",
+     "reason": "theme パートは読まない"
+    }
+   }
+  },
+  "tests/test_read_write_custom_doc_props.py": {
+   "default": "na_api",
+   "reason": "カスタム文書プロパティは未実装",
+   "api": "Custom doc props"
+  },
+  "tests/test_vba.py": {
+   "default": "na_api",
+   "reason": "VBA の保持は未実装",
+   "api": "VBA"
+  },
+  "utils/tests/test_bound_dictionary.py": {
+   "default": "na_python",
+   "reason": "Python の辞書ラッパー",
+   "api": "—"
+  },
+  "utils/tests/test_cell.py": {
+   "tests": {
+    "test_coordinates": {
+     "status": "ported"
+    },
+    "test_invalid_coordinate": {
+     "status": "adapted",
+     "reason": "例外ではなく nil を返す（Swift の失敗可能イニシャライザ）"
+    },
+    "test_absolute": {
+     "status": "ported"
+    },
+    "test_column_interval": {
+     "status": "ported"
+    },
+    "test_column_index": {
+     "status": "ported"
+    },
+    "test_bad_column_index": {
+     "status": "adapted",
+     "reason": "例外ではなく nil を返す"
+    },
+    "test_column_letter_boundries": {
+     "status": "adapted",
+     "reason": "例外ではなく `columnLetter(validating:)` が nil を返す"
+    },
+    "test_column_letter": {
+     "status": "ported"
+    },
+    "test_coordinate_tuple": {
+     "status": "ported"
+    },
+    "test_range_to_tuple": {
+     "status": "ported"
+    },
+    "test_invalid_range": {
+     "status": "adapted",
+     "reason": "`range_to_tuple` 相当は `CellRange.splitSheetTitle` — シート名の無い文字列は nil"
+    },
+    "test_quote_sheetname": {
+     "status": "ported"
+    },
+    "test_rows_from_range": {
+     "status": "ported"
+    },
+    "test_cols_from_range": {
+     "status": "ported"
+    },
+    "test_bounds": {
+     "status": "ported"
+    },
+    "test_invalid_bounds": {
+     "status": "adapted",
+     "reason": "例外ではなく `RangeBounds(_:)` が nil"
+    }
+   }
+  },
+  "utils/tests/test_dataframe.py": {
+   "default": "na_python",
+   "reason": "pandas DataFrame 連携",
+   "api": "—"
+  },
+  "utils/tests/test_datetime.py": {
+   "tests": {
+    "test_to_iso": {
+     "status": "ported"
+    },
+    "test_iso_regex": {
+     "status": "adapted",
+     "reason": "正規表現グループではなく `ExcelDate.fromISO8601` の型（date / time）で判定"
+    },
+    "test_from_iso": {
+     "status": "ported"
+    },
+    "test_to_excel": {
+     "status": "ported"
+    },
+    "test_to_excel_mac": {
+     "status": "ported"
+    },
+    "test_from_excel": {
+     "status": "ported"
+    },
+    "test_from_excel_timedelta": {
+     "status": "ported"
+    },
+    "test_from_excel_mac": {
+     "status": "ported"
+    },
+    "test_time_to_days": {
+     "status": "ported"
+    },
+    "test_timedelta_to_days": {
+     "status": "ported"
+    },
+    "test_days_to_time": {
+     "status": "adapted",
+     "reason": "`timedelta` が無いので日の端数 → `TimeOfDay`（ミリ秒丸め）で検証"
+    }
+   }
+  },
+  "utils/tests/test_escape.py": {
+   "tests": {
+    "test_escape": {
+     "status": "ported"
+    },
+    "test_unescape": {
+     "status": "ported"
+    }
+   }
+  },
+  "utils/tests/test_formulas.py": {
+   "default": "na_api",
+   "reason": "Excel 関数名の一覧（FORMULAE）は持たない",
+   "api": "Formula names"
+  },
+  "utils/tests/test_indexed_list.py": {
+   "default": "na_python",
+   "reason": "内部コレクション",
+   "api": "—"
+  },
+  "utils/tests/test_inference.py": {
+   "default": "na_api",
+   "reason": "文字列からの型推測（guess_types）は提供しない",
+   "api": "Type inference"
+  },
+  "utils/tests/test_protection.py": {
+   "default": "na_api",
+   "reason": "シート保護のパスワードハッシュは未実装",
+   "api": "Sheet protection"
+  },
+  "utils/tests/test_units.py": {
+   "tests": {
+    "test_dxa_to_inch": {
+     "status": "ported"
+    },
+    "test_inch_to_dxa": {
+     "status": "ported"
+    },
+    "test_dxa_to_cm": {
+     "status": "ported"
+    },
+    "test_cm_to_dxa": {
+     "status": "ported"
+    },
+    "test_pixels_to_EMU": {
+     "status": "ported"
+    },
+    "test_EMU_to_pixels": {
+     "status": "ported"
+    },
+    "test_EMU_to_cm": {
+     "status": "ported"
+    },
+    "test_cm_to_EMU": {
+     "status": "ported"
+    },
+    "test_EMU_to_inch": {
+     "status": "ported"
+    },
+    "test_inch_to_EMU": {
+     "status": "ported"
+    },
+    "test_pixels_to_points": {
+     "status": "ported"
+    },
+    "test_points_to_pixels": {
+     "status": "ported"
+    },
+    "test_degrees_to_angle": {
+     "status": "ported"
+    },
+    "test_angle_to_degrees": {
+     "status": "ported"
+    },
+    "test_short_color": {
+     "status": "ported"
+    }
+   }
+  },
+  "workbook/tests/test_child.py": {
+   "default": "na_python",
+   "reason": "bytes タイトル",
+   "api": "—",
+   "tests": {
+    "test_invalid_chars": {
+     "status": "ported"
+    },
+    "test_duplicate_title": {
+     "status": "ported"
+    },
+    "TestWorkbookChild::test_ctor": {
+     "status": "adapted",
+     "reason": "既定名は既存と重複するので Sheet1"
+    },
+    "TestWorkbookChild::test_repr": {
+     "status": "na_python",
+     "reason": "repr"
+    },
+    "TestWorkbookChild::test_invalid_title": {
+     "status": "adapted",
+     "reason": "例外ではなく以前の名前を維持"
+    },
+    "TestWorkbookChild::test_reassign_title": {
+     "status": "ported"
+    },
+    "TestWorkbookChild::test_title_too_long": {
+     "status": "adapted",
+     "reason": "警告なしで受理"
+    },
+    "TestWorkbookChild::test_set_encoded_title": {
+     "status": "na_python",
+     "reason": "bytes タイトル"
+    },
+    "TestWorkbookChild::test_empty_title": {
+     "status": "adapted",
+     "reason": "例外ではなく以前の名前を維持"
+    }
+   }
+  },
+  "workbook/tests/test_defined_name.py": {
+   "default": "na_api",
+   "reason": "DefinedName オブジェクト（destinations / 型判定 / 予約名）は無く、名前→文字列のみ",
+   "api": "DefinedName",
+   "tests": {
+    "TestDefinition::test_write": {
+     "status": "adapted",
+     "reason": "workbook.xml の部分文字列で検証"
+    },
+    "TestDefinitionList::test_read": {
+     "status": "adapted",
+     "reason": "WorkbookXMLParser で読む"
+    },
+    "TestDefinitionList::test_by_sheet": {
+     "status": "adapted",
+     "reason": "localSheetId ごとの辞書で検証"
+    }
+   }
+  },
+  "workbook/tests/test_external_reference.py": {
+   "default": "na_api",
+   "reason": "外部参照は未実装",
+   "api": "External links"
+  },
+  "workbook/tests/test_function_group.py": {
+   "default": "na_api",
+   "reason": "functionGroups は未実装",
+   "api": "Function groups"
+  },
+  "workbook/tests/test_properties.py": {
+   "default": "na_api",
+   "reason": "fileVersion は書かない",
+   "api": "FileVersion",
+   "tests": {
+    "TestWorkbookProperties::test_ctor": {
+     "status": "adapted",
+     "reason": "workbook.xml の `<workbookPr>` で検証"
+    },
+    "TestWorkbookProperties::test_from_xml": {
+     "status": "adapted",
+     "reason": "date1904 のみ"
+    },
+    "TestCalcProperties::test_ctor": {
+     "status": "adapted",
+     "reason": "固定の `<calcPr>` を検証"
+    }
+   }
+  },
+  "workbook/tests/test_protection.py": {
+   "default": "na_api",
+   "reason": "ワークブック保護は未実装",
+   "api": "Workbook protection"
+  },
+  "workbook/tests/test_smart_tags.py": {
+   "default": "na_api",
+   "reason": "smartTags は未実装",
+   "api": "Smart tags"
+  },
+  "workbook/tests/test_views.py": {
+   "default": "na_api",
+   "reason": "CustomWorkbookView は未実装",
+   "api": "CustomWorkbookView",
+   "tests": {
+    "TestBookView::test_ctor": {
+     "status": "adapted",
+     "reason": "`<workbookView activeTab>` のみ"
+    },
+    "TestBookView::test_from_xml": {
+     "status": "adapted",
+     "reason": "activeTab のみ"
+    }
+   }
+  },
+  "workbook/tests/test_web.py": {
+   "default": "na_api",
+   "reason": "webPublishing は未実装",
+   "api": "Web publishing"
+  },
+  "workbook/tests/test_workbook.py": {
+   "default": "na_api",
+   "reason": "テンプレート / VBA / テーブル / チャートシート / read_only / write_only は未実装",
+   "api": "Templates / VBA",
+   "tests": {
+    "TestWorkbook::test_template": {
+     "status": "na_api",
+     "reason": "テンプレート / VBA の MIME タイプは未実装"
+    },
+    "TestWorkbook::test_named_styles": {
+     "status": "adapted",
+     "reason": "Normal のみ — styles.xml で検証"
+    },
+    "TestWorkbook::test_immutable_builtins": {
+     "status": "na_api",
+     "reason": "名前付きスタイルは未実装"
+    },
+    "TestWorkbook::test_duplicate_table_name": {
+     "status": "na_api",
+     "reason": "テーブルは未実装"
+    },
+    "TestWorkbook::test_duplicate_defined_name": {
+     "status": "adapted",
+     "reason": "`_duplicate_name` は無い — 大文字小文字を無視した照合で検証"
+    },
+    "test_get_active_sheet": {
+     "status": "ported"
+    },
+    "test_set_active_by_sheet": {
+     "status": "ported"
+    },
+    "test_set_active_by_index": {
+     "status": "ported"
+    },
+    "test_set_invalid_active_index": {
+     "status": "na_python",
+     "reason": "Python のインデックス検証（openpyxl でも xfail）"
+    },
+    "test_set_invalid_sheet_by_name": {
+     "status": "na_python",
+     "reason": "文字列代入の TypeError"
+    },
+    "test_set_invalid_child_as_active": {
+     "status": "adapted",
+     "reason": "例外ではなく無視"
+    },
+    "test_set_hidden_sheet_as_active": {
+     "status": "adapted",
+     "reason": "例外ではなく無視"
+    },
+    "test_no_active": {
+     "status": "na_api",
+     "reason": "write_only モードは未実装"
+    },
+    "test_create_sheet": {
+     "status": "ported"
+    },
+    "test_create_sheet_with_name": {
+     "status": "ported"
+    },
+    "test_add_correct_sheet": {
+     "status": "adapted",
+     "reason": "`_add_sheet` は無い — createSheet の位置で検証"
+    },
+    "test_add_sheetname": {
+     "status": "na_python",
+     "reason": "TypeError"
+    },
+    "test_add_sheet_from_other_workbook": {
+     "status": "na_python",
+     "reason": "非公開 `_add_sheet`"
+    },
+    "test_create_sheet_readonly": {
+     "status": "na_api",
+     "reason": "read_only モードは未実装"
+    },
+    "test_remove_sheet": {
+     "status": "ported"
+    },
+    "test_move_sheet": {
+     "status": "ported"
+    },
+    "test_getitem": {
+     "status": "ported"
+    },
+    "test_get_chartsheet": {
+     "status": "na_api",
+     "reason": "チャートシートは未実装"
+    },
+    "test_del_worksheet": {
+     "status": "adapted",
+     "reason": "`removeSheet(named:)`"
+    },
+    "test_del_chartsheet": {
+     "status": "na_api",
+     "reason": "チャートシートは未実装"
+    },
+    "test_contains": {
+     "status": "ported"
+    },
+    "test_iter": {
+     "status": "ported"
+    },
+    "test_index": {
+     "status": "ported"
+    },
+    "test_get_sheet_names": {
+     "status": "ported"
+    },
+    "test_add_invalid_worksheet_class_instance": {
+     "status": "na_python",
+     "reason": "型検査"
+    },
+    "TestCopy::test_worksheet_copy": {
+     "status": "ported"
+    },
+    "TestCopy::test_worksheet_copy_name": {
+     "status": "ported"
+    },
+    "TestCopy::test_cannot_copy_readonly": {
+     "status": "na_api",
+     "reason": "read_only"
+    },
+    "TestCopy::test_cannot_copy_writeonly": {
+     "status": "na_api",
+     "reason": "write_only"
+    },
+    "TestCopy::test_default_epoch": {
+     "status": "ported"
+    },
+    "TestCopy::test_assign_epoch": {
+     "status": "ported"
+    },
+    "TestCopy::test_invalid_epoch": {
+     "status": "adapted",
+     "reason": "DateEpoch は閉じた enum なので不正値を表現できない"
+    }
+   }
+  },
+  "workbook/tests/test_writer.py": {
+   "default": "na_api",
+   "reason": "ワークブック保護は未実装",
+   "api": "Workbook protection",
+   "tests": {
+    "TestWorkbookWriter::test_hidden_worksheet": {
+     "status": "adapted",
+     "reason": "workbookProtection / workbookView の既定属性は書かない"
+    },
+    "TestWorkbookWriter::test_workbook": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorkbookWriter::test_workbook_code_name": {
+     "status": "ported"
+    },
+    "TestWorkbookWriter::test_print_area": {
+     "status": "ported"
+    },
+    "TestWorkbookWriter::test_print_titles": {
+     "status": "ported"
+    },
+    "TestWorkbookWriter::test_autofilter": {
+     "status": "adapted",
+     "reason": "読み戻しで `_FilterDatabase` を捨てることも検証"
+    },
+    "TestWorkbookWriter::test_defined_name_global": {
+     "status": "ported"
+    },
+    "TestWorkbookWriter::test_defined_name_locall": {
+     "status": "ported"
+    }
+   }
+  },
+  "worksheet/tests/test_cell_range.py": {
+   "default": "na_api",
+   "reason": "—",
+   "api": "CellRange",
+   "tests": {
+    "TestCellRange::test_ctor": {
+     "status": "ported"
+    },
+    "TestCellRange::test_dict": {
+     "status": "adapted",
+     "reason": "bounds で検証"
+    },
+    "TestCellRange::test_max_row_too_small": {
+     "status": "adapted",
+     "reason": "例外ではなく nil"
+    },
+    "TestCellRange::test_max_col_too_small": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestCellRange::test_from_string": {
+     "status": "ported"
+    },
+    "TestCellRange::test_repr": {
+     "status": "adapted",
+     "reason": "`qualified`"
+    },
+    "TestCellRange::test_str": {
+     "status": "ported"
+    },
+    "TestCellRange::test_eq": {
+     "status": "ported"
+    },
+    "TestCellRange::test_ne": {
+     "status": "ported"
+    },
+    "TestCellRange::test_copy": {
+     "status": "adapted",
+     "reason": "値型"
+    },
+    "TestCellRange::test_shift": {
+     "status": "ported"
+    },
+    "TestCellRange::test_shift_negative": {
+     "status": "adapted",
+     "reason": "`shifted` が nil"
+    },
+    "TestCellRange::test_union": {
+     "status": "ported"
+    },
+    "TestCellRange::test_no_union": {
+     "status": "adapted",
+     "reason": "nil"
+    },
+    "TestCellRange::test_expand": {
+     "status": "ported"
+    },
+    "TestCellRange::test_shrink": {
+     "status": "ported"
+    },
+    "TestCellRange::test_size": {
+     "status": "ported"
+    },
+    "TestCellRange::test_intersection": {
+     "status": "ported"
+    },
+    "TestCellRange::test_no_intersection": {
+     "status": "adapted",
+     "reason": "nil"
+    },
+    "TestCellRange::test_isdisjoint_order": {
+     "status": "ported"
+    },
+    "TestCellRange::test_isdisjoint_by_col": {
+     "status": "ported"
+    },
+    "TestCellRange::test_isdisjoint_by_row": {
+     "status": "ported"
+    },
+    "TestCellRange::test_isdisjoint_in_both": {
+     "status": "ported"
+    },
+    "TestCellRange::test_is_not_disjoint": {
+     "status": "ported"
+    },
+    "TestCellRange::test_is_not_disjoint_in_both": {
+     "status": "ported"
+    },
+    "TestCellRange::test_issubset": {
+     "status": "ported"
+    },
+    "TestCellRange::test_is_not_subset": {
+     "status": "ported"
+    },
+    "TestCellRange::test_issuperset": {
+     "status": "ported"
+    },
+    "TestCellRange::test_is_not_superset": {
+     "status": "ported"
+    },
+    "TestCellRange::test_contains": {
+     "status": "ported"
+    },
+    "TestCellRange::test_doesnt_contain": {
+     "status": "ported"
+    },
+    "TestCellRange::test_check_title": {
+     "status": "adapted",
+     "reason": "`isOnDifferentSheet`"
+    },
+    "TestCellRange::test_different_worksheets": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestCellRange::test_lt": {
+     "status": "ported"
+    },
+    "TestCellRange::test_gt": {
+     "status": "ported"
+    },
+    "TestCellRange::test_edge_cells": {
+     "status": "ported"
+    },
+    "TestCellRange::test_rows": {
+     "status": "ported"
+    },
+    "TestCellRange::test_cols": {
+     "status": "ported"
+    },
+    "TestCellRange::test_cells": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_ctor": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_from_string": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_add_coord": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_add_cell_range": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_iadd": {
+     "status": "adapted",
+     "reason": "`add`"
+    },
+    "TestMultiCellRange::test_avoid_duplicates": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_repr": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_contains": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_doesnt_contain": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_eq": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_ne": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_empty": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_not_empty": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_remove": {
+     "status": "ported"
+    },
+    "TestMultiCellRange::test_remove_invalid": {
+     "status": "adapted",
+     "reason": "例外ではなく false"
+    },
+    "TestMultiCellRange::test_iter": {
+     "status": "adapted",
+     "reason": "`sorted`"
+    },
+    "TestMultiCellRange::test_copy": {
+     "status": "adapted",
+     "reason": "値型"
+    }
+   }
+  },
+  "worksheet/tests/test_controls.py": {
+   "default": "na_api",
+   "reason": "フォームコントロールは未実装",
+   "api": "Controls"
+  },
+  "worksheet/tests/test_datavalidation.py": {
+   "default": "na_api",
+   "reason": "データ検証は未実装",
+   "api": "Data validation"
+  },
+  "worksheet/tests/test_dimensions.py": {
+   "default": "na_python",
+   "reason": "—",
+   "api": "—",
+   "tests": {
+    "TestDimension::test_dimension_interface": {
+     "status": "adapted",
+     "reason": "dict ではなくプロパティ"
+    },
+    "TestDimension::test_repr": {
+     "status": "adapted",
+     "reason": "等価性で検証"
+    },
+    "TestRowDimension::test_row_dimension": {
+     "status": "adapted",
+     "reason": "書き出した `<row>` 属性で検証"
+    },
+    "TestRowDimension::test_row_auto_assign": {
+     "status": "adapted",
+     "reason": "既定値を返す"
+    },
+    "TestRowDimension::test_copy": {
+     "status": "adapted",
+     "reason": "値型"
+    },
+    "TestColDimension::test_col_dimensions": {
+     "status": "adapted",
+     "reason": "bestFit は幅 13 を自動設定しない"
+    },
+    "TestColDimension::test_column_dimension": {
+     "status": "ported"
+    },
+    "TestColDimension::test_col_reindex": {
+     "status": "adapted",
+     "reason": "書き出した `<col>` で検証"
+    },
+    "TestColDimension::test_col_width": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestColDimension::test_col_style": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestColDimension::test_outline_cols": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestColDimension::test_copy": {
+     "status": "adapted",
+     "reason": "値型"
+    },
+    "TestColDimension::test_empty_col": {
+     "status": "adapted",
+     "reason": "既定の dimension は書かない"
+    },
+    "TestColDimension::test_range": {
+     "status": "adapted",
+     "reason": "`columnGroups` で検証"
+    },
+    "TestGrouping::test_group_columns_simple": {
+     "status": "adapted",
+     "reason": "`groupColumns`（列ごとに保持）"
+    },
+    "TestGrouping::test_group_columns_collapse": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestGrouping::test_no_cols": {
+     "status": "adapted",
+     "reason": "書き出しで検証"
+    },
+    "TestGrouping::test_group_rows_simple": {
+     "status": "adapted",
+     "reason": "`groupRows`"
+    },
+    "TestGrouping::test_group_rows_collapse": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestGrouping::test_no_rows": {
+     "status": "adapted",
+     "reason": "書き出しで検証"
+    },
+    "TestGrouping::test_to_tree": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestDimension::test_invalid_dimension_ctor": {
+     "status": "na_python",
+     "reason": "引数必須の TypeError（Swift は型で保証）"
+    },
+    "TestColDimension::test_no_named_style": {
+     "status": "na_api",
+     "reason": "名前付きスタイルは未実装"
+    }
+   }
+  },
+  "worksheet/tests/test_filters.py": {
+   "default": "na_api",
+   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
+   "api": "Filter conditions"
+  },
+  "worksheet/tests/test_formula.py": {
+   "default": "na_api",
+   "reason": "ArrayFormula / DataTableFormula は未実装",
+   "api": "Array formulas"
+  },
+  "worksheet/tests/test_header.py": {
+   "default": "na_api",
+   "reason": "ヘッダー / フッターは未実装",
+   "api": "Header & footer"
+  },
+  "worksheet/tests/test_hyperlink.py": {
+   "tests": {
+    "TestHyperlink::test_ctor": {
+     "status": "adapted",
+     "reason": "書き出した `<hyperlink>` で検証"
+    },
+    "TestHyperlink::test_from_xml": {
+     "status": "adapted",
+     "reason": "SheetParser で読む"
+    },
+    "TestHyperlinkList::test_ctor": {
+     "status": "adapted",
+     "reason": "リンクが無ければ要素を書かない"
+    },
+    "TestHyperlinkList::test_from_xml": {
+     "status": "adapted",
+     "reason": "同上"
+    }
+   }
+  },
+  "worksheet/tests/test_merge.py": {
+   "default": "na_api",
+   "reason": "—",
+   "api": "Merge",
+   "tests": {
+    "TestMergeCell::test_ctor": {
+     "status": "adapted",
+     "reason": "書き出した `<mergeCells>` で検証"
+    },
+    "TestMergeCell::test_from_xml": {
+     "status": "adapted",
+     "reason": "SheetParser で読む"
+    },
+    "TestMergeCell::test_copy": {
+     "status": "adapted",
+     "reason": "値型"
+    },
+    "TestMergedCellRange::test_ctor": {
+     "status": "adapted",
+     "reason": "`mergedRange(containing:)`"
+    },
+    "TestMergedCellRange::test_get_borders": {
+     "status": "ported"
+    },
+    "TestMergedCellRange::test_format_1x3": {
+     "status": "ported"
+    },
+    "TestMergedCellRange::test_format_3x1": {
+     "status": "ported"
+    },
+    "TestMergedCellRange::test_format_3x3": {
+     "status": "ported"
+    },
+    "TestMergedCellRange::test_format_protection": {
+     "status": "ported"
+    },
+    "TestMergedCellRange::test_copy": {
+     "status": "adapted",
+     "reason": "配列の等価性"
+    },
+    "TestMergedCellRange::test_contains": {
+     "status": "adapted",
+     "reason": "`isMerged`"
+    },
+    "TestMergedCellRange::test_not_contained": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestMergedCellRange::test_empty_side": {
+     "status": "ported"
+    }
+   }
+  },
+  "worksheet/tests/test_ole.py": {
+   "default": "na_api",
+   "reason": "OLE オブジェクトは未実装",
+   "api": "OLE objects"
+  },
+  "worksheet/tests/test_page.py": {
+   "tests": {
+    "TestPageMargins::test_ctor": {
+     "status": "adapted",
+     "reason": "プロパティで検証"
+    },
+    "TestPageMargins::test_write": {
+     "status": "adapted",
+     "reason": "書き出し XML で検証"
+    },
+    "TestPageSetup::test_ctor": {
+     "status": "adapted",
+     "reason": "paperHeight / id は無い"
+    },
+    "TestPageSetup::test_fitToPage": {
+     "status": "adapted",
+     "reason": "`properties.fitToPage`"
+    },
+    "TestPageSetup::test_write": {
+     "status": "adapted",
+     "reason": "書き出し XML で検証"
+    },
+    "TestPrintOptions::test_ctor": {
+     "status": "adapted",
+     "reason": "プロパティで検証"
+    },
+    "TestPrintOptions::test_write": {
+     "status": "adapted",
+     "reason": "書き出し XML で検証"
+    },
+    "TestPageSetup::test_autoPageBreaks": {
+     "status": "na_api",
+     "reason": "autoPageBreaks は未実装"
+    }
+   }
+  },
+  "worksheet/tests/test_pagebreak.py": {
+   "default": "na_api",
+   "reason": "改ページは未実装",
+   "api": "Page breaks"
+  },
+  "worksheet/tests/test_print_settings.py": {
+   "tests": {
+    "TestColRange::test_from_string": {
+     "status": "adapted",
+     "reason": "ColRange 型は無い — `printTitleColumns`"
+    },
+    "TestColRange::test_str": {
+     "status": "adapted",
+     "reason": "`printTitles`"
+    },
+    "TestColRange::test_eq": {
+     "status": "adapted",
+     "reason": "`setPrintTitleColumns`"
+    },
+    "TestRowRange::test_from_string": {
+     "status": "adapted",
+     "reason": "`printTitleRows`"
+    },
+    "TestRowRange::test_str": {
+     "status": "adapted",
+     "reason": "`printTitles`"
+    },
+    "TestRowRange::test_eq": {
+     "status": "adapted",
+     "reason": "`setPrintTitleRows`"
+    },
+    "TestPrintTitles::test_from_string": {
+     "status": "adapted",
+     "reason": "`setPrintTitles` + `printTitles`"
+    },
+    "TestPrintTitles::test_eq": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestPrintArea::test_from_string": {
+     "status": "adapted",
+     "reason": "`setPrintArea`"
+    },
+    "TestPrintArea::test_empty": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestPrintArea::test_str": {
+     "status": "adapted",
+     "reason": "シート名を含めて書く（openpyxl は '' ）"
+    },
+    "TestPrintArea::test_eq": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestColRange::test_repr": {
+     "status": "na_python",
+     "reason": "repr"
+    },
+    "TestRowRange::test_repr": {
+     "status": "na_python",
+     "reason": "repr"
+    }
+   }
+  },
+  "worksheet/tests/test_properties.py": {
+   "tests": {
+    "test_ctor": {
+     "status": "adapted",
+     "reason": "dict ではなくプロパティ"
+    },
+    "test_write_properties": {
+     "status": "adapted",
+     "reason": "書き出し XML"
+    },
+    "test_parse_properties": {
+     "status": "adapted",
+     "reason": "SheetParser で読む"
+    }
+   }
+  },
+  "worksheet/tests/test_protection.py": {
+   "default": "na_api",
+   "reason": "シート保護は未実装",
+   "api": "Sheet protection"
+  },
+  "worksheet/tests/test_read_only.py": {
+   "default": "na_api",
+   "reason": "read_only モードは未実装",
+   "api": "read_only"
+  },
+  "worksheet/tests/test_reader.py": {
+   "default": "na_api",
+   "reason": "シート保護 / 共有数式 / 配列数式 / 条件付き書式 / テーブル / 改ページ / シナリオ / legacyDrawing / customSheetViews は未実装",
+   "api": "Sheet parts",
+   "tests": {
+    "test_number_convesion": {
+     "status": "adapted",
+     "reason": "`_cast_number` は非公開 — 読んだ値で検証"
+    },
+    "TestWorksheetParser::test_read_dimension": {
+     "status": "adapted",
+     "reason": "不正な dimension は nil"
+    },
+    "TestWorksheetParser::test_col_width": {
+     "status": "adapted",
+     "reason": "dict ではなく ColumnDimension"
+    },
+    "TestWorksheetParser::test_hidden_col": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_styled_col": {
+     "status": "adapted",
+     "reason": "style は解決済み CellStyle"
+    },
+    "TestWorksheetParser::test_row_dimensions": {
+     "status": "ported"
+    },
+    "TestWorksheetParser::test_hidden_row": {
+     "status": "adapted",
+     "reason": "RowDimension"
+    },
+    "TestWorksheetParser::test_styled_row": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_read_row_with_exponent": {
+     "status": "adapted",
+     "reason": "`currentRow`"
+    },
+    "TestWorksheetParser::test_invalid_row_number": {
+     "status": "adapted",
+     "reason": "SheetsError"
+    },
+    "TestWorksheetParser::test_sheet_protection": {
+     "status": "na_api",
+     "reason": "シート保護は未実装"
+    },
+    "TestWorksheetParser::test_formula": {
+     "status": "adapted",
+     "reason": "Cell で検証"
+    },
+    "TestWorksheetParser::test_formula_data_only": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_string_formula_data_only": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_number": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_datetime": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_timedelta": {
+     "status": "adapted",
+     "reason": "`Duration`"
+    },
+    "TestWorksheetParser::test_mac_date": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_out_of_range_datetime": {
+     "status": "adapted",
+     "reason": "警告は無い — 先発グレゴリオ暦で保持"
+    },
+    "TestWorksheetParser::test_string": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_boolean": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_inline_string": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_inline_richtext": {
+     "status": "adapted",
+     "reason": "同上（rich_text フラグは無く常に保持）"
+    },
+    "TestWorksheetParser::test_parse_richtext": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_sheet_views": {
+     "status": "adapted",
+     "reason": "view / freezePanes で検証"
+    },
+    "TestWorksheetParser::test_shared_formula": {
+     "status": "na_api",
+     "reason": "共有数式の展開（数式翻訳）は未実装"
+    },
+    "TestWorksheetParser::test_array_formula": {
+     "status": "na_api",
+     "reason": "配列数式は未実装"
+    },
+    "TestWorksheetParser::test_table_formula": {
+     "status": "na_api",
+     "reason": "データテーブル数式は未実装"
+    },
+    "TestWorksheetParser::test_extended_conditional_formatting": {
+     "status": "na_api",
+     "reason": "条件付き書式は未実装"
+    },
+    "TestWorksheetParser::test_bad_conditional_format_rule": {
+     "status": "na_api",
+     "reason": "条件付き書式は未実装"
+    },
+    "TestWorksheetParser::test_cell_without_coordinates": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_row_and_cell_without_coordinates": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_row_and_cell_skipping_coordinates": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_second_row_cell_index_without_coordinates": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_external_hyperlinks": {
+     "status": "adapted",
+     "reason": "セルのリンクで検証"
+    },
+    "TestWorksheetParser::test_local_hyperlinks": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_merge_cells": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_conditonal_formatting": {
+     "status": "na_api",
+     "reason": "条件付き書式は未実装"
+    },
+    "TestWorksheetParser::test_sheet_properties": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_sheet_format": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetParser::test_tables": {
+     "status": "na_api",
+     "reason": "テーブルは未実装"
+    },
+    "TestWorksheetParser::test_auto_filter": {
+     "status": "adapted",
+     "reason": "sortState は読まない"
+    },
+    "TestWorksheetParser::test_page_row_break": {
+     "status": "na_api",
+     "reason": "改ページは未実装"
+    },
+    "TestWorksheetParser::test_col_break": {
+     "status": "na_api",
+     "reason": "改ページは未実装"
+    },
+    "TestWorksheetParser::test_scenarios": {
+     "status": "na_api",
+     "reason": "シナリオは未実装"
+    },
+    "TestWorksheetParser::test_legacy": {
+     "status": "na_api",
+     "reason": "legacyDrawing は未実装"
+    },
+    "TestWorksheetParser::test_custom_views_breaks": {
+     "status": "na_api",
+     "reason": "customSheetViews は未実装"
+    },
+    "TestWorksheetReader::test_cell": {
+     "status": "ported"
+    },
+    "TestWorksheetReader::test_array_formula": {
+     "status": "na_api",
+     "reason": "配列数式は未実装"
+    },
+    "TestWorksheetReader::test_formatting": {
+     "status": "na_api",
+     "reason": "条件付き書式は未実装"
+    },
+    "TestWorksheetReader::test_merged": {
+     "status": "ported"
+    },
+    "TestWorksheetReader::test_normalize_merged_cell_link": {
+     "status": "adapted",
+     "reason": "`mergedRange(containing:)`"
+    },
+    "TestWorksheetReader::test_external_hyperlinks": {
+     "status": "ported"
+    },
+    "TestWorksheetReader::test_internal_hyperlinks": {
+     "status": "ported"
+    },
+    "TestWorksheetReader::test_merged_hyperlinks": {
+     "status": "ported"
+    },
+    "TestWorksheetReader::test_tables": {
+     "status": "na_api",
+     "reason": "テーブルは未実装"
+    },
+    "TestWorksheetReader::test_cols": {
+     "status": "adapted",
+     "reason": "dimension の parent は無い"
+    },
+    "TestWorksheetReader::test_rows": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetReader::test_properties": {
+     "status": "adapted",
+     "reason": "値で検証"
+    },
+    "TestWorksheetReader::test_more_rows_than_cells": {
+     "status": "adapted",
+     "reason": "`currentRow`"
+    }
+   }
+  },
+  "worksheet/tests/test_related.py": {
+   "default": "na_api",
+   "reason": "関連パーツ（related）は未実装",
+   "api": "Related parts"
+  },
+  "worksheet/tests/test_scenario.py": {
+   "default": "na_api",
+   "reason": "シナリオは未実装",
+   "api": "Scenarios"
+  },
+  "worksheet/tests/test_table.py": {
+   "default": "na_api",
+   "reason": "テーブル（ListObject）は未実装",
+   "api": "Tables"
+  },
+  "worksheet/tests/test_views.py": {
+   "tests": {
+    "test_show_gridlines": {
+     "status": "adapted",
+     "reason": "書き出し XML で検証"
+    },
+    "test_parse": {
+     "status": "adapted",
+     "reason": "SheetParser で読む（selection は最後のものだけ）"
+    },
+    "test_serialise": {
+     "status": "adapted",
+     "reason": "書き出し XML"
+    },
+    "TestSheetViews::test_ctor": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestSheetViews::test_from_xml": {
+     "status": "adapted",
+     "reason": "SheetParser"
+    }
+   }
+  },
+  "worksheet/tests/test_worksheet.py": {
+   "default": "na_api",
+   "reason": "数式翻訳 / テーブル / グラフ / 画像は未実装",
+   "api": "Formula translation",
+   "tests": {
+    "TestWorksheet::test_path": {
+     "status": "na_python",
+     "reason": "内部パス属性"
+    },
+    "TestWorksheet::test_new_worksheet": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_get_cell": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_invalid_cell": {
+     "status": "adapted",
+     "reason": "例外ではなく CellReference が nil"
+    },
+    "TestWorksheet::test_worksheet_dimension": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_fill_rows": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_iter_rows": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_cell_alternate_coordinates": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_cell_insufficient_coordinates": {
+     "status": "na_python",
+     "reason": "TypeError（Swift は引数必須）"
+    },
+    "TestWorksheet::test_hyperlink_value": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_append": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_append_list": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_append_dict_letter": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_append_dict_index": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_bad_append": {
+     "status": "na_python",
+     "reason": "TypeError"
+    },
+    "TestWorksheet::test_append_range": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_append_iterator": {
+     "status": "adapted",
+     "reason": "イテレータは配列に畳む"
+    },
+    "TestWorksheet::test_append_2d_list": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_append_cell": {
+     "status": "adapted",
+     "reason": "Cell ではなく値を渡す"
+    },
+    "TestWorksheet::test_rows": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_no_rows": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_no_cols": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_one_cell": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_by_col": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_cols": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_values": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_auto_filter": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_getitem": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_getitem_invalid": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheet::test_setitem": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_delitem": {
+     "status": "adapted",
+     "reason": "`removeCell`"
+    },
+    "TestWorksheet::test_getslice": {
+     "status": "adapted",
+     "reason": "`ws[range:]`"
+    },
+    "TestWorksheet::test_get_single__column": {
+     "status": "adapted",
+     "reason": "`ws.column(_:)`"
+    },
+    "TestWorksheet::test_get_row": {
+     "status": "adapted",
+     "reason": "`ws.row(_:)`"
+    },
+    "TestWorksheet::test_freeze": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_merged_cells_lookup": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_merged_cell_ranges": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_merge_range_string": {
+     "status": "adapted",
+     "reason": "MergedCell 型は無い — 値が消えることを検証"
+    },
+    "TestWorksheet::test_merge_coordinate": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_merge_more_columns_than_rows": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_merge_more_rows_than_columns": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_unmerge_range_string": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_unmerge_coordinate": {
+     "status": "adapted",
+     "reason": "`unmergeCells` は Bool を返す"
+    },
+    "TestWorksheet::test_print_titles": {
+     "status": "adapted",
+     "reason": "`setPrintTitleRows/Columns` + `printTitles`"
+    },
+    "TestWorksheet::test_print_area": {
+     "status": "adapted",
+     "reason": "`setPrintArea` + `printAreaFormula`"
+    },
+    "TestWorksheet::test_active_cell": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_selected_cell": {
+     "status": "ported"
+    },
+    "TestWorksheet::test_gridlines": {
+     "status": "adapted",
+     "reason": "既定は Excel の表示（openpyxl は未設定＝偽）"
+    },
+    "TestWorksheet::test_add_table": {
+     "status": "na_api",
+     "reason": "テーブルは未実装"
+    },
+    "TestWorksheet::test_column_groups": {
+     "status": "adapted",
+     "reason": "列ごとの dimension から `columnGroups` を導出"
+    },
+    "test_freeze_panes_horiz": {
+     "status": "adapted",
+     "reason": "sheet_view オブジェクトは無い — 書き出した `<pane>` で検証（activePane は常に bottomRight）"
+    },
+    "test_freeze_panes_vert": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_freeze_panes_both": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "test_min_column": {
+     "status": "ported"
+    },
+    "test_max_column": {
+     "status": "ported"
+    },
+    "test_min_row": {
+     "status": "ported"
+    },
+    "test_max_row": {
+     "status": "ported"
+    },
+    "test_add_chart": {
+     "status": "na_api",
+     "reason": "グラフは未実装"
+    },
+    "test_add_image": {
+     "status": "na_api",
+     "reason": "画像は未実装"
+    },
+    "TestEditableWorksheet::test_move_row_down": {
+     "status": "adapted",
+     "reason": "`_move_cells` は非公開 — `insertRows` で検証"
+    },
+    "TestEditableWorksheet::test_move_col_right": {
+     "status": "adapted",
+     "reason": "`insertColumns`"
+    },
+    "TestEditableWorksheet::test_move_row_up": {
+     "status": "adapted",
+     "reason": "`deleteRows`"
+    },
+    "TestEditableWorksheet::test_insert_rows": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_insert_cols": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_delete_rows": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_deleta_all_rows": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_delete_cols": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_delete_missing_cols": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_delete_missing_rows": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_remainder": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_delete_last_col": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_delete_last_row": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_cell": {
+     "status": "adapted",
+     "reason": "内部 API `moveCell`"
+    },
+    "TestEditableWorksheet::test_move_translated_fomula": {
+     "status": "adapted",
+     "reason": "数式の変換（translate=True）は無い — translate=False の 1 ケースのみ"
+    },
+    "TestEditableWorksheet::test_move_nothing": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_range_down": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_range_up": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_range_right": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_range_left": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_empty_range": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_range_from_string": {
+     "status": "ported"
+    },
+    "TestEditableWorksheet::test_move_range_with_formula": {
+     "status": "na_api",
+     "reason": "数式の翻訳は未実装"
+    }
+   }
+  },
+  "worksheet/tests/test_worksheet_copy.py": {
+   "default": "na_api",
+   "reason": "別ブック間コピーの検証は無い（同一ブックのみ）",
+   "api": "copyWorksheet",
+   "tests": {
+    "TestWorksheetCopy::test_ctor": {
+     "status": "adapted",
+     "reason": "WorksheetCopy 型は無い — `copyWorksheet`"
+    },
+    "TestWorksheetCopy::test_cannot_copy_between_workbooks": {
+     "status": "na_api",
+     "reason": "copyWorksheet は同一ブック内のみ"
+    },
+    "TestWorksheetCopy::test_cannot_copy_to_self": {
+     "status": "na_python",
+     "reason": "ValueError"
+    },
+    "TestWorksheetCopy::test_cannot_copy_junk": {
+     "status": "na_python",
+     "reason": "TypeError"
+    },
+    "TestWorksheetCopy::test_merged_cell_copy": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_cell_copy_value": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_cell_copy_style": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_cell_copy_comment": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_cell_copy_hyperlink": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_copy_row_dimensions": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_copy_col_dimensions": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_copy_page_margins": {
+     "status": "ported"
+    },
+    "TestWorksheetCopy::test_copy_page_setup": {
+     "status": "adapted",
+     "reason": "`draft` は無い — orientation で検証"
+    },
+    "TestWorksheetCopy::test_copy_print_options": {
+     "status": "ported"
+    },
+    "test_copy_worksheet": {
+     "status": "adapted",
+     "reason": "`compare_cells` 相当を値・型・注釈・リンク・スタイルで"
+    }
+   }
+  },
+  "worksheet/tests/test_write_only.py": {
+   "default": "na_api",
+   "reason": "write_only モードは未実装",
+   "api": "write_only"
+  },
+  "worksheet/tests/test_writer.py": {
+   "default": "na_api",
+   "reason": "シート保護 / シナリオ / 条件付き書式 / データ検証 / ヘッダー / 改ページ / 図形 / コメント / VBA / テーブル は未実装",
+   "api": "Sheet parts",
+   "tests": {
+    "TestWorksheetWriter::test_setup": {
+     "status": "adapted",
+     "reason": "内部リストは無い"
+    },
+    "TestWorksheetWriter::test_properties": {
+     "status": "adapted",
+     "reason": "部分文字列"
+    },
+    "TestWorksheetWriter::test_dimensions": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_format": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_views": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_cols": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_write_top": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_filter": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_merged_cells": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_hyperlinks": {
+     "status": "adapted",
+     "reason": "rels 文字列で検証"
+    },
+    "TestWorksheetWriter::test_print": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_margins": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_page_setup": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_write_tail": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_row_dimensons": {
+     "status": "adapted",
+     "reason": "書き出し順で検証"
+    },
+    "TestWorksheetWriter::test_rows_sort": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_write_rows": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_write_rows_comment": {
+     "status": "na_api",
+     "reason": "コメントの書き出しは未実装"
+    },
+    "TestWorksheetWriter::test_write_row": {
+     "status": "adapted",
+     "reason": "同上"
+    },
+    "TestWorksheetWriter::test_write_sheet": {
+     "status": "adapted",
+     "reason": "完全一致"
+    },
+    "TestWorksheetWriter::test_cleanup": {
+     "status": "na_python",
+     "reason": "一時ファイル"
+    }
+   }
+  },
+  "writer/tests/test_excel.py": {
+   "default": "na_api",
+   "reason": "テーブル / 図形 / グラフ / 画像 / チャートシート / コメント / VBA は未実装",
+   "api": "Drawings / Charts",
+   "tests": {
+    "test_worksheet": {
+     "status": "adapted",
+     "reason": "manifest オブジェクトは無い — [Content_Types].xml の文字列で検証"
+    },
+    "test_write_empty_workbook": {
+     "status": "ported"
+    },
+    "test_modified": {
+     "status": "adapted",
+     "reason": "保存時に modified を更新しない（再現可能な出力を優先）"
+    }
+   }
+  },
+  "writer/tests/test_template.py": {
+   "default": "na_api",
+   "reason": "テンプレート（xltx / xltm）は未実装",
+   "api": "Templates"
+  }
+ }
+}

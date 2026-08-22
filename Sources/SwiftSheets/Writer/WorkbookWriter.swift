@@ -12,6 +12,7 @@ enum WorkbookWriter {
         guard !wb.worksheets.isEmpty else { throw SheetsError(.invalid, "a workbook needs at least one sheet") }
         var zip = ZipWriter()
         let styles = StyleRegistry()
+        styles.indexedColors = wb.indexedColors
         let strings = SharedStringTable()
 
         // Sheets first: they register styles and strings.
@@ -34,15 +35,23 @@ enum WorkbookWriter {
         zip.add("docProps/core.xml", Data((xmlHeader + coreXML(wb.properties)).utf8))
 
         var wbx = xmlHeader + "<workbook xmlns=\"\(nsMain)\" xmlns:r=\"\(nsRel)\">"
-        wbx += wb.epoch == .mac1904 ? "<workbookPr date1904=\"1\"/>" : "<workbookPr/>"
+        wbx += "<workbookPr\(wb.epoch == .mac1904 ? " date1904=\"1\"" : "")\(XML.attr("codeName", wb.codeName))/>"
         wbx += "<bookViews><workbookView activeTab=\"\(wb.activeIndex)\"/></bookViews><sheets>"
         for (i, ws) in wb.worksheets.enumerated() {
             wbx += "<sheet name=\"\(XML.esc(ws.title))\" sheetId=\"\(i + 1)\"\(ws.state == .visible ? "" : " state=\"\(ws.state.rawValue)\"") r:id=\"rId\(i + 1)\"/>"
         }
         wbx += "</sheets>"
-        if !wb.definedNames.isEmpty {
-            wbx += "<definedNames>" + wb.definedNames.keys.sorted().map { "<definedName name=\"\(XML.esc($0))\">\(XML.esc(wb.definedNames[$0]!))</definedName>" }.joined() + "</definedNames>"
+        var names: [String] = wb.definedNames.keys.sorted().map { "<definedName name=\"\(XML.esc($0))\">\(XML.esc(wb.definedNames[$0]!))</definedName>" }
+        for (i, ws) in wb.worksheets.enumerated() {
+            var local = ws.definedNames
+            if let t = ws.printTitles { local["_xlnm.Print_Titles"] = t }
+            if !ws.printArea.isEmpty { local["_xlnm.Print_Area"] = ws.printAreaFormula }
+            if let af = ws.autoFilter { local["_xlnm._FilterDatabase"] = "\(CellReference.quoteSheetName(ws.title))!\(af.topLeft.absolute):\(af.bottomRight.absolute)" }
+            for k in local.keys.sorted() {
+                names.append("<definedName name=\"\(XML.esc(k))\" localSheetId=\"\(i)\"\(k == "_xlnm._FilterDatabase" ? " hidden=\"1\"" : "")>\(XML.esc(local[k]!))</definedName>")
+            }
         }
+        if !names.isEmpty { wbx += "<definedNames>" + names.joined() + "</definedNames>" }
         wbx += "<calcPr calcId=\"124519\" fullCalcOnLoad=\"1\"/></workbook>"
         zip.add("xl/workbook.xml", Data(wbx.utf8))
 
@@ -72,26 +81,37 @@ enum WorkbookWriter {
         if let t = p.subject { s += "<dc:subject>\(XML.esc(t))</dc:subject>" }
         s += "<dc:creator>\(XML.esc(p.creator))</dc:creator>"
         if let t = p.description { s += "<dc:description>\(XML.esc(t))</dc:description>" }
+        if let t = p.identifier { s += "<dc:identifier>\(XML.esc(t))</dc:identifier>" }
+        if let t = p.language { s += "<dc:language>\(XML.esc(t))</dc:language>" }
+        s += "<dcterms:created xsi:type=\"dcterms:W3CDTF\">\(created)</dcterms:created><dcterms:modified xsi:type=\"dcterms:W3CDTF\">\(modified)</dcterms:modified>"
         if let t = p.lastModifiedBy { s += "<cp:lastModifiedBy>\(XML.esc(t))</cp:lastModifiedBy>" }
-        s += "<dcterms:created xsi:type=\"dcterms:W3CDTF\">\(created)</dcterms:created><dcterms:modified xsi:type=\"dcterms:W3CDTF\">\(modified)</dcterms:modified></cp:coreProperties>"
+        if let t = p.category { s += "<cp:category>\(XML.esc(t))</cp:category>" }
+        if let t = p.contentStatus { s += "<cp:contentStatus>\(XML.esc(t))</cp:contentStatus>" }
+        if let t = p.version { s += "<cp:version>\(XML.esc(t))</cp:version>" }
+        if let t = p.revision { s += "<cp:revision>\(XML.esc(t))</cp:revision>" }
+        if let t = p.keywords { s += "<cp:keywords>\(XML.esc(t))</cp:keywords>" }
+        if let t = p.lastPrinted { s += "<cp:lastPrinted>\(f.string(from: t))</cp:lastPrinted>" }
+        s += "</cp:coreProperties>"
         return s
     }
 
     /// Worksheet XML in the element order the schema requires (what openpyxl's WorksheetWriter emits).
     static func sheetXML(_ ws: Worksheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable) -> (xml: String, rels: String?) {
         var s = "<worksheet xmlns=\"\(nsMain)\" xmlns:r=\"\(nsRel)\">"
-        s += "<sheetPr>"
+        s += "<sheetPr\(XML.attr("codeName", ws.properties.codeName))\(ws.properties.filterMode.map { " filterMode=\"\($0 ? 1 : 0)\"" } ?? "")>"
         if let tc = ws.properties.tabColor { s += StyleRegistry.colorXML("tabColor", tc) }
-        s += "<outlinePr summaryBelow=\"\(ws.properties.summaryBelow ? 1 : 0)\" summaryRight=\"\(ws.properties.summaryRight ? 1 : 0)\"/><pageSetUpPr/></sheetPr>"
-        s += "<dimension ref=\"\(ws.cells.isEmpty ? "A1" : ws.dimensions)\"/>"
+        s += "<outlinePr summaryBelow=\"\(ws.properties.summaryBelow ? 1 : 0)\" summaryRight=\"\(ws.properties.summaryRight ? 1 : 0)\"/>"
+        s += "<pageSetUpPr\(ws.properties.fitToPage.map { " fitToPage=\"\($0 ? 1 : 0)\"" } ?? "")/></sheetPr>"
+        s += "<dimension ref=\"\(ws.dimensions)\"/>"
         s += "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected ? " tabSelected=\"1\"" : "")>"
         if let f = ws.freezePanes {
             s += "<pane xSplit=\"\(f.column - 1)\" ySplit=\"\(f.row - 1)\" topLeftCell=\"\(f)\" activePane=\"bottomRight\" state=\"frozen\"/>"
-            s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/><selection pane=\"bottomRight\" activeCell=\"A1\" sqref=\"A1\"/>"
+            s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/><selection pane=\"bottomRight\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
         } else {
-            s += "<selection activeCell=\"A1\" sqref=\"A1\"/>"
+            s += "<selection activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
         }
-        s += "</sheetView></sheetViews><sheetFormatPr baseColWidth=\"8\" defaultRowHeight=\"15\"/>"
+        let sf = ws.sheetFormat
+        s += "</sheetView></sheetViews><sheetFormatPr baseColWidth=\"\(sf.baseColWidth)\"\(sf.defaultColWidth.map { " defaultColWidth=\"\(XML.num($0))\"" } ?? "") defaultRowHeight=\"\(XML.num(sf.defaultRowHeight))\"\(XML.attr("customHeight", sf.customHeight))\(XML.attr("zeroHeight", sf.zeroHeight))/>"
         let cols = ws.columnDimensions.compactMap { k, v -> (Int, ColumnDimension)? in v.isDefault ? nil : CellReference.columnIndex(k).map { ($0, v) } }.sorted { $0.0 < $1.0 }
         if !cols.isEmpty {
             s += "<cols>"
@@ -117,6 +137,8 @@ enum WorkbookWriter {
                 s += XML.attr("hidden", d.hidden)
                 if d.outlineLevel > 0 { s += " outlineLevel=\"\(d.outlineLevel)\"" }
                 s += XML.attr("collapsed", d.collapsed)
+                if let st = d.style { s += " s=\"\(styles.index(for: st))\" customFormat=\"1\"" }
+                s += XML.attr("thickTop", d.thickTop) + XML.attr("thickBot", d.thickBottom)
             }
             s += ">"
             for c in (byRow[r] ?? []).sorted(by: { $0.column < $1.column }) {
@@ -131,6 +153,7 @@ enum WorkbookWriter {
                 case .bool(let b)?: s += "<c r=\"\(ref)\"\(st) t=\"b\"><v>\(b ? 1 : 0)</v></c>"
                 case .date(let dt)?: s += "<c r=\"\(ref)\"\(st)><v>\(XML.num(ExcelDate.toSerial(dt, epoch: epoch)))</v></c>"
                 case .time(let t)?: s += "<c r=\"\(ref)\"\(st)><v>\(t.dayFraction)</v></c>"
+                case .duration(let d)?: s += "<c r=\"\(ref)\"\(st)><v>\(XML.num(ExcelDate.toSerial(d)))</v></c>"
                 case .error(let e)?: s += "<c r=\"\(ref)\"\(st) t=\"e\"><v>\(XML.esc(e))</v></c>"
                 case .formula(let f, let cached)?:
                     let body = f.hasPrefix("=") ? String(f.dropFirst()) : f
@@ -144,8 +167,10 @@ enum WorkbookWriter {
                         case .integer(let i): cv = "<v>\(i)</v>"
                         case .number(let d): cv = "<v>\(XML.num(d))</v>"
                         case .date(let dt): cv = "<v>\(XML.num(ExcelDate.toSerial(dt, epoch: epoch)))</v>"
+                        case .time(let tm): cv = "<v>\(tm.dayFraction)</v>"
+                        case .duration(let d): cv = "<v>\(XML.num(ExcelDate.toSerial(d)))</v>"
                         case .error(let e): cv = "<v>\(XML.esc(e))</v>"; t = " t=\"e\""
-                        default: break
+                        case .formula: break
                         }
                     }
                     s += "<c r=\"\(ref)\"\(st)\(t)><f>\(XML.esc(body))</f>\(cv)</c>"
@@ -167,20 +192,24 @@ enum WorkbookWriter {
             s += "<hyperlinks>"
             var r = "<Relationships xmlns=\"\(nsPkgRel)\">"
             for (i, (ref, h)) in hyperlinks.enumerated() {
-                if h.isInternal { s += "<hyperlink ref=\"\(ref)\" location=\"\(XML.esc(h.target))\"\(XML.attr("tooltip", h.tooltip))/>" }
+                if h.isInternal { s += "<hyperlink ref=\"\(ref)\" location=\"\(XML.esc(h.target))\"\(XML.attr("display", h.display))\(XML.attr("tooltip", h.tooltip))/>" }
                 else {
-                    s += "<hyperlink ref=\"\(ref)\" r:id=\"rId\(i + 1)\"\(XML.attr("tooltip", h.tooltip))/>"
+                    s += "<hyperlink ref=\"\(ref)\" r:id=\"rId\(i + 1)\"\(XML.attr("display", h.display))\(XML.attr("tooltip", h.tooltip))/>"
                     r += "<Relationship Id=\"rId\(i + 1)\" Type=\"\(nsRel)/hyperlink\" Target=\"\(XML.esc(h.target))\" TargetMode=\"External\"/>"
                 }
             }
             s += "</hyperlinks>"
             rels = r + "</Relationships>"
         }
+        let po = ws.printOptions
+        if po != PrintOptions() {
+            s += "<printOptions\(XML.attr("horizontalCentered", po.horizontalCentered))\(XML.attr("verticalCentered", po.verticalCentered))\(XML.attr("headings", po.headings))\(XML.attr("gridLines", po.gridLines))/>"
+        }
         let m = ws.pageMargins
         s += "<pageMargins left=\"\(XML.num(m.left))\" right=\"\(XML.num(m.right))\" top=\"\(XML.num(m.top))\" bottom=\"\(XML.num(m.bottom))\" header=\"\(XML.num(m.header))\" footer=\"\(XML.num(m.footer))\"/>"
         let p = ws.pageSetup
         if p != PageSetup() {
-            s += "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))/>"
+            s += "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))\(XML.attr("firstPageNumber", p.firstPageNumber))\(p.useFirstPageNumber.map { " useFirstPageNumber=\"\($0 ? 1 : 0)\"" } ?? "")/>"
         }
         s += "</worksheet>"
         return (s, rels)

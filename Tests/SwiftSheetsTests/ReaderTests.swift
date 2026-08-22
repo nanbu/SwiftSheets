@@ -80,7 +80,8 @@ func fixture(_ name: String) throws -> Data {
         #expect(CellReference("AB12") == CellReference(column: 28, row: 12))
         #expect(CellReference("$A$1")?.description == "A1")
         #expect(CellReference.columnLetter(703) == "AAA" && CellReference.columnIndex("AAA") == 703)
-        #expect(CellRange("C3:A1")?.description == "A1:C3")
+        #expect(CellRange("C3:A1") == nil)   // openpyxl raises for a reversed range
+        #expect(CellRange("A1:C3")?.description == "A1:C3")
         #expect(CellReference("1A") == nil)
     }
 

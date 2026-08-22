@@ -37,6 +37,7 @@ final class StyleRegistry {
 
     static func fontXML(_ f: Font, tag: String = "font", nameTag: String = "name") -> String {
         var s = "<\(tag)>"
+        if let cs = f.charset { s += "<charset val=\"\(cs)\"/>" }
         if f.bold { s += "<b val=\"1\"/>" }
         if f.italic { s += "<i val=\"1\"/>" }
         if f.strikethrough { s += "<strike val=\"1\"/>" }
@@ -49,6 +50,8 @@ final class StyleRegistry {
         if let sch = f.scheme { s += "<scheme val=\"\(sch)\"/>" }
         return s + "</\(tag)>"
     }
+
+    var indexedColors: [String] = []
 
     func xml() -> String {
         var s = "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
@@ -68,7 +71,7 @@ final class StyleRegistry {
         s += "</fills>"
         s += "<borders count=\"\(borders.count)\">"
         for b in borders {
-            s += "<border\(XML.attr("diagonalUp", b.diagonalUp))\(XML.attr("diagonalDown", b.diagonalDown))>"
+            s += "<border\(XML.attr("diagonalUp", b.diagonalUp))\(XML.attr("diagonalDown", b.diagonalDown))\(b.outline ? "" : " outline=\"0\"")>"
             for (tag, side) in [("left", b.left), ("right", b.right), ("top", b.top), ("bottom", b.bottom), ("diagonal", b.diagonal)] {
                 if let st = side.style { s += "<\(tag) style=\"\(st.rawValue)\">" + StyleRegistry.colorXML("color", side.color) + "</\(tag)>" }
                 else { s += "<\(tag)/>" }
@@ -102,7 +105,10 @@ final class StyleRegistry {
                 s += "</xf>"
             } else { s += "/>" }
         }
-        s += "</cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>"
-        return s
+        s += "</cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>"
+        if !indexedColors.isEmpty {
+            s += "<colors><indexedColors>" + indexedColors.map { "<rgbColor rgb=\"\(XML.esc($0))\"/>" }.joined() + "</indexedColors></colors>"
+        }
+        return s + "</styleSheet>"
     }
 }
