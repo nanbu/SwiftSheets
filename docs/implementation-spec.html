@@ -1888,7 +1888,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.5 CSV（§9 の具体化）</h3>
   <ul>
-    <li>読み込み時の警告（lossy 置換）は <code>CSVCodec.readWithWarnings</code> で受け取る（コーデック契約の <code>read</code> は Workbook だけを返す）。</li>
+    <li>読み込み時の警告（lossy 置換）は読み込みの結果に載る。<strong>Rev 1.6 で変更</strong>: 当初は <code>CSVCodec.readWithWarnings</code> という
+      この形式だけの抜け道だったが、<code>read</code> が <code>ReadResult</code> を返すようになり全形式で同じ形になった（B.11）。</li>
     <li>日付値に自動付与される表示書式（<code>yyyy-mm-dd</code> 等）は「書式」と数えない — CSV を読んで書き戻すだけのブックに要約警告を出さない。</li>
     <li><code>""</code>（空の引用フィールド）は空フィールドと同じくセルなし。</li>
   </ul>
