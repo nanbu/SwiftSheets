@@ -384,7 +384,7 @@ import Testing
     @Test func freezePanesHoriz() {
         var ws = Self.freshSheet()
         ws.freezePanes(at: "A4")
-        let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
+        let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         // openpyxl (and Excel) omit a zero split and make the single remaining pane active
         #expect(xml.contains("<pane ySplit=\"3\" topLeftCell=\"A4\" activePane=\"bottomLeft\" state=\"frozen\"/>"))
         #expect(xml.contains("<selection pane=\"bottomLeft\""))
@@ -394,7 +394,7 @@ import Testing
     @Test func freezePanesVert() {
         var ws = Self.freshSheet()
         ws.freezePanes(at: "D1")
-        let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
+        let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         #expect(xml.contains("<pane xSplit=\"3\" topLeftCell=\"D1\" activePane=\"topRight\" state=\"frozen\"/>"))
         #expect(xml.contains("<selection pane=\"topRight\""))
     }
@@ -403,7 +403,7 @@ import Testing
     @Test func freezePanesBoth() {
         var ws = Self.freshSheet()
         ws.freezePanes(at: "D4")
-        let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
+        let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         #expect(xml.contains("<pane xSplit=\"3\" ySplit=\"3\" topLeftCell=\"D4\" activePane=\"bottomRight\" state=\"frozen\"/>"))
         #expect(xml.contains("<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/><selection pane=\"bottomRight\" activeCell=\"A1\" sqref=\"A1\"/>"))
     }

@@ -112,6 +112,9 @@ public struct SheetPreservation: Sendable, Hashable {
     public var relationships: [Relationship] = []
     /// Attributes of the `<worksheet>` root element (namespace declarations, `mc:Ignorable`).
     public var rootAttributes: [String: String] = [:]
+    /// The cell notes as the file had them. The writer compares the sheet's notes against this: unchanged, the
+    /// source `comments` and VML parts are re-packed byte for byte; changed, both are regenerated.
+    public var comments: [CellRef: CellNote] = [:]
     public init() {}
     public var isEmpty: Bool { fragments.isEmpty && relationships.isEmpty }
 }

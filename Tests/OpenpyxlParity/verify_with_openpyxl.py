@@ -64,6 +64,7 @@ if swift_test("writesVerificationWorkbook"):
     expect(ws["A6"].hyperlink.target == "https://example.com/", "hyperlink")
     expect(ws.sheet_properties.outlinePr.summaryBelow is False and ws.auto_filter.ref == "A1:H1", "sheet properties / auto filter")
     expect(ws.print_title_rows == "$1:$1" and ws.print_area == "'Plan'!$A$1:$H$6", "print titles / area")
+    expect(ws["A7"].comment is not None and ws["A7"].comment.text == "確認してください\n2 行目" and ws["A7"].comment.author == "南部", "cell note")
     expect([s.name for s in wb._named_styles] == ["Normal", "Accent X"], "named styles declared")
     expect(ws["B6"].style == "Accent X" and ws["B6"].value == 1000, "named style applied to B6")
     accent = wb._named_styles["Accent X"]
@@ -105,6 +106,8 @@ accent.fill = PatternFill("solid", fgColor="FFFFF2CC")
 accent.number_format = "#,##0"
 wb.add_named_style(accent)
 ws["B6"] = 1000; ws["B6"].style = "Accent X"
+from openpyxl.comments import Comment
+ws["A7"].comment = Comment("確認してください\n2 行目", "南部")
 wb.save(workdir / "openpyxl.xlsx")
 swift_test("readsVerificationWorkbook")
 

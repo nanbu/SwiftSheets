@@ -107,6 +107,12 @@ public struct Sheet: Equatable, Sendable {
         get { table[ref] }
         set { table[ref] = newValue }
     }
+    /// The cells that carry a note, in reading order. Notes are rare, so this walks the cells rather than keeping
+    /// an index of them.
+    public var notes: [(ref: CellRef, note: CellNote)] {
+        table.cells.compactMap { ref, cell in cell.comment.map { (ref, $0) } }.sorted { $0.ref < $1.ref }
+    }
+
     public subscript(cell ref: CellRef) -> Cell {
         get { table[cell: ref] }
         set { table[cell: ref] = newValue }

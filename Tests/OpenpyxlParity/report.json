@@ -2,8 +2,8 @@
  "openpyxl": "3.1.5",
  "totals": {
   "ported": 224,
-  "adapted": 303,
-  "na_api": 974,
+  "adapted": 310,
+  "na_api": 967,
   "na_python": 210,
   "total": 1711,
   "cases": 2520
@@ -35,8 +35,8 @@
   },
   "comments": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 19,
+   "adapted": 7,
+   "na_api": 12,
    "na_python": 0,
    "total": 19,
    "cases": 19
@@ -525,8 +525,8 @@
   },
   "comments/tests/test_author.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 2,
+   "adapted": 1,
+   "na_api": 1,
    "na_python": 0,
    "total": 2,
    "cases": 2
@@ -541,24 +541,24 @@
   },
   "comments/tests/test_comment_reader.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 3,
+   "adapted": 2,
+   "na_api": 1,
    "na_python": 0,
    "total": 3,
    "cases": 3
   },
   "comments/tests/test_comment_sheet.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 6,
+   "adapted": 2,
+   "na_api": 4,
    "na_python": 0,
    "total": 6,
    "cases": 6
   },
   "comments/tests/test_shape_writer.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 4,
+   "adapted": 2,
+   "na_api": 2,
    "na_python": 0,
    "total": 4,
    "cases": 4
@@ -5046,8 +5046,8 @@
    "key": "TestAuthor::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "作成者は文字列で、専用の型を持たない",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_author.py",
@@ -5056,9 +5056,12 @@
    "name": "test_from_xml",
    "key": "TestAuthor::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "authors 表は CellNote.author に畳まれる",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "comments/tests/test_comment.py",
@@ -5068,8 +5071,8 @@
    "key": "TestComment::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl 内部の Comment / Shape 表現（bind・merge_comments_vml・Google Docs 由来の異形）に相当する型は無い",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment.py",
@@ -5079,8 +5082,8 @@
    "key": "TestComment::test_bind",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl 内部の Comment / Shape 表現（bind・merge_comments_vml・Google Docs 由来の異形）に相当する型は無い",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment.py",
@@ -5090,8 +5093,8 @@
    "key": "TestComment::test_unbind",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl 内部の Comment / Shape 表現（bind・merge_comments_vml・Google Docs 由来の異形）に相当する型は無い",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment.py",
@@ -5101,8 +5104,8 @@
    "key": "TestComment::test_copy",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl 内部の Comment / Shape 表現（bind・merge_comments_vml・Google Docs 由来の異形）に相当する型は無い",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment_reader.py",
@@ -5111,9 +5114,12 @@
    "name": "test_read_comments",
    "key": "test_read_comments",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "openpyxl のフィクスチャではなく、コメント入りブックを読んで Cell.comment を検証",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "comments/tests/test_comment_reader.py",
@@ -5122,9 +5128,12 @@
    "name": "test_comments_cell_association",
    "key": "test_comments_cell_association",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "メモはセルに載る（別テーブルを持たない）",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "comments/tests/test_comment_reader.py",
@@ -5134,8 +5143,8 @@
    "key": "test_comments_with_iterators",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "コメント読みは対応。イテレータ経由の読みだけ非対応（read_only が無い）",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment_sheet.py",
@@ -5145,8 +5154,8 @@
    "key": "TestComment::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl の CommentSheet / CommentRecord に相当する型は無い（メモはセルに載る）",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment_sheet.py",
@@ -5156,8 +5165,8 @@
    "key": "TestComment::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl の CommentSheet / CommentRecord に相当する型は無い（メモはセルに載る）",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment_sheet.py",
@@ -5166,9 +5175,12 @@
    "name": "test_read_comments",
    "key": "TestCommentSheet::test_read_comments",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "comments パートの読み",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "comments/tests/test_comment_sheet.py",
@@ -5177,9 +5189,12 @@
    "name": "test_from_comments",
    "key": "TestCommentSheet::test_from_comments",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "comments パートの書き出し（authors 表を含む）",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "comments/tests/test_comment_sheet.py",
@@ -5189,8 +5204,8 @@
    "key": "TestCommentSheet::test_path",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl の CommentSheet / CommentRecord に相当する型は無い（メモはセルに載る）",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_comment_sheet.py",
@@ -5200,8 +5215,8 @@
    "key": "test_read_google_docs",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl の CommentSheet / CommentRecord に相当する型は無い（メモはセルに載る）",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_shape_writer.py",
@@ -5211,8 +5226,8 @@
    "key": "test_merge_comments_vml",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl の ShapeWriter に相当する型は無い。既存 VML への統合（merge_comments_vml）は非対応 — 作り直して警告する",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_shape_writer.py",
@@ -5221,9 +5236,12 @@
    "name": "test_write_comments_vml",
    "key": "test_write_comments_vml",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "VML の生成 — XML 比較ではなく、openpyxl と LibreOffice が読み戻せることで検証",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "comments/tests/test_shape_writer.py",
@@ -5233,8 +5251,8 @@
    "key": "test_shape",
    "params": 1,
    "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl の ShapeWriter に相当する型は無い。既存 VML への統合（merge_comments_vml）は非対応 — 作り直して警告する",
+   "api": "CellNote"
   },
   {
    "file": "comments/tests/test_shape_writer.py",
@@ -5243,9 +5261,12 @@
    "name": "test_shape_with_custom_size",
    "key": "test_shape_with_custom_size",
    "params": 1,
-   "status": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "status": "adapted",
+   "reason": "CellNote.width / height が VML の style に出て、読みで戻る",
+   "api": "CellNote",
+   "swift": [
+    "CommentTests.swift"
+   ]
   },
   {
    "file": "compat/tests/test_compat.py",

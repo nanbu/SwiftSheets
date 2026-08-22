@@ -62,7 +62,7 @@ import Testing
     @Test func hyperlinks() {
         var ws = Workbook().sheets[0]
         ws["A1"] = "test"; ws[cell: "A1"].hyperlink = Hyperlink(target: "http://test.com")
-        let part = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink())
+        let part = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink())
         #expect(part.xml.contains("<hyperlinks><hyperlink ref=\"A1\" r:id=\"rId1\"/></hyperlinks>"))
         #expect(part.rels == "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"http://test.com\" TargetMode=\"External\"/></Relationships>")
     }

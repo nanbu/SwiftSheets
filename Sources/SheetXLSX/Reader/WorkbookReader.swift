@@ -83,6 +83,22 @@ enum WorkbookReader {
             sheet.preserved.sheetId = info.sheetId
             sheet.preserved.relationships = sheetRels.filter { !$0.type.hasSuffix(relHyperlink) }
             sheet.preserved.rootAttributes = p.rootAttributes
+
+            // cell notes: the text from the comments part, the box size from the legacy VML beside it. Both parts
+            // stay opaque as well — untouched notes are re-packed byte for byte (spec §6), and only an edit makes
+            // the writer generate them afresh.
+            if let commentsRel = sheetRels.first(where: { $0.type.hasSuffix(CommentParts.relationshipType) }) {
+                let commentsPart = resolvePart(commentsRel.target, relativeTo: (part as NSString).deletingLastPathComponent)
+                if let data = try? zip.read(commentsPart) {
+                    var notes = CommentParts.parse(data, part: commentsPart)
+                    if let vmlRel = sheetRels.first(where: { $0.type.hasSuffix(CommentParts.vmlRelationshipType) }),
+                       let vml = try? zip.read(resolvePart(vmlRel.target, relativeTo: (part as NSString).deletingLastPathComponent)) {
+                        CommentParts.applySizes(from: vml, to: &notes)
+                    }
+                    for (ref, note) in notes { sheet[cell: ref].comment = note }
+                    sheet.preserved.comments = notes
+                }
+            }
             sheets.append(sheet)
         }
         guard !sheets.isEmpty else { throw SheetError.invalidWorkbook("workbook has no sheets") }

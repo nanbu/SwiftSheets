@@ -19,8 +19,8 @@
   },
   "comments": {
    "default": "na_api",
-   "reason": "コメントの読み書き（VML / comments パート）は未実装 — メモリ上の Comment のみ",
-   "api": "Comment"
+   "reason": "openpyxl 内部の Comment / Shape 表現（bind・merge_comments_vml・Google Docs 由来の異形）に相当する型は無い",
+   "api": "CellNote"
   },
   "compat": {
    "default": "na_python",
@@ -2759,6 +2759,62 @@
    "default": "na_api",
    "reason": "テンプレート（xltx / xltm）は未実装",
    "api": "Templates"
+  },
+  "comments/tests/test_comment_reader.py": {
+   "default": "na_api",
+   "reason": "コメント読みは対応。イテレータ経由の読みだけ非対応（read_only が無い）",
+   "api": "CellNote",
+   "tests": {
+    "test_read_comments": {
+     "status": "adapted",
+     "reason": "openpyxl のフィクスチャではなく、コメント入りブックを読んで Cell.comment を検証"
+    },
+    "test_comments_cell_association": {
+     "status": "adapted",
+     "reason": "メモはセルに載る（別テーブルを持たない）"
+    }
+   }
+  },
+  "comments/tests/test_comment_sheet.py": {
+   "default": "na_api",
+   "reason": "openpyxl の CommentSheet / CommentRecord に相当する型は無い（メモはセルに載る）",
+   "api": "CellNote",
+   "tests": {
+    "TestCommentSheet::test_read_comments": {
+     "status": "adapted",
+     "reason": "comments パートの読み"
+    },
+    "TestCommentSheet::test_from_comments": {
+     "status": "adapted",
+     "reason": "comments パートの書き出し（authors 表を含む）"
+    }
+   }
+  },
+  "comments/tests/test_shape_writer.py": {
+   "default": "na_api",
+   "reason": "openpyxl の ShapeWriter に相当する型は無い。既存 VML への統合（merge_comments_vml）は非対応 — 作り直して警告する",
+   "api": "CellNote",
+   "tests": {
+    "test_write_comments_vml": {
+     "status": "adapted",
+     "reason": "VML の生成 — XML 比較ではなく、openpyxl と LibreOffice が読み戻せることで検証"
+    },
+    "test_shape_with_custom_size": {
+     "status": "adapted",
+     "reason": "CellNote.width / height が VML の style に出て、読みで戻る"
+    }
+   }
+  },
+  "comments/tests/test_author.py": {
+   "default": "na_api",
+   "reason": "作成者は文字列で、専用の型を持たない",
+   "api": "CellNote",
+   "tests": {
+    "TestAuthor::test_from_xml": {
+     "status": "adapted",
+     "reason": "authors 表は CellNote.author に畳まれる"
+    }
+   }
   }
  }
 }

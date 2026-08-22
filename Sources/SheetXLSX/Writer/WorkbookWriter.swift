@@ -99,11 +99,49 @@ enum WorkbookWriter {
             plans.append(SheetPlan(path: path!, rId: rId!, sheetId: sheetId!))
         }
 
-        // sheets first: they register styles and strings
-        var sheetParts: [(xml: String, rels: String?)] = []
+        // cell notes: a sheet whose notes are exactly the ones it was read with keeps its source parts (byte for
+        // byte, spec §6); any other sheet with notes gets a freshly generated comments part and legacy VML.
+        var commentPlans: [Int: CommentPlan] = [:]
         for (i, sheet) in wb.sheets.enumerated() {
-            sheetParts.append(sheetXML(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily, isActive: i == wb.activeIndex, sink: sink))
+            let notes = sheet.notes
+            let sheetDir = (plans[i].path as NSString).deletingLastPathComponent
+            let sheetRels = sameFamily ? sheet.preserved.relationships : []
+            func sourcePath(_ type: String) -> String? {
+                sheetRels.first { $0.type.hasSuffix(type) }.map { WorkbookReader.resolvePart($0.target, relativeTo: sheetDir) }
+            }
+            let sourceComments = sourcePath(CommentParts.relationshipType), sourceVML = sourcePath(CommentParts.vmlRelationshipType)
+            let asRead = sameFamily ? sheet.preserved.comments : [:]
+            if sourceComments != nil, Dictionary(notes.map { ($0.ref, $0.note) }, uniquingKeysWith: { a, _ in a }) == asRead { continue }
+
+            // the source parts stop being authoritative the moment the model disagrees with them
+            for path in [sourceComments, sourceVML].compactMap({ $0 }) {
+                if let vml = sourceVML, path == vml, let bytes = opaque[vml], CommentParts.holdsNonNoteShapes(bytes) {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name,
+                             "legacy drawing shapes other than cell notes (form controls, buttons) were dropped: the part had to be regenerated for the notes")
+                }
+                opaque[path] = nil
+                usedPaths.remove(path)
+            }
+            guard !notes.isEmpty else { continue }
+            func path(_ existing: String?, _ pattern: (Int) -> String) -> String {
+                if let existing { usedPaths.insert(existing); return existing }
+                var n = 1
+                while usedPaths.contains(pattern(n)) { n += 1 }
+                usedPaths.insert(pattern(n))
+                return pattern(n)
+            }
+            commentPlans[i] = CommentPlan(commentsPath: path(sourceComments) { "xl/comments/comment\($0).xml" },
+                                          vmlPath: path(sourceVML) { "xl/drawings/commentsDrawing\($0).vml" },
+                                          notes: notes)
         }
+
+        // sheets first: they register styles and strings
+        var sheetParts: [(xml: String, rels: String?, parts: [(path: String, data: Data)])] = []
+        for (i, sheet) in wb.sheets.enumerated() {
+            sheetParts.append(sheetXML(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily,
+                                       isActive: i == wb.activeIndex, comments: commentPlans[i], sink: sink))
+        }
+        let generatedNoteParts = sheetParts.flatMap(\.parts)
         // styles reference theme colours, so a theme part must exist: keep the source's, or ship the default one
         let preservedTheme = opaque.keys.first { $0.hasPrefix("xl/theme/") }
         let themePath = preservedTheme ?? Theme.partPath
@@ -124,6 +162,9 @@ enum WorkbookWriter {
         overrides["docProps/core.xml"] = "application/vnd.openxmlformats-package.core-properties+xml"
         overrides["docProps/app.xml"] = "application/vnd.openxmlformats-officedocument.extended-properties+xml"
         if sameFamily { for (k, v) in preserved.contentTypeOverrides where opaque[k] != nil { overrides[k] = v } }
+        for part in generatedNoteParts {
+            if part.path.hasSuffix(".vml") { defaults["vml"] = CommentParts.vmlContentType } else { overrides[part.path] = CommentParts.contentType }
+        }
         var ct = XMLWriter.header + "<Types xmlns=\"\(XMLWriter.nsContentTypes)\">"
         for k in defaults.keys.sorted() { ct += "<Default Extension=\"\(XML.esc(k))\" ContentType=\"\(XML.esc(defaults[k]!))\"/>" }
         for k in overrides.keys.sorted() { ct += "<Override PartName=\"/\(XML.esc(k))\" ContentType=\"\(XML.esc(overrides[k]!))\"/>" }
@@ -187,6 +228,7 @@ enum WorkbookWriter {
             archive.add(plan.path, Data((XMLWriter.header + part.xml).utf8))
             if let r = part.rels { archive.add(WorkbookReader.relsPath(of: plan.path), Data((XMLWriter.header + r).utf8)) }
         }
+        for part in generatedNoteParts { archive.add(part.path, part.data) }
         if needsGeneratedTheme { archive.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8)) }
         if !strings.isEmpty { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml()).utf8)) }
         archive.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
@@ -249,7 +291,16 @@ enum WorkbookWriter {
     }
 
     /// Worksheet XML in schema order, with the sheet's preserved fragments merged in at their positions.
-    static func sheetXML(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool, sink: WarningSink) -> (xml: String, rels: String?) {
+    /// Where a sheet's regenerated cell-note parts go. Nil when the sheet has no notes, or when the ones it has
+    /// are exactly the ones it was read with — then the source parts are re-packed untouched.
+    struct CommentPlan {
+        let commentsPath: String
+        let vmlPath: String
+        let notes: [(ref: CellRef, note: CellNote)]
+    }
+
+    static func sheetXML(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool,
+                         comments: CommentPlan?, sink: WarningSink) -> (xml: String, rels: String?, parts: [(path: String, data: Data)]) {
         let table = ws.table
         var generated: [(String, String)] = []
         var s = "<sheetPr\(XML.attr("codeName", ws.properties.codeName))\(ws.properties.filterMode.map { " filterMode=\"\($0 ? 1 : 0)\"" } ?? "")>"
@@ -311,7 +362,6 @@ enum WorkbookWriter {
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
                 let a1 = ref.a1
                 if let h = c.hyperlink { hyperlinks.append((a1, h)) }
-                if c.comment != nil { sink.add(.dropped, subject: .objects, sheet: ws.name, at: ref, "cell notes are not written yet (they need a VML part)") }
                 switch c.value {
                 case nil: s += "<c r=\"\(a1)\"\(st)/>"
                 case .formula(let f, let cached)?:
@@ -340,26 +390,42 @@ enum WorkbookWriter {
         if !table.merges.isEmpty {
             generated.append(("mergeCells", "<mergeCells count=\"\(table.merges.count)\">" + table.merges.map { "<mergeCell ref=\"\($0.a1)\"/>" }.joined() + "</mergeCells>"))
         }
-        // sheet relationships: preserved ones keep their ids; hyperlinks are numbered after them
-        let preservedRels = preserve ? ws.preserved.relationships : []
+        // sheet relationships: preserved ones keep their ids; hyperlinks and regenerated note parts follow them.
+        // A regenerated comments part replaces the source's, so the source's own two relationships step aside.
+        var preservedRels = preserve ? ws.preserved.relationships : []
+        var noteFragments = fragments
+        if comments != nil || (preserve && !ws.preserved.comments.isEmpty && ws.notes.isEmpty) {
+            preservedRels.removeAll { $0.type.hasSuffix(CommentParts.relationshipType) || $0.type.hasSuffix(CommentParts.vmlRelationshipType) }
+            noteFragments.removeAll { $0.element == "legacyDrawing" }
+        }
+        var extraParts: [(path: String, data: Data)] = []
         var rels: String?
         var relXML = "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\">" + preservedRels.map(relationshipXML).joined()
+        var next = (preservedRels.compactMap(\.number).max() ?? 0) + 1
+        let usedRelIDs = Set(preservedRels.map(\.id))
+        func freshRelID() -> String { while usedRelIDs.contains("rId\(next)") { next += 1 }; defer { next += 1 }; return "rId\(next)" }
         if !hyperlinks.isEmpty {
-            var next = (preservedRels.compactMap(\.number).max() ?? 0) + 1
-            let used = Set(preservedRels.map(\.id))
             s = "<hyperlinks>"
             for (a1, h) in hyperlinks {
                 if h.isInternal { s += "<hyperlink ref=\"\(a1)\" location=\"\(XML.esc(h.target))\"\(XML.attr("display", h.display))\(XML.attr("tooltip", h.tooltip))/>" }
                 else {
-                    while used.contains("rId\(next)") { next += 1 }
-                    s += "<hyperlink ref=\"\(a1)\" r:id=\"rId\(next)\"\(XML.attr("display", h.display))\(XML.attr("tooltip", h.tooltip))/>"
-                    relXML += "<Relationship Id=\"rId\(next)\" Type=\"\(XMLWriter.nsRel)/hyperlink\" Target=\"\(XML.esc(h.target))\" TargetMode=\"External\"/>"
-                    next += 1
+                    let id = freshRelID()
+                    s += "<hyperlink ref=\"\(a1)\" r:id=\"\(id)\"\(XML.attr("display", h.display))\(XML.attr("tooltip", h.tooltip))/>"
+                    relXML += "<Relationship Id=\"\(id)\" Type=\"\(XMLWriter.nsRel)/hyperlink\" Target=\"\(XML.esc(h.target))\" TargetMode=\"External\"/>"
                 }
             }
             generated.append(("hyperlinks", s + "</hyperlinks>"))
         }
-        if !preservedRels.isEmpty || relXML.contains("/hyperlink") { rels = relXML + "</Relationships>" }
+        if let plan = comments {
+            let dir = (ws.preserved.partPath.map { ($0 as NSString).deletingLastPathComponent } ?? "xl/worksheets")
+            let commentsID = freshRelID(), vmlID = freshRelID()
+            relXML += "<Relationship Id=\"\(commentsID)\" Type=\"\(XMLWriter.nsRel)\(CommentParts.relationshipType)\" Target=\"\(XML.esc(relativeTarget(plan.commentsPath, from: dir)))\"/>"
+            relXML += "<Relationship Id=\"\(vmlID)\" Type=\"\(XMLWriter.nsRel)\(CommentParts.vmlRelationshipType)\" Target=\"\(XML.esc(relativeTarget(plan.vmlPath, from: dir)))\"/>"
+            generated.append(("legacyDrawing", "<legacyDrawing r:id=\"\(vmlID)\"/>"))
+            extraParts.append((plan.commentsPath, Data((XMLWriter.header + CommentParts.commentsXML(plan.notes)).utf8)))
+            extraParts.append((plan.vmlPath, Data(CommentParts.vmlXML(plan.notes).utf8)))
+        }
+        if !preservedRels.isEmpty || relXML.contains("/hyperlink") || comments != nil { rels = relXML + "</Relationships>" }
         let po = ws.printOptions
         if po != PrintOptions() {
             generated.append(("printOptions", "<printOptions\(XML.attr("horizontalCentered", po.horizontalCentered))\(XML.attr("verticalCentered", po.verticalCentered))\(XML.attr("headings", po.headings))\(XML.attr("gridLines", po.gridLines))/>"))
@@ -371,9 +437,9 @@ enum WorkbookWriter {
             generated.append(("pageSetup", "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))\(XML.attr("firstPageNumber", p.firstPageNumber))\(p.useFirstPageNumber.map { " useFirstPageNumber=\"\($0 ? 1 : 0)\"" } ?? "")/>"))
         }
         var xml = "<worksheet" + XMLWriter.rootAttributes(preserve ? ws.preserved.rootAttributes : [:], defaults: ["xmlns": XMLWriter.nsMain, "xmlns:r": XMLWriter.nsRel]) + ">"
-        xml += XMLWriter.ordered(generated, fragments: fragments, order: worksheetOrder)
+        xml += XMLWriter.ordered(generated, fragments: noteFragments, order: worksheetOrder)
         xml += "</worksheet>"
-        return (xml, rels)
+        return (xml, rels, extraParts)
     }
 }
 

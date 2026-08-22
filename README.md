@@ -134,7 +134,8 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `wb.defined_names`, `wb.properties` | `wb.definedNames`, `wb.metadata` |
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
-| charts / images / conditional formatting / data validation / comments / pivots | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
+| `cell.comment = Comment(text, author)` | `sheet[cell: "A1"].comment = CellNote(text, author:)` — written as the comments part plus its legacy VML |
+| charts / images / conditional formatting / data validation / pivots | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
 | `read_only` / `write_only` streaming | — (whole workbook in memory; see [Limits](#limits)) |
 
 ### openpyxl test parity

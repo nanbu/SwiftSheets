@@ -266,7 +266,7 @@ import Testing
     /// The `<c …>…</c>` element the writer produces for one cell.
     // PORT-NOTE: a `Sheet` no longer knows its workbook (`ws.workbook?.epoch`), so the epoch is passed in explicitly.
     func writeCell(_ ws: Sheet, _ ref: String, epoch: DateEpoch = .windows1900) -> String {
-        let xml = WorkbookWriter.sheetXML(ws, epoch: epoch, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
+        let xml = WorkbookWriter.sheetXML(ws, epoch: epoch, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         guard let r = xml.range(of: "<c r=\"\(ref)\"") else { return "" }
         let tail = xml[r.lowerBound...]
         if let close = tail.range(of: "</c>") { return String(tail[..<close.upperBound]) }
@@ -325,7 +325,7 @@ import Testing
     @Test func writeHyperlink() {
         var ws = Workbook().sheets[0]
         ws["A1"] = "test"; ws[cell: "A1"].hyperlink = Hyperlink(target: "http://www.test.com")
-        let part = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink())
+        let part = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink())
         #expect(part.xml.contains("<hyperlinks><hyperlink ref=\"A1\" r:id=\"rId1\"/></hyperlinks>") && part.rels?.contains("Target=\"http://www.test.com\"") == true)
     }
 

@@ -6,7 +6,7 @@ import Testing
 /// The worksheet XML SwiftSheets writes for `ws`, without the package around it (fresh style / string tables, no
 /// preserved fragments, not the active tab — so the output matches a stand-alone sheet).
 func sheetXML(_ ws: Sheet, epoch: DateEpoch = .windows1900) -> String {
-    WorkbookWriter.sheetXML(ws, epoch: epoch, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
+    WorkbookWriter.sheetXML(ws, epoch: epoch, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
 }
 
 /// Parses a worksheet XML document (or a fragment) into a fresh sheet with the production parser.
