@@ -1900,13 +1900,28 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <li>最初のテスト <code>PreservationTests.editOneCellKeepsEverythingElse</code>: openpyxl で生成した「グラフ・テーブル・条件付き書式・データ検証・コメント・定義名」入りブックを 1 セル編集して保存 → 他セル・不透明パーツのバイト一致・rId の解決・Content_Types の整合・要素順を検査。三大要因（§7.4）はそれぞれ機械検出している。</li>
     <li>外部審判: LibreOffice ヘッドレス（この Mac にある）と openpyxl の読み戻し。Excel 実機は未検証（オーナー環境に無い）。</li>
     <li>openpyxl テスト台帳（<code>Tests/OpenpyxlParity/parity.json</code>）は継続。API が値型・0 始まりに変わったため移植テストは機械的に書き換え、出典コメントは不変。</li>
-    <li>数式の不動点性（parse → emit → parse）は固定ケース集で検査（ランダム生成は未実装 — ロードマップ）。</li>
+    <li>数式の不動点性（parse → emit → parse）は固定ケース集で検査。<strong>Rev 1.7 で追加</strong>: 乱数生成による検査（<code>PropertyTests</code>）とファズ（<code>FuzzTests</code>）— B.12。</li>
   </ul>
 
   <h3>B.7 未着手（本文のとおりロードマップ）</h3>
   <ul>
     <li>名前付きスタイル・コメントの書き出し（VML）・条件付き書式 / データ検証の API・ストリーミング読み書き。<strong>Rev 1.7 で解消</strong>: 暗号化の明示エラー（B.12）。</li>
     <li>Numbers の数式を内部表現（TSCE 数式アーカイブ）で生成すること — B.8 参照。</li>
+    <li><strong>プロパティテストとファズ</strong>（§12 の「プロパティテスト」「ファズ」）: 乱数は
+      SplitMix64 を固定シードで回す — 失敗が再現できない検査は検査ではない。
+      <code>PropertyTests</code> は (1) A1 ⇄ (row, col) の全単射（サンプリング＋列名は 0…ZZZ を全数）、
+      (2) ODS の RLE 畳み込みと展開が互いの逆であること（乱数で作った歯抜けのシートを書いて読み戻す）、
+      (3) 乱数で生成した数式木の parse → emit → parse 不動点性（両方言）、
+      (4) 乱数の<em>文字列</em>に対して parse が安定であること。
+      <code>FuzzTests</code> はコーパスをバイト単位で壊す 7 種と、パッケージを開いて中の 1 パートだけを壊して
+      詰め直す 6 種（ZIP 層で死なせず XML / IWA 読みまで届かせるため）を回し、着地が必ず
+      <code>SheetError</code> であることを見る。既定は <code>swift test</code> が払ってよい回数、
+      <code>SWIFTSHEETS_FUZZ_ROUNDS</code> / <code>SWIFTSHEETS_FUZZ_SEEDS</code> で本格的な探索に切り替える。
+      <strong>この 2 本が実際に見つけた欠陥</strong>: (a) <code>FormulaExpr.parse("+漢!")</code> が
+      「シート接頭辞のあとに何も無い」入力で配列外参照して<strong>プロセスごと落ちていた</strong>
+      （§12 柱5 の違反。<code>lexRowRange</code> の先頭に境界検査を追加）、(b) 先頭の <code>=</code> を
+      1 個しか落とさないため <code>.unparsed("=X")</code> が再パースで <code>.unparsed("X")</code> になり、
+      不動点性が壊れていた（全部落とすように変更）。</li>
   </ul>
 
   <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>

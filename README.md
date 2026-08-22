@@ -179,7 +179,8 @@ Known limits of the current preservation: a cell's named-style link (`xfId`), `c
 ## Development
 
 ```bash
-swift test                                                                 # model, formulas, preservation, CSV, parity suites
+swift test                                                                 # model, formulas, preservation, CSV, parity, property and fuzz suites
+SWIFTSHEETS_FUZZ_ROUNDS=20000 swift test --filter Fuzz                     # a longer fuzz campaign (seeds via SWIFTSHEETS_FUZZ_SEEDS)
 python3 Tests/FixtureGenerator/make_fixtures.py                           # regenerate openpyxl-made fixtures (any Python with openpyxl)
 python3 Tests/FixtureGenerator/make_preservation_fixtures.py              # chart / table / VBA fixtures
 python3 Tests/FixtureGenerator/make_encrypted_fixtures.py                 # encrypted / legacy fixtures (openpyxl, msoffcrypto-tool, LibreOffice)

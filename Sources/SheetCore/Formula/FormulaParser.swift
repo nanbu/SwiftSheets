@@ -38,12 +38,16 @@ struct FormulaParser {
     }
 
     /// Drops "=" (and ODS's "of:=" / "oooc:=" namespace prefixes).
+    ///
+    /// Every leading "=", not just the first: what is left has to be text this function would leave alone, or
+    /// `parse` stops being idempotent on its own output — `.unparsed("=X")` renders as `"=X"`, which would strip
+    /// down to `.unparsed("X")` on the next pass (spec §12's fixed-point property, found by `PropertyTests`).
     static func stripPrefix(_ text: String, dialect: SheetFormat) -> String {
         var s = text
         if dialect == .ods {
-            for p in ["of:=", "oooc:=", "msoxl:="] where s.hasPrefix(p) { s = String(s.dropFirst(p.count)); return s }
+            for p in ["of:=", "oooc:=", "msoxl:="] where s.hasPrefix(p) { s = String(s.dropFirst(p.count)); break }
         }
-        if s.hasPrefix("=") { s.removeFirst() }
+        while s.hasPrefix("=") { s.removeFirst() }
         return s
     }
 
@@ -285,8 +289,9 @@ struct FormulaLexer {
 
     /// `1:1`, `$2:$5` — whole rows. Only when the digits are followed by ":" and more digits, or close such a range.
     private mutating func lexRowRange() -> FormulaParser.Token? {
+        // `i` can already be at the end here: "Sheet!" consumed a sheet prefix and left nothing after it.
         var j = i, abs = false
-        if chars[j] == "$" { abs = true; j += 1 }
+        if j < chars.count, chars[j] == "$" { abs = true; j += 1 }
         var digits = ""
         while j < chars.count, chars[j].isNumber { digits.append(chars[j]); j += 1 }
         guard !digits.isEmpty, let n = Int(digits), n >= 1 else { return nil }
