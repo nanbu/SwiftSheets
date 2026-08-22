@@ -1822,7 +1822,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.2 Draft</td><td>2026-08-22</td><td>Numbers 書き出しを正式対応へ格上げ（警告機構を全形式共通の契約として再定義）。第9章 CSV コーデックを新設（UTF-8 BOM 自動判別・文字コード指定）</td></tr>
     <tr><td>1.3 Draft</td><td>2026-08-22</td><td>P1・P2（SheetCore・XLSX/XLSM・CSV・数式 AST・F3 保全）の実装に伴う決定と逸脱を付録 B に記録。名称を SwiftSheets に確定</td></tr>
     <tr><td>1.4 Draft</td><td>2026-08-22</td><td>P3（ODS）・P4/P5（Numbers）の実装方針を付録 B.8 に固定: Protobuf は依存ゼロの動的ツリー、Numbers の数式書き出しはキャッシュ値＋警告に退避</td></tr>
-    <tr><td>1.5 Draft</td><td>2026-08-22</td><td>§12 柱5（不正入力でクラッシュしない）を満たすための上限と検証を付録 B.9 に固定: 座標・数式の深さ・ZIP の長さ検証、結合と ODS の RLE が展開してよいセル数、保存のアトミック化</td></tr>
+    <tr><td>1.5 Draft</td><td>2026-08-22</td><td>§12 柱5（不正入力でクラッシュしない）を満たすための上限と検証を付録 B.9 に固定: 座標・数式の深さ・ZIP の長さ検証、結合と ODS の RLE が展開してよいセル数、保存のアトミック化。大量データのための実装（Cell の書式共有・使用範囲の逐次維持・一時コピーの排除）を B.10 に記録</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -1944,9 +1944,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <li><strong>ODS の RLE 展開は 1 文書あたり 1,000,000 セルまで</strong>（<code>ODSReader.maxCells</code>）。§8.3 の打ち切りは
         「中身のない反復」だけを見ており、値を持つセルの <code>number-columns-repeated</code> × <code>number-rows-repeated</code> は
         16,384 × 1,048,576 まで素直に展開していた（1 KB のファイルで 10 分・425 MB 以上・停止せず）。超過分は読まず、
-        シートごとに 1 件の <code>degraded</code> 警告を返す。1,000,000 は現行モデル（<code>Cell</code> が書式を丸ごと内包し 496 B）で
-        既に 1.4 GB になる規模であり、そこから先は成功しても使えない。<strong>本来は <code>ReadOptions</code> の設定値</strong>で、
-        利用者が選ぶ理由ができた時点で移す。</li>
+        シートごとに 1 件の <code>degraded</code> 警告を返す。1,000,000 は Excel のシート 1 枚（16,384 × 1,048,576）の
+        0.006% で、そこまで展開して初めて「これは内容ではなく指定だ」と判断できる規模。<strong>本来は <code>ReadOptions</code> の
+        設定値</strong>で、利用者が選ぶ理由ができた時点で移す。</li>
       <li><strong>ZIP は中央ディレクトリの自己申告長を全て検証する</strong>。名前長・extra・comment がバッファ外へ出る、
         ローカルヘッダのオフセットがファイル外を指す、は <code>corruptedContainer</code>。Numbers 側も同様に
         length-delimited フィールド長と varint の桁数を検証する。</li>
@@ -1954,6 +1954,30 @@ wb.sheets[<span class="nm">0</span>] = sheet
         本ライブラリの存在理由である以上、書き込み途中の中断が元のファイルを壊してはならない。inode は差し替わる。</li>
     </ul>
   </div>
+  <h3>B.10 大量データのための実装（Rev 1.5）</h3>
+  <p>
+    §14.11 のとおり v1 は全載せモデルであり、ストリーミングは持たない。そのぶん「1 枚のシートがメモリに載る」ことは
+    実装の責任になる。監査時点では 20 万セルで RSS 458 MB、100 万セルで 1.5 GB 超と、iOS を対応プラットフォームに
+    掲げる以上は成立していなかった。原因と対処を記録する。
+  </p>
+  <ul>
+    <li><strong><code>Cell</code> は書式を値で内包しない</strong>（496 B → 24 B）。<code>CellStyle</code> は <code>SharedStyle</code>
+      （不変・Sendable な参照型）に載せ、既定書式のセルは何も持たない。稀なハイパーリンクと注釈は <code>CellExtras</code> に畳む。
+      <strong>同じ書式は共有する</strong> — XLSX は <code>xf</code> 索引ごと、ODS は自動スタイル名ごと、<code>style(範囲)</code> は
+      クロージャの結果ごとに 1 インスタンス。§3.2 が禁じているのは「<em>ファイル形式の</em>索引（sharedStringIndex・styleIndex）を
+      モデルに持ち込むこと」であって、モデル内部で同じ値を共有することではない。公開 API は不変（<code>cell.style</code> は
+      今までどおり値を読み書きする）。実測: 60 万セルの構築が 982 MB → 105 MB、全セル書式つき 15 万セルの読み込みが 469 MB → 100 MB。</li>
+    <li><strong>使用範囲（<code>Table.extent</code>）は逐次維持する</strong>。全セル走査の計算プロパティで、
+      <code>rowCount</code> / <code>row(_:)</code> / <code>rows(in:)</code> / 各ライタが内部で呼ぶため、
+      <code>for r in 0..&lt;sheet.rowCount { sheet.row(r) }</code> という自然なコードが O(n²) だった。型付きの変更経路
+      （添字・<code>append</code>・<code>store(_:at:)</code>）で範囲を更新し、<code>cells</code> を直接書き換えられたときだけ
+      「不明」に落として次回 1 回だけ走査する。60 万セルのシートを 3,000 行なめる操作が 4.49 s → 0.00 s。</li>
+    <li><strong>一時コピーを作らない</strong>。ZIP はパートごとにファイル全体を配列へ写していた（O(ファイル×パート数)）ので
+      <code>withUnsafeBytes</code> でその場で読む。XLSX / ODS のライタは行ごとにセルを詰め直していたので、キーだけをまとめる。</li>
+    <li><strong>残る上限</strong>: ストリーミング読み書きは引き続きロードマップ（§14.11）。1 セルあたりの実測はおよそ
+      100〜200 B（辞書のオーバーヘッド込み）で、100 万セルで 100〜200 MB。</li>
+  </ul>
+
   <p>
     検証は <code>Tests/SwiftSheetsTests/MalformedInputTests.swift</code>（座標・行番号・数式深さ・壊れた ZIP・全面結合・
     固定シードのランダムバイト破壊 200 回）と <code>ODSCodecTests</code> の RLE 上限テストで、いずれも上の再現をそのまま回帰にしている。
