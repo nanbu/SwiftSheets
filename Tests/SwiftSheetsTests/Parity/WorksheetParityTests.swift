@@ -385,7 +385,9 @@ import Testing
         var ws = Self.freshSheet()
         ws.freezePanes(at: "A4")
         let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
-        #expect(xml.contains("<pane xSplit=\"0\" ySplit=\"3\" topLeftCell=\"A4\" activePane=\"bottomRight\" state=\"frozen\"/>"))
+        // openpyxl (and Excel) omit a zero split and make the single remaining pane active
+        #expect(xml.contains("<pane ySplit=\"3\" topLeftCell=\"A4\" activePane=\"bottomLeft\" state=\"frozen\"/>"))
+        #expect(xml.contains("<selection pane=\"bottomLeft\""))
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_freeze_panes_vert
@@ -393,7 +395,8 @@ import Testing
         var ws = Self.freshSheet()
         ws.freezePanes(at: "D1")
         let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, sink: WarningSink()).xml
-        #expect(xml.contains("<pane xSplit=\"3\" ySplit=\"0\" topLeftCell=\"D1\" activePane=\"bottomRight\" state=\"frozen\"/>"))
+        #expect(xml.contains("<pane xSplit=\"3\" topLeftCell=\"D1\" activePane=\"topRight\" state=\"frozen\"/>"))
+        #expect(xml.contains("<selection pane=\"topRight\""))
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_freeze_panes_both

@@ -122,28 +122,74 @@ final class NumbersDocument {
         return id
     }
 
+    /// Removes an object, its archive and — when the file becomes empty — the file itself. The package metadata is
+    /// kept in step: a component that no longer has an object, or an external reference to it, makes Numbers declare
+    /// the document damaged.
     func remove(_ id: Int) {
         guard let (path, i) = locations[id], case .iwa(var f)? = files[path] else { return }
         f.archives.remove(at: i)
         locations[id] = nil
         for (k, v) in locations where v.0 == path && v.1 > i { locations[k] = (path, v.1 - 1) }
         if f.archives.isEmpty { files[path] = nil; order.removeAll { $0 == path } } else { files[path] = .iwa(f) }
+        forgetComponent(id)
+    }
+
+    /// Drops the `TSP.ComponentInfo` of an object and every external reference naming it.
+    func forgetComponent(_ id: Int) {
+        update(NumbersDocument.packageID) { pkg in
+            var comps = pkg.messages("components")
+            comps.removeAll { $0.int("identifier") == id }
+            for i in comps.indices {
+                let refs = comps[i].messages("external_references").filter { $0.int("object_identifier") != id && $0.int("component_identifier") != id }
+                comps[i].remove("external_references")
+                for r in refs { comps[i].append("external_references", message: r) }
+            }
+            pkg.set("components", messages: comps)
+        }
     }
 
     func setBlob(_ path: String, _ data: Data) { if files[path] == nil { order.append(path) }; files[path] = .blob(data) }
 
     // MARK: - Output
 
-    /// The single-file `.numbers` package (a ZIP of IWAs and blobs — the layout Numbers writes itself).
+    /// The single-file `.numbers` package. Every entry is stored, not deflated — that is what Numbers itself writes
+    /// (the IWA payload is already Snappy-compressed) and what Numbers expects to find.
     func encoded() -> Data {
         var zip = ZipWriter()
         for name in order {
             switch files[name] {
-            case .iwa(let f)?: zip.add(name, f.encoded())
-            case .blob(let d)?: zip.add(name, d, stored: name.hasSuffix(".jpg") || name.hasSuffix(".png"))
+            case .iwa(let f)?: zip.add(name, f.encoded(), stored: true)
+            case .blob(let d)?: zip.add(name, d, stored: true)
             case nil: continue
             }
         }
         return zip.finish()
+    }
+
+    /// Invariants Numbers checks when opening a document; anything reported here makes it offer to repair the file.
+    func integrityProblems() -> [String] {
+        var problems: [String] = []
+        guard let pkg = object(NumbersDocument.packageID) else { return ["no package metadata (object 2)"] }
+        let components = pkg.messages("components")
+        for c in components {
+            guard let id = c.int("identifier") else { continue }
+            if object(id) == nil { problems.append("component \(id) has no object") }
+            if let locator = c.string("locator"), !locator.isEmpty, locations[id] == nil {
+                problems.append("component \(id) points at Index/\(locator).iwa, which is not in the package")
+            }
+            for e in c.messages("external_references") {
+                if let o = e.int("object_identifier"), o != 0, object(o) == nil { problems.append("component \(id) references missing object \(o)") }
+                if let ci = e.int("component_identifier"), ci != 0, object(ci) == nil { problems.append("component \(id) references missing component \(ci)") }
+            }
+        }
+        for id in locations.keys {
+            for r in object(id)?.allReferences() ?? [] where r != 0 && object(r) == nil {
+                problems.append("object \(id) (\(typeName(id) ?? "?")) references missing object \(r)")
+            }
+        }
+        if let last = pkg.int("last_object_identifier"), let maximum = locations.keys.max(), last < maximum {
+            problems.append("last_object_identifier \(last) is below the highest object id \(maximum)")
+        }
+        return problems
     }
 }

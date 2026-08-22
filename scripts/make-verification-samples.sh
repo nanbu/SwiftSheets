@@ -83,6 +83,14 @@ Numbers の 3 形式へ書き出したもの**です。Excel と Numbers の実�
 **数式は計算結果の値**として入ります（Numbers の数式アーカイブは生成しない）。**非表示シートは表示されます**。
 つまり「データは合っているが見た目は素のまま」が期待値です。
 
+## 既知の LibreOffice 側の問題（SwiftSheets の不具合ではありません）
+
+- **Numbers ファイルをLibreOffice で開くとシート名が化ける**（`月次サマリ` → `月次サマ□`）。LibreOffice の Numbers
+  インポータ（libetonyek）が 5 文字以上の日本語名を途中で切るためで、numbers-parser が書いた正規の Numbers 文書でも
+  同じ化け方をします。ファイル内のバイト列は正しい UTF-8 です（Numbers と numbers-parser では正しく読めます）。
+- **LibreOffice の xlsx→ods 変換は枠固定（ウィンドウ枠）を書き出しません**。そのため入力 `01` には枠固定が入って
+  おらず、サンプルではスクリプトが再設定しています（`変換レポート.md` に記載）。
+
 ## LibreOffice で `02-swiftsheets.ods` を開く
 
 自動検証済み（`swift test` の ODS スイート）ですが、目視でも確認できます。`pdf/01-source-libreoffice.pdf` と

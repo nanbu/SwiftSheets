@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import SheetCore
+@testable import SheetNumbers
 import SwiftSheets
 
 /// Produces the manual-verification samples of MAINTENANCE.md's release checklist: a LibreOffice-written .ods is read
@@ -57,6 +58,10 @@ import SwiftSheets
             if let s = result.suggestion { report += "- 提案: \(s.message)\n" }
 
             // every output must read back with the values intact
+            if format == .numbers {
+                let doc = try NumbersDocument(data: result.data)
+                #expect(doc.integrityProblems().isEmpty, "\(doc.integrityProblems().prefix(5))")
+            }
             let back = try Workbook(data: result.data)
             #expect(back.sheetNames.contains("売上明細"), "\(name)")
             let s = try #require(back.sheets["売上明細"])

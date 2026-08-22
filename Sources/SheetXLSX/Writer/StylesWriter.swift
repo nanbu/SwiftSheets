@@ -90,9 +90,10 @@ final class StyleRegistry {
         }
     }
 
+    /// CT_Font's children in the order the schema lists them (b, i, strike, u, vertAlign, sz, color, name, family,
+    /// charset, scheme) — Excel accepts nothing else without offering to repair the file.
     static func fontXML(_ f: Font, tag: String = "font", nameTag: String = "name") -> String {
         var s = "<\(tag)>"
-        if let cs = f.charset { s += "<charset val=\"\(cs)\"/>" }
         if f.bold { s += "<b val=\"1\"/>" }
         if f.italic { s += "<i val=\"1\"/>" }
         if f.strikethrough { s += "<strike val=\"1\"/>" }
@@ -102,6 +103,7 @@ final class StyleRegistry {
         s += colorXML("color", f.color)
         if let n = f.name { s += "<\(nameTag) val=\"\(XML.esc(n))\"/>" }
         if let fam = f.family { s += "<family val=\"\(fam)\"/>" }
+        if let cs = f.charset { s += "<charset val=\"\(cs)\"/>" }
         if let sch = f.scheme { s += "<scheme val=\"\(sch)\"/>" }
         return s + "</\(tag)>"
     }

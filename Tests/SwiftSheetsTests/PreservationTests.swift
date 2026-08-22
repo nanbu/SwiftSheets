@@ -138,3 +138,72 @@ import SwiftSheets
         #expect(wb.sheets[0]["A1"] == .text("Item"))
     }
 }
+
+/// The package details Excel validates when it decides whether to offer "repair". Each of these was a real defect:
+/// styles referenced a theme that was not in the package, and the pane element spelled out zero splits.
+@Suite struct ExcelCompatibilityTests {
+    static func parts(_ data: Data) throws -> (zip: ZipArchive, contentTypes: String, workbookRels: String) {
+        let zip = try ZipArchive(data: data)
+        return (zip, String(decoding: try zip.read("[Content_Types].xml"), as: UTF8.self),
+                String(decoding: try zip.read("xl/_rels/workbook.xml.rels"), as: UTF8.self))
+    }
+
+    @Test func aGeneratedWorkbookShipsTheThemeItsStylesReference() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "テーマ"
+        let data = try XLSXCodec.write(wb).data
+        let (zip, contentTypes, rels) = try Self.parts(data)
+        let styles = String(decoding: try zip.read("xl/styles.xml"), as: UTF8.self)
+        #expect(styles.contains("<color theme=\"1\"/>"), "the default font uses a theme colour, as Excel's own files do")
+        #expect(zip.contains("xl/theme/theme1.xml"), "so the theme part must be there")
+        #expect(contentTypes.contains("PartName=\"/xl/theme/theme1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.theme+xml\""))
+        #expect(rels.contains("/theme\" Target=\"theme/theme1.xml\""))
+        let theme = String(decoding: try zip.read("xl/theme/theme1.xml"), as: UTF8.self)
+        for element in ["<a:clrScheme", "<a:dk1>", "<a:lt1>", "<a:accent6>", "<a:hlink>", "<a:folHlink>", "<a:fontScheme", "<a:majorFont>", "<a:minorFont>", "<a:fmtScheme", "<a:fillStyleLst>", "<a:lnStyleLst>", "<a:effectStyleLst>", "<a:bgFillStyleLst>"] {
+            #expect(theme.contains(element), "theme is missing \(element)")
+        }
+        // the format scheme needs three entries in each list
+        #expect(theme.components(separatedBy: "<a:ln ").count == 4)
+        #expect(theme.components(separatedBy: "<a:effectStyle>").count == 4)
+    }
+
+    @Test func aPreservedThemeIsNotDuplicated() throws {
+        let source = try Data(contentsOf: PreservationTests.fixtures.appendingPathComponent("charts-and-friends.xlsx"))
+        let wb = try XLSXCodec.read(source)
+        #expect(wb.preserved.opaqueParts["xl/theme/theme1.xml"] != nil)
+        let out = try XLSXCodec.write(wb).data
+        let (zip, contentTypes, rels) = try Self.parts(out)
+        #expect(try zip.read("xl/theme/theme1.xml") == ZipArchive(data: source).read("xl/theme/theme1.xml"), "the source theme travels unchanged")
+        #expect(contentTypes.components(separatedBy: "theme+xml").count == 2, "declared exactly once")
+        #expect(rels.components(separatedBy: "/theme\"").count == 2, "related exactly once")
+    }
+
+    @Test func frozenPanesAreSpelledTheWayExcelWritesThem() throws {
+        var wb = Workbook()
+        wb.sheets[0].freezePanes = CellRef("A4")     // rows only
+        wb.addSheet(named: "Cols"); wb.sheets[1].freezePanes = CellRef("D1")   // columns only
+        wb.addSheet(named: "Both"); wb.sheets[2].freezePanes = CellRef("C3")
+        let zip = try ZipArchive(data: try XLSXCodec.write(wb).data)
+        let one = String(decoding: try zip.read("xl/worksheets/sheet1.xml"), as: UTF8.self)
+        let two = String(decoding: try zip.read("xl/worksheets/sheet2.xml"), as: UTF8.self)
+        let three = String(decoding: try zip.read("xl/worksheets/sheet3.xml"), as: UTF8.self)
+        #expect(one.contains("<pane ySplit=\"3\" topLeftCell=\"A4\" activePane=\"bottomLeft\" state=\"frozen\"/>"))
+        #expect(!one.contains("xSplit"), "a zero split is omitted")
+        #expect(two.contains("<pane xSplit=\"3\" topLeftCell=\"D1\" activePane=\"topRight\" state=\"frozen\"/>"))
+        #expect(three.contains("<pane xSplit=\"2\" ySplit=\"2\" topLeftCell=\"C3\" activePane=\"bottomRight\" state=\"frozen\"/>"))
+        #expect(three.contains("<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/><selection pane=\"bottomRight\""))
+    }
+
+    @Test func fontChildrenFollowTheSchemaOrder() throws {
+        var wb = Workbook()
+        wb.sheets[0][cell: "A1"].font = Font(name: "游ゴシック", size: 12, bold: true, italic: true, underline: .single, color: .rgb("FFC00000"))
+        wb.sheets[0][cell: "A1"].font.charset = 128
+        wb.sheets[0][cell: "A1"].font.family = 3
+        let styles = String(decoding: try ZipArchive(data: try XLSXCodec.write(wb).data).read("xl/styles.xml"), as: UTF8.self)
+        let font = styles.components(separatedBy: "<font>").first { $0.contains("游ゴシック") } ?? ""
+        let order = ["<b ", "<i ", "<u ", "<sz ", "<color ", "<name ", "<family ", "<charset "]
+        let positions = order.compactMap { font.range(of: $0)?.lowerBound }
+        #expect(positions.count == order.count, "every element present: \(font)")
+        #expect(positions == positions.sorted(), "CT_Font order: \(font)")
+    }
+}

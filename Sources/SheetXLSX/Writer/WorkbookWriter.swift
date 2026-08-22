@@ -102,7 +102,12 @@ enum WorkbookWriter {
         for (i, sheet) in wb.sheets.enumerated() {
             sheetParts.append(sheetXML(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily, isActive: i == wb.activeIndex, sink: sink))
         }
+        // styles reference theme colours, so a theme part must exist: keep the source's, or ship the default one
+        let preservedTheme = opaque.keys.first { $0.hasPrefix("xl/theme/") }
+        let themePath = preservedTheme ?? Theme.partPath
+        let needsGeneratedTheme = preservedTheme == nil
         let stylesId = freshId()
+        let themeId = needsGeneratedTheme ? freshId() : nil
         let sstId = strings.isEmpty ? nil : freshId()
 
         // [Content_Types].xml
@@ -113,6 +118,7 @@ enum WorkbookWriter {
         for p in plans { overrides[p.path] = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml" }
         overrides["xl/styles.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"
         if !strings.isEmpty { overrides["xl/sharedStrings.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" }
+        overrides[themePath] = Theme.contentType
         overrides["docProps/core.xml"] = "application/vnd.openxmlformats-package.core-properties+xml"
         overrides["docProps/app.xml"] = "application/vnd.openxmlformats-officedocument.extended-properties+xml"
         if sameFamily { for (k, v) in preserved.contentTypeOverrides where opaque[k] != nil { overrides[k] = v } }
@@ -131,7 +137,7 @@ enum WorkbookWriter {
         rootRels += "<Relationship Id=\"rId\(rootNext)\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/>"; rootNext += 1
         rootRels += "<Relationship Id=\"rId\(rootNext)\" Type=\"\(XMLWriter.nsRel)/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>"
         archive.add("_rels/.rels", Data(rootRels.utf8))
-        archive.add("docProps/app.xml", Data((XMLWriter.header + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>SwiftSheets</Application><AppVersion>0.1.0</AppVersion></Properties>").utf8))
+        archive.add("docProps/app.xml", Data((XMLWriter.header + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>SwiftSheets</Application><AppVersion>0.2</AppVersion></Properties>").utf8))
         archive.add("docProps/core.xml", Data((XMLWriter.header + coreXML(wb.metadata)).utf8))
 
         // xl/workbook.xml
@@ -167,9 +173,11 @@ enum WorkbookWriter {
         // xl/_rels/workbook.xml.rels
         var rels = XMLWriter.header + "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\">"
         for plan in plans { rels += "<Relationship Id=\"\(plan.rId)\" Type=\"\(XMLWriter.nsRel)/worksheet\" Target=\"\(XML.esc(relativeTarget(plan.path, from: "xl")))\"/>" }
+        if let themeId { rels += "<Relationship Id=\"\(themeId)\" Type=\"\(XMLWriter.nsRel)\(Theme.relationshipType)\" Target=\"\(XML.esc(relativeTarget(themePath, from: "xl")))\"/>" }
         rels += "<Relationship Id=\"\(stylesId)\" Type=\"\(XMLWriter.nsRel)/styles\" Target=\"styles.xml\"/>"
         if let sstId { rels += "<Relationship Id=\"\(sstId)\" Type=\"\(XMLWriter.nsRel)/sharedStrings\" Target=\"sharedStrings.xml\"/>" }
         for r in wbRels where r.targetMode == "External" || opaque[WorkbookReader.resolvePart(r.target, relativeTo: "xl")] != nil { rels += relationshipXML(r) }
+        // (a preserved theme keeps its own relationship above; a generated one was added with `themeId`)
         rels += "</Relationships>"
         archive.add("xl/_rels/workbook.xml.rels", Data(rels.utf8))
 
@@ -177,6 +185,7 @@ enum WorkbookWriter {
             archive.add(plan.path, Data((XMLWriter.header + part.xml).utf8))
             if let r = part.rels { archive.add(WorkbookReader.relsPath(of: plan.path), Data((XMLWriter.header + r).utf8)) }
         }
+        if needsGeneratedTheme { archive.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8)) }
         if !strings.isEmpty { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml()).utf8)) }
         archive.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
         for name in opaque.keys.sorted() { archive.add(name, opaque[name]!) }
@@ -249,8 +258,14 @@ enum WorkbookWriter {
         generated.append(("dimension", "<dimension ref=\"\(table.dimensions)\"/>"))
         s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
         if let f = ws.freezePanes {
-            s += "<pane xSplit=\"\(f.col)\" ySplit=\"\(f.row)\" topLeftCell=\"\(f.a1)\" activePane=\"bottomRight\" state=\"frozen\"/>"
-            s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/><selection pane=\"bottomRight\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
+            // Excel omits a zero split and makes the single remaining pane active
+            let active = f.col > 0 ? (f.row > 0 ? "bottomRight" : "topRight") : "bottomLeft"
+            s += "<pane"
+            if f.col > 0 { s += " xSplit=\"\(f.col)\"" }
+            if f.row > 0 { s += " ySplit=\"\(f.row)\"" }
+            s += " topLeftCell=\"\(f.a1)\" activePane=\"\(active)\" state=\"frozen\"/>"
+            if f.col > 0 && f.row > 0 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
+            s += "<selection pane=\"\(active)\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
         } else {
             s += "<selection activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
         }

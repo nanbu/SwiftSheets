@@ -160,8 +160,8 @@ struct NumbersWriter {
                 ce.set("dependency_tracker", message: tracker)
             }
         }
-        // component external references that named an original now also name its copy
-        duplicateExternalReferences(map)
+        // component external references and object→UUID entries that named an original now also name its copy
+        duplicateComponentEntries(map)
         return map
     }
 
@@ -212,16 +212,27 @@ struct NumbersWriter {
         }
     }
 
-    private func duplicateExternalReferences(_ map: [Int: Int]) {
+    /// Whatever a component said about an original object it now says about the copy: external references, and the
+    /// object → UUID entries Numbers uses for cross-component identity (the template registers one per table object).
+    private func duplicateComponentEntries(_ map: [Int: Int]) {
         doc.update(NumbersDocument.packageID) { pkg in
             var comps = pkg.messages("components")
             for i in comps.indices {
-                var additions: [ProtoMessage] = []
+                var refAdditions: [ProtoMessage] = []
                 for ref in comps[i].messages("external_references") {
-                    if let o = ref.int("object_identifier"), let n = map[o] { var r = ref; r.set("object_identifier", int: n); additions.append(r) }
-                    else if ref.int("object_identifier") == nil, let c = ref.int("component_identifier"), let n = map[c] { var r = ref; r.set("component_identifier", int: n); additions.append(r) }
+                    if let o = ref.int("object_identifier"), let n = map[o] { var r = ref; r.set("object_identifier", int: n); refAdditions.append(r) }
+                    else if ref.int("object_identifier") == nil, let c = ref.int("component_identifier"), let n = map[c] { var r = ref; r.set("component_identifier", int: n); refAdditions.append(r) }
                 }
-                for a in additions { comps[i].append("external_references", message: a) }
+                for a in refAdditions { comps[i].append("external_references", message: a) }
+                var uuidAdditions: [ProtoMessage] = []
+                for entry in comps[i].messages("object_uuid_map_entries") {
+                    guard let o = entry.int("identifier"), let n = map[o] else { continue }
+                    var e = ProtoMessage(typeName: "TSP.ObjectUUIDMapEntry")
+                    e.set("identifier", int: n)
+                    e.set("uuid", message: NumbersUUID.random().uuid)
+                    uuidAdditions.append(e)
+                }
+                for a in uuidAdditions { comps[i].append("object_uuid_map_entries", message: a) }
             }
             pkg.set("components", messages: comps)
         }

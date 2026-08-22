@@ -79,15 +79,25 @@ import SwiftSheets
         #expect(doc.blob("preview.jpg") == template.blob("preview.jpg"))
         #expect(doc.blob("Metadata/Properties.plist") == template.blob("Metadata/Properties.plist"))
         #expect(doc.blob("Metadata/DocumentIdentifier") != template.blob("Metadata/DocumentIdentifier"))
-        // every reference in every object resolves
-        for id in doc.locations.keys {
-            for r in doc.object(id)?.allReferences() ?? [] where r != 0 { #expect(doc.object(r) != nil, "dangling reference \(r) from \(id)") }
-        }
+        // the invariants Numbers checks when opening a document
+        #expect(doc.integrityProblems().isEmpty, "\(doc.integrityProblems().prefix(5))")
         // every component registered in the package metadata exists and vice versa for tiles
         let pkg = doc.object(NumbersDocument.packageID)!
         let components = Set(pkg.messages("components").compactMap { $0.int("identifier") })
         for id in doc.identifiers(ofType: "TST.Tile") { #expect(components.contains(id), "tile \(id) not registered") }
         #expect(pkg.int("last_object_identifier") == doc.locations.keys.max())
+    }
+
+    /// Numbers refuses to open a document whose package metadata names objects that are not there — which is what
+    /// happened while the template's tiles were being replaced (they were removed, their components were not).
+    @Test func packageMetadataStaysConsistent() throws {
+        let wb = Self.sampleWorkbook()
+        let doc = try NumbersDocument(data: try NumbersCodec.write(wb).data)
+        #expect(doc.integrityProblems().isEmpty, "\(doc.integrityProblems())")
+        #expect(doc.identifiers(ofType: "TST.Tile").allSatisfy { doc.object($0) != nil })
+        // and everything is stored, not deflated, as Numbers writes it
+        let zip = try ZipArchive(data: try NumbersCodec.write(wb).data)
+        #expect(zip.entries.values.allSatisfy { $0.method == 0 }, "every entry stored")
     }
 
     @Test func largeTableUsesSeveralTiles() throws {
