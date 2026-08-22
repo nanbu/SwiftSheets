@@ -1,0 +1,517 @@
+import Foundation
+import SheetCore
+
+final class RelsParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    var rels: [Relationship] = []
+    func start(_ name: String, _ a: [String: String]) {
+        if name == "Relationship", let id = a["Id"], let type = a["Type"], let target = a["Target"] {
+            rels.append(Relationship(id: id, type: type, target: target, targetMode: a["TargetMode"]))
+        }
+    }
+}
+
+final class ContentTypesParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    var defaults: [String: String] = [:]
+    var overrides: [String: String] = [:]
+    func start(_ name: String, _ a: [String: String]) {
+        switch name {
+        case "Default": if let e = a["Extension"], let t = a["ContentType"] { defaults[e.lowercased()] = t }
+        case "Override": if let p = a["PartName"], let t = a["ContentType"] { overrides[p.hasPrefix("/") ? String(p.dropFirst()) : p] = t }
+        default: break
+        }
+    }
+}
+
+/// xl/workbook.xml: sheets, names, flags — and every child the model has no home for, kept verbatim.
+final class WorkbookXMLParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    struct SheetInfo { let name: String; let rId: String; let sheetId: Int?; let state: SheetState }
+    static let knownChildren: Set<String> = ["workbookPr", "bookViews", "sheets", "definedNames", "calcPr"]
+    var sheets: [SheetInfo] = []
+    var date1904 = false
+    var codeName: String?
+    var workbookPrAttributes: [String: String] = [:]
+    var activeTab = 0
+    var definedNames: [String: String] = [:]
+    /// Sheet-scoped names: localSheetId → (name → text).
+    var localNames: [Int: [String: String]] = [:]
+    var fragments: [XMLFragment] = []
+    private var depth = 0
+    private var currentName: String?
+    private var currentLocal: Int?
+    private var nameText = ""
+
+    func start(_ name: String, _ a: [String: String]) {
+        depth += 1
+        if depth == 2, !WorkbookXMLParser.knownChildren.contains(name) { beginCapture(); return }
+        switch name {
+        case "workbookPr":
+            let v = a["date1904"]?.lowercased(); date1904 = v == "1" || v == "true"; codeName = a["codeName"]
+            workbookPrAttributes = a.filter { $0.key != "date1904" && $0.key != "codeName" }
+        case "workbookView": activeTab = Int(a["activeTab"] ?? "0") ?? 0
+        case "sheet":
+            let rId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value ?? a["id"] ?? ""
+            let state = SheetState(rawValue: a["state"] ?? "visible") ?? .visible
+            sheets.append(SheetInfo(name: a["name"] ?? "", rId: rId, sheetId: Int(a["sheetId"] ?? ""), state: state))
+        case "definedName": currentName = a["name"]; currentLocal = a["localSheetId"].flatMap { Int($0) }; nameText = ""
+        default: break
+        }
+    }
+    func text(_ s: String) { if currentName != nil { nameText += s } }
+    func end(_ name: String) {
+        depth -= 1
+        guard name == "definedName", let n = currentName else { return }
+        if let i = currentLocal { localNames[i, default: [:]][n] = nameText } else { definedNames[n] = nameText }
+        currentName = nil
+    }
+    func captured(_ fragment: XMLFragment) { depth -= 1; fragments.append(fragment) }
+}
+
+/// sharedStrings.xml → values. Plain `<t>` → .text; `<r>` runs → .richText; `<rPh>` (furigana) is skipped.
+final class SharedStringsParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    var strings: [CellValue] = []
+    private var runs: [TextRun] = []
+    private var plain = ""
+    private var current = ""
+    private var inSI = false, inT = false, inR = false, inRPr = false, hasRuns = false
+    private var skipDepth = 0
+    private var runFont: Font?
+    private var fontParser = FontAttributes()
+
+    func start(_ name: String, _ a: [String: String]) {
+        if skipDepth > 0 { skipDepth += 1; return }
+        switch name {
+        case "si": inSI = true; runs = []; plain = ""; hasRuns = false
+        case "rPh": skipDepth = 1
+        case "r": inR = true; current = ""; runFont = nil; hasRuns = true
+        case "rPr": inRPr = true; fontParser = FontAttributes()
+        case "t" where inSI: inT = true
+        default:
+            if inRPr { fontParser.apply(name, a) }
+        }
+    }
+    func text(_ s: String) {
+        if inT, skipDepth == 0 { if inR { current += s } else { plain += s } }
+    }
+    func end(_ name: String) {
+        if skipDepth > 0 { skipDepth -= 1; return }
+        switch name {
+        case "t": inT = false
+        case "rPr": inRPr = false; runFont = fontParser.font
+        case "r": runs.append(TextRun(current, font: runFont)); inR = false
+        case "si":
+            strings.append(hasRuns ? (runs.contains { $0.font != nil } ? .richText(runs) : .text(runs.map(\.text).joined())) : .text(plain))
+            inSI = false
+        default: break
+        }
+    }
+}
+
+/// Accumulates `<font>` / `<rPr>` children into a Font.
+struct FontAttributes {
+    var font = Font()
+    var touched = false
+    mutating func apply(_ name: String, _ a: [String: String]) {
+        touched = true
+        switch name {
+        case "b": font.bold = a["val"].map { $0 != "0" && $0 != "false" } ?? true
+        case "i": font.italic = a["val"].map { $0 != "0" && $0 != "false" } ?? true
+        case "strike": font.strikethrough = a["val"].map { $0 != "0" && $0 != "false" } ?? true
+        case "u": let v = a["val"] ?? "single"; font.underline = v == "none" ? nil : (Font.Underline(rawValue: v) ?? .single)   // val="none" means no underline
+        case "sz": font.size = Double(a["val"] ?? "")
+        case "name", "rFont": font.name = a["val"]
+        case "family": font.family = Int(a["val"] ?? "")
+        case "scheme": font.scheme = a["val"] == "none" ? nil : a["val"]
+        case "vertAlign": font.vertAlign = a["val"] == "none" ? nil : a["val"]
+        case "charset": font.charset = Int(a["val"] ?? "")
+        case "color": font.color = StylesParser.color(a)
+        default: break
+        }
+    }
+}
+
+/// styles.xml → the style tables and resolved cellXfs. Fonts / fills / borders are parsed *and* kept as raw XML,
+/// and the index-referencing sections (`cellStyleXfs`, `cellStyles`, `dxfs`, `tableStyles`, `extLst`) are kept
+/// verbatim, so a rewrite can keep every index the file relies on.
+final class StylesParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    static let preservedSections: Set<String> = ["cellStyleXfs", "cellStyles", "dxfs", "tableStyles", "extLst"]
+    var numFmts: [Int: String] = [:]
+    var fonts: [Font] = []
+    var fills: [PatternFill] = []
+    var borders: [Border] = []
+    var cellXfs: [CellStyle] = []
+    var indexedColors: [String] = []
+    var tables = StyleTables()
+    var fragments: [XMLFragment] = []
+    private var depth = 0
+    private var section = ""
+    private var fontAttrs = FontAttributes()
+    private var fill = PatternFill()
+    private var inPatternFill = false
+    private var border = Border()
+    private var side = ""
+    private var xf: CellStyle?
+    private var xfNumFmt = 0, xfFont = 0, xfFill = 0, xfBorder = 0
+
+    static func color(_ a: [String: String]) -> Color? {
+        if let rgb = a["rgb"] { return .rgb(rgb.uppercased()) }
+        if let t = a["theme"], let i = Int(t) { return .theme(i, tint: Double(a["tint"] ?? "0") ?? 0) }
+        if let idx = a["indexed"], let i = Int(idx) { return .indexed(i) }
+        if a["auto"] != nil { return .auto }
+        return nil
+    }
+
+    func start(_ name: String, _ a: [String: String]) {
+        depth += 1
+        if depth == 2, StylesParser.preservedSections.contains(name) { beginCapture(); return }
+        switch name {
+        case "numFmts", "fonts", "fills", "borders", "cellXfs", "colors": section = name
+        case "numFmt": if let id = Int(a["numFmtId"] ?? ""), let code = a["formatCode"] { numFmts[id] = code }
+        case "rgbColor" where section == "colors": if let rgb = a["rgb"] { indexedColors.append(rgb.uppercased()) }
+        case "font" where section == "fonts" && depth == 3: fontAttrs = FontAttributes(); beginCapture(deliveringEvents: true)
+        case "fill" where section == "fills" && depth == 3: fill = PatternFill(); beginCapture(deliveringEvents: true)
+        case "patternFill" where section == "fills":
+            inPatternFill = true
+            fill.patternType = PatternFill.PatternType(rawValue: a["patternType"] ?? "none") ?? .none
+        case "fgColor" where inPatternFill: fill.foregroundColor = StylesParser.color(a)
+        case "bgColor" where inPatternFill: fill.backgroundColor = StylesParser.color(a)
+        case "border" where section == "borders" && depth == 3:
+            border = Border()
+            border.diagonalUp = a["diagonalUp"] == "1"; border.diagonalDown = a["diagonalDown"] == "1"; border.outline = a["outline"] != "0"
+            beginCapture(deliveringEvents: true)
+        case "left", "right", "top", "bottom", "diagonal":
+            guard section == "borders" else { return }
+            side = name
+            let s = Side(style: a["style"].flatMap(Side.Style.init(rawValue:)), color: nil)
+            setSide(s)
+        case "color" where section == "borders" && !side.isEmpty:
+            var s = currentSide(); s.color = StylesParser.color(a); setSide(s)
+        case "xf" where section == "cellXfs":
+            var st = CellStyle()
+            xfNumFmt = Int(a["numFmtId"] ?? "0") ?? 0
+            xfFont = Int(a["fontId"] ?? "0") ?? 0
+            xfFill = Int(a["fillId"] ?? "0") ?? 0
+            xfBorder = Int(a["borderId"] ?? "0") ?? 0
+            st.numberFormat = numFmts[xfNumFmt] ?? NumberFormat.builtin[xfNumFmt] ?? "General"
+            if fonts.indices.contains(xfFont) { st.font = fonts[xfFont] }
+            if fills.indices.contains(xfFill) { st.fill = fills[xfFill] }
+            if borders.indices.contains(xfBorder) { st.border = borders[xfBorder] }
+            xf = st
+        case "alignment" where xf != nil:
+            xf!.alignment = Alignment(horizontal: a["horizontal"].flatMap(Alignment.Horizontal.init(rawValue:)),
+                                      vertical: a["vertical"].flatMap(Alignment.Vertical.init(rawValue:)),
+                                      wrapText: a["wrapText"] == "1", shrinkToFit: a["shrinkToFit"] == "1",
+                                      indent: Int(a["indent"] ?? "0") ?? 0, textRotation: Int(a["textRotation"] ?? "0") ?? 0)
+        case "protection" where xf != nil:
+            xf!.protection = Protection(locked: a["locked"] != "0", hidden: a["hidden"] == "1")
+        default:
+            if section == "fonts" { fontAttrs.apply(name, a) }
+        }
+    }
+
+    private func currentSide() -> Side {
+        switch side { case "left": border.left; case "right": border.right; case "top": border.top; case "bottom": border.bottom; default: border.diagonal }
+    }
+    private func setSide(_ s: Side) {
+        switch side { case "left": border.left = s; case "right": border.right = s; case "top": border.top = s; case "bottom": border.bottom = s; default: border.diagonal = s }
+    }
+
+    func end(_ name: String) {
+        depth -= 1
+        switch name {
+        case "font" where section == "fonts" && depth == 2: fonts.append(fontAttrs.font)
+        case "fill" where section == "fills" && depth == 2: fills.append(fill)
+        case "patternFill": inPatternFill = false
+        case "left", "right", "top", "bottom", "diagonal": side = ""
+        case "border" where section == "borders" && depth == 2: borders.append(border)
+        case "xf" where section == "cellXfs": if let xf { cellXfs.append(xf) }; xf = nil
+        case "numFmts", "fonts", "fills", "borders", "cellXfs", "colors": section = ""
+        default: break
+        }
+    }
+
+    func captured(_ fragment: XMLFragment) {
+        switch fragment.element {
+        case "font": tables.fontXML.append(fragment.xml)
+        case "fill": tables.fillXML.append(fragment.xml)
+        case "border": tables.borderXML.append(fragment.xml)
+        default: depth -= 1; fragments.append(fragment)
+        }
+    }
+
+    func style(_ index: Int) -> CellStyle { cellXfs.indices.contains(index) ? cellXfs[index] : CellStyle() }
+    /// The number-format codes in use, custom ones only (openpyxl `stylesheet.number_formats`).
+    var customNumberFormats: [String] { numFmts.sorted { $0.key < $1.key }.map(\.value).filter { !NumberFormat.isBuiltin($0) } }
+
+    /// The source tables, for seeding a rewrite so every index stays valid.
+    var styleTables: StyleTables {
+        var t = tables
+        t.fonts = fonts; t.fills = fills; t.borders = borders
+        t.numberFormats = numFmts.filter { $0.key >= NumberFormat.firstCustomID }
+        t.rootAttributes = rootAttributes
+        return t
+    }
+}
+
+/// worksheet XML → Sheet. Children the model does not cover are kept as fragments, in document order.
+final class SheetParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    static let knownChildren: Set<String> = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "autoFilter", "mergeCells", "hyperlinks", "printOptions", "pageMargins", "pageSetup"]
+    var sheet: Sheet
+    private let sst: [CellValue]
+    private let styles: StylesParser
+    private let epoch: DateEpoch
+    private let dataOnly: Bool
+    private var hyperlinkRels: [String: String] = [:]
+
+    private var depth = 0
+    private var currentRow = -1, lastColumn = -1   // 0-based; a <row> without r= follows the previous one
+    private var cellRef: CellRef?
+    private var cellType = "", cellStyle = 0
+    private var vText = "", fText = "", isText = ""
+    private var inV = false, inF = false, inIS = false, inT = false
+    private var isRuns: [TextRun] = [], isHasRuns = false, inR = false, inRPr = false, runText = "", runFont: FontAttributes?
+    private var skipDepth = 0
+    private var formulaType: String?
+    private var formulaRef: String?
+    private var sharedFormulaIndex: String?
+    private var sharedFormulas: [String: (FormulaExpr, CellRef)] = [:]
+
+    init(name: String, sst: [CellValue], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
+        self.sheet = Sheet(name: name); self.sst = sst; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
+        for r in rels where r.type.hasSuffix("/hyperlink") { hyperlinkRels[r.id] = r.target }
+    }
+
+    func start(_ name: String, _ a: [String: String]) {
+        depth += 1
+        if depth == 2, !SheetParser.knownChildren.contains(name) { beginCapture(); return }
+        if skipDepth > 0 { skipDepth += 1; return }
+        switch name {
+        case "outlinePr": sheet.properties.summaryBelow = a["summaryBelow"] != "0"; sheet.properties.summaryRight = a["summaryRight"] != "0"
+        case "tabColor": sheet.properties.tabColor = StylesParser.color(a)
+        case "dimension": sheet.declaredDimension = a["ref"].flatMap(CellRange.init)
+        case "sheetPr": sheet.properties.codeName = a["codeName"]; sheet.properties.filterMode = a["filterMode"].map { $0 == "1" || $0 == "true" }
+        case "pageSetUpPr": sheet.properties.fitToPage = a["fitToPage"].map { $0 == "1" || $0 == "true" }
+        case "sheetView":
+            sheet.view.showGridLines = a["showGridLines"] != "0"
+            sheet.view.zoomScale = Int(a["zoomScale"] ?? "100") ?? 100
+            sheet.view.tabSelected = a["tabSelected"] == "1"
+        case "selection": if let ac = a["activeCell"] { sheet.view.activeCell = ac }; if let sq = a["sqref"] { sheet.view.sqref = sq }
+        case "sheetFormatPr":
+            var f = SheetFormatProperties()
+            f.baseColWidth = Int(a["baseColWidth"] ?? "") ?? f.baseColWidth; f.defaultColWidth = Double(a["defaultColWidth"] ?? "")
+            f.defaultRowHeight = Double(a["defaultRowHeight"] ?? "") ?? f.defaultRowHeight
+            f.customHeight = a["customHeight"] == "1"; f.zeroHeight = a["zeroHeight"] == "1"
+            sheet.sheetFormat = f
+        case "pane": if a["state"] == "frozen" || a["state"] == "frozenSplit", let tl = a["topLeftCell"] { sheet.freezePanes = CellRef(tl) }
+        case "col":
+            guard let mn = Int(a["min"] ?? ""), let mx = Int(a["max"] ?? ""), mn >= 1 else { return }
+            var d = ColumnDimension()
+            d.width = Double(a["width"] ?? ""); d.hidden = a["hidden"] == "1"; d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0
+            d.collapsed = a["collapsed"] == "1"; d.bestFit = a["bestFit"] == "1"
+            if let st = Int(a["style"] ?? ""), st > 0 { d.style = styles.style(st) }
+            for c in (mn - 1)...(Swift.min(mx, mn + 16383) - 1) { sheet.table.columnDimensions[c] = d }
+        case "row":
+            // `r` may be written with an exponent ("1.048573e6"); a non-integral value is invalid (openpyxl raises).
+            if let r = a["r"] { guard let n = SheetParser.rowNumber(r) else { fail(.malformedPart(path: "worksheet", detail: "invalid row number \(r)")); return }; currentRow = n - 1 } else { currentRow += 1 }
+            lastColumn = -1
+            sheet.table.nextAppendRow = currentRow + 1
+            var d = RowDimension()
+            if a["customHeight"] == "1" || a["ht"] != nil { d.height = Double(a["ht"] ?? "") }
+            d.hidden = a["hidden"] == "1"; d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0; d.collapsed = a["collapsed"] == "1"
+            d.thickTop = a["thickTop"] == "1"; d.thickBottom = a["thickBot"] == "1"
+            if let st = Int(a["s"] ?? ""), st > 0 { d.style = styles.style(st) }
+            if !d.isDefault { sheet.table.rowDimensions[currentRow] = d }
+        case "c":
+            if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
+            else { cellRef = CellRef(row: currentRow, col: lastColumn + 1) }
+            lastColumn = cellRef!.col
+            cellType = a["t"] ?? "n"; cellStyle = Int(a["s"] ?? "0") ?? 0
+            vText = ""; fText = ""; isText = ""; formulaType = nil; formulaRef = nil; sharedFormulaIndex = nil
+            var cell = Cell()
+            cell.style = styles.style(cellStyle)
+            sheet.table.cells[cellRef!] = cell   // every <c> exists, even without a value
+        case "v": inV = true
+        case "f": inF = true; formulaType = a["t"]; formulaRef = a["ref"]; sharedFormulaIndex = a["si"]
+        case "is": inIS = true; isRuns = []; isHasRuns = false
+        case "r" where inIS: inR = true; isHasRuns = true; runText = ""; runFont = nil
+        case "rPr" where inIS: inRPr = true; runFont = FontAttributes()
+        case "t" where inIS: inT = true
+        case "rPh": skipDepth = 1
+        case _ where inRPr: runFont?.apply(name, a)
+        case "mergeCell": if let r = a["ref"].flatMap(CellRange.init) { sheet.table.merges.append(r) }
+        case "autoFilter":
+            sheet.autoFilter = a["ref"].flatMap(CellRange.init)
+            if depth == 2 { beginCapture(deliveringEvents: true) }   // filter conditions inside are kept verbatim
+        case "hyperlink":
+            // `ref` may be a range ("B4:B7"); the link goes on its first cell. A link on a merged cell goes to the anchor.
+            if var ref = a["ref"].flatMap(CellRange.init)?.topLeft {
+                if let m = sheet.table.mergedRange(containing: ref) { ref = m.topLeft }
+                let rid = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value
+                var link: Hyperlink?
+                if let rid, let target = hyperlinkRels[rid] { link = Hyperlink(target: target, tooltip: a["tooltip"], display: a["display"]) }
+                else if let loc = a["location"] { link = Hyperlink(target: loc, tooltip: a["tooltip"], display: a["display"], isInternal: true) }
+                else if let display = a["display"] { link = Hyperlink(target: display, tooltip: a["tooltip"], display: display) }   // neither r:id nor location: Excel shows the display text
+                if let link { var c = sheet.table[cell: ref]; c.hyperlink = link; sheet.table.cells[ref] = c }
+            }
+        case "printOptions":
+            sheet.printOptions.horizontalCentered = a["horizontalCentered"] == "1"; sheet.printOptions.verticalCentered = a["verticalCentered"] == "1"
+            sheet.printOptions.headings = a["headings"] == "1"; sheet.printOptions.gridLines = a["gridLines"] == "1"
+        case "pageMargins":
+            var m = PageMargins()
+            m.left = Double(a["left"] ?? "") ?? m.left; m.right = Double(a["right"] ?? "") ?? m.right; m.top = Double(a["top"] ?? "") ?? m.top
+            m.bottom = Double(a["bottom"] ?? "") ?? m.bottom; m.header = Double(a["header"] ?? "") ?? m.header; m.footer = Double(a["footer"] ?? "") ?? m.footer
+            sheet.pageMargins = m
+        case "pageSetup":
+            var p = PageSetup()
+            p.orientation = a["orientation"].flatMap(PageSetup.Orientation.init(rawValue:)); p.paperSize = Int(a["paperSize"] ?? "")
+            p.fitToWidth = Int(a["fitToWidth"] ?? ""); p.fitToHeight = Int(a["fitToHeight"] ?? ""); p.scale = Int(a["scale"] ?? "")
+            p.firstPageNumber = Int(a["firstPageNumber"] ?? ""); p.useFirstPageNumber = a["useFirstPageNumber"].map { $0 == "1" }
+            sheet.pageSetup = p
+        default: break
+        }
+    }
+
+    func text(_ s: String) {
+        if inV { vText += s } else if inF { fText += s } else if inT, skipDepth == 0 { if inR { runText += s } else { isText += s } }
+    }
+
+    func end(_ name: String) {
+        depth -= 1
+        if skipDepth > 0 { skipDepth -= 1; return }
+        switch name {
+        case "v": inV = false
+        case "f": inF = false
+        case "t": inT = false
+        case "rPr" where inIS: inRPr = false
+        case "r" where inIS: isRuns.append(TextRun(runText, font: runFont?.font)); inR = false
+        case "is": inIS = false
+        case "c":
+            guard let ref = cellRef else { return }
+            var cell = sheet.table[cell: ref]
+            cell.value = value(at: ref)
+            sheet.table.cells[ref] = cell
+            cellRef = nil
+        case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount }   // cells, not trailing empty rows, decide where `append` continues
+        case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
+        default: break
+        }
+    }
+
+    func captured(_ fragment: XMLFragment) {
+        if fragment.element == "autoFilter" {
+            // only worth keeping when it carries filter / sort conditions; a bare ref is regenerated from the model
+            guard fragment.xml.contains("</autoFilter>") else { return }
+        } else { depth -= 1 }
+        sheet.preserved.fragments.append(fragment)
+    }
+
+    /// "23" → 23, "1.048573e6" → 1048573; nil for non-integral values.
+    static func rowNumber(_ text: String) -> Int? {
+        if let i = Int(text) { return i }
+        guard let d = Double(text), d == d.rounded(), d >= 1 else { return nil }
+        return Int(d)
+    }
+
+    private func value(at ref: CellRef) -> CellValue? {
+        let cached = cachedValue()
+        if dataOnly { return cached }
+        if !fText.isEmpty {
+            let expr = FormulaExpr.parse(fText, dialect: .xlsx)
+            if formulaType == "shared", let si = sharedFormulaIndex { sharedFormulas[si] = (expr, ref) }
+            if formulaType == "array" { return .formula(expr, cached: cached) }   // array formulas: the range is lost (roadmap)
+            return .formula(expr, cached: cached)
+        }
+        if formulaType == "shared", let si = sharedFormulaIndex, let (master, origin) = sharedFormulas[si] {
+            // a follower of a shared formula: the master's formula translated by the offset (what Excel shows)
+            let dr = ref.row - origin.row, dc = ref.col - origin.col
+            let translated = master.mapped { e in
+                if case .ref(let r, let s, let ar, let ac) = e, s == nil { return .ref(CellRef(row: ar ? r.row : r.row + dr, col: ac ? r.col : r.col + dc), sheet: s, absRow: ar, absCol: ac) }
+                return e
+            }
+            return .formula(translated, cached: cached)
+        }
+        return cached
+    }
+
+    private func cachedValue() -> CellValue? {
+        switch cellType {
+        case "s":
+            guard let i = Int(vText.trimmingCharacters(in: .whitespaces)), sst.indices.contains(i) else { return nil }
+            return sst[i]
+        case "inlineStr":
+            if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .text(isRuns.map(\.text).joined()) }
+            return .text(isText)
+        case "str": return .text(vText)
+        case "b": return .bool(vText.trimmingCharacters(in: .whitespaces) == "1")
+        case "e": return .error(vText)
+        case "d": return ExcelDate.fromISO8601(vText)
+        default:
+            let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty, let d = Double(raw) else { return nil }
+            let fmt = styles.style(cellStyle).numberFormat
+            if NumberFormat.isTimedeltaFormat(fmt) { return ExcelDate.durationFromSerial(d).map { .duration($0) } }
+            if NumberFormat.isDateFormat(fmt) { return ExcelDate.fromSerial(d, epoch: epoch) }
+            if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
+            return .number(Decimal(string: raw, locale: nil).flatMap { $0.isNaN ? nil : $0 } ?? Decimal(d))
+        }
+    }
+}
+
+final class CorePropertiesParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    var props = DocumentProperties()
+    private var buf = ""
+    func start(_ name: String, _ a: [String: String]) { buf = "" }
+    func text(_ s: String) { buf += s }
+    func end(_ name: String) {
+        let f = ISO8601DateFormatter()
+        switch name {
+        case "creator": props.creator = buf
+        case "lastModifiedBy": props.lastModifiedBy = buf
+        case "title": props.title = buf
+        case "subject": props.subject = buf
+        case "description": props.description = buf
+        case "keywords": props.keywords = buf
+        case "category": props.category = buf
+        case "contentStatus": props.contentStatus = buf
+        case "identifier": props.identifier = buf
+        case "language": props.language = buf
+        case "version": props.version = buf
+        case "revision": props.revision = buf
+        case "created": props.created = f.date(from: buf.trimmingCharacters(in: .whitespacesAndNewlines))
+        case "modified": props.modified = f.date(from: buf.trimmingCharacters(in: .whitespacesAndNewlines))
+        case "lastPrinted": props.lastPrinted = f.date(from: buf.trimmingCharacters(in: .whitespacesAndNewlines))
+        default: break
+        }
+    }
+}
+
+/// docProps/app.xml — only the generating application is of interest.
+final class AppPropertiesParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    var application: String?
+    var version: String?
+    private var buf = ""
+    func start(_ name: String, _ a: [String: String]) { buf = "" }
+    func text(_ s: String) { buf += s }
+    func end(_ name: String) {
+        switch name {
+        case "Application": application = buf.trimmingCharacters(in: .whitespacesAndNewlines)
+        case "AppVersion": version = buf.trimmingCharacters(in: .whitespacesAndNewlines)
+        default: break
+        }
+    }
+}
