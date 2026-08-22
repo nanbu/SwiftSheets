@@ -52,7 +52,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | ZIP64 | Not supported: packages over 4 GB, or with more than 65,535 parts, are reported as `corruptedContainer`. |
 | Apple platforms only | The ZIP layer uses Apple's Compression framework, so there is no Linux or visionOS build today (the spec's §1.1 goal; recorded as a deviation in Appendix B.1). |
-| Encrypted files | Not supported; they fail to open rather than being decrypted. |
+| Encrypted files | Not decrypted. A password-protected package is recognised for what it is and throws `unsupportedFeature`, not `corruptedContainer` — as does a legacy `.xls`, which is a different format, not a broken one. |
 
 ## Formats
 
@@ -182,6 +182,7 @@ Known limits of the current preservation: a cell's named-style link (`xfId`), `c
 swift test                                                                 # model, formulas, preservation, CSV, parity suites
 python3 Tests/FixtureGenerator/make_fixtures.py                           # regenerate openpyxl-made fixtures (any Python with openpyxl)
 python3 Tests/FixtureGenerator/make_preservation_fixtures.py              # chart / table / VBA fixtures
+python3 Tests/FixtureGenerator/make_encrypted_fixtures.py                 # encrypted / legacy fixtures (openpyxl, msoffcrypto-tool, LibreOffice)
 python3 Tests/OpenpyxlParity/check.py                                      # ledger ↔ Swift provenance cross-check (no dependencies)
 python3 Tests/OpenpyxlParity/verify_with_openpyxl.py                       # SwiftSheets ⇄ openpyxl round trips (needs openpyxl)
 python3 Tests/NumbersParity/dump_with_numbers_parser.py                    # refresh <fixture>.expected.json from numbers-parser

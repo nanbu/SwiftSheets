@@ -20,6 +20,9 @@ enum ODSReader {
 
     static func read(_ data: Data, options: ReadOptions) throws -> (Workbook, [ConversionWarning]) {
         let zip = try ZipArchive(data: data)
+        // An encrypted ODF package keeps `mimetype` in the clear, so it detects as .ods and every part after it is
+        // ciphertext. The manifest says as much (ODF 1.3 §4.3) — read that before trying to parse the ciphertext.
+        if let unopenable = UnopenableInput.probe(in: try ZipInspection(data: data)) { throw unopenable.error }
         guard zip.contains("content.xml") else { throw SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package") }
 
         let manifest = ManifestParser()

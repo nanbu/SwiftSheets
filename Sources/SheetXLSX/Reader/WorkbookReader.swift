@@ -15,6 +15,8 @@ enum WorkbookReader {
     static let relVBA = "/vbaProject"
 
     static func read(_ data: Data, options: ReadOptions) throws -> Workbook {
+        // A password-protected workbook is an OLE compound file, not a ZIP; say so instead of "corrupted container".
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         let zip = try ZipArchive(data: data)
         var consumed = Set<String>()
         var wb = Workbook(sheets: [])

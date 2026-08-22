@@ -29,6 +29,9 @@ extension Workbook {
 
     /// Parses bytes and hands back the workbook together with what reading them could not carry over.
     public static func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        // An encrypted package or a legacy .xls says so plainly rather than passing for noise (spec §1.3 / §14.11).
+        // Ahead of detection, because the filename hint would otherwise offer "secret.csv" to the CSV reader.
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
         switch f {
         case .xlsx: return try XLSXCodec.read(data, options: options)

@@ -1,0 +1,73 @@
+import Foundation
+
+/// A container SwiftSheets recognises but will not open, and why. Spec §1.3 puts encrypted files and the legacy
+/// `.xls` (BIFF) format outside the scope; §14.11 asks that they fail *explicitly* rather than looking like
+/// corruption. Detection is content-based and reads only public specifications: the compound-file signature of
+/// [MS-CFB], the `EncryptedPackage` stream of [MS-OFFCRYPTO] (ECMA-376 Part 2 agile / standard encryption), and
+/// `manifest:encryption-data` of ODF 1.3 §4.3.
+public enum UnopenableInput: Sendable, Hashable {
+    /// An OLE compound file carrying an `EncryptedPackage` stream — a password-protected .xlsx / .xlsm.
+    case encryptedOOXML
+    /// An OLE compound file that is not an encrypted package: a .xls / .doc / .ppt of the 1997–2003 generation.
+    case legacyCompoundFile
+    /// An ODF package whose manifest says its entries are encrypted.
+    case encryptedODF
+
+    /// The eight bytes every OLE compound file starts with ([MS-CFB] §2.2).
+    static let compoundFileSignature: [UInt8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
+
+    /// What the bytes are, when they are one of these. Nil for everything else — including well-formed
+    /// spreadsheets, which is why this is only consulted once ordinary detection has come up empty.
+    public static func probe(_ data: Data) -> UnopenableInput? {
+        guard data.count >= 8, [UInt8](data.prefix(8)) == compoundFileSignature else { return nil }
+        // Directory entry names in a compound file are UTF-16LE, so the stream name appears literally in the
+        // bytes. Reading the FAT to find the directory would be a decoder for a format we do not support.
+        return containsUTF16LE("EncryptedPackage", in: data) ? .encryptedOOXML : .legacyCompoundFile
+    }
+
+    /// What an already-open package is, when its manifest declares encryption (ODF 1.3 §4.3: the `mimetype` entry
+    /// stays in the clear, so such a file still detects as `.ods`).
+    public static func probe(in container: ZipInspection) -> UnopenableInput? {
+        guard let manifest = container.entry(named: "META-INF/manifest.xml") else { return nil }
+        return String(decoding: manifest, as: UTF8.self).contains("encryption-data") ? .encryptedODF : nil
+    }
+
+    /// The error to throw. `unsupportedFeature` is the case spec §4.4 reserves for "encrypted files, formats not
+    /// implemented yet".
+    public var error: SheetError { .unsupportedFeature(reason) }
+
+    var reason: String {
+        switch self {
+        case .encryptedOOXML:
+            "the OOXML package is encrypted (ECMA-376 Part 2 / MS-OFFCRYPTO); SwiftSheets does not decrypt files — decrypt it first"
+        case .legacyCompoundFile:
+            "an OLE compound file: the legacy .xls (BIFF) generation is out of scope — save it as .xlsx first"
+        case .encryptedODF:
+            "the ODF package is encrypted (ODF 1.3 §4.3); SwiftSheets does not decrypt files — decrypt it first"
+        }
+    }
+}
+
+extension UnopenableInput {
+    /// True when the ASCII `needle`, encoded as UTF-16LE, occurs in `data`. Compound-file directory names live in
+    /// a 512-byte sector table near the front; a megabyte of window is far more than enough and bounds the scan.
+    static func containsUTF16LE(_ needle: String, in data: Data) -> Bool {
+        var pattern = [UInt8]()
+        for scalar in needle.unicodeScalars { pattern.append(UInt8(scalar.value & 0xFF)); pattern.append(UInt8(scalar.value >> 8)) }
+        let window = data.prefix(1 << 20)
+        return window.withUnsafeBytes { raw -> Bool in
+            guard raw.count >= pattern.count else { return false }
+            let last = raw.count - pattern.count
+            var i = 0
+            while i <= last {
+                if raw[i] == pattern[0] {
+                    var j = 1
+                    while j < pattern.count, raw[i + j] == pattern[j] { j += 1 }
+                    if j == pattern.count { return true }
+                }
+                i += 1
+            }
+            return false
+        }
+    }
+}
