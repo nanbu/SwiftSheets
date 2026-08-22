@@ -23,7 +23,7 @@ public struct DocumentProperties: Hashable, Sendable {
 /// The ordered sheets of a workbook, addressable by index or by name. Names are validated and de-duplicated on the
 /// way in (`\ * ? : / [ ]` and empty names are rejected — the previous name stays; duplicates get a numeric suffix),
 /// and renaming a sheet rewrites the references to it in every formula of the workbook.
-public struct Sheets: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, Hashable, Sendable {
+public struct Sheets: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, Equatable, Sendable {
     private var storage: [Sheet] = []
 
     public init() {}
@@ -117,7 +117,7 @@ public struct Sheets: RandomAccessCollection, MutableCollection, RangeReplaceabl
 
 /// A workbook: sheets, document metadata, defined names and the material kept for a lossless write-back.
 /// A value type: edit freely, persist with `write(to:)` (SwiftSheets facade) or a codec's `write`.
-public struct Workbook: Hashable, Sendable {
+public struct Workbook: Equatable, Sendable {
     public var sheets = Sheets()
     public var metadata = DocumentProperties()
     /// Which day serial 0 means in the file. Dates in the model are calendar dates; this only steers the XLSX codec.

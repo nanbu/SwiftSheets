@@ -71,7 +71,7 @@ public enum TextEncodingSniffer {
         var body = data
         var encoding = String.Encoding.utf8
         if let (enc, len) = bom(in: data) { encoding = enc; body = data.dropFirst(len) }
-        guard let text = String(data: body.prefix(64 * 1024), encoding: encoding) ?? (encoding == .utf8 ? nil : nil) else {
+        guard let text = String(data: body.prefix(64 * 1024), encoding: encoding) else {
             // a truncated multi-byte sequence at the 64 KiB boundary is not a format verdict
             return data.count > 64 * 1024 && String(data: body.prefix(32 * 1024), encoding: encoding) != nil
         }

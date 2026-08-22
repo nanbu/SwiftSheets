@@ -43,7 +43,7 @@ struct NumbersWriter {
         }
         var sheetIDs: [Int] = []
         for (i, sheet) in workbook.sheets.enumerated() {
-            let sid = i == 0 ? templateSheet : cloneSheet()
+            let sid = i == 0 ? templateSheet : try cloneSheet()
             sheetIDs.append(sid)
             doc.update(sid) { $0.set("name", string: sheet.name) }
             if sheet.state != .visible { warnings.append(ConversionWarning(.degraded, sheet: sheet.name, message: "Numbers has no hidden sheets; the sheet is visible")) }
@@ -52,7 +52,7 @@ struct NumbersWriter {
             var y = 0.0
             for (t, table) in tables.enumerated() {
                 let info: Int
-                if t < infos.count { info = infos[t] } else { info = cloneTable(from: infos[0], intoSheet: sid); infos.append(info) }
+                if t < infos.count { info = infos[t] } else { info = try cloneTable(from: infos[0], intoSheet: sid); infos.append(info) }
                 let name = table.name ?? "Table \(t + 1)"
                 let size = try patch(tableInfo: info, with: table, name: name, sheetName: sheet.name)
                 doc.update(info) { m in
@@ -93,7 +93,7 @@ struct NumbersWriter {
     /// Deep-copies the subgraph under `root` (types in `clonedTypes` only), gives every copy a new id, rewrites the
     /// references between copies, regenerates every UUID consistently, registers component metadata and the
     /// calculation-engine owner entries. Returns old id → new id.
-    private mutating func clone(root: Int, skipping: Set<Int> = []) -> [Int: Int] {
+    private mutating func clone(root: Int, skipping: Set<Int> = []) throws -> [Int: Int] {
         var toClone: [Int] = []
         var seen = Set<Int>()
         func visit(_ id: Int) {
@@ -117,7 +117,7 @@ struct NumbersWriter {
             guard let (path, _) = doc.locations[id], let obj = doc.object(id) else { continue }
             let file = path.contains("/Tables/") ? path.replacingOccurrences(of: "\\d+(-\\d+)?\\.iwa$", with: "{id}.iwa", options: .regularExpression).replacingOccurrences(of: ".iwa{id}", with: "-{id}") : path
             let target = file.hasSuffix("{id}.iwa") ? file : (path.contains("/Tables/") ? path.replacingOccurrences(of: ".iwa", with: "-{id}.iwa") : path)
-            let new = doc.add(obj, file: target)
+            let new = try doc.add(obj, file: target)
             map[id] = new
             if path.contains("/Tables/") { registerComponent(new, like: id) }
         }
@@ -238,16 +238,16 @@ struct NumbersWriter {
         }
     }
 
-    private mutating func cloneSheet() -> Int {
-        let map = clone(root: templateSheet)
-        guard let new = map[templateSheet] else { preconditionFailure("sheet clone failed") }
+    private mutating func cloneSheet() throws -> Int {
+        let map = try clone(root: templateSheet)
+        guard let new = map[templateSheet] else { throw SheetError.malformedPart(path: "empty.numbers", detail: "the template's sheet could not be copied") }
         // the copied table's drawable parent must be the copied sheet (remapping already did it); nothing else to fix
         return new
     }
 
-    private mutating func cloneTable(from info: Int, intoSheet sid: Int) -> Int {
-        let map = clone(root: info, skipping: [sid])
-        guard let new = map[info] else { preconditionFailure("table clone failed") }
+    private mutating func cloneTable(from info: Int, intoSheet sid: Int) throws -> Int {
+        let map = try clone(root: info, skipping: [sid])
+        guard let new = map[info] else { throw SheetError.malformedPart(path: "empty.numbers", detail: "the template's table could not be copied") }
         doc.update(new) { m in
             var d = m.message("super") ?? ProtoMessage(typeName: "TSD.DrawableArchive")
             d.set("parent", reference: sid)
@@ -351,7 +351,7 @@ struct NumbersWriter {
             range.set("origin", message: origin); range.set("size", message: size)
             mergeMap.append("cell_range", message: range)
         }
-        let mergeID = doc.add(mergeMap, file: "Index/CalculationEngine.iwa")
+        let mergeID = try doc.add(mergeMap, file: "Index/CalculationEngine.iwa")
         store.set("merge_region_map", reference: mergeID)
 
         // tiles
@@ -390,7 +390,7 @@ struct NumbersWriter {
                 infos.append(info)
             }
             tile.set("rowInfos", messages: infos)
-            let tileID = doc.add(tile, file: "Index/Tables/Tile-{id}.iwa")
+            let tileID = try doc.add(tile, file: "Index/Tables/Tile-{id}.iwa")
             registerTileComponent(tileID)
             var ref = ProtoMessage(typeName: "TST.TileStorage.Tile")
             ref.set("tileid", int: tileIndex); ref.set("tile", reference: tileID)

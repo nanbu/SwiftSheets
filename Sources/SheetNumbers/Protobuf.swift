@@ -86,16 +86,19 @@ struct ProtoMessage: Hashable {
 
     // MARK: - Schema-driven typed access (by field name)
 
-    private func number(_ name: String) -> Int {
-        guard let t = typeName, let n = NumbersSchema.shared.fieldNumber(t, name) else { preconditionFailure("unknown field \(typeName ?? "?").\(name)") }
+    /// The field number the schema gives this name, or nil when the schema does not know it — which is what a
+    /// Numbers version newer than our schema looks like from here. Readers treat that as "the field is absent"
+    /// (§10.3: read as far as you can and report), rather than taking the process down.
+    private func number(_ name: String) -> Int? {
+        guard let t = typeName, let n = NumbersSchema.shared.fieldNumber(t, name) else { return nil }
         return n
     }
     private func childType(_ name: String) -> String? { typeName.flatMap { NumbersSchema.shared.fieldTypeName($0, name) } }
 
-    func has(_ name: String) -> Bool { let n = number(name); return fields.contains { $0.number == n } }
+    func has(_ name: String) -> Bool { guard let n = number(name) else { return false }; return fields.contains { $0.number == n } }
 
     func uint(_ name: String) -> UInt64? {
-        let n = number(name)
+        guard let n = number(name) else { return nil }
         for f in fields where f.number == n { if case .varint(let v) = f.value { return v } }
         return nil
     }
@@ -132,7 +135,7 @@ struct ProtoMessage: Hashable {
     }
     func bool(_ name: String) -> Bool? { uint(name).map { $0 != 0 } }
     func double(_ name: String) -> Double? {
-        let n = number(name)
+        guard let n = number(name) else { return nil }
         for f in fields where f.number == n {
             if case .fixed64(let v) = f.value { return Double(bitPattern: v) }
             if case .fixed32(let v) = f.value { return Double(Float(bitPattern: v)) }
@@ -170,7 +173,9 @@ struct ProtoMessage: Hashable {
     // MARK: - Mutation (replaces every existing occurrence of the field; appends when absent)
 
     private mutating func replace(_ name: String, with values: [Value]) {
-        let n = number(name)
+        // writing is the other half: a field this build cannot name would go into the file as nothing, and a
+        // silently incomplete Numbers document is worse than a loud one. The schema is bundled, so this is ours.
+        guard let n = number(name) else { preconditionFailure("the bundled schema has no field \(typeName ?? "?").\(name)") }
         if let first = fields.firstIndex(where: { $0.number == n }) {
             fields.removeAll { $0.number == n }
             fields.insert(contentsOf: values.map { Field(number: n, value: $0) }, at: Swift.min(first, fields.count))
@@ -197,9 +202,12 @@ struct ProtoMessage: Hashable {
     mutating func set(_ name: String, messages v: [ProtoMessage]) { replace(name, with: v.map { .bytes($0.encoded()) }) }
     mutating func set(_ name: String, reference id: Int) { set(name, message: ProtoMessage.reference(id)) }
     mutating func set(_ name: String, references ids: [Int]) { set(name, messages: ids.map(ProtoMessage.reference)) }
-    mutating func append(_ name: String, message v: ProtoMessage) { fields.append(Field(number: number(name), value: .bytes(v.encoded()))) }
+    mutating func append(_ name: String, message v: ProtoMessage) {
+        guard let n = number(name) else { preconditionFailure("the bundled schema has no field \(typeName ?? "?").\(name)") }
+        fields.append(Field(number: n, value: .bytes(v.encoded())))
+    }
     mutating func append(_ name: String, reference id: Int) { append(name, message: ProtoMessage.reference(id)) }
-    mutating func remove(_ name: String) { let n = number(name); fields.removeAll { $0.number == n } }
+    mutating func remove(_ name: String) { guard let n = number(name) else { return }; fields.removeAll { $0.number == n } }
     /// Rewrites every nested message of a field in place.
     mutating func update(_ name: String, _ body: (inout ProtoMessage) -> Void) {
         let n = number(name), t = childType(name)

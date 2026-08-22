@@ -3,7 +3,7 @@ import Foundation
 /// A sheet: a named canvas holding one or more tables (exactly one for XLSX / ODS) plus sheet-level options — view,
 /// freeze panes, print setup, sheet-scoped names. The cell API of the default table is available directly on the
 /// sheet, so XLSX / ODS code never has to mention `tables`.
-public struct Sheet: Hashable, Sendable {
+public struct Sheet: Equatable, Sendable {
     /// The tab name. Validation and de-duplication happen when the sheet is placed in a `Workbook`
     /// (`Workbook.sheets` rejects `\ * ? : / [ ]`, empty names and duplicates).
     public var name: String

@@ -2013,6 +2013,13 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <code>activeSheet</code> も同じ。§15.1 の「コピーして書き戻す」書き方はそのまま使える。</li>
     <li><strong><code>SheetError</code> は <code>LocalizedError</code></strong>。<code>localizedDescription</code> が
       「The operation couldn’t be completed.」ではなく理由を返す。</li>
+    <li><strong>大きな集合体は <code>Equatable</code> どまり</strong>: <code>Workbook</code> / <code>Sheet</code> / <code>Table</code> は
+      <code>Hashable</code> をやめた（<code>Cell</code> と <code>CellValue</code> は据え置き — 文字列プールがキーに使う）。
+      比較は要るが、ハッシュを取ることは「シート 1 枚を <code>Set</code> に入れて全セル分の計算を黙って払う」入口を開けるだけだった。</li>
+    <li><strong>Numbers はスキーマのずれで落ちない</strong>: 読み取り側のフィールド参照は、スキーマが名前を知らなければ
+      「そのフィールドは無い」として扱う（§10.3 の tolerant 方針）。書き戻せない型のオブジェクトは
+      <code>unsupportedFeature</code> を投げる（従来は <code>preconditionFailure</code> でプロセスごと落ちた）。
+      書き出し側の <code>set</code> だけは同梱スキーマの不整合＝ビルドの問題なので precondition のまま。</li>
     <li><strong>版数はひとつ</strong>: <code>SwiftSheetsInfo</code>（name / version / generator / appVersion）。
       <code>docProps/app.xml</code>・ODS の <code>meta:generator</code>・README の Status 行が同じ値を指し、
       README との一致はテストが検査する（<code>APIContractTests</code>）。</li>

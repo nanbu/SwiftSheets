@@ -2,7 +2,9 @@ import Foundation
 
 /// A rectangular grid of cells with its row / column formatting and merges. XLSX and ODS sheets hold exactly one
 /// (the `Sheet` API forwards to it); Numbers sheets may hold several, each anchored somewhere on the canvas.
-public struct Table: Hashable, Sendable {
+/// Equatable, not Hashable: two tables are compared in tests and in round-trip checks, but hashing one means
+/// hashing every cell in it — an invitation to put a whole sheet in a `Set` and pay for it silently.
+public struct Table: Equatable, Sendable {
     public var name: String?
     /// Where the table's A1 sits on the sheet canvas (Numbers); always A1 for XLSX / ODS.
     public var anchor = CellRef(row: 0, col: 0)
@@ -68,10 +70,6 @@ public struct Table: Hashable, Sendable {
             && a.columnDimensions == b.columnDimensions && a.merges == b.merges && a.nextAppendRow == b.nextAppendRow
     }
 
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(name); hasher.combine(anchor); hasher.combine(storage)
-        hasher.combine(rowDimensions); hasher.combine(columnDimensions); hasher.combine(merges); hasher.combine(nextAppendRow)
-    }
     public var rowDimensions: [Int: RowDimension] = [:]
     public var columnDimensions: [Int: ColumnDimension] = [:]
     public var merges: [CellRange] = []

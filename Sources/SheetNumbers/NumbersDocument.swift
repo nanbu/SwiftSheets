@@ -97,9 +97,13 @@ final class NumbersDocument {
     /// Adds an object. `file` names an existing IWA file to append to, or a new one to create ("Index/Tables/Tile-{id}.iwa"
     /// style names get the id substituted). Returns the new id.
     @discardableResult
-    func add(_ obj: ProtoMessage, file: String, version: [Int] = [1, 0, 5]) -> Int {
+    func add(_ obj: ProtoMessage, file: String, version: [Int] = [1, 0, 5]) throws -> Int {
         let id = nextID()
-        guard let type = obj.typeName, let typeID = NumbersSchema.shared.registryByName[type] else { preconditionFailure("object type \(obj.typeName ?? "?") is not in the registry") }
+        // an object read from a newer Numbers than our registry knows has no type id to write back — that is the
+        // file's doing, not the caller's, so it is an error rather than a trap
+        guard let type = obj.typeName, let typeID = NumbersSchema.shared.registryByName[type] else {
+            throw SheetError.unsupportedFeature("object type \(obj.typeName ?? "unknown") is not in the bundled Numbers registry")
+        }
         var info = ProtoMessage(typeName: "TSP.MessageInfo")
         info.set("type", int: typeID)
         for v in version { info.fields.append(ProtoMessage.Field(number: NumbersSchema.shared.fieldNumber("TSP.MessageInfo", "version")!, value: .varint(UInt64(v)))) }
