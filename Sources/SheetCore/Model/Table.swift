@@ -7,7 +7,71 @@ public struct Table: Hashable, Sendable {
     /// Where the table's A1 sits on the sheet canvas (Numbers); always A1 for XLSX / ODS.
     public var anchor = CellRef(row: 0, col: 0)
     /// Sparse: only cells that hold a value, a style, a link or a note exist here.
-    public var cells: [CellRef: Cell] = [:]
+    ///
+    /// Assigning or mutating this map directly is allowed, but it costs the table its knowledge of the used range —
+    /// the next `extent` (and everything built on it: `rowCount`, `row(_:)`, `rows(in:)`, every writer) has to scan
+    /// all of it again. The typed paths — the subscripts, `append`, `store(_:at:)` — keep that knowledge instead.
+    public var cells: [CellRef: Cell] {
+        get { storage }
+        _modify {
+            extentState = .unknown
+            yield &storage
+        }
+        set {
+            storage = newValue
+            extentState = .unknown
+        }
+    }
+
+    private var storage: [CellRef: Cell] = [:]
+
+    /// What is known about the used range. Recomputing it is a scan of every cell, and `rowCount` sits in enough
+    /// loops that doing it per row turns an export into an O(n²) walk.
+    private enum ExtentState: Sendable {
+        case empty
+        case range(CellRange)
+        /// Someone edited `cells` directly; the next read has to work it out.
+        case unknown
+    }
+    private var extentState: ExtentState = .empty
+
+    /// Writes (or removes, with `nil`) a cell and keeps the used range in step. Removing from the edge of the range
+    /// gives up on it rather than rescanning: the answer is only needed when someone asks.
+    private mutating func put(_ cell: Cell?, at ref: CellRef) {
+        if let cell {
+            storage[ref] = cell
+            switch extentState {
+            case .empty: extentState = .range(CellRange(ref))
+            case .range(let r):
+                if !r.contains(ref) {
+                    extentState = .range(CellRange(minRow: Swift.min(r.minRow, ref.row), minCol: Swift.min(r.minCol, ref.col),
+                                                   maxRow: Swift.max(r.maxRow, ref.row), maxCol: Swift.max(r.maxCol, ref.col)))
+                }
+            case .unknown: break
+            }
+        } else {
+            guard storage.removeValue(forKey: ref) != nil else { return }
+            if storage.isEmpty { extentState = .empty; return }
+            if case .range(let r) = extentState,
+               ref.row == r.minRow || ref.row == r.maxRow || ref.col == r.minCol || ref.col == r.maxCol {
+                extentState = .unknown   // the bounds may have shrunk; only a scan can say
+            }
+        }
+    }
+
+    /// Stores a cell exactly as given — a reader keeps `<c r="A1"/>` even though it carries nothing — without the
+    /// blank-dropping the subscripts do, and with the used range kept up to date.
+    package mutating func store(_ cell: Cell, at ref: CellRef) { put(cell, at: ref) }
+
+    public static func == (a: Table, b: Table) -> Bool {
+        a.name == b.name && a.anchor == b.anchor && a.storage == b.storage && a.rowDimensions == b.rowDimensions
+            && a.columnDimensions == b.columnDimensions && a.merges == b.merges && a.nextAppendRow == b.nextAppendRow
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name); hasher.combine(anchor); hasher.combine(storage)
+        hasher.combine(rowDimensions); hasher.combine(columnDimensions); hasher.combine(merges); hasher.combine(nextAppendRow)
+    }
     public var rowDimensions: [Int: RowDimension] = [:]
     public var columnDimensions: [Int: ColumnDimension] = [:]
     public var merges: [CellRange] = []
@@ -38,10 +102,10 @@ public struct Table: Hashable, Sendable {
         get { cells[ref]?.value }
         set {
             precondition(ref.row >= 0 && ref.col >= 0, "row and column must be ≥ 0")
-            if newValue == nil, cells[ref] == nil { return }
-            var c = cells[ref] ?? Cell()
+            if newValue == nil, storage[ref] == nil { return }
+            var c = storage[ref] ?? Cell()
             c.value = newValue
-            cells[ref] = c.isBlank ? nil : c
+            put(c.isBlank ? nil : c, at: ref)
             nextAppendRow = Swift.max(nextAppendRow, ref.row + 1)   // `append` continues below, as openpyxl's _current_row does
         }
     }
@@ -49,7 +113,7 @@ public struct Table: Hashable, Sendable {
     /// The whole cell (value + style + link + note); an empty `Cell()` when absent. Assigning a blank cell removes it.
     public subscript(cell ref: CellRef) -> Cell {
         get { cells[ref] ?? Cell() }
-        set { cells[ref] = newValue.isBlank ? nil : newValue; nextAppendRow = Swift.max(nextAppendRow, ref.row + 1) }
+        set { put(newValue.isBlank ? nil : newValue, at: ref); nextAppendRow = Swift.max(nextAppendRow, ref.row + 1) }
     }
     public subscript(cell a1: String) -> Cell {
         get { CellRef(a1).map { self[cell: $0] } ?? Cell() }
@@ -61,8 +125,8 @@ public struct Table: Hashable, Sendable {
     public func cell(_ a1: String) -> Cell? { CellRef(a1).flatMap { cells[$0] } }
 
     /// Removes a cell entirely.
-    public mutating func removeCell(at ref: CellRef) { cells[ref] = nil }
-    public mutating func removeCell(_ a1: String) { if let r = CellRef(a1) { cells[r] = nil } }
+    public mutating func removeCell(at ref: CellRef) { put(nil, at: ref) }
+    public mutating func removeCell(_ a1: String) { if let r = CellRef(a1) { put(nil, at: r) } }
 
     // MARK: - Styles
 
@@ -71,9 +135,9 @@ public struct Table: Hashable, Sendable {
 
     /// Edits the style of one cell in place (the cell is created if needed).
     public mutating func style(at ref: CellRef, _ update: (inout CellStyle) -> Void) {
-        var c = cells[ref] ?? Cell()
+        var c = storage[ref] ?? Cell()
         update(&c.style)
-        cells[ref] = c.isBlank ? nil : c
+        put(c.isBlank ? nil : c, at: ref)
     }
     /// Edits the style of every cell in a range ("A1:D1") or of a single cell ("A1").
     public mutating func style(_ a1: String, _ update: (inout CellStyle) -> Void) {
@@ -86,11 +150,20 @@ public struct Table: Hashable, Sendable {
 
     // MARK: - Extent
 
-    /// The smallest range holding every existing cell; nil when the table is empty.
+    /// The smallest range holding every existing cell; nil when the table is empty. Known without a scan unless
+    /// `cells` was edited directly.
     public var extent: CellRange? {
-        guard let first = cells.keys.first else { return nil }
+        switch extentState {
+        case .empty: return storage.isEmpty ? nil : scannedExtent()
+        case .range(let r): return r
+        case .unknown: return scannedExtent()
+        }
+    }
+
+    private func scannedExtent() -> CellRange? {
+        guard let first = storage.keys.first else { return nil }
         var r0 = first.row, r1 = first.row, c0 = first.col, c1 = first.col
-        for k in cells.keys { r0 = Swift.min(r0, k.row); r1 = Swift.max(r1, k.row); c0 = Swift.min(c0, k.col); c1 = Swift.max(c1, k.col) }
+        for k in storage.keys { r0 = Swift.min(r0, k.row); r1 = Swift.max(r1, k.row); c0 = Swift.min(c0, k.col); c1 = Swift.max(c1, k.col) }
         return CellRange(minRow: r0, minCol: c0, maxRow: r1, maxCol: c1)
     }
     /// Rows from the top through the last used row (0 when empty).
@@ -191,19 +264,20 @@ public struct Table: Hashable, Sendable {
             return v < deletedEnd ? nil : v + delta
         }
         var newCells: [CellRef: Cell] = [:]
-        newCells.reserveCapacity(cells.count)
-        for (ref, cell) in cells {
+        newCells.reserveCapacity(storage.count)
+        for (ref, cell) in storage {
             let key = axis == .rows ? ref.row : ref.col
             guard let m = moved(key) else { continue }
             newCells[axis == .rows ? CellRef(row: m, col: ref.col) : CellRef(row: ref.row, col: m)] = cell
         }
-        cells = newCells
+        storage = newCells
+        extentState = .unknown
         // formulas everywhere in the table follow (unqualified refs and refs naming this sheet)
         let own = sheetName
-        for (ref, cell) in cells {
+        for (ref, cell) in storage {
             guard case .formula(let f, let cached)? = cell.value else { continue }
             let shifted = f.shiftingReferences(axis: axis, at: index, delta: delta) { $0 == nil || $0 == own }
-            if shifted != f { var c = cell; c.value = .formula(shifted, cached: cached); cells[ref] = c }
+            if shifted != f { var c = cell; c.value = .formula(shifted, cached: cached); storage[ref] = c }
         }
         if axis == .rows {
             var dims: [Int: RowDimension] = [:]
@@ -240,8 +314,9 @@ public struct Table: Hashable, Sendable {
         if rows != 0 { order = rows > 0 ? range.rows.reversed().flatMap { $0 } : range.rows.flatMap { $0 } }
         else { order = cols > 0 ? range.cols.reversed().flatMap { $0 } : range.cols.flatMap { $0 } }
         for ref in order {
-            let cell = cells.removeValue(forKey: ref)
-            cells[ref.offset(rows: rows, cols: cols)] = cell
+            let cell = storage[ref]
+            put(nil, at: ref)
+            put(cell, at: ref.offset(rows: rows, cols: cols))
         }
         return target
     }
@@ -271,23 +346,23 @@ public struct Table: Hashable, Sendable {
     func existingRefs(in r: CellRange) -> [CellRef] {
         let rows = r.maxRow - r.minRow + 1, cols = r.maxCol - r.minCol + 1
         // `rows * cols <= cells.count`, written so that a hostile range cannot overflow the multiplication
-        if rows > 0, cols > 0, rows <= cells.count / Swift.max(cols, 1) {
+        if rows > 0, cols > 0, rows <= storage.count / Swift.max(cols, 1) {
             var out: [CellRef] = []
             for row in r.minRow...r.maxRow {
                 for col in r.minCol...r.maxCol {
                     let ref = CellRef(row: row, col: col)
-                    if cells[ref] != nil { out.append(ref) }
+                    if storage[ref] != nil { out.append(ref) }
                 }
             }
             return out
         }
-        return cells.keys.filter { r.contains($0) }
+        return storage.keys.filter { r.contains($0) }
     }
 
     /// Clears the non-anchor cells of a merged range and formats its edges (openpyxl `_clean_merge_range`).
     public mutating func cleanMergedRange(_ r: CellRange) {
         for ref in existingRefs(in: r) where ref != r.topLeft {
-            if var c = cells[ref] { c.value = nil; c.hyperlink = nil; c.comment = nil; cells[ref] = c.isBlank ? nil : c }
+            if var c = storage[ref] { c.value = nil; c.hyperlink = nil; c.comment = nil; put(c.isBlank ? nil : c, at: ref) }
         }
         formatMergedRange(r)
     }
@@ -308,10 +383,10 @@ public struct Table: Hashable, Sendable {
     /// materialising past `maxMaterialisedMergeCells`. The interior of a merge shows the anchor's cell either way.
     mutating func formatMergedRange(_ r: CellRange) {
         var start = self[cell: r.topLeft]
-        if !r.isSingleCell, let end = cells[r.bottomRight] {
+        if !r.isSingleCell, let end = storage[r.bottomRight] {
             start.border = start.border.combined(with: Border(right: end.border.right, bottom: end.border.bottom))
         }
-        cells[r.topLeft] = start   // the anchor always exists: it is one cell, and the ODS writer hangs the span on it
+        put(start, at: r.topLeft)   // the anchor always exists: it is one cell, and the ODS writer hangs the span on it
         // the edge lists are built only for sides that have a style — `r.left` on a full-sheet merge is a million refs
         let edges: [(side: Side, border: Border, refs: () -> [CellRef])] = [
             (start.border.top, Border(top: start.border.top), { r.top }),
@@ -323,10 +398,10 @@ public struct Table: Hashable, Sendable {
             let list = refs()
             let materialise = list.count <= Table.maxMaterialisedMergeCells
             for ref in list {
-                if !materialise, cells[ref] == nil { continue }
+                if !materialise, storage[ref] == nil { continue }
                 var c = self[cell: ref]
                 c.border = c.border.combined(with: border)
-                if !c.isBlank { cells[ref] = c }
+                if !c.isBlank { put(c, at: ref) }
             }
         }
         let protection = start.protection
@@ -335,7 +410,7 @@ public struct Table: Hashable, Sendable {
             var c = self[cell: ref]
             guard c.protection != protection else { continue }
             c.protection = protection
-            cells[ref] = c
+            put(c, at: ref)
         }
     }
 
@@ -355,7 +430,7 @@ public struct Table: Hashable, Sendable {
     public mutating func unmerge(_ range: CellRange) -> Bool {
         guard let i = merges.firstIndex(where: { $0.a1 == range.a1 }) else { return false }
         merges.remove(at: i)
-        for ref in existingRefs(in: range) where ref != range.topLeft { cells[ref] = nil }   // openpyxl drops the MergedCell placeholders
+        for ref in existingRefs(in: range) where ref != range.topLeft { put(nil, at: ref) }   // openpyxl drops the MergedCell placeholders
         return true
     }
 

@@ -404,9 +404,10 @@ enum ODSWriter {
             s += " table:default-cell-style-name=\"\(spec.defaultCell ?? "Default")\"/>"
         }
 
-        // cells by row
-        var byRow: [Int: [Int: Cell]] = [:]
-        for (ref, c) in t.cells { byRow[ref.row, default: [:]][ref.col] = c }
+        // which rows hold cells; the cells themselves stay where they are (copying them into a second collection
+        // costs one whole `Cell` — style included — per position)
+        var rowsWithCells = Set<Int>()
+        for ref in t.cells.keys { rowsWithCells.insert(ref.row) }
 
         var emptyRun = 0
         func flushEmpty() {
@@ -415,9 +416,9 @@ enum ODSWriter {
             emptyRun = 0
         }
         for r in 0..<nrows {
-            let cells = byRow[r]
+            let hasCells = rowsWithCells.contains(r)
             let dim = t.rowDimensions[r]
-            guard cells != nil || dim != nil || rowIsCovered(r) || anchorRows.contains(r) else { emptyRun += 1; continue }
+            guard hasCells || dim != nil || rowIsCovered(r) || anchorRows.contains(r) else { emptyRun += 1; continue }
             flushEmpty()
             s += "<table:table-row"
             if let h = dim?.height { s += " table:style-name=\"\(styles.row(height: h))\"" }
@@ -428,16 +429,16 @@ enum ODSWriter {
                 let ref = CellRef(row: r, col: c)
                 if isCovered(ref) {
                     var n = 1
-                    while c + n < ncols, isCovered(CellRef(row: r, col: c + n)), cells?[c + n] == nil { n += 1 }
+                    while c + n < ncols, isCovered(CellRef(row: r, col: c + n)), t.cells[CellRef(row: r, col: c + n)] == nil { n += 1 }
                     s += "<table:covered-table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n
-                } else if let cell = cells?[c] ?? (anchors[ref] != nil ? Cell() : nil) {
+                } else if let cell = t.cells[ref] ?? (anchors[ref] != nil ? Cell() : nil) {
                     // an anchor with no cell of its own still has to be written: the span hangs on it
                     s += cellXML(cell, at: ref, merge: anchors[ref], sheet: sheet.name, styles: styles, sink: sink)
                     c += 1
                 } else {
                     var n = 1
-                    while c + n < ncols, cells?[c + n] == nil, anchors[CellRef(row: r, col: c + n)] == nil,
+                    while c + n < ncols, t.cells[CellRef(row: r, col: c + n)] == nil, anchors[CellRef(row: r, col: c + n)] == nil,
                           !isCovered(CellRef(row: r, col: c + n)) { n += 1 }
                     s += "<table:table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n

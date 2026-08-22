@@ -483,7 +483,7 @@ final class ContentParser: SAXHandler {
             cellsMaterialised += expand * rowCells.count
         }
         for r in rowCursor..<(rowCursor + expand) {
-            for (c, cell) in rowCells { s.table.cells[CellRef(row: r, col: c)] = cell }
+            for (c, cell) in rowCells { s.table.store(cell, at: CellRef(row: r, col: c)) }
             if hasDimension { s.table.rowDimensions[r] = RowDimension(height: height, hidden: rowHidden, outlineLevel: groupDepth) }
             for m in rowMerges {
                 s.table.merges.append(CellRange(minRow: r, minCol: m.col, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxCol: Swift.min(m.col + m.cols - 1, CellRef.maxCol)))

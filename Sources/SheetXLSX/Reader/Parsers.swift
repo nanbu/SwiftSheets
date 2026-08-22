@@ -340,7 +340,7 @@ final class SheetParser: SAXHandler {
             vText = ""; fText = ""; isText = ""; formulaType = nil; formulaRef = nil; sharedFormulaIndex = nil
             var cell = Cell()
             cell.style = styles.style(cellStyle)
-            sheet.table.cells[cellRef!] = cell   // every <c> exists, even without a value
+            sheet.table.store(cell, at: cellRef!)   // every <c> exists, even without a value
         case "v": inV = true
         case "f": inF = true; formulaType = a["t"]; formulaRef = a["ref"]; sharedFormulaIndex = a["si"]
         case "is": inIS = true; isRuns = []; isHasRuns = false
@@ -362,7 +362,7 @@ final class SheetParser: SAXHandler {
                 if let rid, let target = hyperlinkRels[rid] { link = Hyperlink(target: target, tooltip: a["tooltip"], display: a["display"]) }
                 else if let loc = a["location"] { link = Hyperlink(target: loc, tooltip: a["tooltip"], display: a["display"], isInternal: true) }
                 else if let display = a["display"] { link = Hyperlink(target: display, tooltip: a["tooltip"], display: display) }   // neither r:id nor location: Excel shows the display text
-                if let link { var c = sheet.table[cell: ref]; c.hyperlink = link; sheet.table.cells[ref] = c }
+                if let link { var c = sheet.table[cell: ref]; c.hyperlink = link; sheet.table.store(c, at: ref) }
             }
         case "printOptions":
             sheet.printOptions.horizontalCentered = XMLBool.isTrue(a["horizontalCentered"]); sheet.printOptions.verticalCentered = XMLBool.isTrue(a["verticalCentered"])
@@ -400,7 +400,7 @@ final class SheetParser: SAXHandler {
             guard let ref = cellRef else { return }
             var cell = sheet.table[cell: ref]
             cell.value = value(at: ref)
-            sheet.table.cells[ref] = cell
+            sheet.table.store(cell, at: ref)
             cellRef = nil
         case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount }   // cells, not trailing empty rows, decide where `append` continues
         case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`

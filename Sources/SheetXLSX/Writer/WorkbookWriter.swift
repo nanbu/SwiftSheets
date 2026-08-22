@@ -286,8 +286,10 @@ enum WorkbookWriter {
             generated.append(("cols", s + "</cols>"))
         }
         s = "<sheetData>"
-        var byRow: [Int: [(CellRef, Cell)]] = [:]
-        for (ref, c) in table.cells { byRow[ref.row, default: []].append((ref, c)) }
+        // grouped by row, but only the *keys*: grouping the cells themselves would copy every `Cell` (each carries
+        // its whole style — 496 bytes), which is half a gigabyte on a million cells
+        var byRow: [Int: [CellRef]] = [:]
+        for ref in table.cells.keys { byRow[ref.row, default: []].append(ref) }
         let rowNumbers = Set(byRow.keys).union(table.rowDimensions.filter { !$0.value.isDefault }.keys).sorted()
         var hyperlinks: [(String, Hyperlink)] = []
         for r in rowNumbers {
@@ -301,7 +303,8 @@ enum WorkbookWriter {
                 s += XML.attr("thickTop", d.thickTop) + XML.attr("thickBot", d.thickBottom)
             }
             s += ">"
-            for (ref, c) in (byRow[r] ?? []).sorted(by: { $0.0.col < $1.0.col }) {
+            for ref in (byRow[r] ?? []).sorted(by: { $0.col < $1.col }) {
+                guard let c = table.cells[ref] else { continue }
                 let styleIndex = styles.index(for: c.style)
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
                 let a1 = ref.a1
