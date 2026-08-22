@@ -27,12 +27,15 @@ package struct ZipArchive: Sendable {
         var entries: [String: Entry] = [:]
         var p = cdOffset
         for _ in 0..<count {
-            guard p + 46 <= bytes.count, Zip.u32(bytes, p) == 0x0201_4b50 else { throw SheetError.corruptedContainer(detail: "bad central directory entry") }
+            guard p >= 0, p + 46 <= bytes.count, Zip.u32(bytes, p) == 0x0201_4b50 else { throw SheetError.corruptedContainer(detail: "bad central directory entry") }
             let method = Zip.u16(bytes, p + 10), crc = Zip.u32(bytes, p + 16)
             let csize = Int(Zip.u32(bytes, p + 20)), usize = Int(Zip.u32(bytes, p + 24))
             let nameLen = Int(Zip.u16(bytes, p + 28)), extraLen = Int(Zip.u16(bytes, p + 30)), commentLen = Int(Zip.u16(bytes, p + 32))
             let localOffset = Int(Zip.u32(bytes, p + 42))
             guard csize != 0xFFFF_FFFF, usize != 0xFFFF_FFFF, localOffset != 0xFFFF_FFFF else { throw SheetError.corruptedContainer(detail: "ZIP64 entry") }
+            // the header's own lengths are attacker-controlled: every slice below must be inside the buffer
+            guard p + 46 + nameLen + extraLen + commentLen <= bytes.count else { throw SheetError.corruptedContainer(detail: "central directory entry runs past the end of the file") }
+            guard localOffset + 30 <= bytes.count else { throw SheetError.corruptedContainer(detail: "local header offset past the end of the file") }
             let name = String(decoding: bytes[(p + 46)..<(p + 46 + nameLen)], as: UTF8.self)
             entries[name] = Entry(name: name, method: method, crc32: crc, compressedSize: csize, uncompressedSize: usize, localHeaderOffset: localOffset)
             p += 46 + nameLen + extraLen + commentLen
@@ -46,10 +49,10 @@ package struct ZipArchive: Sendable {
         guard let e = entries[name] else { throw SheetError.corruptedContainer(detail: "missing part \(name)") }
         let bytes = [UInt8](data)
         let h = e.localHeaderOffset
-        guard h + 30 <= bytes.count, Zip.u32(bytes, h) == 0x0403_4b50 else { throw SheetError.corruptedContainer(detail: "bad local header for \(name)") }
+        guard h >= 0, h + 30 <= bytes.count, Zip.u32(bytes, h) == 0x0403_4b50 else { throw SheetError.corruptedContainer(detail: "bad local header for \(name)") }
         let nameLen = Int(Zip.u16(bytes, h + 26)), extraLen = Int(Zip.u16(bytes, h + 28))
         let start = h + 30 + nameLen + extraLen
-        guard start + e.compressedSize <= bytes.count else { throw SheetError.corruptedContainer(detail: "truncated data for \(name)") }
+        guard e.compressedSize >= 0, start + e.compressedSize <= bytes.count else { throw SheetError.corruptedContainer(detail: "truncated data for \(name)") }
         let payload = data.subdata(in: start..<(start + e.compressedSize))
         switch e.method {
         case 0: return payload
@@ -113,6 +116,7 @@ package enum Zip {
 
     /// `COMPRESSION_ZLIB` in the Compression framework is the raw DEFLATE stream — exactly ZIP method 8.
     static func inflate(_ src: Data, expectedSize: Int) throws -> Data {
+        guard expectedSize >= 0 else { throw SheetError.corruptedContainer(detail: "negative uncompressed size") }
         guard expectedSize > 0 else { return Data() }
         var dst = Data(count: expectedSize)
         let written = dst.withUnsafeMutableBytes { (d: UnsafeMutableRawBufferPointer) -> Int in

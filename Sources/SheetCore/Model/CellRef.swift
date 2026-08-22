@@ -14,16 +14,26 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
 
     public init(row: Int, col: Int) { self.row = row; self.col = col }
 
-    /// Parses "A1", "$B$2", "AB12". Nil when malformed (no row, row 0, more than three letters).
+    /// Parses "A1", "$B$2", "AB12". Nil when malformed (no row, row 0, more than three letters, a row number past
+    /// the sheet's last row). Every bound is checked *while* scanning: a hostile file must not be able to overflow
+    /// the accumulators (spec §12, malformed input never traps).
     public init?(_ a1: String) {
         var col = 0, row = 0, seenDigit = false, letters = 0
         for ch in a1.uppercased().unicodeScalars {
             if ch == "$" { continue }
-            if ("A"..."Z").contains(ch), !seenDigit { col = col * 26 + Int(ch.value - 64); letters += 1 }
-            else if ("0"..."9").contains(ch) { seenDigit = true; row = row * 10 + Int(ch.value - 48) }
+            if ("A"..."Z").contains(ch), !seenDigit {
+                letters += 1
+                guard letters <= 3 else { return nil }
+                col = col * 26 + Int(ch.value - 64)
+            }
+            else if ("0"..."9").contains(ch) {
+                seenDigit = true
+                row = row * 10 + Int(ch.value - 48)
+                guard row <= CellRef.maxRow + 1 else { return nil }
+            }
             else { return nil }
         }
-        guard col > 0, row > 0, letters <= 3 else { return nil }
+        guard col > 0, row > 0 else { return nil }
         self.row = row - 1; self.col = col - 1
     }
 
@@ -54,14 +64,17 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
     /// Like `columnName(_:)` but nil outside 0…maxParsedCol (openpyxl raises `ValueError`).
     public static func columnName(validating col: Int) -> String? { (0...maxParsedCol).contains(col) ? columnName(col) : nil }
 
-    /// "AB" → 27. Case-insensitive; nil for more than three letters or non-letters.
+    /// "AB" → 27. Case-insensitive; nil for more than three letters or non-letters. The length is checked while
+    /// scanning so that a long run of letters cannot overflow `n`.
     public static func columnIndex(_ name: String) -> Int? {
         var n = 0, count = 0
         for ch in name.uppercased().unicodeScalars {
             guard ("A"..."Z").contains(ch) else { return nil }
-            n = n * 26 + Int(ch.value - 64); count += 1
+            count += 1
+            guard count <= 3 else { return nil }
+            n = n * 26 + Int(ch.value - 64)
         }
-        return count >= 1 && count <= 3 ? n - 1 : nil
+        return count >= 1 ? n - 1 : nil
     }
 
     /// All column names from `start` to `end` inclusive (0-based indices).
@@ -112,11 +125,17 @@ public struct RangeBounds: Hashable, Sendable {
         var letters = "", digits = "", seenDigit = false
         for ch in s.uppercased().unicodeScalars {
             if ch == "$" { if seenDigit { return nil }; continue }
-            if ("A"..."Z").contains(ch), !seenDigit { letters.unicodeScalars.append(ch) }
-            else if ("0"..."9").contains(ch) { seenDigit = true; digits.unicodeScalars.append(ch) }
+            if ("A"..."Z").contains(ch), !seenDigit {
+                letters.unicodeScalars.append(ch)
+                guard letters.count <= 3 else { return nil }
+            }
+            else if ("0"..."9").contains(ch) {
+                seenDigit = true
+                digits.unicodeScalars.append(ch)
+                guard digits.count <= 10 else { return nil }   // far past the last row; only a hostile input gets here
+            }
             else { return nil }
         }
-        guard letters.count <= 3 else { return nil }
         return Match(letters: letters.isEmpty ? nil : letters, digits: digits.isEmpty ? nil : digits)
     }
 

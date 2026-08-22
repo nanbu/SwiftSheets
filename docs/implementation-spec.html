@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.4 Draft</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.5 Draft</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> 実装仕様書
     </h1>
@@ -1822,6 +1822,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.2 Draft</td><td>2026-08-22</td><td>Numbers 書き出しを正式対応へ格上げ（警告機構を全形式共通の契約として再定義）。第9章 CSV コーデックを新設（UTF-8 BOM 自動判別・文字コード指定）</td></tr>
     <tr><td>1.3 Draft</td><td>2026-08-22</td><td>P1・P2（SheetCore・XLSX/XLSM・CSV・数式 AST・F3 保全）の実装に伴う決定と逸脱を付録 B に記録。名称を SwiftSheets に確定</td></tr>
     <tr><td>1.4 Draft</td><td>2026-08-22</td><td>P3（ODS）・P4/P5（Numbers）の実装方針を付録 B.8 に固定: Protobuf は依存ゼロの動的ツリー、Numbers の数式書き出しはキャッシュ値＋警告に退避</td></tr>
+    <tr><td>1.5 Draft</td><td>2026-08-22</td><td>§12 柱5（不正入力でクラッシュしない）を満たすための上限と検証を付録 B.9 に固定: 座標・数式の深さ・ZIP の長さ検証、結合と ODS の RLE が展開してよいセル数、保存のアトミック化</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -1916,6 +1917,47 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <li><strong>Numbers 書き（P5・実装済み、数式を除く）</strong>: §11.1 のテンプレート・パッチ方式。テンプレートは numbers-parser 同梱の <code>empty.numbers</code>（MIT。NOTICE 参照）。最初のシート / テーブルはその場でパッチ、2 枚目以降のシートとテーブルは「テーブル固有の型だけ」（TableInfo / TableModel / DataList / Tile / HeaderStorageBucket / 各 FormulaOwner 等、スタイルは共有）をサブグラフ複製して参照を張り替え、UUID を一貫して振り直し、計算エンジンの owner 表と PackageMetadata のコンポーネント登録を追加する。セルはタイル形式（cell storage v5・wide offsets）へパック、文字列は TableDataList へ登録、結合は MergeRegionMapArchive、行高 / 列幅はヘッダバケット、<code>freezePanes</code> はヘッダ行列。非対応: 数式（キャッシュ値＋ <code>degraded</code>）・書式（テーブルごとに 1 件の <code>degraded</code>）・非表示シート（Numbers に概念が無い）。読み込み済みファイルへの書き戻しもこの生成経路を通す（読んだ文書を土台にした F3 パッチはロードマップ）。検証: 自前の往復、numbers-parser による読み戻し（<code>Tests/NumbersParity/verify_with_numbers_parser.py</code>）、LibreOffice の Numbers インポータ（libetonyek）での値一致。<strong>Numbers 実機での開封は未確認</strong>。</li>
     <li><strong>運用</strong>: <code>NOTICE</code>（numbers-parser 由来: レジストリ・関数表・記述子由来スキーマ・テンプレート・テストフィクスチャ）と <code>MAINTENANCE.md</code>（§10.3 のバージョン追従手順）をリポジトリ直下に置く。</li>
   </ul>
+
+  <h3>B.9 堅牢性の上限（Rev 1.5・§12 柱5）</h3>
+  <p>
+    §12 の柱5「malformed コーパス＋ランダム破壊入力でクラッシュ・無限ループ・メモリ爆発がないこと」は 0.2.1 時点で
+    未達だった。監査で 5 系統の再現（プロセス落ち 4・メモリ無限膨張 1）が取れたため、以下の上限を実装側の決定として固定する。
+    <strong>いずれも「読めない」ではなく「そこで止める」</strong>方針で、止めたことは値の欠落なら <code>degraded</code> 警告、
+    構造の破損なら <code>SheetError</code> で必ず伝える。
+  </p>
+  <div class="callout callout-warn">
+    <span class="label">忠実度と引き換えにした上限（オーナー承認 2026-08-22）</span>
+    <ul>
+      <li><strong>数式のネストは 64 段まで</strong>（<code>FormulaParser.maxDepth</code>）＝ Excel 自身の上限。超える数式は <code>.unparsed</code>
+        として原文のまま保持するので同形式の往復はバイト一致だが、<strong>行列挿入時の参照追随と方言変換はそのセルで行われない</strong>。
+        再帰下降 1 段の実測コストは最適化なしで約 7 KB・最適化ありでその数分の一で、64 段は Dispatch が渡す 512 KB スタックと
+        全リリースビルドに収まる。<strong>debug ビルドを 256 KB 以下のスタックで走らせる場合だけは収まらない</strong>。</li>
+      <li><strong>A1 座標は走査しながら上限を検査する</strong>（<code>CellRef</code>）。列は 3 文字まで、行は 1,048,576 まで。
+        従来は上限検査がループの後にあり、20 桁の行番号でアキュムレータが桁あふれしてトラップしていた。
+        <code>&lt;row r="0"&gt;</code> と 1,048,576 超は <code>malformedPart</code> で失敗する（従来は黙って通っていた）。</li>
+      <li><strong>結合セルが実体化してよいのは 65,536 セルまで</strong>（<code>Table.maxMaterialisedMergeCells</code>）。
+        これを超える結合では、アンカーの罫線と protection の伝播が「既に存在するセル」にしか届かない（openpyxl は
+        プレースホルダを作る）。65,536 以下は openpyxl と同一挙動。あわせて、既定 protection を持つだけの空セルは作らない
+        — <code>&lt;mergeCell ref="A1:CZ2000"/&gt;</code> 一つの 2 KB のファイルが 208,000 セル・554 MB になっていた。
+        <strong>アンカーセルだけは常に作る</strong>（ODS ライタが span 属性をそこに載せるため）。</li>
+      <li><strong>ODS の RLE 展開は 1 文書あたり 1,000,000 セルまで</strong>（<code>ODSReader.maxCells</code>）。§8.3 の打ち切りは
+        「中身のない反復」だけを見ており、値を持つセルの <code>number-columns-repeated</code> × <code>number-rows-repeated</code> は
+        16,384 × 1,048,576 まで素直に展開していた（1 KB のファイルで 10 分・425 MB 以上・停止せず）。超過分は読まず、
+        シートごとに 1 件の <code>degraded</code> 警告を返す。1,000,000 は現行モデル（<code>Cell</code> が書式を丸ごと内包し 496 B）で
+        既に 1.4 GB になる規模であり、そこから先は成功しても使えない。<strong>本来は <code>ReadOptions</code> の設定値</strong>で、
+        利用者が選ぶ理由ができた時点で移す。</li>
+      <li><strong>ZIP は中央ディレクトリの自己申告長を全て検証する</strong>。名前長・extra・comment がバッファ外へ出る、
+        ローカルヘッダのオフセットがファイル外を指す、は <code>corruptedContainer</code>。Numbers 側も同様に
+        length-delimited フィールド長と varint の桁数を検証する。</li>
+      <li><strong><code>write(to:)</code> はアトミック</strong>（<code>Data.WritingOptions.atomic</code>）。開いたファイルへの上書き保存が
+        本ライブラリの存在理由である以上、書き込み途中の中断が元のファイルを壊してはならない。inode は差し替わる。</li>
+    </ul>
+  </div>
+  <p>
+    検証は <code>Tests/SwiftSheetsTests/MalformedInputTests.swift</code>（座標・行番号・数式深さ・壊れた ZIP・全面結合・
+    固定シードのランダムバイト破壊 200 回）と <code>ODSCodecTests</code> の RLE 上限テストで、いずれも上の再現をそのまま回帰にしている。
+    §12.1 の malformed コーパスはファイルではなくテスト内で組み立てる（数バイトの違いが要点なので、生成コードの方が読める）。
+  </p>
 </section>
 
 </div><!-- /.container -->

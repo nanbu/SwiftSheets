@@ -264,32 +264,88 @@ public struct Table: Hashable, Sendable {
         cleanMergedRange(r)
     }
 
+    /// The refs inside a range that this table actually holds a cell for, found without walking the whole rectangle
+    /// when the rectangle is the bigger of the two. A merge may legitimately span millions of cells (`A1:XFD1048576`
+    /// is a single `<mergeCell>`), so enumerating the rectangle — let alone storing a `Cell` per position — is what
+    /// turns a two-kilobyte file into hundreds of megabytes.
+    func existingRefs(in r: CellRange) -> [CellRef] {
+        let rows = r.maxRow - r.minRow + 1, cols = r.maxCol - r.minCol + 1
+        // `rows * cols <= cells.count`, written so that a hostile range cannot overflow the multiplication
+        if rows > 0, cols > 0, rows <= cells.count / Swift.max(cols, 1) {
+            var out: [CellRef] = []
+            for row in r.minRow...r.maxRow {
+                for col in r.minCol...r.maxCol {
+                    let ref = CellRef(row: row, col: col)
+                    if cells[ref] != nil { out.append(ref) }
+                }
+            }
+            return out
+        }
+        return cells.keys.filter { r.contains($0) }
+    }
+
     /// Clears the non-anchor cells of a merged range and formats its edges (openpyxl `_clean_merge_range`).
     public mutating func cleanMergedRange(_ r: CellRange) {
-        for ref in r.cells.dropFirst() {
+        for ref in existingRefs(in: r) where ref != r.topLeft {
             if var c = cells[ref] { c.value = nil; c.hyperlink = nil; c.comment = nil; cells[ref] = c.isBlank ? nil : c }
         }
         formatMergedRange(r)
     }
 
+    /// How many cells a merge may bring into existence to carry the anchor's edge borders and protection. Real
+    /// documents merge title rows and small blocks; `A1:XFD1048576` is a single `<mergeCell>` element in a file
+    /// anyone can hand us. Past this many, the formatting reaches only the cells that already exist — the same
+    /// "a giant repeat is padding, not content" judgement the ODS reader makes for RLE runs (spec §8.3).
+    static let maxMaterialisedMergeCells = 65_536
+
     /// openpyxl `MergedCellRange`: the anchor takes the bottom / right sides from the bottom-right cell, then the cells
     /// along each edge take that side of the anchor's border (their own settings win), and every cell inherits the
     /// anchor's protection.
+    ///
+    /// Nothing is created that would carry nothing — apart from the anchor, which is one cell and which the ODS
+    /// writer needs in order to write the span at all. The edges are only walked when that side really has a border
+    /// style, the default protection is never written into absent cells (it is what they already have), and both stop
+    /// materialising past `maxMaterialisedMergeCells`. The interior of a merge shows the anchor's cell either way.
     mutating func formatMergedRange(_ r: CellRange) {
         var start = self[cell: r.topLeft]
         if !r.isSingleCell, let end = cells[r.bottomRight] {
             start.border = start.border.combined(with: Border(right: end.border.right, bottom: end.border.bottom))
         }
-        cells[r.topLeft] = start
-        let edges: [(Side, [CellRef], Border)] = [
-            (start.border.top, r.top, Border(top: start.border.top)), (start.border.left, r.left, Border(left: start.border.left)),
-            (start.border.right, r.right, Border(right: start.border.right)), (start.border.bottom, r.bottom, Border(bottom: start.border.bottom)),
+        cells[r.topLeft] = start   // the anchor always exists: it is one cell, and the ODS writer hangs the span on it
+        // the edge lists are built only for sides that have a style — `r.left` on a full-sheet merge is a million refs
+        let edges: [(side: Side, border: Border, refs: () -> [CellRef])] = [
+            (start.border.top, Border(top: start.border.top), { r.top }),
+            (start.border.left, Border(left: start.border.left), { r.left }),
+            (start.border.right, Border(right: start.border.right), { r.right }),
+            (start.border.bottom, Border(bottom: start.border.bottom), { r.bottom }),
         ]
-        for (side, refs, border) in edges where side.style != nil {
-            for ref in refs { var c = self[cell: ref]; c.border = c.border.combined(with: border); cells[ref] = c }
+        for (side, border, refs) in edges where side.style != nil {
+            let list = refs()
+            let materialise = list.count <= Table.maxMaterialisedMergeCells
+            for ref in list {
+                if !materialise, cells[ref] == nil { continue }
+                var c = self[cell: ref]
+                c.border = c.border.combined(with: border)
+                if !c.isBlank { cells[ref] = c }
+            }
         }
         let protection = start.protection
-        for ref in r.cells { var c = self[cell: ref]; c.protection = protection; cells[ref] = c }
+        guard protection != Protection() else { return }   // the default protection is what an absent cell already has
+        for ref in refsToFormat(in: r) {
+            var c = self[cell: ref]
+            guard c.protection != protection else { continue }
+            c.protection = protection
+            cells[ref] = c
+        }
+    }
+
+    /// Every position of a small range (openpyxl's behaviour: placeholders are created), but only the positions that
+    /// already hold a cell once the range grows past `maxMaterialisedMergeCells`.
+    private func refsToFormat(in r: CellRange) -> [CellRef] {
+        let rows = r.maxRow - r.minRow + 1, cols = r.maxCol - r.minCol + 1
+        // `rows * cols <= maxMaterialisedMergeCells`, written so that a hostile range cannot overflow the product
+        if rows > 0, cols > 0, rows <= Table.maxMaterialisedMergeCells / Swift.max(cols, 1) { return r.cells }
+        return existingRefs(in: r)
     }
 
     /// Unmerges exactly this range; false when it was not merged.
@@ -299,7 +355,7 @@ public struct Table: Hashable, Sendable {
     public mutating func unmerge(_ range: CellRange) -> Bool {
         guard let i = merges.firstIndex(where: { $0.a1 == range.a1 }) else { return false }
         merges.remove(at: i)
-        for ref in range.cells.dropFirst() { cells[ref] = nil }   // openpyxl drops the MergedCell placeholders
+        for ref in existingRefs(in: range) where ref != range.topLeft { cells[ref] = nil }   // openpyxl drops the MergedCell placeholders
         return true
     }
 

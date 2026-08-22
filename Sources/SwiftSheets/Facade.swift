@@ -44,11 +44,15 @@ extension Workbook {
     }
 
     /// Writes to a file. Without `format`, the extension decides (falling back to the source format, then .xlsx).
+    ///
+    /// The write is atomic: the bytes land in a temporary file that replaces the destination only once it is complete.
+    /// Saving over the file you just opened is this library's whole reason for existing, so a crash (or a full disk)
+    /// half-way through must leave the original where it was.
     @discardableResult
     public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         let f = format ?? SheetFormat(fileExtension: url.pathExtension) ?? sourceInfo?.format ?? .xlsx
         let result = try write(as: f, options: options)
-        try result.data.write(to: url)
+        try result.data.write(to: url, options: .atomic)
         return result
     }
 

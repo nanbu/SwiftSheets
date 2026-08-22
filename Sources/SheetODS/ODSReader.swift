@@ -7,6 +7,15 @@ enum ODSReader {
     static let interpretedParts: Set<String> = ["mimetype", "content.xml", "styles.xml", "meta.xml", "settings.xml", "META-INF/manifest.xml"]
     /// RLE caps (spec §8.3): a repeat this large with nothing in it is padding, not content.
     static let paddingRepeat = 1000
+    /// How many cells one document may expand to. `number-columns-repeated` and `number-rows-repeated` multiply, so
+    /// a kilobyte of XML can ask for 16,384 × 1,048,576 cells — seventeen billion, none of which fit in memory. Past
+    /// this many the reader stops materialising and says so (`degraded`), the same judgement `paddingRepeat` makes
+    /// for empty runs: a repeat that large is a description of a sheet, not its content.
+    ///
+    /// A million is where this model stops being able to hold a sheet anyway (a `Cell` carries its whole style, so
+    /// this many already costs well over a gigabyte); a read that goes past it cannot succeed usefully, and stopping
+    /// with a warning beats being killed. It belongs in `ReadOptions` once the caller has a reason to choose.
+    static let maxCells = 1_000_000
     static let maxColumns = CellRef.maxCol + 1
     static let maxRows = CellRef.maxRow + 1
 
@@ -125,6 +134,10 @@ final class ContentParser: SAXHandler {
     private var rowCursor = 0
     private var groupDepth = 0
     private var columnDefaults: [(start: Int, end: Int, name: String)] = []
+
+    // how much of the document's cell budget has been spent, and whether anything was clipped (spec §8.3)
+    private var cellsMaterialised = 0
+    private var truncated = false
 
     // row state
     private var inRow = false
@@ -289,6 +302,11 @@ final class ContentParser: SAXHandler {
         case "table":
             guard inTable else { return }
             inTable = false
+            if truncated {
+                truncated = false
+                warnings.append(ConversionWarning(.degraded, sheet: sheet?.name,
+                                                  message: "the repeated rows / cells of this sheet describe more than \(ODSReader.maxCells) cells; reading stopped there"))
+            }
             if let s = sheet { sheets.append(s) }
             sheet = nil
         case "table-row-group": groupDepth = Swift.max(0, groupDepth - 1)
@@ -444,10 +462,19 @@ final class ContentParser: SAXHandler {
         defer { sheet = s }
         let height = catalog.rowHeightPoints(rowStyle)
         let hasDimension = height != nil || rowHidden || groupDepth > 0
-        let expand: Int
+        var expand: Int
         if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor) }
         else if (!rowCells.isEmpty || hasDimension) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
         else { expand = 0 }
+        // a repeated row of repeated cells multiplies: clip it to what the document may still spend
+        if !rowCells.isEmpty, expand > 0 {
+            let affordable = (ODSReader.maxCells - cellsMaterialised) / rowCells.count
+            if expand > affordable {
+                expand = Swift.max(0, affordable)
+                truncated = true
+            }
+            cellsMaterialised += expand * rowCells.count
+        }
         for r in rowCursor..<(rowCursor + expand) {
             for (c, cell) in rowCells { s.table.cells[CellRef(row: r, col: c)] = cell }
             if hasDimension { s.table.rowDimensions[r] = RowDimension(height: height, hidden: rowHidden, outlineLevel: groupDepth) }

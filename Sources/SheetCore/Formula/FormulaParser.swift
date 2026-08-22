@@ -20,6 +20,16 @@ struct FormulaParser {
     let dialect: SheetFormat
     private var tokens: [Token] = []
     private var pos = 0
+    private var depth = 0
+
+    /// How deep the tree may nest — Excel's own limit, so nothing Excel accepts is refused here (owner's decision,
+    /// 2026-08-22). Deeper text is not an error the caller sees: `FormulaExpr.parse` keeps it verbatim as
+    /// `.unparsed`, so it still writes back byte for byte; only reference shifting and dialect translation give up.
+    ///
+    /// The number that matters is the stack this descent runs on. A level costs ~7 KB unoptimised (four frames, each
+    /// holding partly-built expressions) and a fraction of that optimised, so 64 fits the 512 KB stack a Dispatch
+    /// queue hands out and every release build; a debug build on a 256 KB stack is the case this does not cover.
+    static let maxDepth = 64
 
     init(_ text: String, dialect: SheetFormat) throws {
         self.dialect = dialect
@@ -48,6 +58,9 @@ struct FormulaParser {
     }
 
     private mutating func parseExpression(minPrecedence: Int) throws -> FormulaExpr {
+        depth += 1
+        defer { depth -= 1 }
+        guard depth <= FormulaParser.maxDepth else { throw fail("formula nests deeper than \(FormulaParser.maxDepth) levels") }
         var left = try parsePrefix()
         while true {
             guard case .op(let sym) = current, let op = FormulaParser.binaryOp(sym) else { break }

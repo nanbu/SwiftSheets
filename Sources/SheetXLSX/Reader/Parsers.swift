@@ -416,10 +416,11 @@ final class SheetParser: SAXHandler {
         sheet.preserved.fragments.append(fragment)
     }
 
-    /// "23" → 23, "1.048573e6" → 1048573; nil for non-integral values.
+    /// "23" → 23, "1.048573e6" → 1048573; nil for non-integral values and for anything past the sheet's last row
+    /// (a bare `Int(d)` on "1e300" would trap — malformed input must never take the process down, spec §12).
     static func rowNumber(_ text: String) -> Int? {
-        if let i = Int(text) { return i }
-        guard let d = Double(text), d == d.rounded(), d >= 1 else { return nil }
+        if let i = Int(text) { return i >= 1 && i <= CellRef.maxRow + 1 ? i : nil }
+        guard let d = Double(text), d == d.rounded(), d >= 1, d <= Double(CellRef.maxRow + 1) else { return nil }
         return Int(d)
     }
 

@@ -78,6 +78,7 @@ struct IWAFile: Hashable {
                 v |= Int(x & 0x7F) << shift
                 if x & 0x80 == 0 { return v }
                 shift += 7
+                if shift > 56 { throw SheetError.malformedPart(path: path, detail: "archive length varint too long") }
             }
         }
         while i < b.count {

@@ -51,7 +51,9 @@ struct ProtoMessage: Hashable {
                 i += 8
                 fields.append(Field(number: number, value: .fixed64(v)))
             case 2:
-                let len = Int(try varint())
+                let declared = try varint()
+                guard declared <= UInt64(src.count) else { throw SheetError.malformedPart(path: typeName ?? "protobuf", detail: "length-delimited field \(number) claims \(declared) bytes") }
+                let len = Int(declared)
                 guard i + len <= src.count else { throw SheetError.malformedPart(path: typeName ?? "protobuf", detail: "truncated length-delimited field \(number)") }
                 fields.append(Field(number: number, value: .bytes(Data(src[i..<(i + len)]))))
                 i += len

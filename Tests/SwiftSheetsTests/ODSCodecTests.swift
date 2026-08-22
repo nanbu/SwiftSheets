@@ -188,6 +188,29 @@ import SwiftSheets
         #expect(back["J1000"] == .integer(7))
     }
 
+    /// `paddingRepeat` only judges *empty* runs. A repeat that carries a value multiplies just as hard — the row
+    /// below asks for 16,384 × 1,048,576 cells out of one kilobyte of XML — so the reader also has a budget for how
+    /// much a document may expand to, and reports having stopped (spec §12: no allocation sized by the file's own
+    /// numbers).
+    @Test func aRepeatedRowOfRepeatedCellsIsClippedToTheCellBudget() throws {
+        let content = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3">
+        <office:body><office:spreadsheet><table:table table:name="Bomb">
+        <table:table-row table:number-rows-repeated="1048576"><table:table-cell office:value-type="string" table:number-columns-repeated="16384"><text:p>x</text:p></table:table-cell></table:table-row>
+        </table:table></office:spreadsheet></office:body></office:document-content>
+        """
+        var zip = ZipWriter()
+        zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
+        zip.add("content.xml", Data(content.utf8))
+        let start = Date()
+        let (wb, warnings) = try ODSCodec.readWithWarnings(zip.finish())
+        #expect(Date().timeIntervalSince(start) < 30.0)
+        #expect(wb.sheets[0].cells.count <= ODSReader.maxCells)
+        #expect(warnings.contains { $0.kind == .degraded && $0.message.contains("stopped there") })
+        #expect(wb.sheets[0]["A1"] == .text("x"))
+    }
+
     @Test func hugeTrailingRepeatIsNotExpanded() throws {
         let content = """
         <?xml version="1.0" encoding="UTF-8"?>
