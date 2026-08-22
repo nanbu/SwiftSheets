@@ -154,7 +154,7 @@ AREAS = [
    "pyx": "is_date_format('[h]:mm:ss')  # True", "swx": "NumberFormat.isDateFormat(\"[h]:mm:ss\")  // true",
    "tests": ["styles/tests/test_number_style.py::*"]},
   {"py": "Stylesheet（styles.xml の読み書き）/ indexedColors", "sw": "StylesParser / StyleRegistry / wb.indexedColors", "status": "partial",
-   "desc": "cellXfs を解決済みの CellStyle に、fonts / fills / borders / numFmts / colors を読む。書き出しは重複なしの表＋ Normal スタイル。名前付きスタイル・dxf・テーブルスタイルは未実装。",
+   "desc": "cellXfs を解決済みの CellStyle に、fonts / fills / borders / numFmts / colors を読む。書き出しは重複なしの表。名前付きスタイル（cellStyles / cellStyleXfs とセルの xfId）は読み書きとも対応。dxf・テーブルスタイルは保全のみ（生成 API は無い）。",
    "pyx": "# internal", "swx": "// internal — fixtures from openpyxl",
    "tests": ["styles/tests/test_stylesheet.py::*", "styles/tests/test_cell_style.py::*", "styles/tests/test_named_style.py::*", "styles/tests/test_differential.py::*", "styles/tests/test_table.py::*", "styles/tests/test_proxy.py::*", "styles/tests/test_styleable.py::*"]},
  ]},

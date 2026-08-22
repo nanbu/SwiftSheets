@@ -121,6 +121,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ws.title = 'New'` | `wb.sheets[0].name = "New"` (formulas referring to the sheet follow) |
 | `ws['A1'].value`, `ws['A1'] = 42`, `ws.cell(row=1, column=2)` | `sheet["A1"]`, `sheet["A1"] = 42`, `sheet[0, 1]` |
 | `cell.font = Font(bold=True)` | `sheet.style("A1") { $0.font.bold = true }` or `sheet[cell: "A1"].font.bold = true` |
+| `wb.add_named_style(NamedStyle(...))`, `cell.style = 'Title'` | `wb.addNamedStyle(NamedStyle(...))`, `sheet[cell: "A1"].style = style.applied` (`CellStyle.namedStyle` is the link) |
 | `ws.iter_rows(values_only=True)`, `ws.values` | `sheet.rows(in: "A2:D100")`, `sheet.values(in:)` |
 | `ws['A1':'C3']` | `sheet.range("A1:C3")` — a lazy view: rows on demand, cells shared, nothing materialised |
 | `ws.append([...])` | `sheet.append([...])` |
@@ -162,8 +163,8 @@ present, and the worksheet children are in schema order. What makes it work:
 Reading reports its losses the same way writing does: `Workbook.read(contentsOf:)` answers with a `ReadResult`, and
 `Workbook(contentsOf:)` leaves the same list on `wb.readWarnings`.
 
-Known limits of the current preservation: a cell's named-style link (`xfId`), `cm` / `vm` rich-value attributes and
-`pageSetup r:id` are not carried over (the referenced parts are); array-formula ranges are read as plain formulas.
+Known limits of the current preservation: `cm` / `vm` rich-value attributes and `pageSetup r:id` are not carried over
+(the referenced parts are); array-formula ranges are read as plain formulas.
 
 ## Design notes
 

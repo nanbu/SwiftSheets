@@ -6,7 +6,7 @@ import pathlib
 import zipfile
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 from openpyxl.utils.datetime import CALENDAR_MAC_1904
 
 OUT = pathlib.Path(__file__).resolve().parents[1] / "SwiftSheetsTests" / "Fixtures"
@@ -63,5 +63,25 @@ def rph():
         z.writestr("xl/worksheets/sheet1.xml", sheet)
 
 
-styled(); date1904(); rph()
+def named_styles():
+    """Named cell styles: one of Excel's builtins, one of the file's own, and a cell that keeps the link while
+    overriding part of the formatting (openpyxl writes the override into cellXfs and leaves xfId pointing home)."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Styles"
+    heading = NamedStyle(name="Heading X")
+    heading.font = Font(bold=True, size=14, color="FF1F4E79")
+    heading.fill = PatternFill("solid", fgColor="FFDDEBF7")
+    heading.border = Border(bottom=Side(style="thin"))
+    heading.alignment = Alignment(horizontal="center")
+    heading.number_format = "0.00"
+    wb.add_named_style(heading)
+    ws["A1"] = "見出し"; ws["A1"].style = "Heading X"
+    ws["A2"] = 1; ws["A2"].style = "Heading X"; ws["A2"].font = Font(italic=True)   # link kept, font overridden
+    ws["A3"] = 2                                                                     # Normal
+    ws["B1"] = 3; ws["B1"].style = "Title"                                           # a builtin
+    wb.save(OUT / "named-styles.xlsx")
+
+
+styled(); date1904(); rph(); named_styles()
 print("fixtures written to", OUT)

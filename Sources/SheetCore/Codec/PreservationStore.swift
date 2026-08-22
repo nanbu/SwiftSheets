@@ -89,6 +89,13 @@ public struct StyleTables: Sendable, Hashable {
     public var borderXML: [String] = []
     /// Attributes of the `<styleSheet>` root (namespace declarations used by preserved sections).
     public var rootAttributes: [String: String] = [:]
+    /// `cellStyleXfs`, entry by entry: the raw `<xf>` and its parsed form. Named styles point into this table by
+    /// index, so entries no `cellStyle` names have to be kept anyway — dropping one renumbers every entry after it.
+    public var cellStyleXfXML: [String] = []
+    public var cellStyleXfs: [CellStyle] = []
+    /// Named style name → its index in `cellStyleXfs`, as the source file had it. Names the file already knew keep
+    /// their index on a write-back; new ones are appended.
+    public var namedStyleXfIndex: [String: Int] = [:]
     public init() {}
 }
 

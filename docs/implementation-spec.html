@@ -1881,9 +1881,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <ul>
     <li><code>Workbook.preserved</code>（<code>PreservationStore</code>）に加えて <strong><code>Sheet.preserved</code></strong>（<code>SheetPreservation</code>: 未解釈子要素の断片・ハイパーリンク以外の rels・元パート パス・rId・sheetId・ルート属性）。シートと一緒に移動・改名されるため名前キーの付け替えが要らない。</li>
     <li>未解釈パーツはバイト列のまま <code>opaqueParts</code>。<code>&lt;workbook&gt;</code> / <code>&lt;worksheet&gt;</code> / <code>&lt;styleSheet&gt;</code> の未知の子要素は XML 断片として保持し、スキーマ順の位置へ再出力する（属性順は辞書順に正規化される — 意味は同じ）。</li>
-    <li>styles.xml はソースの fonts / fills / borders / numFmts を同じ順で種にして再生成し、<code>cellStyleXfs</code> / <code>cellStyles</code> / <code>dxfs</code> / <code>tableStyles</code> / <code>extLst</code> は verbatim。条件付き書式・テーブルの <code>dxfId</code> が切れない。</li>
+    <li>styles.xml はソースの fonts / fills / borders / numFmts を同じ順で種にして再生成し、<code>dxfs</code> / <code>tableStyles</code> / <code>extLst</code> は verbatim。条件付き書式・テーブルの <code>dxfId</code> が切れない。<code>cellStyleXfs</code> / <code>cellStyles</code> も Rev 1.7 までは verbatim だったが、名前付きスタイルを持てるようになったため「元の項目は順番も生の XML も保ったまま、新しい名前だけ末尾に足す」方式へ変えた（B.12）。</li>
     <li>rId は不変・新規は最大値＋1（本文どおり）。sheetId・パート パスも同じ規則。<code>calcChain.xml</code> は常に削除し <code>fullCalcOnLoad="1"</code>。</li>
-    <li>既知の限界（F2 水準の劣化、Excel は修復を要求しない）: セルの名前付きスタイル参照 <code>xfId</code>、<code>&lt;c cm= vm=&gt;</code>（リッチ値メタデータ）、<code>&lt;pageSetup r:id&gt;</code>（printerSettings 本体は残る）、配列数式の範囲（通常の数式として読む）、<code>&lt;sheetView&gt;</code> の一部属性。</li>
+    <li>既知の限界（F2 水準の劣化、Excel は修復を要求しない）: <code>&lt;c cm= vm=&gt;</code>（リッチ値メタデータ）、<code>&lt;pageSetup r:id&gt;</code>（printerSettings 本体は残る）、配列数式の範囲（通常の数式として読む）、<code>&lt;sheetView&gt;</code> の一部属性。</li>
     <li>XLSM: コンテンツタイプ差分と VBA パーツの扱いは §7.4 どおり。<code>XLSMCodec</code> は <code>XLSXCodec</code> と実装を共有する。</li>
   </ul>
 
@@ -1905,7 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.7 未着手（本文のとおりロードマップ）</h3>
   <ul>
-    <li>名前付きスタイル・コメントの書き出し（VML）・条件付き書式 / データ検証の API・ストリーミング読み書き。<strong>Rev 1.7 で解消</strong>: 暗号化の明示エラー（B.12）。</li>
+    <li>コメントの書き出し（VML）・条件付き書式 / データ検証の API・ストリーミング読み書き。<strong>Rev 1.7 で解消</strong>: 暗号化の明示エラー・名前付きスタイル（B.12）。</li>
     <li>Numbers の数式を内部表現（TSCE 数式アーカイブ）で生成すること — B.8 参照。</li>
     <li><strong>プロパティテストとファズ</strong>（§12 の「プロパティテスト」「ファズ」）: 乱数は
       SplitMix64 を固定シードで回す — 失敗が再現できない検査は検査ではない。
@@ -1922,6 +1922,24 @@ wb.sheets[<span class="nm">0</span>] = sheet
       （§12 柱5 の違反。<code>lexRowRange</code> の先頭に境界検査を追加）、(b) 先頭の <code>=</code> を
       1 個しか落とさないため <code>.unparsed("=X")</code> が再パースで <code>.unparsed("X")</code> になり、
       不動点性が壊れていた（全部落とすように変更）。</li>
+    <li><strong>名前付きスタイル</strong>（<code>cellStyles</code> / <code>cellStyleXfs</code> と、セルの <code>xfId</code>）:
+      <code>Workbook.namedStyles: [NamedStyle]</code>（既定は <code>[.normal]</code>）と
+      <code>CellStyle.namedStyle: String?</code>（nil が "Normal"）。<code>NamedStyle.applied</code> が
+      openpyxl の <code>cell.style = "Title"</code> にあたる（スタイルの書式＋リンク）。
+      <strong>リンクは見た目を決めない</strong> — セルの <code>CellStyle</code> はファイルの <code>cellXf</code> と同じく
+      解決済みの書式を持ち、名前付きスタイルを書き換えても既存セルは変わらない。Excel の挙動そのままで、
+      「見出しにリンクしたまま斜体だけ上書き」も表せる。
+      書き出しの不変条件: <strong>ソースの <code>cellStyleXfs</code> は 1 項目も落とさず、順番も生の XML も保つ</strong>
+      （名前の付いていない項目も実在する。落とすと以後の番号がずれる）。既知の名前はその位置を再利用し、
+      モデル側で書式が変わっていればその項目だけ作り直す。新しい名前は末尾に足す。
+      判定の穴は読みで塞ぐ: 範囲外の <code>xfId</code>・名前の重複（先勝ち）・<code>cellStyles</code> だけ／
+      <code>cellStyleXfs</code> だけ、いずれもリンク無しに落とす。
+      ODS は対象外 — 自動スタイルを値で束ねる方式なので元から名前を持たず、
+      セルの書式自体は <code>CellStyle</code> に載って往復するため新たな損失は無い。
+      <code>dxfs</code> / <code>tableStyles</code> は引き続き verbatim 保全のみ。
+      審判: openpyxl が <code>cell.style == "Accent X"</code> と <code>wb._named_styles</code> を読み戻す
+      （<code>verify_with_openpyxl.py</code> の双方向）、openpyxl が作った
+      <code>named-styles.xlsx</code> の往復、LibreOffice が生成物を開く。</li>
   </ul>
 
   <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>

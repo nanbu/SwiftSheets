@@ -128,6 +128,9 @@ public struct Workbook: Equatable, Sendable {
     public var indexedColors: [String] = []
     /// VBA code name of the workbook (`<workbookPr codeName>`), preserved when present.
     public var codeName: String?
+    /// Named cell styles, in the order the file lists them. Always starts with "Normal"; a cell points at one of
+    /// these through `CellStyle.namedStyle`. Reading replaces the list with the file's; writing emits exactly it.
+    public var namedStyles: [NamedStyle] = [.normal]
     /// True when loaded with `ReadOptions.dataOnly`: formula cells hold cached values.
     public var dataOnly = false
     /// Uninterpreted parts of the source file (charts, VBA, …), re-packed on a same-format write (spec §6).
@@ -144,6 +147,14 @@ public struct Workbook: Equatable, Sendable {
     public init(sheets: [Sheet]) { self.sheets = Sheets(sheets) }
 
     public var sheetNames: [String] { sheets.names }
+
+    /// Adds (or replaces, by name) a named cell style. openpyxl's `wb.add_named_style`.
+    public mutating func addNamedStyle(_ style: NamedStyle) {
+        if let i = namedStyles.firstIndex(where: { $0.name == style.name }) { namedStyles[i] = style } else { namedStyles.append(style) }
+    }
+
+    /// The named style of that name, if the workbook has one.
+    public func namedStyle(_ name: String) -> NamedStyle? { namedStyles.first { $0.name == name } }
 
     /// Index of the active sheet (clamped to the existing sheets). A hidden sheet cannot be made active — such an
     /// assignment is ignored (openpyxl raises).

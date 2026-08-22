@@ -59,6 +59,7 @@ enum WorkbookWriter {
         let sameFamily = preserved.sourceFormat == .xlsx || preserved.sourceFormat == .xlsm
         let styles = StyleRegistry(seed: sameFamily ? preserved.styleTables : nil)
         styles.indexedColors = wb.indexedColors
+        styles.registerNamedStyles(wb.namedStyles)
         if sameFamily { styles.fragments = preserved.styleFragments }
         let strings = SharedStringTable()
 

@@ -56,9 +56,13 @@ enum WorkbookReader {
         if zip.contains(sstPath) { try sst.run(try zip.read(sstPath), part: sstPath); consumed.insert(sstPath) }
         let styles = StylesParser()
         if zip.contains(stylesPath) { try styles.run(try zip.read(stylesPath), part: stylesPath); consumed.insert(stylesPath) }
+        styles.resolveNamedStyleLinks()
         wb.indexedColors = styles.indexedColors
         wb.preserved.styleFragments = styles.fragments
-        if zip.contains(stylesPath) { wb.preserved.styleTables = styles.styleTables }
+        if zip.contains(stylesPath) {
+            wb.preserved.styleTables = styles.styleTables
+            if !styles.namedStyles.isEmpty { wb.namedStyles = styles.namedStyles }
+        }
         if let calc = rels.first(where: { $0.type.hasSuffix(relCalcChain) }) { consumed.insert(resolve(calc.target)) }   // always dropped (Excel rebuilds it)
 
         // sheets

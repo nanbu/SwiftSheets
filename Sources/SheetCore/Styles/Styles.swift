@@ -247,6 +247,44 @@ public struct CellStyle: Hashable, Sendable {
     public var alignment = Alignment.none
     public var protection = Protection()
     public var numberFormat = NumberFormat.general
+    /// The `Workbook.namedStyles` entry this cell is linked to ("Title", "Heading 1", one of your own); nil is
+    /// "Normal", the way openpyxl's `cell.style` reads "Normal" when nothing was assigned.
+    ///
+    /// The link is *not* what makes the cell look the way it does — the fields above already hold the effective
+    /// formatting, exactly as the file's `cellXf` does. Changing a named style therefore does not restyle the cells
+    /// that point at it; the link is there so that Excel still shows the style as applied, and so that a round trip
+    /// does not quietly break it.
+    public var namedStyle: String?
     public init() {}
     public static let `default` = CellStyle()
+}
+
+/// A named cell style: the `cellStyles` / `cellStyleXfs` pair of styles.xml, and openpyxl's `NamedStyle`. Every
+/// workbook has at least "Normal"; Excel ships "Title", "Heading 1"… and a file may add its own.
+public struct NamedStyle: Hashable, Sendable {
+    public var name: String
+    /// The formatting the style itself carries. A cell linked to it keeps its own resolved `CellStyle`.
+    public var style: CellStyle
+    /// Excel's index into its list of built-in styles (0 = Normal, 15 = Title), when this is one of them.
+    public var builtinID: Int?
+    /// Hidden styles do not appear in Excel's style gallery.
+    public var hidden: Bool
+
+    public init(name: String, style: CellStyle = .default, builtinID: Int? = nil, hidden: Bool = false) {
+        self.name = name; self.style = style; self.builtinID = builtinID; self.hidden = hidden
+    }
+
+    /// The one style every workbook has.
+    public static let normal = NamedStyle(name: "Normal", builtinID: 0)
+
+    /// What a cell looks like once this style is applied to it — the style's own formatting plus the link back to
+    /// it. openpyxl spells the same thing `cell.style = "Title"`:
+    ///
+    ///     sheet[cell: "A1"].style = heading.applied
+    ///     sheet.style("A1:D1") { $0 = heading.applied }
+    public var applied: CellStyle {
+        var s = style
+        s.namedStyle = name
+        return s
+    }
 }

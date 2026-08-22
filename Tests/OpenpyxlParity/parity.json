@@ -686,8 +686,38 @@
   },
   "styles/tests/test_named_style.py": {
    "default": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
+   "api": "NamedStyle",
+   "tests": {
+    "TestNamedCellStyle::test_from_xml": {
+     "status": "adapted",
+     "reason": "XML 比較ではなく、openpyxl が書いたファイルを読んで NamedStyle の中身を検証"
+    },
+    "TestNamedCellStyleList::test_from_xml": {
+     "status": "adapted",
+     "reason": "同上 — cellStyles の一覧を Workbook.namedStyles として検証"
+    },
+    "TestNamedCellStyleList::test_duplicate_names": {
+     "status": "adapted",
+     "reason": "重複した名前は先勝ち（openpyxl は番号で読み替える）"
+    },
+    "TestNamedStyleList::test_append_valid": {
+     "status": "adapted",
+     "reason": "addNamedStyle は同名を置き換える（openpyxl は例外）"
+    },
+    "TestNamedStyleList::test_names": {
+     "status": "adapted",
+     "reason": "namedStyles.map(\\.name)"
+    },
+    "TestNamedStyleList::test_key": {
+     "status": "adapted",
+     "reason": "namedStyle(_:) は Optional を返す"
+    },
+    "TestNamedStyleList::test_key_error": {
+     "status": "adapted",
+     "reason": "例外ではなく nil"
+    }
+   }
   },
   "styles/tests/test_number_style.py": {
    "default": "na_python",

@@ -22,6 +22,13 @@ final class StyleRegistry {
     var indexedColors: [String] = []
     /// Verbatim sections of the source styles.xml.
     var fragments: [XMLFragment] = []
+    /// The source `cellStyleXfs`, entry by entry. Every one is kept whether or not a `cellStyle` names it: the
+    /// table is addressed by index, so dropping an unnamed entry would renumber the ones after it.
+    private var sourceCellStyleXfs: [CellStyle] = []
+    private var sourceCellStyleXfXML: [String] = []
+    private var sourceNamedStyleXfIndex: [String: Int] = [:]
+    /// The workbook's named styles, in order; set before `xml()`.
+    var namedStyles: [NamedStyle] = [.normal]
     var rootAttributes: [String: String] = [:]
 
     init(seed: StyleTables? = nil) {
@@ -33,6 +40,9 @@ final class StyleRegistry {
             for (id, code) in seed.numberFormats { customFormats[code] = id }
             nextCustomID = Swift.max(NumberFormat.firstCustomID, (seed.numberFormats.keys.max() ?? 0) + 1)
             rootAttributes = seed.rootAttributes
+            sourceCellStyleXfs = seed.cellStyleXfs
+            sourceCellStyleXfXML = seed.cellStyleXfXML.count == seed.cellStyleXfs.count ? seed.cellStyleXfXML : []
+            sourceNamedStyleXfIndex = seed.namedStyleXfIndex
             if fonts.isEmpty { fonts = [Font.default] }
             if borders.isEmpty { borders = [Border()] }
         }
@@ -60,6 +70,17 @@ final class StyleRegistry {
         borders.append(b); borderIndex[b] = borders.count - 1
         if !borderXML.isEmpty { borderXML.append(StyleRegistry.borderXML(b)) }
         return borders.count - 1
+    }
+
+    /// Brings every named style's own formatting into the tables. This has to happen before `xml()` starts
+    /// emitting sections: the `<fonts>` element is written before `cellStyleXfs` is built, so a font first seen
+    /// there would arrive too late to be listed.
+    func registerNamedStyles(_ styles: [NamedStyle]) {
+        namedStyles = styles
+        for named in styles {
+            _ = fontID(named.style.font); _ = fillID(named.style.fill); _ = borderID(named.style.border)
+            _ = numFmtID(named.style.numberFormat)
+        }
     }
 
     func index(for style: CellStyle) -> Int {
@@ -124,6 +145,45 @@ final class StyleRegistry {
         return s + "</border>"
     }
 
+    /// `cellStyleXfs` for the output, and where each named style sits in it.
+    ///
+    /// The source table is the seed and never renumbers: a name the file already had keeps its index, and its raw
+    /// `<xf>` is re-emitted unless the model's copy of that style has been edited since. New names are appended.
+    private func namedStyleTable() -> (entries: [String], xfIDOfName: [String: Int]) {
+        var entries = sourceCellStyleXfXML.isEmpty
+            ? sourceCellStyleXfs.map { namedStyleXF($0) }
+            : sourceCellStyleXfXML
+        var xfIDOfName: [String: Int] = [:]
+        for named in namedStyles {
+            if let i = sourceNamedStyleXfIndex[named.name], entries.indices.contains(i) {
+                if !sourceCellStyleXfs.indices.contains(i) || sourceCellStyleXfs[i] != named.style { entries[i] = namedStyleXF(named.style) }
+                xfIDOfName[named.name] = i
+            } else {
+                entries.append(namedStyleXF(named.style))
+                xfIDOfName[named.name] = entries.count - 1
+            }
+        }
+        if entries.isEmpty { entries = [namedStyleXF(.default)]; xfIDOfName[NamedStyle.normal.name] = 0 }
+        return (entries, xfIDOfName)
+    }
+
+    /// One `cellStyleXfs` entry. Excel reads a named style's formatting from here, so the alignment goes in too.
+    private func namedStyleXF(_ style: CellStyle) -> String {
+        let numFmt = numFmtID(style.numberFormat), font = fontID(style.font), fill = fillID(style.fill), border = borderID(style.border)
+        var s = "<xf numFmtId=\"\(numFmt)\" fontId=\"\(font)\" fillId=\"\(fill)\" borderId=\"\(border)\""
+        if numFmt != 0 { s += " applyNumberFormat=\"1\"" }
+        if font != 0 { s += " applyFont=\"1\"" }
+        if fill != 0 { s += " applyFill=\"1\"" }
+        if border != 0 { s += " applyBorder=\"1\"" }
+        guard style.alignment != Alignment.none else { return s + "/>" }
+        let al = style.alignment
+        s += " applyAlignment=\"1\"><alignment\(XML.attr("horizontal", al.horizontal?.rawValue))\(XML.attr("vertical", al.vertical?.rawValue))"
+        s += "\(XML.attr("wrapText", al.wrapText))\(XML.attr("shrinkToFit", al.shrinkToFit))"
+        if al.indent != 0 { s += XML.attr("indent", al.indent) }
+        if al.textRotation != 0 { s += XML.attr("textRotation", al.textRotation) }
+        return s + "/></xf>"
+    }
+
     /// CT_Stylesheet child order.
     static let sectionOrder = ["numFmts", "fonts", "fills", "borders", "cellStyleXfs", "cellXfs", "cellStyles", "dxfs", "tableStyles", "colors", "extLst"]
 
@@ -139,11 +199,13 @@ final class StyleRegistry {
         sections["fills"] = "<fills count=\"\(fills.count)\">" + fillParts.joined() + "</fills>"
         let borderParts = borderXML.count == borders.count ? borderXML : borders.map(StyleRegistry.borderXML)
         sections["borders"] = "<borders count=\"\(borders.count)\">" + borderParts.joined() + "</borders>"
-        sections["cellStyleXfs"] = "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>"
+        let (styleXfs, xfIDOfName) = namedStyleTable()
+        sections["cellStyleXfs"] = "<cellStyleXfs count=\"\(styleXfs.count)\">" + styleXfs.joined() + "</cellStyleXfs>"
         var xfXML = "<cellXfs count=\"\(xfs.count)\">"
         for st in xfs {
             let numFmt = numFmtID(st.numberFormat), font = fontID(st.font), fill = fillID(st.fill), border = borderID(st.border)
-            xfXML += "<xf numFmtId=\"\(numFmt)\" fontId=\"\(font)\" fillId=\"\(fill)\" borderId=\"\(border)\" xfId=\"0\""
+            let xfId = st.namedStyle.flatMap { xfIDOfName[$0] } ?? 0
+            xfXML += "<xf numFmtId=\"\(numFmt)\" fontId=\"\(font)\" fillId=\"\(fill)\" borderId=\"\(border)\" xfId=\"\(xfId)\""
             if numFmt != 0 { xfXML += " applyNumberFormat=\"1\"" }
             if font != 0 { xfXML += " applyFont=\"1\"" }
             if fill != 0 { xfXML += " applyFill=\"1\"" }
@@ -166,7 +228,12 @@ final class StyleRegistry {
             } else { xfXML += "/>" }
         }
         sections["cellXfs"] = xfXML + "</cellXfs>"
-        sections["cellStyles"] = "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>"
+        let styleList = namedStyles.isEmpty ? [NamedStyle.normal] : namedStyles
+        sections["cellStyles"] = "<cellStyles count=\"\(styleList.count)\">" + styleList.map { named in
+            "<cellStyle name=\"\(XML.esc(named.name))\" xfId=\"\(xfIDOfName[named.name] ?? 0)\""
+                + (named.builtinID.map { " builtinId=\"\($0)\"" } ?? "")
+                + (named.hidden ? " hidden=\"1\"" : "") + "/>"
+        }.joined() + "</cellStyles>"
         if !indexedColors.isEmpty {
             sections["colors"] = "<colors><indexedColors>" + indexedColors.map { "<rgbColor rgb=\"\(XML.esc($0))\"/>" }.joined() + "</indexedColors></colors>"
         }

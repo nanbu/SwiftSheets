@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 import openpyxl
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 
 PKG = pathlib.Path(__file__).resolve().parents[2]
 workdir = pathlib.Path(tempfile.mkdtemp(prefix="swiftsheets-interop-"))
@@ -64,6 +64,10 @@ if swift_test("writesVerificationWorkbook"):
     expect(ws["A6"].hyperlink.target == "https://example.com/", "hyperlink")
     expect(ws.sheet_properties.outlinePr.summaryBelow is False and ws.auto_filter.ref == "A1:H1", "sheet properties / auto filter")
     expect(ws.print_title_rows == "$1:$1" and ws.print_area == "'Plan'!$A$1:$H$6", "print titles / area")
+    expect([s.name for s in wb._named_styles] == ["Normal", "Accent X"], "named styles declared")
+    expect(ws["B6"].style == "Accent X" and ws["B6"].value == 1000, "named style applied to B6")
+    accent = wb._named_styles["Accent X"]
+    expect(accent.font.b and accent.font.sz == 12 and accent.fill.fgColor.rgb == "FFFFF2CC" and accent.number_format == "#,##0", "named style formatting")
 
 # ---- 2. openpyxl → SwiftSheets -------------------------------------------------------------------
 wb = openpyxl.Workbook()
@@ -95,6 +99,12 @@ wb.create_sheet("Hidden").sheet_state = "hidden"; wb["Hidden"]["A1"] = "secret"
 wb.properties.creator = "interop"; wb.properties.title = "Interop"
 from openpyxl.workbook.defined_name import DefinedName
 wb.defined_names["PlanRange"] = DefinedName("PlanRange", attr_text="Plan!$A$1:$H$6")
+accent = NamedStyle(name="Accent X")
+accent.font = Font(name="Arial", size=12, bold=True, color="FF7F6000")
+accent.fill = PatternFill("solid", fgColor="FFFFF2CC")
+accent.number_format = "#,##0"
+wb.add_named_style(accent)
+ws["B6"] = 1000; ws["B6"].style = "Accent X"
 wb.save(workdir / "openpyxl.xlsx")
 swift_test("readsVerificationWorkbook")
 

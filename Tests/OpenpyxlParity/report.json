@@ -2,8 +2,8 @@
  "openpyxl": "3.1.5",
  "totals": {
   "ported": 224,
-  "adapted": 296,
-  "na_api": 981,
+  "adapted": 303,
+  "na_api": 974,
   "na_python": 210,
   "total": 1711,
   "cases": 2520
@@ -115,8 +115,8 @@
   },
   "styles": {
    "ported": 16,
-   "adapted": 35,
-   "na_api": 48,
+   "adapted": 42,
+   "na_api": 41,
    "na_python": 30,
    "total": 129,
    "cases": 218
@@ -965,8 +965,8 @@
   },
   "styles/tests/test_named_style.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 21,
+   "adapted": 7,
+   "na_api": 14,
    "na_python": 0,
    "total": 21,
    "cases": 26
@@ -12062,7 +12062,7 @@
    "key": "TestNamedStyle::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12073,7 +12073,7 @@
    "key": "TestNamedStyle::test_dict",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12084,7 +12084,7 @@
    "key": "TestNamedStyle::test_bind",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12095,7 +12095,7 @@
    "key": "TestNamedStyle::test_as_tuple",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12106,7 +12106,7 @@
    "key": "TestNamedStyle::test_as_xf",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12117,7 +12117,7 @@
    "key": "TestNamedStyle::test_as_name",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12128,7 +12128,7 @@
    "key": "TestNamedStyle::test_recalculate",
    "params": 6,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12139,7 +12139,7 @@
    "key": "TestNamedStyle::test_no_mutable_defaults",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12150,7 +12150,7 @@
    "key": "TestNamedCellStyle::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12160,9 +12160,12 @@
    "name": "test_from_xml",
    "key": "TestNamedCellStyle::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "XML 比較ではなく、openpyxl が書いたファイルを読んで NamedStyle の中身を検証",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_named_style.py",
@@ -12172,7 +12175,7 @@
    "key": "TestNamedCellStyleList::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12182,9 +12185,12 @@
    "name": "test_from_xml",
    "key": "TestNamedCellStyleList::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "同上 — cellStyles の一覧を Workbook.namedStyles として検証",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_named_style.py",
@@ -12193,9 +12199,12 @@
    "name": "test_duplicate_names",
    "key": "TestNamedCellStyleList::test_duplicate_names",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "重複した名前は先勝ち（openpyxl は番号で読み替える）",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_named_style.py",
@@ -12205,7 +12214,7 @@
    "key": "TestNamedCellStyleList::test_duplicate_ids",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12215,9 +12224,12 @@
    "name": "test_append_valid",
    "key": "TestNamedStyleList::test_append_valid",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "addNamedStyle は同名を置き換える（openpyxl は例外）",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_named_style.py",
@@ -12227,7 +12239,7 @@
    "key": "TestNamedStyleList::test_append_invalid",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12238,7 +12250,7 @@
    "key": "TestNamedStyleList::test_duplicate",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12248,9 +12260,12 @@
    "name": "test_names",
    "key": "TestNamedStyleList::test_names",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "namedStyles.map(\\.name)",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_named_style.py",
@@ -12260,7 +12275,7 @@
    "key": "TestNamedStyleList::test_idx",
    "params": 1,
    "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
+   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
    "api": "NamedStyle"
   },
   {
@@ -12270,9 +12285,12 @@
    "name": "test_key",
    "key": "TestNamedStyleList::test_key",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "namedStyle(_:) は Optional を返す",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_named_style.py",
@@ -12281,9 +12299,12 @@
    "name": "test_key_error",
    "key": "TestNamedStyleList::test_key_error",
    "params": 1,
-   "status": "na_api",
-   "reason": "名前付きスタイルは未実装",
-   "api": "NamedStyle"
+   "status": "adapted",
+   "reason": "例外ではなく nil",
+   "api": "NamedStyle",
+   "swift": [
+    "NamedStyleTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_number_style.py",

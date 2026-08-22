@@ -143,12 +143,19 @@ struct FontAttributes {
 final class StylesParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
-    static let preservedSections: Set<String> = ["cellStyleXfs", "cellStyles", "dxfs", "tableStyles", "extLst"]
+    static let preservedSections: Set<String> = ["dxfs", "tableStyles", "extLst"]
     var numFmts: [Int: String] = [:]
     var fonts: [Font] = []
     var fills: [PatternFill] = []
     var borders: [Border] = []
     var cellXfs: [CellStyle] = []
+    /// The `xfId` of each cellXf, in the same order — resolved to a style name once `cellStyles` has been read.
+    var cellXfNamedStyleIDs: [Int] = []
+    var cellStyleXfs: [CellStyle] = []
+    var cellStyleXfXML: [String] = []
+    var namedStyles: [NamedStyle] = []
+    /// name → index into `cellStyleXfs`; the first entry of a duplicated name wins.
+    var namedStyleXfIndex: [String: Int] = [:]
     var indexedColors: [String] = []
     var tables = StyleTables()
     var fragments: [XMLFragment] = []
@@ -160,7 +167,7 @@ final class StylesParser: SAXHandler {
     private var border = Border()
     private var side = ""
     private var xf: CellStyle?
-    private var xfNumFmt = 0, xfFont = 0, xfFill = 0, xfBorder = 0
+    private var xfIsNamedStyle = false
 
     static func color(_ a: [String: String]) -> Color? {
         if let rgb = a["rgb"] { return .rgb(rgb.uppercased()) }
@@ -174,7 +181,7 @@ final class StylesParser: SAXHandler {
         depth += 1
         if depth == 2, StylesParser.preservedSections.contains(name) { beginCapture(); return }
         switch name {
-        case "numFmts", "fonts", "fills", "borders", "cellXfs", "colors": section = name
+        case "numFmts", "fonts", "fills", "borders", "cellXfs", "cellStyleXfs", "cellStyles", "colors": section = name
         case "numFmt": if let id = Int(a["numFmtId"] ?? ""), let code = a["formatCode"] { numFmts[id] = code }
         case "rgbColor" where section == "colors": if let rgb = a["rgb"] { indexedColors.append(rgb.uppercased()) }
         case "font" where section == "fonts" && depth == 3: fontAttrs = FontAttributes(); beginCapture(deliveringEvents: true)
@@ -195,17 +202,21 @@ final class StylesParser: SAXHandler {
             setSide(s)
         case "color" where section == "borders" && !side.isEmpty:
             var s = currentSide(); s.color = StylesParser.color(a); setSide(s)
+        case "xf" where section == "cellStyleXfs" && depth == 3:
+            xf = parsedXF(a)
+            xfIsNamedStyle = true
+            beginCapture(deliveringEvents: true)
+        case "cellStyle" where section == "cellStyles":
+            guard let name = a["name"] else { return }
+            let xfId = Int(a["xfId"] ?? "0") ?? 0
+            let style = cellStyleXfs.indices.contains(xfId) ? cellStyleXfs[xfId] : CellStyle()
+            guard namedStyleXfIndex[name] == nil else { return }   // a duplicated name: the first wins
+            namedStyleXfIndex[name] = xfId
+            namedStyles.append(NamedStyle(name: name, style: style, builtinID: Int(a["builtinId"] ?? ""),
+                                          hidden: XMLBool.isTrue(a["hidden"])))
         case "xf" where section == "cellXfs":
-            var st = CellStyle()
-            xfNumFmt = Int(a["numFmtId"] ?? "0") ?? 0
-            xfFont = Int(a["fontId"] ?? "0") ?? 0
-            xfFill = Int(a["fillId"] ?? "0") ?? 0
-            xfBorder = Int(a["borderId"] ?? "0") ?? 0
-            st.numberFormat = numFmts[xfNumFmt] ?? NumberFormat.builtin[xfNumFmt] ?? "General"
-            if fonts.indices.contains(xfFont) { st.font = fonts[xfFont] }
-            if fills.indices.contains(xfFill) { st.fill = fills[xfFill] }
-            if borders.indices.contains(xfBorder) { st.border = borders[xfBorder] }
-            xf = st
+            cellXfNamedStyleIDs.append(Int(a["xfId"] ?? "0") ?? 0)
+            xf = parsedXF(a)
         case "alignment" where xf != nil:
             xf!.alignment = Alignment(horizontal: a["horizontal"].flatMap(Alignment.Horizontal.init(rawValue:)),
                                       vertical: a["vertical"].flatMap(Alignment.Vertical.init(rawValue:)),
@@ -215,6 +226,30 @@ final class StylesParser: SAXHandler {
             xf!.protection = Protection(locked: XMLBool.isNotFalse(a["locked"]), hidden: XMLBool.isTrue(a["hidden"]))
         default:
             if section == "fonts" { fontAttrs.apply(name, a) }
+        }
+    }
+
+    /// The formatting an `<xf>` names by index — the same resolution for `cellXfs` and `cellStyleXfs`.
+    private func parsedXF(_ a: [String: String]) -> CellStyle {
+        var st = CellStyle()
+        let numFmt = Int(a["numFmtId"] ?? "0") ?? 0, font = Int(a["fontId"] ?? "0") ?? 0
+        let fill = Int(a["fillId"] ?? "0") ?? 0, border = Int(a["borderId"] ?? "0") ?? 0
+        st.numberFormat = numFmts[numFmt] ?? NumberFormat.builtin[numFmt] ?? "General"
+        if fonts.indices.contains(font) { st.font = fonts[font] }
+        if fills.indices.contains(fill) { st.fill = fills[fill] }
+        if borders.indices.contains(border) { st.border = borders[border] }
+        return st
+    }
+
+    /// Links every cellXf to the named style its `xfId` points at, once both tables have been read. An `xfId` that
+    /// names nothing (out of range, or a `cellStyleXfs` entry no `cellStyle` names) leaves the cell unlinked.
+    func resolveNamedStyleLinks() {
+        guard !namedStyles.isEmpty else { return }
+        var nameOfXf: [Int: String] = [:]
+        for (name, index) in namedStyleXfIndex where nameOfXf[index] == nil { nameOfXf[index] = name }
+        for i in cellXfs.indices {
+            guard cellXfNamedStyleIDs.indices.contains(i), let name = nameOfXf[cellXfNamedStyleIDs[i]] else { continue }
+            if name != NamedStyle.normal.name { cellXfs[i].namedStyle = name }
         }
     }
 
@@ -234,7 +269,7 @@ final class StylesParser: SAXHandler {
         case "left", "right", "top", "bottom", "diagonal": side = ""
         case "border" where section == "borders" && depth == 2: borders.append(border)
         case "xf" where section == "cellXfs": if let xf { cellXfs.append(xf) }; xf = nil
-        case "numFmts", "fonts", "fills", "borders", "cellXfs", "colors": section = ""
+        case "numFmts", "fonts", "fills", "borders", "cellXfs", "cellStyleXfs", "cellStyles", "colors": section = ""
         default: break
         }
     }
@@ -244,6 +279,8 @@ final class StylesParser: SAXHandler {
         case "font": tables.fontXML.append(fragment.xml)
         case "fill": tables.fillXML.append(fragment.xml)
         case "border": tables.borderXML.append(fragment.xml)
+        case "xf" where xfIsNamedStyle:
+            cellStyleXfs.append(xf ?? CellStyle()); cellStyleXfXML.append(fragment.xml); xf = nil; xfIsNamedStyle = false
         default: depth -= 1; fragments.append(fragment)
         }
     }
@@ -270,6 +307,9 @@ final class StylesParser: SAXHandler {
         t.fonts = fonts; t.fills = fills; t.borders = borders
         t.numberFormats = numFmts.filter { $0.key >= NumberFormat.firstCustomID }
         t.rootAttributes = rootAttributes
+        t.cellStyleXfs = cellStyleXfs
+        t.cellStyleXfXML = cellStyleXfXML.count == cellStyleXfs.count ? cellStyleXfXML : []
+        t.namedStyleXfIndex = namedStyleXfIndex
         return t
     }
 }
