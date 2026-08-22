@@ -131,7 +131,7 @@ enum WorkbookWriter {
         rootRels += "<Relationship Id=\"rId\(rootNext)\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/>"; rootNext += 1
         rootRels += "<Relationship Id=\"rId\(rootNext)\" Type=\"\(XMLWriter.nsRel)/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>"
         archive.add("_rels/.rels", Data(rootRels.utf8))
-        archive.add("docProps/app.xml", Data((XMLWriter.header + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>SwiftSheets</Application><AppVersion>0.2</AppVersion></Properties>").utf8))
+        archive.add("docProps/app.xml", Data((XMLWriter.header + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>SwiftSheets</Application><AppVersion>0.1.0</AppVersion></Properties>").utf8))
         archive.add("docProps/core.xml", Data((XMLWriter.header + coreXML(wb.metadata)).utf8))
 
         // xl/workbook.xml

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SwiftSheet 実装仕様書 — XLSX・ODS・Numbers 統合スプレッドシートライブラリ</title>
+<title>SwiftSheets 実装仕様書 — XLSX・ODS・Numbers 統合スプレッドシートライブラリ</title>
 <style>
 /* =============================================================
    Starter Template
    このファイルは references/design-system.md に準拠した
    ボイラープレート。新規ドキュメントは必ずここから始める。
-   SwiftSheet 実装仕様書 — XLSX・ODS・Numbers 統合スプレッドシートライブラリ など {{...}} のプレースホルダは置換すること。
+   SwiftSheets 実装仕様書 — XLSX・ODS・Numbers 統合スプレッドシートライブラリ など {{...}} のプレースホルダは置換すること。
    ============================================================= */
 
 /* ---------- Design Tokens ---------- */
@@ -601,7 +601,7 @@ pre .vr { color: var(--code-var); }
   <div class="container-hero hero-inner">
     <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.3 Draft</div>
     <h1 class="hero-title">
-      <span class="accent">SwiftSheet</span> 実装仕様書
+      <span class="accent">SwiftSheets</span> 実装仕様書
     </h1>
     <p class="hero-lede">
       XLSX / XLSM・ODS・Apple Numbers の3系統スプレッドシート形式を、単一の形式中立モデルで読み書きする
@@ -716,8 +716,9 @@ pre .vr { color: var(--code-var); }
     </ul>
   </div>
   <p>
-    なお <code>SwiftSheet</code> は本仕様書内の仮称である。公開前に Swift Package Index /
-    GitHub 上の名称衝突を確認して確定する。
+    名称は <code>SwiftSheets</code>（起草時の仮称は SwiftSheets）。Apple のフレームワーク命名（扱う対象が数えられる物は
+    Charts・Contacts・Photos のように複数形）と Swift パッケージの慣習（swift-collections → <code>Collections</code>）に
+    合わせて 2026-08-22 に複数形で確定し、同日 GitHub に <code>nanbu/SwiftSheets</code> として公開した。
   </p>
 </section>
 
@@ -792,13 +793,13 @@ pre .vr { color: var(--code-var); }
   <h3>2.2 SwiftPM ターゲット構成</h3>
   <pre><span class="filename">Package.swift（抜粋）</span><code><span class="cm">// 利用者は必要なコーデックだけ import できる粒度で分割する</span>
 <span class="kw">let</span> package = <span class="ty">Package</span>(
-    name: <span class="st">"SwiftSheet"</span>,
+    name: <span class="st">"SwiftSheets"</span>,
     products: [
         .library(name: <span class="st">"SheetCore"</span>,    targets: [<span class="st">"SheetCore"</span>]),    <span class="cm">// モデル+抽象</span>
         .library(name: <span class="st">"SheetXLSX"</span>,    targets: [<span class="st">"SheetXLSX"</span>]),    <span class="cm">// xlsx/xlsm</span>
         .library(name: <span class="st">"SheetODS"</span>,     targets: [<span class="st">"SheetODS"</span>]),
         .library(name: <span class="st">"SheetNumbers"</span>, targets: [<span class="st">"SheetNumbers"</span>]),
-        .library(name: <span class="st">"SwiftSheet"</span>,   targets: [<span class="st">"SwiftSheet"</span>]),   <span class="cm">// 全部入り</span>
+        .library(name: <span class="st">"SwiftSheets"</span>,   targets: [<span class="st">"SwiftSheets"</span>]),   <span class="cm">// 全部入り</span>
     ],
     dependencies: [
         .package(url: <span class="st">"…/ZIPFoundation"</span>,  from: <span class="st">"0.9.0"</span>),
@@ -1476,7 +1477,7 @@ pre .vr { color: var(--code-var); }
 
   <h3>14.2 ワークブック — 生成・読み込み・保存</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>load_workbook(path)</code></td><td><code>try Workbook(contentsOf: url)</code></td><td>読み込み。形式は内容から自動判別（第4章）</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
@@ -1489,7 +1490,7 @@ pre .vr { color: var(--code-var); }
     <tr><td><code>wb.defined_names</code></td><td><code>wb.definedNames</code></td><td>名前付き範囲の辞書</td></tr>
   </table></div>
 
-  <pre><code><span class="kw">import</span> SwiftSheet
+  <pre><code><span class="kw">import</span> SwiftSheets
 
 <span class="kw">var</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"予算.xlsx"</span>))
 print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "マスタ"]</span>
@@ -1497,7 +1498,7 @@ print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "
 
   <h3>14.3 シートとテーブル</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>wb['Sales']</code></td><td><code>wb.sheets["Sales"]</code></td><td>名前アクセス。<code>Sheet?</code> を返す（KeyError ではなく Optional）</td></tr>
     <tr><td><code>wb.active</code></td><td><code>wb.activeSheet</code></td><td>アクティブシート（既定は先頭）</td></tr>
     <tr><td><code>wb.create_sheet('X', 0)</code></td><td><code>wb.addSheet(named: "X", at: 0)</code></td><td>作成。位置省略で末尾。作成した <code>Sheet</code> への添字を返す</td></tr>
@@ -1519,7 +1520,7 @@ print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "
 
   <h3>14.4 セルアクセスと走査</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>ws['A1'].value</code></td><td><code>sheet["A1"]</code></td><td>取得。<code>CellValue?</code>（空セルは nil）</td></tr>
     <tr><td><code>ws['A1'] = 42</code></td><td><code>sheet["A1"] = 42</code></td><td>代入。<code>Int</code> / <code>Double</code> / <code>Decimal</code> / <code>String</code> / <code>Date</code> / <code>Bool</code> / <code>Formula</code> / <code>nil</code> をリテラル変換で受理</td></tr>
     <tr><td><code>ws.cell(row=1, column=2)</code></td><td><code>sheet[0, 1]</code></td><td><strong>0 始まり</strong>の整数添字。A1 は 1 始まり — 二重系統を混ぜない</td></tr>
@@ -1547,7 +1548,7 @@ sheet[<span class="st">"C1"</span>] = <span class="ty">Date</span>()
 
   <h3>14.5 行・列・構造操作</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>ws.insert_rows(2, amount=3)</code></td><td><code>sheet.insertRows(at: 1, count: 3)</code></td><td>行挿入（0始まり）。<strong>数式内参照を AST 経由で自動シフト</strong>（openpyxl は数式を追随させない — 本ライブラリの差別化点）</td></tr>
     <tr><td><code>ws.delete_rows(2)</code></td><td><code>sheet.deleteRows(at: 1, count: 1)</code></td><td>行削除。参照切れは <code>#REF!</code> エラー値へ置換</td></tr>
     <tr><td><code>ws.insert_cols / delete_cols</code></td><td><code>sheet.insertColumns / deleteColumns</code></td><td>列版。挙動は行と対称</td></tr>
@@ -1562,7 +1563,7 @@ sheet[<span class="st">"C1"</span>] = <span class="ty">Date</span>()
 
   <h3>14.6 スタイルと書式</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>cell.font = Font(bold=True, size=14)</code></td><td><code>sheet.style("A1") { $0.font.bold = true; $0.font.size = 14 }</code></td><td>クロージャで部分更新。範囲指定可</td></tr>
     <tr><td><code>PatternFill(fgColor='FFF2CC', fill_type='solid')</code></td><td><code>$0.fill = .solid("FFF2CC")</code></td><td>塗り。RGB hex 文字列</td></tr>
     <tr><td><code>Border(bottom=Side(style='thin'))</code></td><td><code>$0.border.bottom = .thin</code> ／ <code>$0.border = .all(.thin)</code></td><td>罫線。辺ごと・一括の両方</td></tr>
@@ -1584,7 +1585,7 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
 
   <h3>14.7 数式</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>cell.value = '=SUM(A1:B2)'</code></td><td><code>sheet["C1"] = Formula("=SUM(A1:B2)")</code></td><td>代入時に AST 化。解析不能なら <code>.unparsed</code> 退避（第5章）</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>ReadOptions(dataOnly: true)</code></td><td>キャッシュ値で読む</td></tr>
     <tr><td>（文字列のみ）</td><td><code>case .formula(let ast, let cached)</code></td><td>AST とキャッシュ値の両方に常時アクセス可能</td></tr>
@@ -1594,7 +1595,7 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
 
   <h3>14.8 保存・変換・警告</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>wb.save('a.xlsx')</code></td><td><code>let result = try wb.write(to: url)</code></td><td><code>WriteResult</code>（<code>@discardableResult</code>）</td></tr>
     <tr><td>—</td><td><code>result.warnings</code></td><td><code>[ConversionWarning]</code>。損失の全記録（第4・6章）</td></tr>
     <tr><td>—</td><td><code>result.suggestion</code></td><td>いずれの形式でも劣化が閾値を超えた場合に代替形式の提案を返す（第11章）</td></tr>
@@ -1619,7 +1620,7 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
 
   <h3>14.10 ユーティリティ</h3>
   <div class="compare pbauto"><table>
-    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>get_column_letter(3)</code> → <code>'C'</code></td><td><code>ColumnName(2)</code> → <code>"C"</code></td><td>0 始まり。bijective base-26</td></tr>
     <tr><td><code>column_index_from_string('C')</code></td><td><code>ColumnIndex("C")</code> → <code>2</code></td><td>逆変換</td></tr>
     <tr><td><code>coordinate_from_string('B3')</code></td><td><code>CellRef("B3")</code></td><td>失敗可能イニシャライザ</td></tr>
@@ -1837,7 +1838,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.1 名称とパッケージ構成</h3>
   <ul>
-    <li><strong>名称は SwiftSheets</strong>（オーナー決定 2026-08-22。本文の SwiftSheet は仮称）。リポジトリは <code>~/Developer/Lab/SwiftSheets</code>（Stream の <code>app/SwiftSheets</code> から履歴ごと切り出し）。</li>
+    <li><strong>名称は SwiftSheets</strong>（オーナー決定 2026-08-22。本文の SwiftSheets は仮称）。リポジトリは <code>~/Developer/Lab/SwiftSheets</code>（Stream の <code>app/SwiftSheets</code> から履歴ごと切り出し）。</li>
     <li>ターゲットは <code>SheetCore</code> / <code>SheetXLSX</code> / <code>SheetCSV</code> / 全部入り <code>SwiftSheets</code>。未実装の <code>SheetODS</code> / <code>SheetNumbers</code> は空ターゲットを作らない（P3・P4 で追加）。CSV は §9 の方針どおり独立ターゲット。</li>
     <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ Compression による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。</li>
     <li>ZIP / XML の基盤は SheetCore に置き、<code>package</code> アクセスでコーデックへ公開する（L1 を別ターゲットにしない — 利用者に見せる必要がない）。</li>

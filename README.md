@@ -20,6 +20,20 @@ let result = try wb.write(to: URL(filePath: "月次報告.xlsx"))   // charts, c
 print(result.warnings)                        // whatever the format could not express — never dropped silently
 ```
 
+## Installation
+
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.1.0")
+],
+targets: [
+    .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
+]
+```
+
+Status: **0.1** — XLSX / XLSM / CSV are usable today; the API may still change before 1.0 (see the roadmap below).
+
 ## Formats
 
 | format | read | write | round-trip preservation | status |
@@ -121,18 +135,19 @@ Known limits of the current preservation: a cell's named-style link (`xfId`), `c
 
 ```bash
 swift test                                                                 # model, formulas, preservation, CSV, parity suites
-uv run --project ../Stream/web python Tests/FixtureGenerator/make_fixtures.py                # regenerate openpyxl-made fixtures
-uv run --project ../Stream/web python Tests/FixtureGenerator/make_preservation_fixtures.py   # chart / table / VBA fixtures
-python3 Tests/OpenpyxlParity/check.py                                      # ledger ↔ Swift provenance cross-check
-uv run --project ../Stream/web python Tests/OpenpyxlParity/verify_with_openpyxl.py   # SwiftSheets ⇄ openpyxl round trips
+python3 Tests/FixtureGenerator/make_fixtures.py                           # regenerate openpyxl-made fixtures (any Python with openpyxl)
+python3 Tests/FixtureGenerator/make_preservation_fixtures.py              # chart / table / VBA fixtures
+python3 Tests/OpenpyxlParity/check.py                                      # ledger ↔ Swift provenance cross-check (no dependencies)
+python3 Tests/OpenpyxlParity/verify_with_openpyxl.py                       # SwiftSheets ⇄ openpyxl round trips (needs openpyxl)
 /Applications/LibreOffice.app/Contents/MacOS/soffice --headless --convert-to pdf out.xlsx   # the machine judge for "opens cleanly"
 ```
 
 ## Name
 
-`SwiftSheets` — decided by the owner on 2026-08-22 (the spec's working title was "SwiftSheet"). No existing GitHub
-project uses the exact name (neighbours: SwiftySheets, SwiftSpreadsheet, SwiftSheet). A trademark / Swift Package
-Index collision check remains a pre-publish step.
+`SwiftSheets` — plural, the way Apple names frameworks whose subject is a countable thing (Charts, Contacts, Photos)
+and the way Swift packages name their products (swift-collections → `Collections`). The spec's working title was the
+singular "SwiftSheet", which is also taken on GitHub by an unrelated CSV-sharing tool; a handful of unrelated toy
+repositories (≤ 1 star) share the plural name. Decided by the owner on 2026-08-22.
 
 ## License
 

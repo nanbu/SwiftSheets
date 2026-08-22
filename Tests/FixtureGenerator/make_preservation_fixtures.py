@@ -2,7 +2,7 @@
 not interpret — a chart, a comment, a table, conditional formatting, data validation, a defined name, a second sheet
 with a drawing — plus a hand-made .xlsm with a (dummy) VBA project. Regenerate with:
 
-    uv run --project ../../../Stream/web python Tests/FixtureGenerator/make_preservation_fixtures.py
+    python3 Tests/FixtureGenerator/make_preservation_fixtures.py   # any Python with openpyxl (the Stream web venv: uv run --project ../Stream/web python …)
 """
 import pathlib
 import shutil
