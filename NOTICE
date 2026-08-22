@@ -1,0 +1,24 @@
+SwiftSheets — third-party material
+
+SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries material from other projects:
+
+1. numbers-parser (https://github.com/masaccio/numbers-parser), MIT License, Copyright 2021 Jon Connell.
+   Used, unmodified or machine-derived, for Apple Numbers support (spec chapters 10–11, Appendix B.8):
+   - Sources/SheetNumbers/Resources/registry.json — the IWA type-id → message-name registry (numbers-parser
+     `generated/mapping.py`), extracted by scripts/extract-numbers-schema.py
+   - Sources/SheetNumbers/Resources/functions.json — the Numbers function-id → name table (`generated/functionmap.py`)
+   - Sources/SheetNumbers/Resources/schema.json — field numbers / types of the Protobuf messages SwiftSheets reads
+     and writes, extracted from the descriptors embedded in numbers-parser's generated `*_pb2.py` modules
+     (themselves derived from the Numbers application with numbers-parser's proto-dump tooling)
+   - Sources/SheetNumbers/Resources/empty.numbers — the empty document used as the write template
+   - Tests/SwiftSheetsTests/Fixtures/numbers/*.numbers — test documents from numbers-parser's test suite
+   No Python code from numbers-parser is included; the Swift reader / writer were written against the extracted
+   schema and the observed behaviour of the documents.
+
+2. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
+   - Tests/SwiftSheetsTests/Fixtures/openpyxl/ — test fixture files, unmodified (see NOTICE.md there)
+   - Tests/OpenpyxlParity/openpyxl-3.1.5-tests.json — an enumeration of openpyxl's test function names
+
+The Numbers file format is proprietary to Apple and undocumented. Reading and writing it for interoperability is
+generally accepted practice, but this is not legal advice; embedding SwiftSheets' Numbers support in a commercial
+product is the integrator's own call.

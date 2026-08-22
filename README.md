@@ -41,10 +41,29 @@ Status: **0.1** — XLSX / XLSM / CSV are usable today; the API may still change
 | XLSX | ✅ | ✅ | ✅ F3 — uninterpreted parts re-packed byte for byte, ids kept | P1 done |
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
-| ODS | detection only | — | — | roadmap P3 |
-| Numbers | detection only | — | — | roadmap P4 / P5 |
+| ODS | ✅ | ✅ | F2 — values, formulas, styles, merges, sizes; pictures / objects of a source ODS are not re-linked | P3 done |
+| Numbers | ✅ values, formulas (as text), merges, sizes, several tables per sheet | ✅ values, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
-`SheetFormat.detect(from:)` identifies all five from content; reading ODS / Numbers throws `SheetError.unsupportedFeature`.
+`SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
+specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
+up with new Numbers releases.
+
+### Numbers: what is and is not there
+
+- Read: every value kind (decimal128 numbers, text, rich text as plain text, dates, booleans, durations, errors),
+  formulas rebuilt from Numbers' formula trees into XLSX-dialect text (cross-table references as `'Sheet::Table'!A1`),
+  merges, row heights / column widths, hidden rows / columns, table positions as `Table.anchor`, header rows as
+  `freezePanes`. Cell formatting (fonts, fills, number formats) is **not** read yet (F1 fidelity).
+- Write: the empty document shipped with numbers-parser is the template (spec §11.1); the first sheet / table is
+  patched in place, further sheets and tables are deep-copied subgraphs with fresh ids and UUIDs. Values, merges,
+  sizes, header rows. **Formulas are written as their cached value** with a `degraded` warning — Numbers' formula
+  archives are not generated (the reference implementation cannot either, and without Numbers.app on the build
+  machine a generated archive could not be validated). Formatting is not written (`degraded` warning, once per table).
+- Judges: round trip through our own reader, numbers-parser reading our output
+  (`Tests/NumbersParity/verify_with_numbers_parser.py`), and LibreOffice's Numbers importer. **Numbers.app itself
+  has not opened these files** — that check is on the release checklist in MAINTENANCE.md.
+- Protobuf is handled by a dependency-free dynamic tree (`ProtoMessage`) driven by a machine-extracted schema;
+  unknown fields round-trip byte for byte (`NumbersIWATests.fixturesRoundTripByteForByte`).
 
 ## Targets
 
@@ -53,6 +72,8 @@ Status: **0.1** — XLSX / XLSM / CSV are usable today; the API may still change
 | `SheetCore` | `Workbook` → `Sheets` → `Sheet` → `[Table]` → `Cell` model, styles, `FormulaExpr` AST + parser / emitters (XLSX and ODS dialects), the `SpreadsheetCodec` contract, `PreservationStore`, ZIP / XML plumbing, CSV options | nothing |
 | `SheetXLSX` | `XLSXCodec` / `XLSMCodec` | SheetCore |
 | `SheetCSV` | `CSVCodec` (RFC 4180 + real-world dialects; UTF-8 BOM auto-detection, explicit encodings) | SheetCore |
+| `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect) | SheetCore |
+| `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table as JSON resources) | SheetCore |
 | `SwiftSheets` | everything plus the facade: `Workbook(contentsOf:)`, `write(to:as:)`, `data(as:)`, `Workbook.convert` | all of the above |
 
 ## Model in one paragraph
@@ -139,6 +160,9 @@ python3 Tests/FixtureGenerator/make_fixtures.py                           # rege
 python3 Tests/FixtureGenerator/make_preservation_fixtures.py              # chart / table / VBA fixtures
 python3 Tests/OpenpyxlParity/check.py                                      # ledger ↔ Swift provenance cross-check (no dependencies)
 python3 Tests/OpenpyxlParity/verify_with_openpyxl.py                       # SwiftSheets ⇄ openpyxl round trips (needs openpyxl)
+python3 Tests/NumbersParity/dump_with_numbers_parser.py                    # refresh <fixture>.expected.json from numbers-parser
+python3 Tests/NumbersParity/verify_with_numbers_parser.py                  # numbers-parser reads what SwiftSheets wrote
+python3 scripts/extract-numbers-schema.py                                 # regenerate the Numbers schema resources from numbers-parser
 /Applications/LibreOffice.app/Contents/MacOS/soffice --headless --convert-to pdf out.xlsx   # the machine judge for "opens cleanly"
 ```
 

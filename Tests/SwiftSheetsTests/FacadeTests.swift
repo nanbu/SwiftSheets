@@ -35,13 +35,33 @@ import SwiftSheets
         #expect(SheetFormat(fileExtension: "XLSM") == .xlsm)
     }
 
-    @Test func unsupportedFormatsFailLoudly() throws {
+    @Test func brokenContainersFailLoudly() throws {
         var ods = ZipWriter()
-        ods.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
+        ods.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)   // no content.xml
         #expect(throws: SheetError.self) { try Workbook(data: ods.finish()) }
         #expect(throws: SheetError.unrecognizedFormat) { try Workbook(data: Data([0x00, 0x01, 0xFF, 0xFE])) }
-        #expect(throws: SheetError.self) { try Workbook().write(as: .ods) }
-        #expect(throws: SheetError.self) { try Workbook().write(as: .numbers) }
+        var numbers = ZipWriter()
+        numbers.add("Index/Document.iwa", Data([0, 1, 0, 0, 0]))
+        #expect(throws: SheetError.self) { try Workbook(data: numbers.finish()) }
+    }
+
+    @Test func everyFormatRoundTripsThroughTheFacade() throws {
+        var wb = Workbook()
+        wb.sheets[0].name = "集計"
+        wb.sheets[0]["A1"] = "名前"; wb.sheets[0]["B1"] = 42; wb.sheets[0]["C1"] = CellValue(CivilDate(year: 2026, month: 9, day: 1)!)
+        for format in SheetFormat.allCases {
+            let result = try wb.write(as: format)
+            #expect(SheetFormat.detect(from: result.data) == format, "\(format)")
+            let back = try Workbook(data: result.data)
+            #expect(back.sheets[0]["A1"] == .text("名前"), "\(format)")
+            if format == .csv {
+                #expect(back.sheets[0]["B1"] == .text("42"), "csv keeps text")   // no type inference by default
+            } else {
+                #expect(back.sheets[0]["B1"]?.intValue == 42, "\(format)")
+                #expect(back.sheets[0]["C1"]?.dateValue?.date.description == "2026-09-01", "\(format)")
+            }
+            #expect(back.sourceInfo?.format == format, "\(format)")
+        }
     }
 
     @Test func readWriteConvertThroughTheFacade() throws {

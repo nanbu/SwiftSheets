@@ -7,6 +7,8 @@ import PackageDescription
 //   SheetCore   model, styles, formula AST, codec contract, ZIP / XML plumbing, CSV options   (no dependencies)
 //   SheetXLSX   .xlsx / .xlsm codec (ECMA-376 SpreadsheetML) with round-trip preservation
 //   SheetCSV    .csv / .tsv codec (RFC 4180 + real-world dialects, explicit encodings)
+//   SheetODS    .ods codec (ODF 1.3 OpenDocument Spreadsheet)
+//   SheetNumbers .numbers codec (Apple iWork IWA: Snappy + Protobuf, schema from numbers-parser — see NOTICE)
 //   SwiftSheets everything, plus the facade: Workbook(contentsOf:), write(to:as:), convert
 //
 // Import only what you need (`import SheetXLSX`) or the umbrella (`import SwiftSheets`).
@@ -20,13 +22,17 @@ let package = Package(
         .library(name: "SheetCore", targets: ["SheetCore"]),
         .library(name: "SheetXLSX", targets: ["SheetXLSX"]),
         .library(name: "SheetCSV", targets: ["SheetCSV"]),
+        .library(name: "SheetODS", targets: ["SheetODS"]),
+        .library(name: "SheetNumbers", targets: ["SheetNumbers"]),
         .library(name: "SwiftSheets", targets: ["SwiftSheets"])
     ],
     targets: [
         .target(name: "SheetCore"),
         .target(name: "SheetXLSX", dependencies: ["SheetCore"]),
         .target(name: "SheetCSV", dependencies: ["SheetCore"]),
-        .target(name: "SwiftSheets", dependencies: ["SheetCore", "SheetXLSX", "SheetCSV"]),
+        .target(name: "SheetODS", dependencies: ["SheetCore"]),
+        .target(name: "SheetNumbers", dependencies: ["SheetCore"], resources: [.copy("Resources")]),
+        .target(name: "SwiftSheets", dependencies: ["SheetCore", "SheetXLSX", "SheetCSV", "SheetODS", "SheetNumbers"]),
         .testTarget(
             name: "SwiftSheetsTests",
             dependencies: ["SwiftSheets"],

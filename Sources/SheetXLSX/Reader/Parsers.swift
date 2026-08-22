@@ -186,7 +186,7 @@ final class StylesParser: SAXHandler {
         case "bgColor" where inPatternFill: fill.backgroundColor = StylesParser.color(a)
         case "border" where section == "borders" && depth == 3:
             border = Border()
-            border.diagonalUp = a["diagonalUp"] == "1"; border.diagonalDown = a["diagonalDown"] == "1"; border.outline = a["outline"] != "0"
+            border.diagonalUp = XMLBool.isTrue(a["diagonalUp"]); border.diagonalDown = XMLBool.isTrue(a["diagonalDown"]); border.outline = XMLBool.isNotFalse(a["outline"])
             beginCapture(deliveringEvents: true)
         case "left", "right", "top", "bottom", "diagonal":
             guard section == "borders" else { return }
@@ -209,10 +209,10 @@ final class StylesParser: SAXHandler {
         case "alignment" where xf != nil:
             xf!.alignment = Alignment(horizontal: a["horizontal"].flatMap(Alignment.Horizontal.init(rawValue:)),
                                       vertical: a["vertical"].flatMap(Alignment.Vertical.init(rawValue:)),
-                                      wrapText: a["wrapText"] == "1", shrinkToFit: a["shrinkToFit"] == "1",
+                                      wrapText: XMLBool.isTrue(a["wrapText"]), shrinkToFit: XMLBool.isTrue(a["shrinkToFit"]),
                                       indent: Int(a["indent"] ?? "0") ?? 0, textRotation: Int(a["textRotation"] ?? "0") ?? 0)
         case "protection" where xf != nil:
-            xf!.protection = Protection(locked: a["locked"] != "0", hidden: a["hidden"] == "1")
+            xf!.protection = Protection(locked: XMLBool.isNotFalse(a["locked"]), hidden: XMLBool.isTrue(a["hidden"]))
         default:
             if section == "fonts" { fontAttrs.apply(name, a) }
         }
@@ -297,28 +297,28 @@ final class SheetParser: SAXHandler {
         if depth == 2, !SheetParser.knownChildren.contains(name) { beginCapture(); return }
         if skipDepth > 0 { skipDepth += 1; return }
         switch name {
-        case "outlinePr": sheet.properties.summaryBelow = a["summaryBelow"] != "0"; sheet.properties.summaryRight = a["summaryRight"] != "0"
+        case "outlinePr": sheet.properties.summaryBelow = XMLBool.isNotFalse(a["summaryBelow"]); sheet.properties.summaryRight = XMLBool.isNotFalse(a["summaryRight"])
         case "tabColor": sheet.properties.tabColor = StylesParser.color(a)
         case "dimension": sheet.declaredDimension = a["ref"].flatMap(CellRange.init)
         case "sheetPr": sheet.properties.codeName = a["codeName"]; sheet.properties.filterMode = a["filterMode"].map { $0 == "1" || $0 == "true" }
         case "pageSetUpPr": sheet.properties.fitToPage = a["fitToPage"].map { $0 == "1" || $0 == "true" }
         case "sheetView":
-            sheet.view.showGridLines = a["showGridLines"] != "0"
+            sheet.view.showGridLines = XMLBool.isNotFalse(a["showGridLines"])
             sheet.view.zoomScale = Int(a["zoomScale"] ?? "100") ?? 100
-            sheet.view.tabSelected = a["tabSelected"] == "1"
+            sheet.view.tabSelected = XMLBool.isTrue(a["tabSelected"])
         case "selection": if let ac = a["activeCell"] { sheet.view.activeCell = ac }; if let sq = a["sqref"] { sheet.view.sqref = sq }
         case "sheetFormatPr":
             var f = SheetFormatProperties()
             f.baseColWidth = Int(a["baseColWidth"] ?? "") ?? f.baseColWidth; f.defaultColWidth = Double(a["defaultColWidth"] ?? "")
             f.defaultRowHeight = Double(a["defaultRowHeight"] ?? "") ?? f.defaultRowHeight
-            f.customHeight = a["customHeight"] == "1"; f.zeroHeight = a["zeroHeight"] == "1"
+            f.customHeight = XMLBool.isTrue(a["customHeight"]); f.zeroHeight = XMLBool.isTrue(a["zeroHeight"])
             sheet.sheetFormat = f
         case "pane": if a["state"] == "frozen" || a["state"] == "frozenSplit", let tl = a["topLeftCell"] { sheet.freezePanes = CellRef(tl) }
         case "col":
             guard let mn = Int(a["min"] ?? ""), let mx = Int(a["max"] ?? ""), mn >= 1 else { return }
             var d = ColumnDimension()
-            d.width = Double(a["width"] ?? ""); d.hidden = a["hidden"] == "1"; d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0
-            d.collapsed = a["collapsed"] == "1"; d.bestFit = a["bestFit"] == "1"
+            d.width = Double(a["width"] ?? ""); d.hidden = XMLBool.isTrue(a["hidden"]); d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0
+            d.collapsed = XMLBool.isTrue(a["collapsed"]); d.bestFit = XMLBool.isTrue(a["bestFit"])
             if let st = Int(a["style"] ?? ""), st > 0 { d.style = styles.style(st) }
             for c in (mn - 1)...(Swift.min(mx, mn + 16383) - 1) { sheet.table.columnDimensions[c] = d }
         case "row":
@@ -327,9 +327,9 @@ final class SheetParser: SAXHandler {
             lastColumn = -1
             sheet.table.nextAppendRow = currentRow + 1
             var d = RowDimension()
-            if a["customHeight"] == "1" || a["ht"] != nil { d.height = Double(a["ht"] ?? "") }
-            d.hidden = a["hidden"] == "1"; d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0; d.collapsed = a["collapsed"] == "1"
-            d.thickTop = a["thickTop"] == "1"; d.thickBottom = a["thickBot"] == "1"
+            if XMLBool.isTrue(a["customHeight"]) || a["ht"] != nil { d.height = Double(a["ht"] ?? "") }
+            d.hidden = XMLBool.isTrue(a["hidden"]); d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0; d.collapsed = XMLBool.isTrue(a["collapsed"])
+            d.thickTop = XMLBool.isTrue(a["thickTop"]); d.thickBottom = XMLBool.isTrue(a["thickBot"])
             if let st = Int(a["s"] ?? ""), st > 0 { d.style = styles.style(st) }
             if !d.isDefault { sheet.table.rowDimensions[currentRow] = d }
         case "c":
@@ -365,8 +365,8 @@ final class SheetParser: SAXHandler {
                 if let link { var c = sheet.table[cell: ref]; c.hyperlink = link; sheet.table.cells[ref] = c }
             }
         case "printOptions":
-            sheet.printOptions.horizontalCentered = a["horizontalCentered"] == "1"; sheet.printOptions.verticalCentered = a["verticalCentered"] == "1"
-            sheet.printOptions.headings = a["headings"] == "1"; sheet.printOptions.gridLines = a["gridLines"] == "1"
+            sheet.printOptions.horizontalCentered = XMLBool.isTrue(a["horizontalCentered"]); sheet.printOptions.verticalCentered = XMLBool.isTrue(a["verticalCentered"])
+            sheet.printOptions.headings = XMLBool.isTrue(a["headings"]); sheet.printOptions.gridLines = XMLBool.isTrue(a["gridLines"])
         case "pageMargins":
             var m = PageMargins()
             m.left = Double(a["left"] ?? "") ?? m.left; m.right = Double(a["right"] ?? "") ?? m.right; m.top = Double(a["top"] ?? "") ?? m.top
@@ -514,4 +514,11 @@ final class AppPropertiesParser: SAXHandler {
         default: break
         }
     }
+}
+
+
+/// xsd:boolean: "1" / "true" are true, "0" / "false" are false (LibreOffice writes the words, Excel the digits).
+enum XMLBool {
+    static func isTrue(_ v: String?) -> Bool { v == "1" || v == "true" }
+    static func isNotFalse(_ v: String?) -> Bool { v != "0" && v != "false" }
 }

@@ -2,6 +2,8 @@ import Foundation
 @_exported import SheetCore
 @_exported import SheetXLSX
 @_exported import SheetCSV
+@_exported import SheetODS
+@_exported import SheetNumbers
 
 /// The facade (spec §4.3 / §14.2): detect the format from the bytes, hand off to the codec; write by explicit
 /// format or by file extension. Reading one format and writing another *is* the conversion — the model mediates.
@@ -20,8 +22,8 @@ extension Workbook {
         case .xlsx: self = try XLSXCodec.read(data, options: options)
         case .xlsm: self = try XLSMCodec.read(data, options: options)
         case .csv: self = try CSVCodec.read(data, options: options)
-        case .ods: throw SheetError.unsupportedFeature("ODS reading is not implemented yet (roadmap P3)")
-        case .numbers: throw SheetError.unsupportedFeature("Numbers reading is not implemented yet (roadmap P4)")
+        case .ods: self = try ODSCodec.read(data, options: options)
+        case .numbers: self = try NumbersCodec.read(data, options: options)
         }
     }
 
@@ -31,8 +33,8 @@ extension Workbook {
         case .xlsx: return try XLSXCodec.write(self, options: options)
         case .xlsm: return try XLSMCodec.write(self, options: options)
         case .csv: return try CSVCodec.write(self, options: options)
-        case .ods: throw SheetError.unsupportedFeature("ODS writing is not implemented yet (roadmap P3)")
-        case .numbers: throw SheetError.unsupportedFeature("Numbers writing is not implemented yet (roadmap P5)")
+        case .ods: return try ODSCodec.write(self, options: options)
+        case .numbers: return try NumbersCodec.write(self, options: options)
         }
     }
 

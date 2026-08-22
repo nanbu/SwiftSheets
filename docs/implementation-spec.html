@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.3 Draft</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.4 Draft</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> 実装仕様書
     </h1>
@@ -1821,6 +1821,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.1 Draft</td><td>2026-08-22</td><td>第14章（API 全一覧・openpyxl 対応表）・第15章（ユースケース集）を追加</td></tr>
     <tr><td>1.2 Draft</td><td>2026-08-22</td><td>Numbers 書き出しを正式対応へ格上げ（警告機構を全形式共通の契約として再定義）。第9章 CSV コーデックを新設（UTF-8 BOM 自動判別・文字コード指定）</td></tr>
     <tr><td>1.3 Draft</td><td>2026-08-22</td><td>P1・P2（SheetCore・XLSX/XLSM・CSV・数式 AST・F3 保全）の実装に伴う決定と逸脱を付録 B に記録。名称を SwiftSheets に確定</td></tr>
+    <tr><td>1.4 Draft</td><td>2026-08-22</td><td>P3（ODS）・P4/P5（Numbers）の実装方針を付録 B.8 に固定: Protobuf は依存ゼロの動的ツリー、Numbers の数式書き出しはキャッシュ値＋警告に退避</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -1896,8 +1897,24 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.7 未着手（本文のとおりロードマップ）</h3>
   <ul>
-    <li>ODS（P3）・Numbers（P4 / P5）: 形式判別 <code>SheetFormat.detect(from:)</code> のみ実装。読み書きは <code>SheetError.unsupportedFeature</code>。NOTICE・MAINTENANCE.md は Numbers 着手時に作る。</li>
     <li>名前付きスタイル・コメントの書き出し（VML）・条件付き書式 / データ検証の API・ストリーミング読み書き・暗号化の明示エラー（現状は <code>corruptedContainer</code> / <code>unrecognizedFormat</code> で失敗する）。</li>
+    <li>Numbers の数式を内部表現（TSCE 数式アーカイブ）で生成すること — B.8 参照。</li>
+  </ul>
+
+  <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>
+  <div class="callout callout-warn">
+    <span class="label">本文 §10〜§11 からの逸脱（理由つき）</span>
+    <ul>
+      <li><strong>Protobuf は SwiftProtobuf ＋ protoc ではなく、依存ゼロの動的ツリー</strong>（ワイヤ形式のデコード／エンコードを自前実装し、フィールド番号で辿る）。理由: (1) 外部依存ゼロを全ターゲットで保つ、(2) 未知フィールドの保全（§10.2）が構造的に成立する — 読んだバイト列をフィールド順のまま持ち、触ったフィールドだけ書き換える、(3) protoc / protoc-gen-swift のビルド環境を要求しない、(4) 1,129 メッセージ分の生成コードを抱えない。型安全性は失うため、使うメッセージとフィールド番号は <strong>numbers-parser の記述子から機械抽出した JSON リソース</strong>（<code>Sources/SheetNumbers/Resources/</code>）から引き、手で書き写さない。</li>
+      <li><strong>Numbers の数式は書き出さない</strong>（§11.1・§11.2「◎ 内部表現で生成」は未達）。数式セルはキャッシュ値を書き、<code>degraded</code> 警告を返す — §11.2 の「マッピング不能な関数」の退避規則を全関数に適用した形。理由: 参照実装 numbers-parser 自身が数式アーカイブを書けず（読みのみ）、この Mac には Numbers が無いため新規生成した内部表現を検証できない。</li>
+      <li><strong>検証の審判</strong>: Numbers 実機での開封確認は不可（環境に無い）。自動審判は numbers-parser による読み戻し（§11.3 の「クロス実装検証」）と自前の往復。ODS は LibreOffice ヘッドレス（§8.4）。Excel 生成の ODS コーパス（§8.4）は Excel が無いため未収集。</li>
+    </ul>
+  </div>
+  <ul>
+    <li><strong>ODS（P3・実装済み）</strong>: §8 のとおり自前実装（LibreOffice のソースは閲覧していない — 審判として実行し出力ファイルを観察しただけ）。mimetype は stored で先頭、RLE は読みで展開し末尾の空反復は打ち切り、書きは対称に畳む。結合は <code>number-columns-spanned</code> / <code>rows-spanned</code> と <code>covered-table-cell</code>、日付 / 時刻は ISO テキスト（<code>PT26H</code> 以上は継続時間）、数式は AST の ODS 方言（<code>of:=</code>）。列幅は <strong>2.0 mm / 文字</strong>（読み書き同一の定数。LibreOffice 既定の 8.43 文字 = 2.267 cm には合わせない）、行高は pt（<code>use-optimal-row-height="false"</code>、読みでは optimal=true の高さは無視）。罫線は thin / medium / thick = 0.75 / 1.75 / 2.5 pt。列の <code>default-cell-style-name</code> は <code>ColumnDimension.style</code> へ写し、自前スタイルを持たないセルに適用する（LibreOffice は列書式をここに畳む）。表示書式は XLSX コードと <code>number:*-style</code> をトークン単位で双方向変換し、複数セクション（先頭のみ・<code>substituted</code>）、<code>style:map</code> 付き・元号・四半期・分数は General ＋ <code>degraded</code>（データスタイルごとに 1 回）。凍結は settings.xml の <code>Tables</code> マップ、非表示シートは <code>table:display</code>、定義名は <code>named-expressions</code>、注釈は <code>office:annotation</code>、リンクは <code>text:a</code>。ODS → ODS の書き戻しは content.xml を再生成するため図形・グラフは再リンクされない（<code>dropped</code> 警告、Pictures 等は opaque 保持して manifest に再登録）。行グループは読みのみ。数式を持たない <code>.error</code> は文字列になる。検証: LibreOffice ヘッドレスで生成 ODS を xlsx 化して値・結合・凍結・書式・注釈が一致、LibreOffice 産 ODS（同梱コーパス 2 件）を読んで元の xlsx と一致。Excel 産 ODS コーパスは未収集。</li>
+    <li><strong>Numbers 読み（P4・実装済み）</strong>: IWA（4 バイトヘッダ＋ Snappy 生ブロック、自前伸長）→ varint 長 → ArchiveInfo → 動的 Protobuf ツリー → オブジェクト ID で解決。Document → Sheet → TableInfo → TableModel → DataStore（タイル・文字列表・数式表・リッチテキスト表）をモデルへ写像: 値（空・数値 decimal128 / double・文字列・リッチテキストは平文・日付 2001-01-01 起点・真偽・継続時間・エラー）、数式は TSCE の後置ノード列を関数表（numbers-parser の functionmap）で XLSX 方言の文字列に戻して <code>FormulaExpr.parse</code>（他テーブル参照は <code>'シート::テーブル'!A1</code>、失敗時 <code>.unparsed</code>）、結合（formula store の COLON_TRACT → region map の順）、列幅（pt ÷ 5.7 = 文字数）/ 行高、非表示行列、テーブル位置を <code>Table.anchor</code>（20pt × 98pt 格子に丸め）、ヘッダ行列を <code>freezePanes</code>。書式（太字・塗り・表示形式）は読まない（F1 水準。F2 はロードマップ）。バージョン方針は §10.3（tolerant 既定。<code>BuildVersionHistory.plist</code> の最終エントリを <code>sourceInfo.version</code> に載せ、検証済みは Numbers 11〜15 世代）。検証: numbers-parser のテストスイートから 11 文書を同梱し、numbers-parser が読んだ値・数式ツリー・結合・テーブル名・行数と一致（<code>NumbersReaderTests</code>）。</li>
+    <li><strong>Numbers 書き（P5・実装済み、数式を除く）</strong>: §11.1 のテンプレート・パッチ方式。テンプレートは numbers-parser 同梱の <code>empty.numbers</code>（MIT。NOTICE 参照）。最初のシート / テーブルはその場でパッチ、2 枚目以降のシートとテーブルは「テーブル固有の型だけ」（TableInfo / TableModel / DataList / Tile / HeaderStorageBucket / 各 FormulaOwner 等、スタイルは共有）をサブグラフ複製して参照を張り替え、UUID を一貫して振り直し、計算エンジンの owner 表と PackageMetadata のコンポーネント登録を追加する。セルはタイル形式（cell storage v5・wide offsets）へパック、文字列は TableDataList へ登録、結合は MergeRegionMapArchive、行高 / 列幅はヘッダバケット、<code>freezePanes</code> はヘッダ行列。非対応: 数式（キャッシュ値＋ <code>degraded</code>）・書式（テーブルごとに 1 件の <code>degraded</code>）・非表示シート（Numbers に概念が無い）。読み込み済みファイルへの書き戻しもこの生成経路を通す（読んだ文書を土台にした F3 パッチはロードマップ）。検証: 自前の往復、numbers-parser による読み戻し（<code>Tests/NumbersParity/verify_with_numbers_parser.py</code>）、LibreOffice の Numbers インポータ（libetonyek）での値一致。<strong>Numbers 実機での開封は未確認</strong>。</li>
+    <li><strong>運用</strong>: <code>NOTICE</code>（numbers-parser 由来: レジストリ・関数表・記述子由来スキーマ・テンプレート・テストフィクスチャ）と <code>MAINTENANCE.md</code>（§10.3 のバージョン追従手順）をリポジトリ直下に置く。</li>
   </ul>
 </section>
 

@@ -1,0 +1,29 @@
+import Foundation
+
+/// The two ways Numbers stores a 128-bit UUID (`TSP.UUID` upper/lower, `TSP.CFUUIDArchive` four words), as one hex key.
+enum NumbersUUID {
+    static func hex(_ m: ProtoMessage?) -> String? {
+        guard let m, let t = m.typeName else { return nil }
+        switch t {
+        case "TSP.UUID":
+            guard let lo = m.uint("lower"), let hi = m.uint("upper") else { return nil }
+            return String(format: "%016llx%016llx", hi, lo)
+        case "TSP.CFUUIDArchive":
+            guard let w0 = m.uint("uuid_w0"), let w1 = m.uint("uuid_w1"), let w2 = m.uint("uuid_w2"), let w3 = m.uint("uuid_w3") else { return nil }
+            return String(format: "%08llx%08llx%08llx%08llx", w3, w2, w1, w0)
+        default: return nil
+        }
+    }
+
+    /// A fresh random UUID as `TSP.UUID` / `TSP.CFUUIDArchive` messages and as the `table_id` string form.
+    static func random() -> (uuid: ProtoMessage, cfuuid: ProtoMessage, string: String) {
+        let u = UUID().uuid
+        let bytes = [u.0, u.1, u.2, u.3, u.4, u.5, u.6, u.7, u.8, u.9, u.10, u.11, u.12, u.13, u.14, u.15]
+        var hi: UInt64 = 0, lo: UInt64 = 0
+        for i in 0..<8 { hi = hi << 8 | UInt64(bytes[i]); lo = lo << 8 | UInt64(bytes[8 + i]) }
+        var a = ProtoMessage(typeName: "TSP.UUID"); a.set("lower", uint: lo); a.set("upper", uint: hi)
+        var b = ProtoMessage(typeName: "TSP.CFUUIDArchive")
+        b.set("uuid_w0", uint: lo & 0xFFFF_FFFF); b.set("uuid_w1", uint: lo >> 32); b.set("uuid_w2", uint: hi & 0xFFFF_FFFF); b.set("uuid_w3", uint: hi >> 32)
+        return (a, b, UUID(uuid: u).uuidString)
+    }
+}

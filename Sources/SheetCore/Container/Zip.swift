@@ -3,7 +3,7 @@ import Compression
 
 /// Minimal ZIP container reader: central directory → entries; stored (0) and deflate (8); no ZIP64, no encryption.
 package struct ZipArchive: Sendable {
-    package struct Entry: Sendable { let name: String; let method: UInt16; let crc32: UInt32; let compressedSize: Int; let uncompressedSize: Int; let localHeaderOffset: Int }
+    package struct Entry: Sendable { package let name: String; package let method: UInt16; package let crc32: UInt32; package let compressedSize: Int; package let uncompressedSize: Int; package let localHeaderOffset: Int }
 
     private let data: Data
     package let entries: [String: Entry]
