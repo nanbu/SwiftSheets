@@ -249,6 +249,18 @@ final class StylesParser: SAXHandler {
     }
 
     func style(_ index: Int) -> CellStyle { cellXfs.indices.contains(index) ? cellXfs[index] : CellStyle() }
+
+    private var sharedStyles: [Int: SharedStyle] = [:]
+    /// One shared instance per `xf`: a sheet's cells reference a handful of styles between them, and each of those
+    /// is 384 bytes.
+    func sharedStyle(_ index: Int) -> SharedStyle? {
+        let s = style(index)
+        guard s != .default else { return nil }
+        if let existing = sharedStyles[index] { return existing }
+        let made = SharedStyle(s)
+        sharedStyles[index] = made
+        return made
+    }
     /// The number-format codes in use, custom ones only (openpyxl `stylesheet.number_formats`).
     var customNumberFormats: [String] { numFmts.sorted { $0.key < $1.key }.map(\.value).filter { !NumberFormat.isBuiltin($0) } }
 
@@ -339,7 +351,7 @@ final class SheetParser: SAXHandler {
             cellType = a["t"] ?? "n"; cellStyle = Int(a["s"] ?? "0") ?? 0
             vText = ""; fText = ""; isText = ""; formulaType = nil; formulaRef = nil; sharedFormulaIndex = nil
             var cell = Cell()
-            cell.style = styles.style(cellStyle)
+            cell.sharedStyle = styles.sharedStyle(cellStyle)
             sheet.table.store(cell, at: cellRef!)   // every <c> exists, even without a value
         case "v": inV = true
         case "f": inF = true; formulaType = a["t"]; formulaRef = a["ref"]; sharedFormulaIndex = a["si"]

@@ -145,7 +145,24 @@ public struct Table: Hashable, Sendable {
         style(r, update)
     }
     public mutating func style(_ range: CellRange, _ update: (inout CellStyle) -> Void) {
-        for ref in range.cells { style(at: ref, update) }
+        // cells of a range usually start from the same style and end at the same one, so the result is interned:
+        // styling A1:D1000 should cost one `CellStyle`, not a thousand copies of it
+        var made: [CellStyle: SharedStyle] = [:]
+        for ref in range.cells {
+            var c = storage[ref] ?? Cell()
+            var style = c.style
+            update(&style)
+            if style == .default {
+                c.style = style
+            } else if let shared = made[style] {
+                c.sharedStyle = shared
+            } else {
+                let shared = SharedStyle(style)
+                made[style] = shared
+                c.sharedStyle = shared
+            }
+            put(c.isBlank ? nil : c, at: ref)
+        }
     }
 
     // MARK: - Extent

@@ -164,6 +164,19 @@ final class ODSStyleCatalog {
         return NumberFormat.general
     }
 
+    private var sharedStyles: [String: SharedStyle] = [:]
+    /// The resolved style as one shared instance per style name — a column of cells naming the same automatic style
+    /// should not each carry their own 384-byte copy.
+    func sharedCellStyle(named name: String?) -> SharedStyle? {
+        guard let name else { return nil }
+        if let existing = sharedStyles[name] { return existing }
+        let style = cellStyle(named: name)
+        guard style != .default else { return nil }
+        let made = SharedStyle(style)
+        sharedStyles[name] = made
+        return made
+    }
+
     /// The fully resolved cell style. "Default" / unknown names are the model default.
     func cellStyle(named name: String?) -> CellStyle {
         guard let name, name != "Default", styles[name] != nil else { return .default }

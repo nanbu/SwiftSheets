@@ -339,9 +339,9 @@ final class ContentParser: SAXHandler {
         var cell = Cell()
         let styleName = attr(a, "table:style-name")
         if let styleName, styleName != "Default" {
-            cell.style = catalog.cellStyle(named: styleName)
+            cell.sharedStyle = catalog.sharedCellStyle(named: styleName)
         } else if let d = columnDefaults.first(where: { $0.start <= cellCursor && cellCursor <= $0.end }) {
-            cell.style = catalog.cellStyle(named: d.name)
+            cell.sharedStyle = catalog.sharedCellStyle(named: d.name)
         }
         let value = decodeValue(a)
         if let formula = attr(a, "table:formula"), !dataOnly {

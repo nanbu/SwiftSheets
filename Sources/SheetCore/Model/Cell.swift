@@ -1,28 +1,90 @@
 import Foundation
 
+/// A cell's formatting, shared between the cells that were given it. `CellStyle` is 384 bytes: a cell that kept its
+/// own copy made every `Cell` half a kilobyte, so a sheet of a million of them cost half a gigabyte before any
+/// content. Every cell of an `xf`, and every cell of a styled range, points at one of these instead.
+package final class SharedStyle: Sendable {
+    package let style: CellStyle
+    package init(_ style: CellStyle) { self.style = style }
+}
+
+/// A cell's hyperlink and note. Both are rare and together they are over a hundred bytes, so they live behind a
+/// reference and an ordinary cell stays three words wide.
+package final class CellExtras: Sendable {
+    package let hyperlink: Hyperlink?
+    package let comment: CellNote?
+    package init(hyperlink: Hyperlink?, comment: CellNote?) { self.hyperlink = hyperlink; self.comment = comment }
+}
+
 /// One cell: a value (nil when the cell only carries formatting) plus its style, hyperlink and note. A value type —
 /// mutate through `Sheet` / `Table` subscripts, or copy out, edit and put back.
+///
+/// The style and the two rarities are held by reference so that the struct itself is small: a million cells are a
+/// normal size for a sheet, and they have to fit in memory all at once (spec §14.11 — v1 is a whole-workbook model).
+/// Sharing is invisible from here — `style` reads and writes values, as it always did.
 public struct Cell: Hashable, Sendable {
+    private var storedValue: CellValue?
+    private var styleRef: SharedStyle?
+    private var extras: CellExtras?
+
     public var value: CellValue? {
-        didSet { applyDateFormat() }
+        get { storedValue }
+        set { storedValue = newValue; applyDateFormat() }
     }
-    public var style = CellStyle.default
+
+    public var style: CellStyle {
+        get { styleRef?.style ?? .default }
+        set { styleRef = newValue == .default ? nil : SharedStyle(newValue) }
+    }
+
+    /// The shared formatting, for codecs that hand the same style to many cells (one `xf`, one range).
+    package var sharedStyle: SharedStyle? {
+        get { styleRef }
+        set { styleRef = newValue }
+    }
+
     /// Setting a hyperlink on an empty cell also makes the target the cell's text, as openpyxl does.
     public var hyperlink: Hyperlink? {
-        didSet { if let h = hyperlink, value == nil { value = .text(h.target) } }
+        get { extras?.hyperlink }
+        set {
+            setExtras(hyperlink: newValue, comment: extras?.comment)
+            if let h = newValue, storedValue == nil { value = .text(h.target) }
+        }
     }
-    public var comment: CellNote?
+    public var comment: CellNote? {
+        get { extras?.comment }
+        set { setExtras(hyperlink: extras?.hyperlink, comment: newValue) }
+    }
+
+    private mutating func setExtras(hyperlink: Hyperlink?, comment: CellNote?) {
+        extras = hyperlink == nil && comment == nil ? nil : CellExtras(hyperlink: hyperlink, comment: comment)
+    }
 
     public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, comment: CellNote? = nil) {
-        self.value = value; self.style = style; self.hyperlink = hyperlink; self.comment = comment
+        storedValue = value
+        self.style = style
+        setExtras(hyperlink: hyperlink, comment: comment)
         applyDateFormat()
-        if let h = hyperlink, self.value == nil { self.value = .text(h.target) }
+        if let h = hyperlink, storedValue == nil { storedValue = .text(h.target) }
+    }
+
+    public static func == (a: Cell, b: Cell) -> Bool {
+        a.storedValue == b.storedValue
+            && a.extras?.hyperlink == b.extras?.hyperlink && a.extras?.comment == b.extras?.comment
+            && (a.styleRef === b.styleRef || a.style == b.style)
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(storedValue)
+        hasher.combine(style)
+        hasher.combine(extras?.hyperlink)
+        hasher.combine(extras?.comment)
     }
 
     /// Assigning a date / time / duration sets a matching number format unless the cell already has a date format
     /// (openpyxl `_bind_value`): date → "yyyy-mm-dd", datetime → "yyyy-mm-dd h:mm:ss", time → "h:mm:ss", duration → "[hh]:mm:ss".
     private mutating func applyDateFormat() {
-        guard let v = value, v.dataType == "d", !NumberFormat.isDateFormat(style.numberFormat) else { return }
+        guard let v = storedValue, v.dataType == "d", !NumberFormat.isDateFormat(style.numberFormat) else { return }
         switch v {
         case .date(let dt): style.numberFormat = dt.isMidnight ? NumberFormat.dateYYYYMMDD2 : NumberFormat.dateDatetime
         case .time: style.numberFormat = NumberFormat.dateTime6
@@ -32,7 +94,7 @@ public struct Cell: Hashable, Sendable {
     }
 
     /// openpyxl's `data_type`: "n" for numbers and empty cells, "s", "b", "d", "f", "e".
-    public var dataType: Character { value?.dataType ?? "n" }
+    public var dataType: Character { storedValue?.dataType ?? "n" }
 
     // Style conveniences (openpyxl: cell.font = Font(...))
     public var font: Font { get { style.font } set { style.font = newValue } }
@@ -42,20 +104,20 @@ public struct Cell: Hashable, Sendable {
     public var protection: Protection { get { style.protection } set { style.protection = newValue } }
     public var numberFormat: String { get { style.numberFormat } set { style.numberFormat = newValue } }
     /// True when the cell carries any non-default formatting.
-    public var hasStyle: Bool { style != .default }
+    public var hasStyle: Bool { styleRef != nil && styleRef!.style != .default }
 
     /// True when the value is date-like, or the cell is empty / numeric with a date number format (openpyxl `is_date`).
     public var isDate: Bool {
-        switch value {
+        switch storedValue {
         case .date, .time, .duration: return true
         case nil, .integer, .number: return NumberFormat.isDateFormat(style.numberFormat)
         default: return false
         }
     }
 
-    public var isEmpty: Bool { value == nil }
+    public var isEmpty: Bool { storedValue == nil }
     /// True when nothing at all is set — such cells are not worth storing.
-    public var isBlank: Bool { value == nil && style == .default && hyperlink == nil && comment == nil }
+    public var isBlank: Bool { storedValue == nil && extras == nil && (styleRef == nil || styleRef!.style == .default) }
 }
 
 public struct Hyperlink: Hashable, Sendable {
