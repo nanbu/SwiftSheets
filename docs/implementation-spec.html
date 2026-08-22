@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwiftSheet 実装仕様書 — XLSX・ODS・Numbers 統合スプレッドシートライブラリ</title>
+<style>
+/* =============================================================
+   Starter Template
+   このファイルは references/design-system.md に準拠した
+   ボイラープレート。新規ドキュメントは必ずここから始める。
+   SwiftSheet 実装仕様書 — XLSX・ODS・Numbers 統合スプレッドシートライブラリ など {{...}} のプレースホルダは置換すること。
+   ============================================================= */
+
+/* ---------- Design Tokens ---------- */
+:root {
+  /* Surfaces */
+  --bg: #ffffff;
+  --bg-elev-1: #f5f5f7;
+  --bg-elev-2: #fafafa;
+  --bg-glass: rgba(255, 255, 255, 0.72);
+  --bg-glass-strong: rgba(255, 255, 255, 0.86);
+
+  /* Borders */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  /* Text */
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --text-subtle: #86868b;
+
+  /* Accent */
+  --accent: #0066cc;
+  --accent-hover: #0052a3;
+  --accent-glow: rgba(0, 102, 204, 0.12);
+
+  /* Semantic (callouts) */
+  --info: #0066cc;
+  --warn: #c47100;
+  --tip: #1f7a3d;
+  --pitfall: #c2392f;
+
+  /* Code (dark theme inside light docs) */
+  --code-bg: #1d1d1f;
+  --code-text: #f5f5f7;
+  --code-keyword: #ff7ab2;
+  --code-type: #6bdfff;
+  --code-string: #fc8d68;
+  --code-number: #d0bf69;
+  --code-comment: #7e8a99;
+  --code-func: #67b7a4;
+  --code-attr: #b281d2;
+  --code-var: #fff8d6;
+  --code-inline-bg: rgba(0, 0, 0, 0.05);
+  --code-inline-text: #d12771;
+
+  /* Print-mode code colors */
+  --code-print-bg: #f7f7f7;
+  --code-print-text: #1d1d1f;
+  --code-print-keyword: #c41a83;
+  --code-print-type: #1c8ca8;
+  --code-print-string: #c41a16;
+  --code-print-comment: #5d6c7a;
+  --code-print-func: #2e8a6c;
+  --code-print-number: #aa8a13;
+  --code-print-attr: #6e3eaa;
+
+  /* Hero gradient */
+  --gradient-blue: #0066cc;
+  --gradient-purple: #5e5ce6;
+  --gradient-pink: #ff375f;
+
+  /* Shadows (2-layer) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.03);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  --inset-hairline: inset 0 0 0 1px rgba(255,255,255,0.04);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 100px;
+
+  /* Font stacks */
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "ヒラギノ角ゴシック", "Yu Gothic", system-ui, sans-serif;
+  --font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "ヒラギノ角ゴシック", "Yu Gothic", system-ui, sans-serif;
+  --font-mono: "SF Mono", Menlo, "Cascadia Code", Consolas, monospace;
+}
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  font-feature-settings: "palt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+a:hover { color: var(--accent-hover); border-bottom-color: var(--accent-hover); }
+p { margin: 0 0 16px; }
+ul, ol { margin: 0 0 16px; padding-left: 1.4em; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+
+/* ---------- Layout ---------- */
+.container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+.container-hero { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  padding: 96px 0 72px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(0,102,204,0.08), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 70%, rgba(255,55,95,0.06), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+.hero::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black, transparent 70%);
+          mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black, transparent 70%);
+  pointer-events: none;
+}
+.hero-inner { position: relative; z-index: 1; }
+.eyebrow {
+  display: inline-block;
+  background: var(--bg-glass-strong);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5.5vw, 56px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 24px;
+}
+.hero-title .accent {
+  background: linear-gradient(135deg, var(--gradient-blue), var(--gradient-purple), var(--gradient-pink));
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.hero-lede {
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 720px;
+  margin: 0 0 32px;
+}
+.meta-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.meta-chip {
+  background: var(--bg-glass);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- TOC ---------- */
+.toc {
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 36px 40px;
+  margin: 56px 0;
+  box-shadow: var(--shadow-md);
+}
+.toc-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 24px;
+  letter-spacing: -0.01em;
+}
+.toc-list { list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 32px; }
+.toc-list li { margin-bottom: 10px; break-inside: avoid; }
+.toc-list a {
+  display: flex; gap: 12px; align-items: baseline;
+  border-bottom: 1px dashed transparent;
+  padding-bottom: 2px;
+}
+.toc-list a:hover { border-bottom-color: var(--border-strong); }
+.toc-list .num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  flex-shrink: 0;
+  min-width: 32px;
+}
+.toc-list .group {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 20px 0 12px;
+  break-after: avoid;
+}
+.toc-list .group:first-child { margin-top: 0; }
+@media (max-width: 720px) { .toc-list { columns: 1; } }
+
+/* ---------- Section / Chapter ---------- */
+.chapter {
+  border-top: 1px solid var(--border);
+  padding: 72px 0 24px;
+}
+.chapter:first-of-type { border-top: none; }
+.ch-num {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--text-subtle);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.5vw, 38px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.section-lede {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0 0 28px;
+}
+h3 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 40px 0 14px;
+}
+h4 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+}
+
+/* ---------- Code block (macOS window) ---------- */
+pre {
+  position: relative;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+  padding: 44px 22px 22px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md), var(--inset-hairline);
+  overflow-x: auto;
+  margin: 22px 0;
+}
+pre::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 30px;
+  background: linear-gradient(180deg, #2c2c2e 0%, #232325 100%);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background-image:
+    radial-gradient(circle at 16px 15px, #ff5f56 5.5px, transparent 6px),
+    radial-gradient(circle at 36px 15px, #ffbd2e 5.5px, transparent 6px),
+    radial-gradient(circle at 56px 15px, #27c93f 5.5px, transparent 6px),
+    linear-gradient(180deg, #2c2c2e 0%, #232325 100%);
+}
+pre .filename {
+  position: absolute;
+  top: 8px; right: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(245,245,247,0.4);
+}
+pre code { font-family: inherit; font-size: inherit; }
+pre .kw { color: var(--code-keyword); }
+pre .ty { color: var(--code-type); }
+pre .st { color: var(--code-string); }
+pre .nm { color: var(--code-number); }
+pre .cm { color: var(--code-comment); font-style: italic; }
+pre .fn { color: var(--code-func); }
+pre .at { color: var(--code-attr); }
+pre .vr { color: var(--code-var); }
+
+/* Inline code */
+:not(pre) > code {
+  background: var(--code-inline-bg);
+  color: var(--code-inline-text);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+
+/* ---------- Callouts ---------- */
+.callout {
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  margin: 22px 0;
+  border: 1px solid;
+}
+.callout .label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout-info {
+  background: linear-gradient(135deg, rgba(0,102,204,0.04), rgba(0,102,204,0.01));
+  border-color: rgba(0,102,204,0.18);
+}
+.callout-info .label { color: var(--info); }
+.callout-warn {
+  background: linear-gradient(135deg, rgba(255,149,0,0.06), rgba(255,149,0,0.01));
+  border-color: rgba(255,149,0,0.22);
+}
+.callout-warn .label { color: var(--warn); }
+.callout-tip {
+  background: linear-gradient(135deg, rgba(48,209,88,0.05), rgba(48,209,88,0.01));
+  border-color: rgba(48,209,88,0.22);
+}
+.callout-tip .label { color: var(--tip); }
+.callout-pitfall {
+  background: linear-gradient(135deg, rgba(255,69,58,0.05), rgba(255,69,58,0.01));
+  border-color: rgba(255,69,58,0.22);
+}
+.callout-pitfall .label { color: var(--pitfall); }
+
+/* ---------- Concept cards ---------- */
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 22px 0;
+}
+.concept-card {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 18px 16px;
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 0.25s, border-color 0.25s;
+}
+.concept-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-strong);
+}
+.concept-card .term {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.concept-card .desc {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ---------- Step list ---------- */
+.steps {
+  list-style: none;
+  padding: 0;
+  counter-reset: step;
+  margin: 22px 0;
+}
+.steps li {
+  position: relative;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px 14px 56px;
+  margin-bottom: 12px;
+  counter-increment: step;
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: 14px; left: 14px;
+  width: 28px; height: 28px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+
+/* ---------- Diagram node-box ---------- */
+.node-box {
+  display: inline-block;
+  background: #ffffff;
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.node-box.root { background: var(--accent); color: #ffffff; }
+.tree-row { margin-bottom: 8px; }
+.tree-row.indent-1 { padding-left: 30px; }
+.tree-row.indent-2 { padding-left: 60px; }
+.tree-row.indent-3 { padding-left: 90px; }
+
+/* ---------- Comparison table ---------- */
+.compare {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 22px 0;
+}
+.compare table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+.compare th {
+  background: var(--bg-elev-1);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.compare td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.compare tr:last-child td { border-bottom: none; }
+.compare tr:nth-child(even) td { background: rgba(0,0,0,0.012); }
+
+/* =============================================================
+   PRINT RULES — A4 PDF
+   ============================================================= */
+@page {
+  size: A4;
+  margin: 18mm 16mm 22mm;
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: "SF Pro Text", -apple-system, sans-serif;
+    font-size: 9pt;
+    color: #86868b;
+  }
+}
+
+@media print {
+  html, body { background: #ffffff; }
+  body { font-size: 10.5pt; }
+
+  /* Hide hero decorations */
+  .hero { padding: 24mm 0 12mm; background: #ffffff; }
+  .hero::before { display: none; }
+
+  /* Strip shadows everywhere */
+  *, *::before, *::after { box-shadow: none !important; }
+
+  /* Disable hover transforms */
+  .concept-card, .concept-card:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Code blocks: invert to light */
+  pre {
+    background: var(--code-print-bg) !important;
+    color: var(--code-print-text) !important;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+  }
+  pre::before {
+    background: #ddd !important;
+    background-image:
+      radial-gradient(circle at 16px 15px, #c0c0c0 5.5px, transparent 6px),
+      radial-gradient(circle at 36px 15px, #c0c0c0 5.5px, transparent 6px),
+      radial-gradient(circle at 56px 15px, #c0c0c0 5.5px, transparent 6px),
+      #ddd !important;
+  }
+  pre .filename { color: #888; }
+  pre .kw { color: var(--code-print-keyword); }
+  pre .ty { color: var(--code-print-type); }
+  pre .st { color: var(--code-print-string); }
+  pre .nm { color: var(--code-print-number); }
+  pre .cm { color: var(--code-print-comment); font-style: italic; }
+  pre .fn { color: var(--code-print-func); }
+  pre .at { color: var(--code-print-attr); }
+  pre .vr { color: var(--code-print-text); }
+
+  /* Page-break control */
+  h2.section-title, h3, h4 { page-break-after: avoid; }
+  .callout, .compare, .concept-card, .steps li { page-break-inside: avoid; }
+  section.chapter { page-break-inside: auto; }
+
+  /* Links keep color, drop underline */
+  a { color: var(--accent); border-bottom: none; }
+
+  /* TOC adjustment */
+  .toc { background: #ffffff; box-shadow: none; }
+}
+
+/* ---------- Figures & SVG diagrams (追加) ---------- */
+.fig {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  padding: 26px 20px 16px;
+  margin: 22px 0;
+  overflow-x: auto;
+}
+.fig svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.fig figcaption {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+  margin-top: 14px;
+}
+.sv-box      { fill: #ffffff; stroke: var(--accent); stroke-width: 1.5; }
+.sv-box-root { fill: var(--accent); stroke: var(--accent); }
+.sv-box-soft { fill: var(--bg-elev-1); stroke: var(--border-strong); stroke-width: 1; }
+.sv-box-dash { fill: #ffffff; stroke: var(--text-subtle); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.sv-t     { font-family: var(--font-mono); font-size: 12px; font-weight: 600; fill: var(--accent); }
+.sv-t-inv { font-family: var(--font-mono); font-size: 12px; font-weight: 600; fill: #ffffff; }
+.sv-t-dk  { font-family: var(--font-mono); font-size: 12px; font-weight: 600; fill: var(--text); }
+.sv-t-mut { font-family: var(--font-text); font-size: 11px; fill: var(--text-muted); }
+.sv-t-sub { font-family: var(--font-mono); font-size: 10px; fill: var(--text-subtle); }
+.sv-line  { stroke: var(--border-strong); stroke-width: 1.2; fill: none; }
+.sv-arrow { stroke: var(--accent); stroke-width: 1.4; fill: none; }
+.lv { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+.lv-full { color: var(--tip); }
+.lv-part { color: var(--warn); }
+.lv-no   { color: var(--text-subtle); }
+@media print {
+  .fig { page-break-inside: avoid; background: #ffffff; }
+  .compare.pbauto { page-break-inside: auto !important; }
+  .compare.pbauto tr { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero">
+  <div class="container-hero hero-inner">
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.3 Draft</div>
+    <h1 class="hero-title">
+      <span class="accent">SwiftSheet</span> 実装仕様書
+    </h1>
+    <p class="hero-lede">
+      XLSX / XLSM・ODS・Apple Numbers の3系統スプレッドシート形式を、単一の形式中立モデルで読み書きする
+      Pure Swift ライブラリの実装仕様。公開標準（ECMA-376 / ISO IEC 26300）とリバースエンジニアリング済み知見
+      （IWA形式）を組み合わせ、ライセンスを MIT に保ったまま実装するための設計判断をすべて記録する。
+    </p>
+    <div class="meta-chips">
+      <span class="meta-chip">対応: XLSX · XLSM · ODS · Numbers</span>
+      <span class="meta-chip">Swift 6 · SwiftPM</span>
+      <span class="meta-chip">License: MIT</span>
+      <span class="meta-chip">2026-08 起草</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc" aria-label="目次">
+  <h2 class="toc-title">目次</h2>
+  <ul class="toc-list">
+    <li class="group">全体設計</li>
+    <li><a href="#ch01"><span class="num">01</span>スコープとライセンス方針</a></li>
+    <li><a href="#ch02"><span class="num">02</span>アーキテクチャ概観</a></li>
+    <li><a href="#ch03"><span class="num">03</span>中間モデル仕様</a></li>
+    <li><a href="#ch04"><span class="num">04</span>コーデック抽象化</a></li>
+    <li class="group">共通サブシステム</li>
+    <li><a href="#ch05"><span class="num">05</span>数式サブシステム</a></li>
+    <li><a href="#ch06"><span class="num">06</span>ラウンドトリップ保全</a></li>
+    <li class="group">形式別仕様</li>
+    <li><a href="#ch07"><span class="num">07</span>XLSX / XLSM コーデック</a></li>
+    <li><a href="#ch08"><span class="num">08</span>ODS コーデック</a></li>
+    <li><a href="#ch09"><span class="num">09</span>CSV コーデック</a></li>
+    <li><a href="#ch10"><span class="num">10</span>Numbers コーデック（読み込み）</a></li>
+    <li><a href="#ch11"><span class="num">11</span>Numbers コーデック（書き出し）</a></li>
+    <li class="group">品質と運用</li>
+    <li><a href="#ch12"><span class="num">12</span>テスト戦略</a></li>
+    <li><a href="#ch13"><span class="num">13</span>開発ロードマップ</a></li>
+    <li class="group">API リファレンス</li>
+    <li><a href="#ch14"><span class="num">14</span>API 全一覧 — openpyxl 対応表</a></li>
+    <li><a href="#ch15"><span class="num">15</span>ユースケース集 — よくある使い方</a></li>
+    <li class="group">付録</li>
+    <li><a href="#apx"><span class="num">A</span>付録 — 用語集・参考資料</a></li>
+    <li><a href="#apxb"><span class="num">B</span>付録 — 実装決定記録（Rev 1.3）</a></li>
+  </ul>
+</nav>
+
+<!-- ===================== CH 01 ===================== -->
+<section class="chapter" id="ch01">
+  <h2 class="section-title"><span class="ch-num">Chapter 01</span>スコープとライセンス方針</h2>
+  <p class="section-lede">
+    本ライブラリが「何をやるか」と同じ重みで「何をやらないか」を定義する。特にライセンス境界は
+    実装ルールとしてここで固定し、以降の全章がこれを前提とする。
+  </p>
+
+  <h3>1.1 目的</h3>
+  <p>
+    Apple プラットフォーム（iOS / macOS / visionOS）および Linux 上で動作する Pure Swift のスプレッドシート
+    入出力ライブラリを提供する。既存の Swift エコシステムは「読み専用（CoreXLSX）」と「書き専用
+    （SwiftXLSX ほか）」に分断されており、<strong>既存ファイルを開いて編集し、書式を保ったまま保存する</strong>
+    ラウンドトリップ編集と、<strong>複数形式の相互変換</strong>を単一 API で提供するものは存在しない。本ライブラリはその空白を埋める。
+  </p>
+
+  <h3>1.2 対応マトリクス</h3>
+  <div class="compare"><table>
+    <tr><th>形式</th><th>読み込み</th><th>新規作成</th><th>既存編集（保全付き）</th><th>備考</th></tr>
+    <tr><td><strong>XLSX</strong></td>
+      <td><span class="lv lv-full">◎ 完全</span></td>
+      <td><span class="lv lv-full">◎ 完全</span></td>
+      <td><span class="lv lv-full">◎ 完全</span></td>
+      <td>基準形式。最優先で品質を担保</td></tr>
+    <tr><td><strong>XLSM</strong></td>
+      <td><span class="lv lv-full">◎ 完全</span></td>
+      <td><span class="lv lv-part">○ 対応</span></td>
+      <td><span class="lv lv-full">◎ VBA保持</span></td>
+      <td>マクロは不透明データとして保持のみ。実行・解釈しない</td></tr>
+    <tr><td><strong>ODS</strong></td>
+      <td><span class="lv lv-full">◎ 完全</span></td>
+      <td><span class="lv lv-full">◎ 完全</span></td>
+      <td><span class="lv lv-part">○ 対応</span></td>
+      <td>ODF 1.3 準拠。xlsx⇄ods 変換の片翼</td></tr>
+    <tr><td><strong>Numbers</strong></td>
+      <td><span class="lv lv-full">◎ 対応</span></td>
+      <td><span class="lv lv-full">◎ 対応</span></td>
+      <td><span class="lv lv-part">○ 対応</span></td>
+      <td>非公開形式のため、表現できない要素は警告で必ず報告（第11章）</td></tr>
+    <tr><td><strong>CSV</strong></td>
+      <td><span class="lv lv-full">◎ 対応</span></td>
+      <td><span class="lv lv-full">◎ 対応</span></td>
+      <td><span class="lv lv-no">—（概念なし）</span></td>
+      <td>値のみ（F1）。UTF-8 は BOM 有無を自動判別、文字コード指定可（第9章）</td></tr>
+  </table></div>
+
+  <h3>1.3 非スコープ</h3>
+  <ul>
+    <li><strong>.xls（BIFF バイナリ）</strong> — 旧形式。構造が完全に別物であり、対応しない</li>
+    <li><strong>数式の評価（再計算）</strong> — v2 で独立パッケージ <code>SheetFormulaEval</code> として計画（第5章参照）。v1 は数式の構文解析と方言変換まで</li>
+    <li><strong>VBA マクロの実行・解釈</strong> — セキュリティ境界として恒久的に非対応。保持のみ</li>
+    <li><strong>暗号化ファイル（ECMA-376 agile encryption 等）</strong> — 将来検討。v1 では明示的エラー</li>
+    <li><strong>UI・レンダリング</strong> — データモデルと入出力に専念する</li>
+  </ul>
+
+  <h3>1.4 ライセンス方針（実装ルール）</h3>
+  <div class="callout callout-warn">
+    <span class="label">拘束力のある開発規約</span>
+    <p>本ライブラリは <strong>MIT ライセンス</strong>で公開する。これを成立させるため、以下を開発規約として固定する。</p>
+    <ul>
+      <li><strong>LibreOffice のソースコードは一切閲覧しない。</strong>MPL 2.0 はファイル単位コピーレフトであり、移植（翻訳）は Modification に該当するため、閲覧した上での類似実装は汚染リスクとなる。参照してよいのは公開仕様（ODF / OpenFormula）と、LibreOffice が生成した<em>出力ファイル</em>（テストデータとしての .ods）のみ</li>
+      <li><strong>openpyxl のコードは移植しない。</strong>API の外形観察とテスト観点の参考に留める。実装は ECMA-376 仕様から書く</li>
+      <li><strong>Numbers 対応は numbers-parser（MIT）同梱の Protobuf 定義を利用する。</strong>出所と原ライセンスを NOTICE ファイルに記載する。フォーマット自体の相互運用目的の解析は一般に問題視されにくいが、法的助言ではないため、商用組込み時は利用者側の判断とする旨を README に明記</li>
+      <li>依存は MIT / Apache 2.0 系のみ許可（ZIPFoundation: MIT、swift-protobuf: Apache 2.0）。コピーレフト系依存の追加は禁止</li>
+    </ul>
+  </div>
+  <p>
+    なお <code>SwiftSheet</code> は本仕様書内の仮称である。公開前に Swift Package Index /
+    GitHub 上の名称衝突を確認して確定する。
+  </p>
+</section>
+
+<!-- ===================== CH 02 ===================== -->
+<section class="chapter" id="ch02">
+  <h2 class="section-title"><span class="ch-num">Chapter 02</span>アーキテクチャ概観</h2>
+  <p class="section-lede">
+    4層構造を採る。上位2層（Public API・中間モデル）は形式を一切知らず、下位2層（コーデック・基盤）だけが
+    各形式の癖を知る。この分離が3形式対応と将来の形式追加の両方を支える。
+  </p>
+
+  <figure class="fig">
+  <svg viewBox="0 0 760 336" role="img" aria-label="レイヤアーキテクチャ図">
+    <rect class="sv-box-root" x="20" y="14" width="720" height="44" rx="8"/>
+    <text class="sv-t-inv" x="380" y="36" text-anchor="middle">Public API — Workbook / Sheet / Table / Cell ファサード</text>
+    <text class="sv-t-sub" x="380" y="50" text-anchor="middle" fill="#ffffff" opacity="0.75">利用者は形式を意識しない</text>
+
+    <line class="sv-arrow" x1="380" y1="58" x2="380" y2="86"/>
+
+    <rect class="sv-box" x="20" y="88" width="720" height="44" rx="8"/>
+    <text class="sv-t" x="380" y="110" text-anchor="middle">中間モデル（SheetCore）— 形式中立の唯一の真実</text>
+    <text class="sv-t-sub" x="380" y="124" text-anchor="middle">値・書式・数式ASTを「意味」として保持する</text>
+
+    <line class="sv-arrow" x1="120" y1="132" x2="104" y2="166"/>
+    <line class="sv-arrow" x1="300" y1="132" x2="288" y2="166"/>
+    <line class="sv-arrow" x1="470" y1="132" x2="472" y2="166"/>
+    <line class="sv-arrow" x1="640" y1="132" x2="656" y2="166"/>
+
+    <rect class="sv-box" x="20"  y="168" width="168" height="52" rx="8"/>
+    <text class="sv-t" x="104" y="190" text-anchor="middle">XLSX/XLSM Codec</text>
+    <text class="sv-t-sub" x="104" y="206" text-anchor="middle">OOXML (ECMA-376)</text>
+
+    <rect class="sv-box" x="204" y="168" width="168" height="52" rx="8"/>
+    <text class="sv-t" x="288" y="190" text-anchor="middle">ODS Codec</text>
+    <text class="sv-t-sub" x="288" y="206" text-anchor="middle">ODF 1.3 (ISO 26300)</text>
+
+    <rect class="sv-box" x="388" y="168" width="168" height="52" rx="8"/>
+    <text class="sv-t" x="472" y="190" text-anchor="middle">Numbers Codec</text>
+    <text class="sv-t-sub" x="472" y="206" text-anchor="middle">IWA (リバースエンジニアリング)</text>
+
+    <rect class="sv-box-dash" x="572" y="168" width="168" height="52" rx="8"/>
+    <text class="sv-t-dk" x="656" y="190" text-anchor="middle">SheetFormula</text>
+    <text class="sv-t-sub" x="656" y="206" text-anchor="middle">数式AST・方言変換（横断）</text>
+
+    <line class="sv-line" x1="104" y1="220" x2="104" y2="252"/>
+    <line class="sv-line" x1="288" y1="220" x2="288" y2="252"/>
+    <line class="sv-line" x1="472" y1="220" x2="472" y2="252"/>
+
+    <rect class="sv-box-soft" x="20" y="254" width="720" height="48" rx="8"/>
+    <text class="sv-t-dk" x="115" y="274" text-anchor="middle">ZIPFoundation</text>
+    <text class="sv-t-sub" x="115" y="290" text-anchor="middle">MIT</text>
+    <text class="sv-t-dk" x="300" y="274" text-anchor="middle">XMLシリアライザ</text>
+    <text class="sv-t-sub" x="300" y="290" text-anchor="middle">自前実装</text>
+    <text class="sv-t-dk" x="470" y="274" text-anchor="middle">Snappyデコーダ</text>
+    <text class="sv-t-sub" x="470" y="290" text-anchor="middle">自前実装（生ブロック）</text>
+    <text class="sv-t-dk" x="640" y="274" text-anchor="middle">SwiftProtobuf</text>
+    <text class="sv-t-sub" x="640" y="290" text-anchor="middle">Apache 2.0</text>
+    <text class="sv-t-sub" x="380" y="322" text-anchor="middle">基盤層 — コンテナ／シリアライズ</text>
+  </svg>
+  <figcaption>図1 — レイヤアーキテクチャ。形式知識はコーデック層より下に閉じ込める</figcaption>
+  </figure>
+
+  <h3>2.1 各層の責務</h3>
+  <div class="compare"><table>
+    <tr><th>層</th><th>責務</th><th>禁止事項</th></tr>
+    <tr><td><strong>L4 Public API</strong></td><td>人間が書きやすい糖衣。形式自動判別・変換 API</td><td>形式固有の分岐を持たない</td></tr>
+    <tr><td><strong>L3 中間モデル</strong></td><td>値・書式・数式・構造の意味論的保持</td><td>sharedStrings 索引や XML 断片など「表現」の保持</td></tr>
+    <tr><td><strong>L2 コーデック</strong></td><td>中間モデル ⇄ 各形式の双方向射影。損失の警告生成</td><td>他コーデックへの依存</td></tr>
+    <tr><td><strong>L1 基盤</strong></td><td>ZIP・XML・Snappy・Protobuf の機械的処理</td><td>スプレッドシートの意味を知ること</td></tr>
+  </table></div>
+
+  <h3>2.2 SwiftPM ターゲット構成</h3>
+  <pre><span class="filename">Package.swift（抜粋）</span><code><span class="cm">// 利用者は必要なコーデックだけ import できる粒度で分割する</span>
+<span class="kw">let</span> package = <span class="ty">Package</span>(
+    name: <span class="st">"SwiftSheet"</span>,
+    products: [
+        .library(name: <span class="st">"SheetCore"</span>,    targets: [<span class="st">"SheetCore"</span>]),    <span class="cm">// モデル+抽象</span>
+        .library(name: <span class="st">"SheetXLSX"</span>,    targets: [<span class="st">"SheetXLSX"</span>]),    <span class="cm">// xlsx/xlsm</span>
+        .library(name: <span class="st">"SheetODS"</span>,     targets: [<span class="st">"SheetODS"</span>]),
+        .library(name: <span class="st">"SheetNumbers"</span>, targets: [<span class="st">"SheetNumbers"</span>]),
+        .library(name: <span class="st">"SwiftSheet"</span>,   targets: [<span class="st">"SwiftSheet"</span>]),   <span class="cm">// 全部入り</span>
+    ],
+    dependencies: [
+        .package(url: <span class="st">"…/ZIPFoundation"</span>,  from: <span class="st">"0.9.0"</span>),
+        .package(url: <span class="st">"…/swift-protobuf"</span>, from: <span class="st">"1.25.0"</span>),  <span class="cm">// SheetNumbersのみ</span>
+    ]
+)</code></pre>
+  <div class="callout callout-tip">
+    <span class="label">依存の局所化</span>
+    <p><code>SheetCore</code> と <code>SheetFormula</code> は依存ゼロ、<code>SheetXLSX</code> / <code>SheetODS</code> は
+    ZIPFoundation のみ、SwiftProtobuf は <code>SheetNumbers</code> に閉じる。Numbers 対応が不要な利用者に
+    Protobuf ランタイムを背負わせない。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 03 ===================== -->
+<section class="chapter" id="ch03">
+  <h2 class="section-title"><span class="ch-num">Chapter 03</span>中間モデル仕様</h2>
+  <p class="section-lede">
+    3形式の最大公約数ではなく「和集合を意味論で正規化したもの」をモデルにする。
+    設計の要諦は、Numbers のキャンバスモデルを最初から吸収する Sheet = [Table] 構造にある。
+  </p>
+
+  <h3>3.1 モデル構造</h3>
+
+  <figure class="fig">
+  <svg viewBox="0 0 760 252" role="img" aria-label="中間モデル構造図">
+    <rect class="sv-box-root" x="20" y="36" width="140" height="44" rx="8"/>
+    <text class="sv-t-inv" x="90" y="62" text-anchor="middle">Workbook</text>
+
+    <line class="sv-arrow" x1="160" y1="58" x2="218" y2="58"/>
+    <text class="sv-t-sub" x="189" y="48" text-anchor="middle">1..n</text>
+
+    <rect class="sv-box" x="220" y="36" width="140" height="44" rx="8"/>
+    <text class="sv-t" x="290" y="62" text-anchor="middle">Sheet</text>
+    <text class="sv-t-mut" x="290" y="100" text-anchor="middle">＝キャンバス。複数テーブルが載る</text>
+
+    <line class="sv-arrow" x1="360" y1="58" x2="418" y2="58"/>
+    <text class="sv-t-sub" x="389" y="48" text-anchor="middle">1..n</text>
+
+    <rect class="sv-box" x="420" y="36" width="140" height="44" rx="8"/>
+    <text class="sv-t" x="490" y="62" text-anchor="middle">Table</text>
+    <text class="sv-t-mut" x="490" y="100" text-anchor="middle">anchor（位置）と名前を保持</text>
+
+    <line class="sv-arrow" x1="560" y1="58" x2="618" y2="58"/>
+    <text class="sv-t-sub" x="589" y="48" text-anchor="middle">rows×cols</text>
+
+    <rect class="sv-box" x="620" y="36" width="120" height="44" rx="8"/>
+    <text class="sv-t" x="680" y="62" text-anchor="middle">Cell</text>
+
+    <line class="sv-line" x1="680" y1="80" x2="435" y2="168"/>
+    <line class="sv-line" x1="680" y1="80" x2="560" y2="168"/>
+    <line class="sv-line" x1="680" y1="80" x2="685" y2="168"/>
+
+    <rect class="sv-box-soft" x="380" y="170" width="110" height="40" rx="8"/>
+    <text class="sv-t-dk" x="435" y="194" text-anchor="middle">CellValue</text>
+    <rect class="sv-box-soft" x="505" y="170" width="110" height="40" rx="8"/>
+    <text class="sv-t-dk" x="560" y="194" text-anchor="middle">CellStyle</text>
+    <rect class="sv-box-dash" x="630" y="170" width="110" height="40" rx="8"/>
+    <text class="sv-t-dk" x="685" y="194" text-anchor="middle">FormulaAST</text>
+    <text class="sv-t-sub" x="560" y="236" text-anchor="middle">XLSX/ODS では Sheet は常に Table 1個。Numbers では複数</text>
+  </svg>
+  <figcaption>図2 — 中間モデル。Cell は「表現」ではなく「意味」を持つ</figcaption>
+  </figure>
+
+  <pre><span class="filename">Sources/SheetCore/Model.swift（骨子）</span><code><span class="kw">public struct</span> <span class="ty">Workbook</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public var</span> sheets: [<span class="ty">Sheet</span>]
+    <span class="kw">public var</span> definedNames: [<span class="ty">DefinedName</span>]
+    <span class="kw">public var</span> preserved: <span class="ty">PreservationStore</span>   <span class="cm">// 第6章: 未知要素の保持</span>
+}
+<span class="kw">public struct</span> <span class="ty">Sheet</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public var</span> name: <span class="ty">String</span>
+    <span class="kw">public var</span> tables: [<span class="ty">Table</span>]         <span class="cm">// XLSX/ODS読込時は常に1要素</span>
+}
+<span class="kw">public struct</span> <span class="ty">Table</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public var</span> name: <span class="ty">String</span>?
+    <span class="kw">public var</span> anchor: <span class="ty">CellRef</span>          <span class="cm">// シート上の左上位置（既定 A1）</span>
+    <span class="kw">public var</span> cells: [<span class="ty">CellRef</span>: <span class="ty">Cell</span>]   <span class="cm">// 疎行列。空セルは持たない</span>
+    <span class="kw">public var</span> columnWidths: [<span class="ty">Int</span>: <span class="ty">Double</span>]
+    <span class="kw">public var</span> merges: [<span class="ty">CellRange</span>]
+}
+<span class="kw">public enum</span> <span class="ty">CellValue</span>: <span class="ty">Sendable</span>, <span class="ty">Equatable</span> {
+    <span class="kw">case</span> text(<span class="ty">String</span>)
+    <span class="kw">case</span> number(<span class="ty">Decimal</span>)                <span class="cm">// Numbers の decimal128 精度を保持</span>
+    <span class="kw">case</span> date(<span class="ty">Date</span>)                     <span class="cm">// シリアル値は出口で変換</span>
+    <span class="kw">case</span> bool(<span class="ty">Bool</span>)
+    <span class="kw">case</span> formula(<span class="ty">FormulaExpr</span>, cached: <span class="ty">String</span>?)  <span class="cm">// AST + 最終計算値</span>
+    <span class="kw">case</span> error(<span class="ty">String</span>)                  <span class="cm">// "#N/A" 等</span>
+    <span class="kw">case</span> empty                          <span class="cm">// 書式だけ持つセル用</span>
+}</code></pre>
+
+  <h3>3.2 型ポリシー</h3>
+  <div class="compare"><table>
+    <tr><th>値種別</th><th>内部表現</th><th>設計根拠</th></tr>
+    <tr><td>数値</td><td><code>Decimal</code></td><td>Numbers は decimal128 で格納する。<code>Double</code> 経由は往復で精度を失う</td></tr>
+    <tr><td>日付</td><td><code>Date</code>（+ 表示書式は CellStyle）</td><td>XLSX のシリアル値（1900系・1904系）、ODS の ISO 8601、Numbers のエポックを出口変換に押し込む</td></tr>
+    <tr><td>数式</td><td>正規形 AST（第5章）</td><td>方言（区切り文字・参照記法）は表現であって意味ではない</td></tr>
+    <tr><td>座標</td><td>0-based の <code>CellRef(row:col:)</code></td><td>A1 記法との相互変換はユーティリティに隔離。bijective base-26 を単体テストで固める</td></tr>
+  </table></div>
+
+  <div class="callout callout-pitfall">
+    <span class="label">やってはいけない</span>
+    <p>中間モデルに <code>sharedStringIndex</code>・<code>styleIndex</code>・XML 断片・シリアル日付値などの
+    「形式の内部表現」を持ち込まない。索引化・シリアル化はすべて各コーデックの書き出し時処理である。
+    ここが破れると3形式対応は事実上崩壊する。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 04 ===================== -->
+<section class="chapter" id="ch04">
+  <h2 class="section-title"><span class="ch-num">Chapter 04</span>コーデック抽象化</h2>
+  <p class="section-lede">
+    3コーデックが従う共通契約を定義する。契約は「読み・書き・判別・損失報告」の4点で構成し、
+    書き出しの戻り値に警告を必ず含める設計とする。
+  </p>
+
+  <h3>4.1 プロトコル定義</h3>
+  <pre><span class="filename">Sources/SheetCore/Codec.swift</span><code><span class="kw">public protocol</span> <span class="ty">SpreadsheetCodec</span> {
+    <span class="kw">static var</span> format: <span class="ty">SheetFormat</span> { <span class="kw">get</span> }          <span class="cm">// .xlsx / .xlsm / .ods / .numbers / .csv</span>
+    <span class="kw">static func</span> <span class="fn">canDecode</span>(_ container: <span class="ty">ZipInspection</span>) -&gt; <span class="ty">Bool</span>
+    <span class="kw">static func</span> <span class="fn">read</span>(_ data: <span class="ty">Data</span>, options: <span class="ty">ReadOptions</span>) <span class="kw">throws</span> -&gt; <span class="ty">Workbook</span>
+    <span class="kw">static func</span> <span class="fn">write</span>(_ wb: <span class="ty">Workbook</span>, options: <span class="ty">WriteOptions</span>) <span class="kw">throws</span> -&gt; <span class="ty">WriteResult</span>
+}
+
+<span class="kw">public struct</span> <span class="ty">WriteResult</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public let</span> data: <span class="ty">Data</span>
+    <span class="kw">public let</span> warnings: [<span class="ty">ConversionWarning</span>]   <span class="cm">// 損失を黙って落とさない（第6章）</span>
+}
+
+<span class="kw">public struct</span> <span class="ty">ConversionWarning</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public enum</span> <span class="ty">Kind</span> { <span class="kw">case</span> dropped, degraded, substituted }
+    <span class="kw">public let</span> kind: <span class="ty">Kind</span>
+    <span class="kw">public let</span> location: <span class="ty">CellRef</span>?
+    <span class="kw">public let</span> message: <span class="ty">String</span>   <span class="cm">// 例: "Sheet1!C3 の STYLE() は XLSX で表現できません"</span>
+}</code></pre>
+
+  <h3>4.2 形式判別</h3>
+  <p>
+    XLSX / ODS / Numbers は ZIP コンテナ（先頭 <code>PK\x03\x04</code>）であるため、拡張子ではなく
+    <strong>アーカイブ内エントリの実在</strong>で判別する。判別順序は固定とする。
+  </p>
+  <ol class="steps">
+    <li><code>mimetype</code> エントリが存在し内容が <code>application/vnd.oasis.opendocument.spreadsheet</code> → <strong>ODS</strong></li>
+    <li><code>[Content_Types].xml</code> が存在 → <strong>OOXML</strong>。workbook パートの ContentType が
+        <code>…sheet.macroEnabled…</code> なら <strong>XLSM</strong>、それ以外は <strong>XLSX</strong></li>
+    <li><code>Index/Document.iwa</code> が存在 → <strong>Numbers</strong>（ディレクトリバンドル形式は事前に Index.zip を取り出す）</li>
+    <li>先頭が <code>PK\x03\x04</code> でない場合 → BOM 検出と文字コード妥当性検査を行い、テキストとして解釈可能なら <strong>CSV / TSV</strong>（区切り文字はスニッフィング。拡張子があれば優先 — 第9章）</li>
+    <li>いずれにも該当しない → <code>SheetError.unrecognizedFormat</code></li>
+  </ol>
+
+  <h3>4.3 エラー型</h3>
+  <pre><code><span class="kw">public enum</span> <span class="ty">SheetError</span>: <span class="ty">Error</span> {
+    <span class="kw">case</span> unrecognizedFormat
+    <span class="kw">case</span> corruptedContainer(detail: <span class="ty">String</span>)      <span class="cm">// ZIP/Snappy 層の失敗</span>
+    <span class="kw">case</span> malformedPart(path: <span class="ty">String</span>, detail: <span class="ty">String</span>)
+    <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// 暗号化ファイル等</span>
+    <span class="kw">case</span> unsupportedVersion(found: <span class="ty">String</span>, supported: <span class="ty">ClosedRange</span>&lt;<span class="ty">Int</span>&gt;)  <span class="cm">// Numbers 用</span>
+    <span class="kw">case</span> formulaSyntax(offset: <span class="ty">Int</span>, detail: <span class="ty">String</span>)
+}</code></pre>
+  <div class="callout callout-info">
+    <span class="label">ファサードの動作</span>
+    <p><code>Workbook(contentsOf:)</code> は判別 → 該当コーデックの <code>read</code> を呼ぶだけの薄い層とする。
+    書き出しは <code>wb.write(to:as:)</code> で明示指定を基本とし、拡張子からの推定はコンビニエンスとして提供する。
+    <strong>読み込み形式と異なる形式への書き出し＝変換</strong>であり、追加の実装は不要（中間モデルが仲介する）。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 05 ===================== -->
+<section class="chapter" id="ch05">
+  <h2 class="section-title"><span class="ch-num">Chapter 05</span>数式サブシステム</h2>
+  <p class="section-lede">
+    数式を文字列のまま持ち回ると方言変換で破綻する。v1 の責務は「パースして正規形 AST で保持し、
+    出口で各方言に書き戻す」まで。評価（再計算）は v2 の別パッケージに委ねる。
+  </p>
+
+  <figure class="fig">
+  <svg viewBox="0 0 760 296" role="img" aria-label="数式パイプライン図">
+    <rect class="sv-box-soft" x="20" y="20" width="200" height="48" rx="8"/>
+    <text class="sv-t-dk" x="120" y="41" text-anchor="middle">=SUM(A1:B2, C3)</text>
+    <text class="sv-t-sub" x="120" y="57" text-anchor="middle">入力（XLSX 方言）</text>
+
+    <line class="sv-arrow" x1="220" y1="44" x2="262" y2="44"/>
+    <rect class="sv-box" x="264" y="20" width="110" height="48" rx="8"/>
+    <text class="sv-t" x="319" y="48" text-anchor="middle">Lexer</text>
+
+    <line class="sv-arrow" x1="374" y1="44" x2="416" y2="44"/>
+    <rect class="sv-box" x="418" y="20" width="150" height="48" rx="8"/>
+    <text class="sv-t" x="493" y="41" text-anchor="middle">Pratt Parser</text>
+    <text class="sv-t-sub" x="493" y="57" text-anchor="middle">優先順位表駆動</text>
+
+    <line class="sv-arrow" x1="568" y1="44" x2="610" y2="44"/>
+    <rect class="sv-box-root" x="612" y="20" width="128" height="48" rx="8"/>
+    <text class="sv-t-inv" x="676" y="48" text-anchor="middle">FormulaAST</text>
+
+    <line class="sv-arrow" x1="676" y1="68" x2="330" y2="128"/>
+    <line class="sv-arrow" x1="676" y1="68" x2="600" y2="128"/>
+    <line class="sv-line" x1="676" y1="68" x2="676" y2="212" stroke-dasharray="5 4"/>
+
+    <rect class="sv-box" x="130" y="130" width="300" height="48" rx="8"/>
+    <text class="sv-t" x="280" y="151" text-anchor="middle">emit(.xlsx)</text>
+    <text class="sv-t-sub" x="280" y="167" text-anchor="middle">SUM(A1:B2,C3)</text>
+
+    <rect class="sv-box" x="460" y="130" width="300" height="48" rx="8"/>
+    <text class="sv-t" x="610" y="151" text-anchor="middle">emit(.ods)</text>
+    <text class="sv-t-sub" x="610" y="167" text-anchor="middle">of:=SUM([.A1:.B2];[.C3])</text>
+
+    <rect class="sv-box-dash" x="500" y="214" width="240" height="48" rx="8"/>
+    <text class="sv-t-dk" x="620" y="235" text-anchor="middle">Evaluator（v2）</text>
+    <text class="sv-t-sub" x="620" y="251" text-anchor="middle">OpenFormula Small Group から</text>
+    <text class="sv-t-sub" x="250" y="245" text-anchor="middle">Numbers 書き出し時は文字列として格納（第11章）</text>
+  </svg>
+  <figcaption>図3 — 数式は AST を正とし、方言は emit 関数に閉じる</figcaption>
+  </figure>
+
+  <h3>5.1 方言差の正規化規則</h3>
+  <div class="compare"><table>
+    <tr><th>項目</th><th>XLSX</th><th>ODS (OpenFormula)</th><th>正規形（AST）での扱い</th></tr>
+    <tr><td>引数区切り</td><td><code>,</code></td><td><code>;</code></td><td>ASTでは配列。出口で選択</td></tr>
+    <tr><td>セル参照</td><td><code>A1</code> / <code>Sheet2!A1</code></td><td><code>[.A1]</code> / <code>[Sheet2.A1]</code></td><td>0-based CellRef + シート名</td></tr>
+    <tr><td>単項マイナス</td><td colspan="2"><code>-2^2 = 4</code>（<code>-</code> が <code>^</code> より高優先）</td><td>パーサの優先順位表で共通化</td></tr>
+    <tr><td>数式接頭辞</td><td><code>=</code>（XML内では無し）</td><td><code>of:=</code></td><td>ASTに含めない。出口で付与</td></tr>
+    <tr><td>関数名</td><td colspan="2">大部分は共通。固有関数は変換不能</td><td>正規名（英大文字）で保持。変換不能は <code>ConversionWarning.dropped</code></td></tr>
+  </table></div>
+
+  <h3>5.2 AST 定義（骨子）</h3>
+  <pre><code><span class="kw">public indirect enum</span> <span class="ty">FormulaExpr</span>: <span class="ty">Sendable</span>, <span class="ty">Equatable</span> {
+    <span class="kw">case</span> number(<span class="ty">Decimal</span>)
+    <span class="kw">case</span> string(<span class="ty">String</span>)
+    <span class="kw">case</span> boolean(<span class="ty">Bool</span>)
+    <span class="kw">case</span> ref(<span class="ty">CellRef</span>, sheet: <span class="ty">String</span>?, absRow: <span class="ty">Bool</span>, absCol: <span class="ty">Bool</span>)
+    <span class="kw">case</span> range(<span class="ty">FormulaExpr</span>, <span class="ty">FormulaExpr</span>)   <span class="cm">// 参照2つを束ねる</span>
+    <span class="kw">case</span> unary(<span class="ty">FormulaOp</span>, <span class="ty">FormulaExpr</span>)
+    <span class="kw">case</span> binary(<span class="ty">FormulaOp</span>, <span class="ty">FormulaExpr</span>, <span class="ty">FormulaExpr</span>)
+    <span class="kw">case</span> call(name: <span class="ty">String</span>, args: [<span class="ty">FormulaExpr</span>])
+    <span class="kw">case</span> unparsed(<span class="ty">String</span>, dialect: <span class="ty">SheetFormat</span>)  <span class="cm">// パース失敗時の退避（下記）</span>
+}</code></pre>
+  <div class="callout callout-tip">
+    <span class="label">パース失敗時のフォールバック</span>
+    <p>読み込み時に解析できない数式は例外にせず <code>.unparsed(原文, 方言)</code> として保持する。
+    同一方言への書き戻しなら原文をそのまま出力でき、ラウンドトリップが壊れない。
+    異方言への変換時のみ <code>ConversionWarning.degraded</code>（キャッシュ値への置換）とする。</p>
+  </div>
+  <p>
+    v2 の評価器は OpenFormula 仕様が定義する適合レベル（Small → Medium → Large Group Evaluator）に沿って
+    段階実装する。仕様同梱のテストケース群をそのまま回帰テストに転用できるため、
+    実装順序も仕様の関数一覧に従う。依存グラフのトポロジカルソートと循環参照検出（<code>#REF!</code> 系エラー）は
+    評価器側の責務とし、v1 のコードベースには含めない。
+  </p>
+</section>
+
+<!-- ===================== CH 06 ===================== -->
+<section class="chapter" id="ch06">
+  <h2 class="section-title"><span class="ch-num">Chapter 06</span>ラウンドトリップ保全</h2>
+  <p class="section-lede">
+    「開いて1セル直して保存したらグラフが消えた」を絶対に起こさないための横断ポリシー。
+    openpyxl が未知要素を破棄する設計であるのに対し、本ライブラリは保持を既定とし、これを差別化点とする。
+  </p>
+
+  <h3>6.1 忠実度レベルの定義</h3>
+  <div class="compare"><table>
+    <tr><th>レベル</th><th>保証内容</th><th>適用場面</th></tr>
+    <tr><td><strong>F1 値忠実</strong></td><td>セル値・数式・シート構造が等価</td><td>全形式間の変換で最低保証</td></tr>
+    <tr><td><strong>F2 書式忠実</strong></td><td>F1 + フォント・罫線・塗り・表示書式・結合・列幅</td><td>xlsx⇄ods 変換の目標水準</td></tr>
+    <tr><td><strong>F3 完全保全</strong></td><td>F2 + 未対応機能（グラフ・ピボット・VBA等）を無劣化で温存</td><td><strong>同一形式への上書き保存</strong>で必須</td></tr>
+  </table></div>
+
+  <h3>6.2 未知要素の保持機構</h3>
+  <pre><code><span class="cm">// Workbook.preserved — 読み込んだが解釈しなかったものの置き場</span>
+<span class="kw">public struct</span> <span class="ty">PreservationStore</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public var</span> sourceFormat: <span class="ty">SheetFormat</span>?
+    <span class="kw">public var</span> opaqueParts: [<span class="ty">String</span>: <span class="ty">Data</span>]   <span class="cm">// 例: "xl/charts/chart1.xml",</span>
+                                             <span class="cm">//     "xl/vbaProject.bin"</span>
+    <span class="kw">public var</span> relationships: [<span class="ty">String</span>: <span class="ty">Data</span>] <span class="cm">// .rels は依存ごと保持</span>
+}</code></pre>
+  <ul>
+    <li><strong>同一形式へ書き戻す場合</strong>：opaqueParts をバイト列のまま再梱包し、参照整合（rels / Content_Types 宣言）を維持する。これが F3</li>
+    <li><strong>異形式へ変換する場合</strong>：opaqueParts は持ち出せない。件数と種別を <code>ConversionWarning.dropped</code> として列挙する</li>
+    <li><strong>Numbers の場合</strong>：Protobuf の unknown fields を SwiftProtobuf の保持機構で温存する（読み→同一ファイル書き戻し時のみ有効。第11章）</li>
+  </ul>
+  <div class="callout callout-pitfall">
+    <span class="label">保持の落とし穴</span>
+    <p>opaque part が参照するリレーション（rId）を、解釈した part の再生成時に採番し直すと参照が切れる。
+    <strong>既存 rId は不変とし、新規要素は最大値+1 から採番する</strong>ことを全コーデック共通規則とする。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 07 ===================== -->
+<section class="chapter" id="ch07">
+  <h2 class="section-title"><span class="ch-num">Chapter 07</span>XLSX / XLSM コーデック</h2>
+  <p class="section-lede">
+    基準形式。ECMA-376（OOXML）の SpreadsheetML を対象とし、「Excel が修復ダイアログを出さずに開く」を
+    合格基準とする。XLSM は XLSX との差分だけを規定する。
+  </p>
+
+  <h3>7.1 コンテナ構造と必須パート</h3>
+  <pre><span class="filename">OPC パッケージ構造</span><code>book.xlsx (ZIP)
+├── [Content_Types].xml        <span class="cm">← 全パートのMIME宣言。宣言漏れ＝開けないファイル</span>
+├── _rels/.rels                <span class="cm">← ルート関係。workbook への入口</span>
+└── xl/
+    ├── workbook.xml           <span class="cm">← シート一覧・definedNames・date1904フラグ</span>
+    ├── _rels/workbook.xml.rels
+    ├── sharedStrings.xml      <span class="cm">← 文字列プール（書き出し時に構築）</span>
+    ├── styles.xml             <span class="cm">← numFmt/font/fill/border → cellXfs 間接参照</span>
+    ├── worksheets/sheet1.xml  <span class="cm">← セル本体</span>
+    └── vbaProject.bin         <span class="cm">← XLSM のみ。opaque 保持対象</span></code></pre>
+
+  <h3>7.2 読み込み規則</h3>
+  <ul>
+    <li>セル型は <code>t</code> 属性で分岐：<code>s</code>（shared string 索引）／<code>inlineStr</code>／<code>b</code>／<code>str</code>／<code>e</code>／無指定（数値）。日付は<strong>型ではなく書式</strong>（numFmt が日付系）で判定する</li>
+    <li>日付シリアル値は <code>workbookPr/@date1904</code> を必ず参照して基準日を切り替える。1900系では Lotus 互換の「1900年閏年バグ」（存在しない 1900-02-29 = シリアル値 60）を仕様として再現する</li>
+    <li>数式セルは <code>&lt;f&gt;</code> を AST 化し、<code>&lt;v&gt;</code> をキャッシュ値として <code>.formula(ast, cached:)</code> に格納する</li>
+    <li>解釈しないパート（charts / pivotTables / drawings / customXml / vbaProject.bin 等）は <code>PreservationStore</code> へバイト保持する（第6章）</li>
+  </ul>
+
+  <h3>7.3 書き出し規則</h3>
+  <ol class="steps">
+    <li>文字列セルを走査して sharedStrings プールを構築する。出現1回のみの長文は <code>inlineStr</code> を選択してもよい（プール肥大の回避）</li>
+    <li>スタイルは値オブジェクト（CellStyle）を正規化ハッシュで重複排除し、fonts / fills / borders / cellXfs の索引を安定順で生成する</li>
+    <li>ワークシートを行順・列順で直列化する。各行の <code>r</code> 属性、セルの A1 参照、<code>dimension</code> を実データから再計算する</li>
+    <li><strong>数式セルに変更が及んだ場合、calcChain.xml を削除し</strong> Content_Types の宣言も除去する（残すと Excel が修復を要求する）</li>
+    <li>PreservationStore の opaque パートを元のパスへ再梱包し、rels と Content_Types の宣言整合を検証してから ZIP を閉じる</li>
+  </ol>
+
+  <h3>7.4 XLSM 差分仕様</h3>
+  <div class="compare"><table>
+    <tr><th>項目</th><th>規定</th></tr>
+    <tr><td>判別</td><td>workbook パートの ContentType が <code>…ms-excel.sheet.macroEnabled.main+xml</code></td></tr>
+    <tr><td>VBA</td><td><code>xl/vbaProject.bin</code> を opaque 保持。<strong>解釈・実行・改変 API は提供しない</strong>（セキュリティ境界）</td></tr>
+    <tr><td>xlsm → xlsm 保存</td><td>vbaProject.bin と関連 rels を無劣化で再梱包（F3）</td></tr>
+    <tr><td>xlsm → xlsx 保存</td><td>VBA を破棄し、ContentType を通常版へ差し替える。<code>ConversionWarning.dropped</code> を必ず発行</td></tr>
+    <tr><td>xlsx → xlsm 保存</td><td>ContentType 差し替えのみで合法（VBA 無しの xlsm は有効）</td></tr>
+  </table></div>
+
+  <div class="callout callout-pitfall">
+    <span class="label">「開けない xlsx」の三大要因</span>
+    <p>(1) Content_Types 宣言漏れ、(2) rels の rId 参照切れ、(3) A1 参照生成の bijective base-26 変換ミス。
+    この3つで破損報告の大半を占める。いずれも第12章の検証ハーネスで機械検出する。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 08 ===================== -->
+<section class="chapter" id="ch08">
+  <h2 class="section-title"><span class="ch-num">Chapter 08</span>ODS コーデック</h2>
+  <p class="section-lede">
+    ODF 1.3（ISO/IEC 26300 系列）準拠。構造は XLSX より素直だが、ZIP 梱包規則と RLE 圧縮という
+    ODS 固有の2点を外すとすべてが壊れる。
+  </p>
+
+  <h3>8.1 コンテナ構造</h3>
+  <pre><code>book.ods (ZIP)
+├── mimetype                   <span class="cm">← 無圧縮・先頭エントリ必須（8.2）</span>
+├── META-INF/manifest.xml      <span class="cm">← 全ファイルのメディアタイプ登録</span>
+├── content.xml                <span class="cm">← 全シートのセル・自動スタイルが単一ファイルに</span>
+├── styles.xml                 <span class="cm">← 名前付きスタイル・ページレイアウト</span>
+├── meta.xml
+└── settings.xml</code></pre>
+
+  <h3>8.2 ZIP 梱包規則（最重要）</h3>
+  <p>
+    <code>mimetype</code> エントリは<strong>非圧縮（Stored）かつアーカイブ先頭</strong>に置く。
+    LibreOffice は ZIP を展開せず先頭バイト列で形式判定するため、deflate で書くと
+    「ZIP としては正常なのに開けないファイル」になる。
+  </p>
+  <pre><span class="filename">SheetODS/Writer.swift（要点）</span><code><span class="kw">let</span> mime = <span class="ty">Data</span>(<span class="st">"application/vnd.oasis.opendocument.spreadsheet"</span>.utf8)
+<span class="kw">try</span> archive.<span class="fn">addEntry</span>(with: <span class="st">"mimetype"</span>, type: .file,
+                     uncompressedSize: <span class="ty">Int64</span>(mime.count),
+                     compressionMethod: .none) { pos, size <span class="kw">in</span>   <span class="cm">// ← .none が肝</span>
+    mime.subdata(in: <span class="ty">Int</span>(pos)..&lt;<span class="ty">Int</span>(pos) + size)
+}
+<span class="cm">// 以降のエントリは deflate でよい</span></code></pre>
+
+  <h3>8.3 セルの読み書き規則</h3>
+  <ul>
+    <li><strong>RLE 展開（読み）</strong>：<code>table:number-columns-repeated</code> / <code>table:number-rows-repeated</code> を展開する。ただし空セルの巨大リピート（行末パディング、上限 16,384 等）は展開せず打ち切る。展開するとメモリが爆発する</li>
+    <li><strong>RLE 圧縮（書き）</strong>：同一内容の連続セルは repeated 属性へ畳む。読みと書きで対称の処理</li>
+    <li>値は <code>office:value-type</code> + 型別属性（<code>office:value</code> / <code>office:date-value</code> 等）で書き、表示文字列は子要素 <code>&lt;text:p&gt;</code> に置く。日付は ISO 8601 でシリアル値変換は不要</li>
+    <li>数式は <code>table:formula="of:=…"</code>。AST から ODS 方言（<code>[.A1]</code> 参照・<code>;</code> 区切り）で emit する（第5章）</li>
+    <li>セル書式は <code>content.xml</code> 内の <code>automatic-styles</code> に生成し、セルから <code>table:style-name</code> で参照する</li>
+  </ul>
+
+  <h3>8.4 検証</h3>
+  <p>
+    合格基準は「LibreOffice が警告なく開き、<code>soffice --headless --convert-to xlsx</code> が成功する」。
+    ヘッドレス変換は CI に組み込める（第12章）。Excel の ODS 実装は方言があるため、
+    Excel 生成の ODS をテストコーパスに含めて読み側の耐性を確保する。
+  </p>
+</section>
+
+<!-- ===================== CH 09 ===================== -->
+<section class="chapter" id="ch09">
+  <h2 class="section-title"><span class="ch-num">Chapter 09</span>CSV コーデック</h2>
+  <p class="section-lede">
+    交換用の最小形式。構造は RFC 4180 を基準に現実方言を受容する。本章の主軸は文字コード方針であり、
+    「指定がなければ UTF-8（BOM 有無を自動判別）、必要なら任意の文字コードを明示指定」を読み書き共通の原則とする。
+  </p>
+
+  <h3>9.1 モデル写像</h3>
+  <ul>
+    <li><strong>読み込み</strong>：1シート・1テーブルの <code>Workbook</code> を生成する。書式・数式構造・結合の概念は形式に存在しないため、忠実度は定義上 F1（第6章）</li>
+    <li><strong>書き出し</strong>：既定ではアクティブシートの既定テーブルのみを出力する。複数シートのブックでは、出力されないシートを <code>ConversionWarning.dropped</code> として報告する（対象シートはオプションで指定可能）</li>
+    <li><strong>書式・数式の喪失</strong>：CSV の定義そのものであるため、セル単位の警告は出さず、ブック単位のサマリ警告1件（「書式と数式構造は CSV では保持されません」）に集約する。警告は出すが、ノイズにはしない</li>
+    <li><strong>形式判別</strong>：CSV は ZIP コンテナではないため、第4章の判別規則に「非 PK データはテキスト妥当性検査＋区切り文字スニッフィングで CSV/TSV と判定（拡張子があれば優先）」の分岐を追加する</li>
+  </ul>
+
+  <h3>9.2 文字コード仕様（本章の核心）</h3>
+  <div class="compare"><table>
+    <tr><th>場面</th><th>指定なし（既定）</th><th>明示指定</th></tr>
+    <tr><td><strong>読み込み</strong></td>
+      <td>先頭バイトを検査する。UTF-8 BOM（<code>EF BB BF</code>）あり → BOM を除去して UTF-8 として読む。BOM なし → UTF-8 として読む。<strong>BOM の有無どちらでも追加指定なしで正しく読める</strong>。UTF-16 BOM（<code>FF FE</code> / <code>FE FF</code>）を検出した場合は UTF-16 として読む</td>
+      <td><code>CSVReadOptions(encoding:)</code> に <code>String.Encoding</code> を渡す（<code>.shiftJIS</code>・<code>.japaneseEUC</code>・<code>.utf16LittleEndian</code> 等）。指定時は BOM 自動判別を行わない（ただし <code>.utf8</code> 指定時の先頭 BOM は除去する）</td></tr>
+    <tr><td><strong>読み込み失敗時</strong></td>
+      <td colspan="2">指定（または既定）の文字コードとして不正なバイト列は、<strong>黙って文字化けさせず</strong> <code>SheetError.malformedPart</code>（バイトオフセット付き）で失敗する。<code>lossy: true</code> を指定した場合のみ置換文字で読み進め、<code>degraded</code> 警告を返す</td></tr>
+    <tr><td><strong>書き出し</strong></td>
+      <td>UTF-8・<strong>BOM なし</strong></td>
+      <td><code>CSVWriteOptions(encoding:includeBOM:)</code>。<code>includeBOM: true</code> で UTF-8 BOM を付与。<code>encoding</code> に任意の文字コードを指定可能（BOM 付与は UTF-8 / UTF-16 系のみ有効）</td></tr>
+    <tr><td><strong>書き出し失敗時</strong></td>
+      <td colspan="2">指定文字コードで表現できない文字（例：Shift_JIS に存在しない文字）は既定でエラー。<code>lossy: true</code> で置換の上 <code>degraded</code> 警告（セル位置付き）</td></tr>
+  </table></div>
+
+  <div class="callout callout-tip">
+    <span class="label">BOM の使い分け指針</span>
+    <p>BOM なし UTF-8 の CSV を日本語環境の Excel でダブルクリックすると文字化けする（Excel が
+    レガシー文字コードで解釈するため）。<strong>人に配って Excel で開かせるなら <code>includeBOM: true</code>、
+    システム間連携やプログラムでの取り込みなら BOM なし</strong>が原則。この指針は API ドキュメントにも記載する。</p>
+  </div>
+
+  <h3>9.3 構文仕様</h3>
+  <div class="compare"><table>
+    <tr><th>項目</th><th>読み込み</th><th>書き出し</th></tr>
+    <tr><td>区切り文字</td><td>既定 <code>,</code>。未指定時は先頭行から <code>,</code> / <code>;</code> / タブをスニッフィング（拡張子 .tsv はタブ優先）</td><td>既定 <code>,</code>。<code>CSVDialect(delimiter:)</code> で変更（TSV 等）</td></tr>
+    <tr><td>引用符</td><td><code>"</code>。二重化（<code>""</code>）をエスケープとして解釈。引用内の改行・区切り文字を保持</td><td>区切り文字・引用符・改行を含むフィールドは必ず引用し、引用符は二重化する</td></tr>
+    <tr><td>改行</td><td>CRLF / LF / CR をすべて受理（混在も可）</td><td>既定 CRLF（RFC 4180）。<code>.lf</code> 指定可</td></tr>
+    <tr><td>Excel 拡張 <code>sep=;</code></td><td>先頭行にあれば区切り指定として解釈し、データに含めない</td><td>出力しない</td></tr>
+    <tr><td>空行</td><td>空レコードとして保持（末尾の最終改行は除く）</td><td>空行セマンティクスを維持</td></tr>
+  </table></div>
+
+  <h3>9.4 型の扱い</h3>
+  <ul>
+    <li><strong>読みの既定は全フィールド <code>.text</code></strong>。暗黙の型推論はしない — 「01234」（郵便番号）が数値化して先頭ゼロを失う、「1-2」が日付化する、という CSV 二大事故を仕様レベルで排除する</li>
+    <li><code>inferTypes: true</code> 指定時のみ、数値・真偽値・日付（<code>dateFormats</code> で書式指定）を推論して型付きの <code>CellValue</code> にする</li>
+    <li><strong>書き出し</strong>：数値はロケール非依存（小数点 <code>.</code>・桁区切りなし）、日付は ISO 8601 既定（<code>dateFormat</code> 指定可）、真偽値は <code>TRUE</code> / <code>FALSE</code>、数式セルはキャッシュ値（無ければ数式文字列＋ <code>degraded</code> 警告）</li>
+  </ul>
+
+  <h3>9.5 API とコード例</h3>
+  <pre><code><span class="kw">public struct</span> <span class="ty">CSVReadOptions</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public var</span> encoding: <span class="ty">String</span>.<span class="ty">Encoding</span>?   <span class="cm">// nil = UTF-8（BOM 有無を自動判別）</span>
+    <span class="kw">public var</span> dialect: <span class="ty">CSVDialect</span>?          <span class="cm">// nil = スニッフィング</span>
+    <span class="kw">public var</span> inferTypes: <span class="ty">Bool</span> = <span class="kw">false</span>
+    <span class="kw">public var</span> dateFormats: [<span class="ty">String</span>] = []
+    <span class="kw">public var</span> lossy: <span class="ty">Bool</span> = <span class="kw">false</span>
+}
+<span class="kw">public struct</span> <span class="ty">CSVWriteOptions</span>: <span class="ty">Sendable</span> {
+    <span class="kw">public var</span> encoding: <span class="ty">String</span>.<span class="ty">Encoding</span> = .utf8
+    <span class="kw">public var</span> includeBOM: <span class="ty">Bool</span> = <span class="kw">false</span>     <span class="cm">// Excel 配布用途では true を推奨</span>
+    <span class="kw">public var</span> dialect: <span class="ty">CSVDialect</span> = .comma
+    <span class="kw">public var</span> newline: <span class="ty">CSVNewline</span> = .crlf
+    <span class="kw">public var</span> sheet: <span class="ty">String</span>?               <span class="cm">// nil = アクティブシート</span>
+    <span class="kw">public var</span> lossy: <span class="ty">Bool</span> = <span class="kw">false</span>
+}
+
+<span class="cm">// 既定：BOM の有無を気にせず読める</span>
+<span class="kw">let</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"取引先一覧.csv"</span>))
+
+<span class="cm">// Shift_JIS のレガシー CSV を明示指定で読む</span>
+<span class="kw">let</span> legacy = <span class="kw">try</span> <span class="ty">Workbook</span>(
+    contentsOf: url,
+    options: .init(csv: .init(encoding: .shiftJIS))
+)
+
+<span class="cm">// Excel でそのまま開ける UTF-8（BOM 付き）で書き出す</span>
+<span class="kw">try</span> wb.write(to: outURL, as: .csv,
+             options: .init(csv: .init(includeBOM: <span class="kw">true</span>)))</code></pre>
+</section>
+
+<!-- ===================== CH 10 ===================== -->
+<section class="chapter" id="ch10">
+  <h2 class="section-title"><span class="ch-num">Chapter 10</span>Numbers コーデック（読み込み）</h2>
+  <p class="section-lede">
+    非公開の IWA 形式を扱う唯一の章群。読み込みはリバースエンジニアリング済み知見の再実装であり、
+    技術的には確立している。設計の中心は「バージョン追従を運用として回せる構造」に置く。
+  </p>
+
+  <figure class="fig">
+  <svg viewBox="0 0 760 214" role="img" aria-label="IWAデコードパイプライン">
+    <rect class="sv-box-soft" x="10" y="36" width="132" height="52" rx="8"/>
+    <text class="sv-t-dk" x="76" y="58" text-anchor="middle">.numbers</text>
+    <text class="sv-t-sub" x="76" y="74" text-anchor="middle">ZIP / バンドル</text>
+    <line class="sv-arrow" x1="142" y1="62" x2="162" y2="62"/>
+
+    <rect class="sv-box-soft" x="164" y="36" width="132" height="52" rx="8"/>
+    <text class="sv-t-dk" x="230" y="58" text-anchor="middle">Index/*.iwa</text>
+    <text class="sv-t-sub" x="230" y="74" text-anchor="middle">Document / Tables…</text>
+    <line class="sv-arrow" x1="296" y1="62" x2="316" y2="62"/>
+
+    <rect class="sv-box" x="318" y="36" width="132" height="52" rx="8"/>
+    <text class="sv-t" x="384" y="58" text-anchor="middle">Snappy 伸長</text>
+    <text class="sv-t-sub" x="384" y="74" text-anchor="middle">独自フレーミング</text>
+    <line class="sv-arrow" x1="450" y1="62" x2="470" y2="62"/>
+
+    <rect class="sv-box" x="472" y="36" width="132" height="52" rx="8"/>
+    <text class="sv-t" x="538" y="58" text-anchor="middle">Protobuf 復号</text>
+    <text class="sv-t-sub" x="538" y="74" text-anchor="middle">SwiftProtobuf</text>
+    <line class="sv-arrow" x1="604" y1="62" x2="624" y2="62"/>
+
+    <rect class="sv-box-root" x="626" y="36" width="124" height="52" rx="8"/>
+    <text class="sv-t-inv" x="688" y="58" text-anchor="middle">オブジェクト</text>
+    <text class="sv-t-inv" x="688" y="74" text-anchor="middle">グラフ → モデル</text>
+
+    <text class="sv-t-sub" x="384" y="120" text-anchor="middle">4byte ヘッダ: type(1) + 長さ(3, LE)</text>
+    <text class="sv-t-sub" x="384" y="136" text-anchor="middle">汎用 Snappy ライブラリ不可 → 自前ブロックループ</text>
+    <text class="sv-t-sub" x="538" y="164" text-anchor="middle">varint 長 → ArchiveInfo(ID・型) → ペイロード の繰り返し</text>
+    <text class="sv-t-sub" x="538" y="180" text-anchor="middle">type 整数 → メッセージ型は TSPRegistry 対応表で解決</text>
+  </svg>
+  <figcaption>図4 — IWA デコードパイプライン。各段が独立してテスト可能</figcaption>
+  </figure>
+
+  <h3>10.1 Protobuf 定義の調達と生成</h3>
+  <ol class="steps">
+    <li>numbers-parser（MIT）同梱の .proto 群と TSPRegistry 対応表を取り込み、出所・原ライセンスを NOTICE に記載する</li>
+    <li><code>protoc</code> + <code>protoc-gen-swift</code> で Swift コードを生成し、生成物をリポジトリにコミットする（ビルド時生成にしない — 再現性と protoc 依存排除のため）</li>
+    <li>対応表（type 整数 → メッセージ型名）は JSON リソースとして同梱し、コードから分離する。Numbers 新版追従時はこのリソース＋protoの差し替えで完結させる</li>
+  </ol>
+
+  <h3>10.2 デコード規則</h3>
+  <ul>
+    <li>ディレクトリバンドル（旧保存形式）と単一 ZIP の両方を受理する。バンドル時は内部の <code>Index.zip</code> を実体とする</li>
+    <li>Snappy は<strong>生ブロック伸長のみを Pure Swift で自前実装</strong>する（フレーミングが独自であるため外部ライブラリの利点がない）。LZ77 系の伸長のみで約100行、依存ゼロ</li>
+    <li>セル実体は TST 系メッセージのタイル（行列を矩形分割したパック形式）に格納される。数値は decimal128 → <code>Decimal</code> へ損失なく変換する</li>
+    <li>文字列は TableDataList（共有プール）参照。書式・数式文字列も同様の間接参照で解決する</li>
+    <li>未知フィールドは SwiftProtobuf の unknown fields 保持を有効にし、破棄しない（第11章の書き戻しで使う）</li>
+    <li>シート上の複数テーブルはそのまま <code>Sheet.tables</code> へ写像する（第3章のモデルが受け止める）</li>
+  </ul>
+
+  <h3>10.3 バージョン追従ポリシー</h3>
+  <div class="callout callout-warn">
+    <span class="label">恒常的な運用コスト</span>
+    <p>Apple は形式の互換性を保証しない。よって (1) README に<strong>検証済み Numbers バージョン範囲を明記</strong>し、
+    (2) 範囲外のファイルは <code>SheetError.unsupportedVersion</code> ではなく<strong>可能な範囲まで読み進めた上で警告</strong>を返し、
+    (3) Numbers 新版リリース時にコーパス再生成 → proto 差し替え → 回帰テストを回す手順を
+    <code>MAINTENANCE.md</code> として文書化する。読み込み失敗の指標として
+    <code>Metadata/BuildVersionHistory.plist</code> の生成バージョンをエラー情報に含める。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 11 ===================== -->
+<section class="chapter" id="ch11">
+  <h2 class="section-title"><span class="ch-num">Chapter 11</span>Numbers コーデック（書き出し）</h2>
+  <p class="section-lede">
+    他形式と同格の正式対応とする。v1 の書き出し機能セット（値・数式・書式・構造）を Numbers でも完全に
+    サポートし、非公開形式ゆえに表現しきれない要素は、全形式共通の警告機構で漏れなく報告する。
+    合格基準は「Numbers が警告なく開き、そのまま編集を継続できる」こと。
+  </p>
+
+  <h3>11.1 生成戦略 — テンプレート・パッチ方式</h3>
+  <p>
+    オブジェクトグラフをゼロから構築するのではなく、<strong>Numbers で作成した最小の空ドキュメントを
+    テンプレートとしてリソース同梱し、そのグラフを差し替える</strong>方式を採る。
+    文書全体の整合（設定・テーマ・スタイル継承の根）はテンプレートが既に持っているため、
+    実装が触るのはテーブル周辺のサブグラフに限定される。
+  </p>
+  <ol class="steps">
+    <li>テンプレートを展開し、全オブジェクトの最大 ID を求める。<strong>新規オブジェクトは最大値+1 から採番</strong>（既存 ID は不変 — 第6章と同じ規則）</li>
+    <li>シート数・テーブル数に応じて SheetArchive / TableInfo 系ノードを複製し、参照（Reference メッセージ）を張り替える</li>
+    <li>セルデータをタイル形式へパックし、文字列・書式は TableDataList プールへ登録する</li>
+    <li>数式は <strong>Numbers 内部の数式アーカイブ（AST 相当の構造）として生成</strong>し、開封直後から再計算可能な状態にする。関数マッピング表に存在しない関数のみ、キャッシュ値表示＋ <code>degraded</code> 警告へフォールバックする</li>
+    <li>各 .iwa を Snappy 再圧縮し、ZIP へ梱包。<code>preview.jpg</code> はテンプレートの汎用画像を流用する</li>
+    <li>読み込み済みファイルの書き戻し時は、unknown fields を含む元グラフを土台にし、変更セルのみパッチする（保全レベル F3 相当を目指す）</li>
+  </ol>
+
+  <h3>11.2 機能セットと対応範囲</h3>
+  <div class="compare"><table>
+    <tr><th>機能</th><th>対応</th><th>非対応時の挙動</th></tr>
+    <tr><td>セル値（文字列・数値・日付・真偽）</td><td><span class="lv lv-full">◎</span></td><td>—</td></tr>
+    <tr><td>数式</td><td><span class="lv lv-full">◎ 内部表現で生成</span></td><td>マッピング不能な関数はキャッシュ値＋<code>degraded</code> 警告</td></tr>
+    <tr><td>書式（フォント・塗り・罫線・配置・表示形式）</td><td><span class="lv lv-full">◎ v1 書式モデル全域</span></td><td>形式間の表現差は <code>degraded</code> 警告</td></tr>
+    <tr><td>結合セル・列幅・行高・複数テーブル・枠固定</td><td><span class="lv lv-full">◎</span></td><td>—</td></tr>
+    <tr><td>グラフ・条件付きハイライト・ピボット・画像</td><td><span class="lv lv-no">— 生成対象外</span></td><td>全形式共通で v1 は生成 API の対象外（第14.11節）。読み→書き戻し時は保全、変換時は <code>dropped</code> 警告</td></tr>
+  </table></div>
+
+  <div class="callout callout-info">
+    <span class="label">警告機構は全形式共通</span>
+    <p>警告と <code>suggestion</code> は Numbers を特別扱いする仕組みではない。xlsx → ods でも
+    表現差があれば同じ機構で報告される。ただし受け手の要件で Excel 形式が指定される場面は多いため、
+    警告が閾値を超えた場合に代替形式（XLSX 等）を提案する <code>suggestion</code> は引き続き返す。
+    「対応している。ただし問題は必ず知らせる」が全形式共通の契約である。</p>
+  </div>
+
+  <h3>11.3 検証</h3>
+  <ul>
+    <li><strong>自動</strong>：生成ファイルを numbers-parser で読み戻し、中間モデルと値レベルで突き合わせる（クロス実装検証、CI 可能）</li>
+    <li><strong>自動</strong>：自ライブラリで読み戻すセルフラウンドトリップ検証</li>
+    <li><strong>手動</strong>：実機 Numbers での開封チェックリスト（警告有無・表示崩れ）をリリース手順に含める。macOS 上の UI テストは自動化対象外とする</li>
+  </ul>
+</section>
+
+<!-- ===================== CH 12 ===================== -->
+<section class="chapter" id="ch12">
+  <h2 class="section-title"><span class="ch-num">Chapter 12</span>テスト戦略</h2>
+  <p class="section-lede">
+    ファイル形式ライブラリの品質は「実アプリが黙って開くか」でしか測れない。
+    実アプリを審判に据えた検証をどこまで自動化できるかが設計の中心になる。
+  </p>
+
+  <h3>12.1 テストコーパス</h3>
+  <pre><code>Tests/Corpus/
+├── xlsx/
+│   ├── generated-excel/      <span class="cm">← Excel（Win/Mac）実機で保存した多様な機能のファイル</span>
+│   ├── generated-libreoffice/ <span class="cm">← LibreOffice 産の xlsx（方言耐性）</span>
+│   └── malformed/            <span class="cm">← 壊れた ZIP・宣言漏れ・参照切れ（エラー経路の検証）</span>
+├── xlsm/  <span class="cm">← VBA 入り。保全検証用</span>
+├── ods/   <span class="cm">← LibreOffice 産 + Excel 産（方言）</span>
+└── numbers/ <span class="cm">← バージョン別ディレクトリ（v13/ v14/ …）で世代管理</span></code></pre>
+
+  <h3>12.2 検証の柱</h3>
+  <ol class="steps">
+    <li><strong>ゴールデン・ラウンドトリップ</strong> — コーパス各ファイルに対し 読み → 書き → 再読み し、中間モデル同士を比較。F1（値）は完全一致、F2（書式）は属性単位で照合する</li>
+    <li><strong>外部審判 CI（Linux）</strong> — 生成 ods / xlsx を <code>soffice --headless --convert-to</code> に通し、終了コードと変換結果で「LibreOffice が開けるか」を機械判定する</li>
+    <li><strong>クロス実装検証</strong> — 生成 xlsx を openpyxl で、生成 numbers を numbers-parser で読み、値を突き合わせる（他実装をオラクルとして使う。コードは読まない — 第1章の規約と両立する）</li>
+    <li><strong>プロパティテスト</strong> — A1 ⇄ (row, col) 変換の全単射性、RLE 圧縮展開の対称性、数式 parse → emit → parse の不動点性をランダム入力で検証する</li>
+    <li><strong>ファズ</strong> — malformed コーパス＋ランダム破壊入力でクラッシュ・無限ループ・メモリ爆発がないこと（<code>corruptedContainer</code> で必ず着地する）</li>
+    <li><strong>手動チェックリスト</strong> — Excel 実機・Numbers 実機での開封確認。リリースブロッカーとしてテンプレート化する</li>
+  </ol>
+
+  <div class="callout callout-tip">
+    <span class="label">最初に書くテスト</span>
+    <p>プロジェクト最初のテストは「Excel で作った既存ファイルを開き、1セル書き換えて保存し、
+    再度読んで他のセルが無傷であること」。これが本ライブラリの存在理由そのものであり、
+    以後すべての変更に対する回帰の錨になる。</p>
+  </div>
+</section>
+
+<!-- ===================== CH 13 ===================== -->
+<section class="chapter" id="ch13">
+  <h2 class="section-title"><span class="ch-num">Chapter 13</span>開発ロードマップ</h2>
+  <p class="section-lede">
+    フェーズごとに「出荷可能な完成状態」を定義する。各フェーズは前フェーズの成果を壊さないことを
+    受け入れ条件に含む。
+  </p>
+
+  <div class="compare"><table>
+    <tr><th>フェーズ</th><th>成果物</th><th>完了条件（Definition of Done）</th></tr>
+    <tr><td><strong>P1</strong></td><td>SheetCore + XLSX 読み書き + CSV</td><td>既存 xlsx の1セル編集保存を Excel が警告なく開く。F3 保全が機能する。CSV の文字コード仕様（第9章）を満たす</td></tr>
+    <tr><td><strong>P2</strong></td><td>XLSM 対応 + 数式 AST</td><td>VBA 保持ラウンドトリップ。数式の parse→emit 不動点テスト通過</td></tr>
+    <tr><td><strong>P3</strong></td><td>ODS 読み書き</td><td>soffice ヘッドレス検証 CI が green。xlsx⇄ods 変換が F2 水準</td></tr>
+    <tr><td><strong>P4</strong></td><td>Numbers 読み込み</td><td>コーパス全読破。numbers-parser との値一致</td></tr>
+    <tr><td><strong>P5</strong></td><td>Numbers 書き出し</td><td>第11章の機能セットで生成したファイルを Numbers が警告なく開き、再編集後も破損しない。警告 API が機能する</td></tr>
+    <tr><td><strong>P6</strong></td><td>v1.0 公開</td><td>ドキュメント・NOTICE・MAINTENANCE.md 整備。SemVer 運用開始</td></tr>
+    <tr><td><strong>v2</strong></td><td>SheetFormulaEval</td><td>OpenFormula Small Group Evaluator。別パッケージとして分離</td></tr>
+  </table></div>
+
+  <h3>13.1 リスクと対応</h3>
+  <div class="compare"><table>
+    <tr><th>リスク</th><th>影響</th><th>対応</th></tr>
+    <tr><td>Numbers 形式の非互換変更</td><td>P4/P5 成果の陳腐化</td><td>対応バージョン宣言＋proto差し替え手順の文書化（第10章）。読み書きとも部分成功＋警告で全損を防ぐ</td></tr>
+    <tr><td>OOXML 実装間方言</td><td>読み耐性の穴</td><td>生成元別コーパスの拡充。修復不能でも部分読みで返す方針</td></tr>
+    <tr><td>スコープ肥大</td><td>P1 が終わらない</td><td>各フェーズの完了条件を先に固定（本章）。抽象化の先行実装はモデル定義（第3章）までに限定する</td></tr>
+    <tr><td>個人開発の継続性</td><td>メンテ停滞</td><td>ターゲット分割により部分的な貢献・引き継ぎを可能にする。CI を審判にして属人性を下げる</td></tr>
+  </table></div>
+</section>
+
+<!-- ===================== CH 14 ===================== -->
+<section class="chapter" id="ch14">
+  <h2 class="section-title"><span class="ch-num">Chapter 14</span>API リファレンス — openpyxl 対応 全一覧</h2>
+  <p class="section-lede">
+    openpyxl の全 API 面を Swift の流儀（値型・throws・型付き値・警告の一級市民化）で再設計した対応表。
+    openpyxl 経験者が「あの操作はこれ」と引ける形で網羅し、ODS / Numbers 固有 API を最後にまとめる。
+  </p>
+
+  <h3>14.1 設計原則</h3>
+  <ul>
+    <li><strong>値型と明示的保存</strong> — <code>Workbook</code> は struct。編集は値の変更、永続化は <code>write(to:)</code> のみ。暗黙の副作用を持たない</li>
+    <li><strong>失敗は throws、損失は warnings</strong> — 読めない・書けないは例外、書けたが劣化したは <code>WriteResult.warnings</code>。黙って落ちる経路を作らない</li>
+    <li><strong>型付きの値</strong> — openpyxl の「なんでも <code>cell.value</code>」に対し、取得は <code>CellValue</code> enum、代入はリテラル変換（<code>Int</code> / <code>String</code> / <code>Date</code> / <code>Bool</code> / <code>Formula</code>）で受ける</li>
+    <li><strong>座標は二本立て</strong> — A1 文字列（1始まり）と <code>[row, col]</code>（0始まり）の両方を提供。混同事故を防ぐため整数版に 1 始まりは存在しない</li>
+  </ul>
+
+  <h3>14.2 ワークブック — 生成・読み込み・保存</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>load_workbook(path)</code></td><td><code>try Workbook(contentsOf: url)</code></td><td>読み込み。形式は内容から自動判別（第4章）</td></tr>
+    <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
+    <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
+    <tr><td><code>Workbook()</code></td><td><code>Workbook()</code></td><td>新規作成。空シート "Sheet1" を1枚持つ</td></tr>
+    <tr><td><code>wb.save(path)</code></td><td><code>try wb.write(to: url)</code></td><td>拡張子から形式推定。戻り値は <code>WriteResult</code>（破棄可）</td></tr>
+    <tr><td>—</td><td><code>try wb.write(to: url, as: .ods)</code></td><td>形式の明示指定 ＝ そのまま形式変換になる</td></tr>
+    <tr><td>—</td><td><code>try wb.data(as: .xlsx)</code></td><td>ファイルを介さず <code>Data</code> を得る（サーバ用途）</td></tr>
+    <tr><td><code>wb.sheetnames</code></td><td><code>wb.sheets.map(\.name)</code></td><td>シート名一覧</td></tr>
+    <tr><td><code>wb.properties</code></td><td><code>wb.metadata</code></td><td>作成者・タイトル等のドキュメントメタ</td></tr>
+    <tr><td><code>wb.defined_names</code></td><td><code>wb.definedNames</code></td><td>名前付き範囲の辞書</td></tr>
+  </table></div>
+
+  <pre><code><span class="kw">import</span> SwiftSheet
+
+<span class="kw">var</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"予算.xlsx"</span>))
+print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "マスタ"]</span>
+<span class="kw">try</span> wb.write(to: <span class="ty">URL</span>(filePath: <span class="st">"予算.ods"</span>))   <span class="cm">// これだけで xlsx → ods 変換</span></code></pre>
+
+  <h3>14.3 シートとテーブル</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>wb['Sales']</code></td><td><code>wb.sheets["Sales"]</code></td><td>名前アクセス。<code>Sheet?</code> を返す（KeyError ではなく Optional）</td></tr>
+    <tr><td><code>wb.active</code></td><td><code>wb.activeSheet</code></td><td>アクティブシート（既定は先頭）</td></tr>
+    <tr><td><code>wb.create_sheet('X', 0)</code></td><td><code>wb.addSheet(named: "X", at: 0)</code></td><td>作成。位置省略で末尾。作成した <code>Sheet</code> への添字を返す</td></tr>
+    <tr><td><code>wb.remove(ws)</code></td><td><code>wb.removeSheet(named: "X")</code></td><td>削除</td></tr>
+    <tr><td><code>wb.copy_worksheet(ws)</code></td><td><code>wb.duplicateSheet(named: "X", as: "X2")</code></td><td>複製（書式・数式込み）</td></tr>
+    <tr><td><code>ws.title = 'New'</code></td><td><code>wb.sheets[0].name = "New"</code></td><td>改名。数式内シート参照も AST 経由で追随</td></tr>
+    <tr><td><code>ws.sheet_state = 'hidden'</code></td><td><code>sheet.isHidden = true</code></td><td>非表示化</td></tr>
+    <tr><td><code>ws.sheet_properties.tabColor</code></td><td><code>sheet.tabColor = "1072BA"</code></td><td>タブ色（RGB hex）</td></tr>
+    <tr><td>（概念なし）</td><td><code>sheet.tables</code></td><td><strong>Numbers 対応の要</strong>。キャンバス上の全テーブル（第3章）</td></tr>
+    <tr><td>（暗黙に1グリッド）</td><td><code>sheet.table</code></td><td>既定テーブル。XLSX/ODS 由来なら常にこれ1つ。無ければ生成</td></tr>
+  </table></div>
+
+  <div class="callout callout-info">
+    <span class="label">Sheet と Table の使い分け</span>
+    <p>XLSX / ODS だけを扱うなら <code>sheet</code> への直接アクセス（下記のセル API は Sheet にも
+    転送実装されている）だけで完結し、Table を意識する必要はない。<code>sheet.tables</code> を触るのは
+    Numbers の複数テーブルを扱うときだけ。</p>
+  </div>
+
+  <h3>14.4 セルアクセスと走査</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>ws['A1'].value</code></td><td><code>sheet["A1"]</code></td><td>取得。<code>CellValue?</code>（空セルは nil）</td></tr>
+    <tr><td><code>ws['A1'] = 42</code></td><td><code>sheet["A1"] = 42</code></td><td>代入。<code>Int</code> / <code>Double</code> / <code>Decimal</code> / <code>String</code> / <code>Date</code> / <code>Bool</code> / <code>Formula</code> / <code>nil</code> をリテラル変換で受理</td></tr>
+    <tr><td><code>ws.cell(row=1, column=2)</code></td><td><code>sheet[0, 1]</code></td><td><strong>0 始まり</strong>の整数添字。A1 は 1 始まり — 二重系統を混ぜない</td></tr>
+    <tr><td><code>ws['A1':'C3']</code></td><td><code>sheet.range("A1:C3")</code></td><td>範囲ビュー（遅延・コピーなし）</td></tr>
+    <tr><td><code>ws.iter_rows(values_only=True)</code></td><td><code>for row in sheet.rows(in: "A2:D100")</code></td><td>行単位走査。<code>row</code> は <code>[CellValue?]</code></td></tr>
+    <tr><td><code>ws.iter_cols(...)</code></td><td><code>sheet.columns(in:)</code></td><td>列単位走査</td></tr>
+    <tr><td><code>ws.values</code></td><td><code>sheet.values(in:)</code></td><td>値のみの二次元配列</td></tr>
+    <tr><td><code>ws.append([...])</code></td><td><code>sheet.append(["Alice", 30, Date()])</code></td><td>最終行の次に1行追加</td></tr>
+    <tr><td><code>cell.coordinate</code> / <code>row</code> / <code>column_letter</code></td><td><code>ref.a1</code> / <code>ref.row</code> / <code>ref.columnName</code></td><td><code>CellRef</code> のプロパティ</td></tr>
+    <tr><td><code>ws.max_row</code> / <code>ws.max_column</code></td><td><code>sheet.extent</code></td><td>使用範囲を <code>CellRange?</code> で返す（空なら nil — max_row=1 問題を回避）</td></tr>
+    <tr><td><code>cell.data_type</code></td><td><code>switch value { case .number: … }</code></td><td>型は enum の case マッチで判別</td></tr>
+  </table></div>
+
+  <pre><code><span class="cm">// 取得は型付き enum、代入はリテラル</span>
+sheet[<span class="st">"A1"</span>] = <span class="st">"売上"</span>
+sheet[<span class="st">"B1"</span>] = <span class="nm">1_250_000</span>
+sheet[<span class="st">"C1"</span>] = <span class="ty">Date</span>()
+
+<span class="kw">if case</span> .number(<span class="kw">let</span> n) = sheet[<span class="st">"B1"</span>] {
+    print(<span class="st">"金額: \(n)"</span>)
+}
+<span class="cm">// 型を決め打ちで取りたいときの便宜アクセサ</span>
+<span class="kw">let</span> amount = sheet[<span class="st">"B1"</span>]?.numberValue     <span class="cm">// Decimal?</span>
+<span class="kw">let</span> title  = sheet[<span class="st">"A1"</span>]?.stringValue     <span class="cm">// String?（数値でも文字列化）</span></code></pre>
+
+  <h3>14.5 行・列・構造操作</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>ws.insert_rows(2, amount=3)</code></td><td><code>sheet.insertRows(at: 1, count: 3)</code></td><td>行挿入（0始まり）。<strong>数式内参照を AST 経由で自動シフト</strong>（openpyxl は数式を追随させない — 本ライブラリの差別化点）</td></tr>
+    <tr><td><code>ws.delete_rows(2)</code></td><td><code>sheet.deleteRows(at: 1, count: 1)</code></td><td>行削除。参照切れは <code>#REF!</code> エラー値へ置換</td></tr>
+    <tr><td><code>ws.insert_cols / delete_cols</code></td><td><code>sheet.insertColumns / deleteColumns</code></td><td>列版。挙動は行と対称</td></tr>
+    <tr><td><code>ws.merge_cells('A1:C1')</code></td><td><code>sheet.merge("A1:C1")</code></td><td>セル結合</td></tr>
+    <tr><td><code>ws.unmerge_cells('A1:C1')</code></td><td><code>sheet.unmerge("A1:C1")</code></td><td>結合解除</td></tr>
+    <tr><td><code>ws.merged_cells.ranges</code></td><td><code>sheet.merges</code></td><td><code>[CellRange]</code></td></tr>
+    <tr><td><code>ws.column_dimensions['A'].width = 18</code></td><td><code>sheet.setWidth(18, ofColumn: "A")</code></td><td>列幅（文字数基準。ODS へは mm 換算で射影）</td></tr>
+    <tr><td><code>ws.row_dimensions[1].height = 24</code></td><td><code>sheet.setHeight(24, ofRow: 0)</code></td><td>行高（pt）</td></tr>
+    <tr><td><code>ws.freeze_panes = 'B2'</code></td><td><code>sheet.freezePanes = "B2"</code></td><td>ウィンドウ枠固定</td></tr>
+    <tr><td><code>ws.auto_filter.ref = 'A1:D1'</code></td><td><code>sheet.autoFilter = "A1:D100"</code></td><td>オートフィルタ範囲</td></tr>
+  </table></div>
+
+  <h3>14.6 スタイルと書式</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>cell.font = Font(bold=True, size=14)</code></td><td><code>sheet.style("A1") { $0.font.bold = true; $0.font.size = 14 }</code></td><td>クロージャで部分更新。範囲指定可</td></tr>
+    <tr><td><code>PatternFill(fgColor='FFF2CC', fill_type='solid')</code></td><td><code>$0.fill = .solid("FFF2CC")</code></td><td>塗り。RGB hex 文字列</td></tr>
+    <tr><td><code>Border(bottom=Side(style='thin'))</code></td><td><code>$0.border.bottom = .thin</code> ／ <code>$0.border = .all(.thin)</code></td><td>罫線。辺ごと・一括の両方</td></tr>
+    <tr><td><code>Alignment(horizontal='center', wrap_text=True)</code></td><td><code>$0.alignment = .init(horizontal: .center, wrap: true)</code></td><td>配置・折返し</td></tr>
+    <tr><td><code>cell.number_format = '#,##0'</code></td><td><code>$0.numberFormat = "#,##0"</code></td><td>表示形式。書式コードは XLSX 系を正とし ODS へ変換</td></tr>
+    <tr><td><code>NamedStyle(name='header')</code></td><td><code>wb.namedStyles["header"]</code></td><td>名前付きスタイル（v1.1 予定。v1 は読み保持のみ）</td></tr>
+    <tr><td><code>cell.style = 'header'</code></td><td><code>sheet.applyStyle(named: "header", to: "A1:D1")</code></td><td>同上</td></tr>
+  </table></div>
+
+  <pre><code><span class="cm">// 見出し行を一括装飾</span>
+sheet.style(<span class="st">"A1:D1"</span>) {
+    $0.font.bold = <span class="kw">true</span>
+    $0.fill = .solid(<span class="st">"1D1D1F"</span>)
+    $0.font.color = <span class="st">"FFFFFF"</span>
+    $0.alignment = .init(horizontal: .center)
+    $0.border.bottom = .medium
+}
+sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="st">"#,##0"</span> }</code></pre>
+
+  <h3>14.7 数式</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>cell.value = '=SUM(A1:B2)'</code></td><td><code>sheet["C1"] = Formula("=SUM(A1:B2)")</code></td><td>代入時に AST 化。解析不能なら <code>.unparsed</code> 退避（第5章）</td></tr>
+    <tr><td><code>load_workbook(data_only=True)</code></td><td><code>ReadOptions(dataOnly: true)</code></td><td>キャッシュ値で読む</td></tr>
+    <tr><td>（文字列のみ）</td><td><code>case .formula(let ast, let cached)</code></td><td>AST とキャッシュ値の両方に常時アクセス可能</td></tr>
+    <tr><td>—</td><td><code>formula.rendered(as: .ods)</code></td><td>方言レンダリング（<code>of:=SUM([.A1:.B2];[.C3])</code>）</td></tr>
+    <tr><td><code>openpyxl.formula.translate.Translator</code></td><td>（自動）</td><td>行列挿入・シート改名時の参照追随は本体が行う（14.5）</td></tr>
+  </table></div>
+
+  <h3>14.8 保存・変換・警告</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>wb.save('a.xlsx')</code></td><td><code>let result = try wb.write(to: url)</code></td><td><code>WriteResult</code>（<code>@discardableResult</code>）</td></tr>
+    <tr><td>—</td><td><code>result.warnings</code></td><td><code>[ConversionWarning]</code>。損失の全記録（第4・6章）</td></tr>
+    <tr><td>—</td><td><code>result.suggestion</code></td><td>いずれの形式でも劣化が閾値を超えた場合に代替形式の提案を返す（第11章）</td></tr>
+    <tr><td>—</td><td><code>try Workbook.convert(url, to: .ods)</code></td><td>読み→書きの一発変換ショートカット</td></tr>
+    <tr><td>—</td><td><code>wb.preserved.summary</code></td><td>opaque 保持中の要素一覧（グラフ n 件・VBA 有無 等）</td></tr>
+  </table></div>
+
+  <h3>14.9 ODS / Numbers / CSV 固有 API</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>API</th><th>形式</th><th>説明</th></tr>
+    <tr><td><code>SheetFormat.detect(from: data)</code></td><td>共通</td><td>内容ベースの形式判別（第4章の判別規則を公開 API 化）</td></tr>
+    <tr><td><code>ODSWriteOptions(strict: true)</code></td><td>ODS</td><td>ODF 1.2 互換の保守的出力（古い実装向け）</td></tr>
+    <tr><td><code>sheet.tables[i].name / .anchor</code></td><td>Numbers</td><td>キャンバス上のテーブル名と位置。読み書き可</td></tr>
+    <tr><td><code>sheet.addTable(named:anchor:)</code></td><td>Numbers</td><td>テーブル追加（XLSX/ODS へ書き出す際は平坦化 — 第3章）</td></tr>
+    <tr><td><code>NumbersReadOptions(versionPolicy: .tolerant)</code></td><td>Numbers</td><td>未検証バージョンでも読み進め、警告で報告（第10章）</td></tr>
+    <tr><td><code>NumbersWriteOptions(flattening: .tablePerSheet)</code></td><td>Numbers→他形式</td><td>複数テーブルの平坦化規則の選択</td></tr>
+    <tr><td><code>CSVReadOptions(encoding: .shiftJIS)</code></td><td>CSV</td><td>文字コード明示。未指定時は UTF-8（BOM 有無を自動判別 — 第9章）</td></tr>
+    <tr><td><code>CSVWriteOptions(encoding:includeBOM:dialect:)</code></td><td>CSV</td><td>既定は UTF-8・BOM なし。Excel 配布用に BOM 付与可</td></tr>
+    <tr><td><code>CSVDialect(delimiter: "\t")</code></td><td>CSV</td><td>TSV・セミコロン区切り等の方言指定</td></tr>
+    <tr><td><code>wb.sourceInfo</code></td><td>共通</td><td>読み込み元の形式・生成アプリ・バージョン（Numbers は BuildVersionHistory 由来）</td></tr>
+  </table></div>
+
+  <h3>14.10 ユーティリティ</h3>
+  <div class="compare pbauto"><table>
+    <tr><th>openpyxl</th><th>SwiftSheet</th><th>説明</th></tr>
+    <tr><td><code>get_column_letter(3)</code> → <code>'C'</code></td><td><code>ColumnName(2)</code> → <code>"C"</code></td><td>0 始まり。bijective base-26</td></tr>
+    <tr><td><code>column_index_from_string('C')</code></td><td><code>ColumnIndex("C")</code> → <code>2</code></td><td>逆変換</td></tr>
+    <tr><td><code>coordinate_from_string('B3')</code></td><td><code>CellRef("B3")</code></td><td>失敗可能イニシャライザ</td></tr>
+    <tr><td>—</td><td><code>CellRange("A1:C3").contains(CellRef("B2"))</code></td><td>範囲演算</td></tr>
+  </table></div>
+
+  <h3>14.11 openpyxl 機能との対応状況（未対応領域の明示）</h3>
+  <div class="compare"><table>
+    <tr><th>openpyxl 機能</th><th>v1 での扱い</th></tr>
+    <tr><td>チャート作成 / 画像挿入 / 条件付き書式 / データ検証 / コメント</td><td><strong>読み書き API なし・F3 保全のみ</strong>（既存要素は無劣化温存、第6章）。コメントと条件付き書式は v1.1 で読み書き対応を検討</td></tr>
+    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td>ロードマップ項目。v1 は全載せモデルのみ（数十万行規模はメモリ要件を README に明記）</td></tr>
+    <tr><td>シート保護・ブック暗号化</td><td>非対応（暗号化は明示的エラー — 第1章）</td></tr>
+    <tr><td>ピボットテーブル</td><td>F3 保全のみ。生成 API は提供しない</td></tr>
+  </table></div>
+</section>
+
+<!-- ===================== CH 15 ===================== -->
+<section class="chapter" id="ch15">
+  <h2 class="section-title"><span class="ch-num">Chapter 15</span>ユースケース集 — よくある使い方</h2>
+  <p class="section-lede">
+    第14章の API を実務の文脈で組み合わせたレシピ集。各レシピは README / DocC のサンプルとして
+    そのまま転用できる粒度で書く。
+  </p>
+
+  <h3>15.1 既存の Excel を開いて一部だけ直して保存する</h3>
+  <p>
+    本ライブラリの存在理由そのもの（第12章の最初のテスト）。グラフ・ピボット・印刷設定など
+    触っていない要素はすべて F3 保全で無傷のまま残る。
+  </p>
+  <pre><code><span class="kw">var</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"月次報告.xlsx"</span>))
+
+<span class="kw">guard var</span> sheet = wb.sheets[<span class="st">"集計"</span>] <span class="kw">else</span> { <span class="kw">throw</span> <span class="ty">MyError</span>.sheetNotFound }
+sheet[<span class="st">"B4"</span>] = <span class="nm">1_380_000</span>                       <span class="cm">// 今月の実績だけ更新</span>
+sheet[<span class="st">"B5"</span>] = <span class="ty">Formula</span>(<span class="st">"=B4/B3"</span>)               <span class="cm">// 達成率</span>
+wb.sheets[<span class="st">"集計"</span>] = sheet                       <span class="cm">// 値型なので書き戻す</span>
+
+<span class="kw">try</span> wb.write(to: <span class="ty">URL</span>(filePath: <span class="st">"月次報告.xlsx"</span>))  <span class="cm">// グラフは無傷（F3）</span></code></pre>
+
+  <h3>15.2 ゼロから書式付きレポートを生成する</h3>
+  <pre><code><span class="kw">var</span> wb = <span class="ty">Workbook</span>()
+<span class="kw">var</span> sheet = wb.sheets[<span class="nm">0</span>]
+sheet.name = <span class="st">"売上一覧"</span>
+
+sheet.append([<span class="st">"部門"</span>, <span class="st">"担当"</span>, <span class="st">"金額"</span>, <span class="st">"計上日"</span>])
+<span class="kw">for</span> row <span class="kw">in</span> records {
+    sheet.append([row.dept, row.owner, row.amount, row.date])
+}
+
+sheet.style(<span class="st">"A1:D1"</span>) {                          <span class="cm">// 見出し行</span>
+    $0.font.bold = <span class="kw">true</span>
+    $0.fill = .solid(<span class="st">"F5F5F7"</span>)
+    $0.border.bottom = .medium
+}
+sheet.style(<span class="st">"C2:C1000"</span>) { $0.numberFormat = <span class="st">"#,##0"</span> }
+sheet.style(<span class="st">"D2:D1000"</span>) { $0.numberFormat = <span class="st">"yyyy/mm/dd"</span> }
+sheet.setWidth(<span class="nm">14</span>, ofColumn: <span class="st">"C"</span>)
+sheet.freezePanes = <span class="st">"A2"</span>
+sheet.autoFilter = <span class="st">"A1:D1"</span>
+
+<span class="cm">// 合計行（数式で）</span>
+<span class="kw">let</span> last = sheet.extent!.max.row + <span class="nm">1</span>
+sheet[last, <span class="nm">1</span>] = <span class="st">"合計"</span>
+sheet[last, <span class="nm">2</span>] = <span class="ty">Formula</span>(<span class="st">"=SUM(C2:C\(last))"</span>)
+
+wb.sheets[<span class="nm">0</span>] = sheet
+<span class="kw">try</span> wb.write(to: outURL)</code></pre>
+
+  <h3>15.3 フォルダ内の xlsx を ODS へ一括変換する（警告ログ付き）</h3>
+  <p>変換損失を握りつぶさないのが本ライブラリの流儀。warnings をログに残す形を標準例とする。</p>
+  <pre><code><span class="kw">let</span> files = <span class="kw">try</span> <span class="ty">FileManager</span>.default
+    .contentsOfDirectory(at: folder, includingPropertiesForKeys: <span class="kw">nil</span>)
+    .filter { $0.pathExtension.lowercased() == <span class="st">"xlsx"</span> }
+
+<span class="kw">for</span> src <span class="kw">in</span> files {
+    <span class="kw">let</span> dst = src.deletingPathExtension().appendingPathExtension(<span class="st">"ods"</span>)
+    <span class="kw">let</span> result = <span class="kw">try</span> <span class="ty">Workbook</span>.convert(src, to: .ods, output: dst)
+
+    <span class="kw">for</span> w <span class="kw">in</span> result.warnings {
+        logger.warning(<span class="st">"\(src.lastPathComponent): \(w.message)"</span>)
+    }   <span class="cm">// 例: "グラフ 2 件は ODS へ持ち出せないため破棄しました"</span>
+}</code></pre>
+
+  <h3>15.4 受け取った .numbers を xlsx に変換して共有する</h3>
+  <p>Numbers の複数テーブルは平坦化規則を選んで1グリッド世界へ落とす（第3章・第14.9節）。</p>
+  <pre><code><span class="kw">let</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"家計簿.numbers"</span>))
+
+<span class="cm">// シート構成を確認 — Numbers はシートごとに複数テーブルがあり得る</span>
+<span class="kw">for</span> sheet <span class="kw">in</span> wb.sheets {
+    print(sheet.name, sheet.tables.map { $0.name ?? <span class="st">"(無名)"</span> })
+}
+
+<span class="kw">let</span> result = <span class="kw">try</span> wb.write(
+    to: <span class="ty">URL</span>(filePath: <span class="st">"家計簿.xlsx"</span>),
+    options: .init(numbersFlattening: .tablePerSheet)  <span class="cm">// テーブル→個別シート</span>
+)
+print(result.warnings.count, <span class="st">"件の変換警告"</span>)</code></pre>
+
+  <h3>15.5 複数ブックを横断して値だけ高速に集計する</h3>
+  <p><code>dataOnly</code> で数式をキャッシュ値として読み、書式を触らず値集計に徹するパターン。</p>
+  <pre><code><span class="kw">var</span> total = <span class="ty">Decimal</span>.zero
+
+<span class="kw">for</span> url <span class="kw">in</span> reportURLs {   <span class="cm">// xlsx / ods / numbers 混在でよい — 判別は自動</span>
+    <span class="kw">let</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: url, options: .init(dataOnly: <span class="kw">true</span>))
+    <span class="kw">guard let</span> sheet = wb.sheets[<span class="st">"集計"</span>] <span class="kw">else</span> { <span class="kw">continue</span> }
+
+    <span class="kw">for</span> row <span class="kw">in</span> sheet.rows(in: <span class="st">"B2:B100"</span>) {
+        <span class="kw">if let</span> n = row[<span class="nm">0</span>]?.numberValue { total += n }
+    }
+}
+print(<span class="st">"全社合計: \(total)"</span>)</code></pre>
+
+  <h3>15.6 xlsm の VBA を保持したままデータを差し替える</h3>
+  <p>マクロは opaque 保持なので、意識することは「xlsm のまま保存する」ことだけ（第7.4節）。</p>
+  <pre><code><span class="kw">var</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"入力ツール.xlsm"</span>))
+print(wb.preserved.summary)          <span class="cm">// "VBA プロジェクト: あり / 図形: 3 件"</span>
+
+<span class="kw">var</span> master = wb.sheets[<span class="st">"マスタ"</span>]!
+master.deleteRows(at: <span class="nm">1</span>, count: master.extent!.max.row)  <span class="cm">// 見出し以外クリア</span>
+<span class="kw">for</span> item <span class="kw">in</span> latestMaster { master.append([item.code, item.name, item.price]) }
+wb.sheets[<span class="st">"マスタ"</span>] = master
+
+<span class="kw">try</span> wb.write(to: <span class="ty">URL</span>(filePath: <span class="st">"入力ツール.xlsm"</span>))   <span class="cm">// VBA は無傷</span>
+<span class="cm">// もし .xlsx で保存すると warnings に「VBA を破棄」が必ず載る</span></code></pre>
+
+  <h3>15.7 Numbers への書き出しと警告・suggestion の扱い</h3>
+  <p>Numbers 書き出しは正式対応であり、通常は警告ゼロで完了する。表現できない要素があれば warnings に列挙され、閾値を超えると suggestion が付く。UI に載せる想定の形。</p>
+  <pre><code><span class="kw">let</span> result = <span class="kw">try</span> wb.write(to: <span class="ty">URL</span>(filePath: <span class="st">"共有用.numbers"</span>), as: .numbers)
+
+<span class="kw">if let</span> suggestion = result.suggestion {
+    <span class="cm">// 例: "条件付き書式 12 件が失われます。忠実度が必要なら XLSX 出力を検討してください"</span>
+    <span class="kw">let</span> proceed = <span class="kw">await</span> confirmWithUser(suggestion.message)
+    <span class="kw">if</span> !proceed {
+        <span class="kw">try</span> wb.write(to: <span class="ty">URL</span>(filePath: <span class="st">"共有用.xlsx"</span>))   <span class="cm">// 代替形式の提案に従う例</span>
+    }
+}</code></pre>
+
+
+  <h3>15.8 Shift_JIS のレガシー CSV を取り込み、書式付き xlsx に仕立てる</h3>
+  <p>第9章の文字コード仕様の実践形。読みは明示指定、配布用の CSV 書き出しは BOM 付き UTF-8 を使う。</p>
+  <pre><code><span class="cm">// 基幹システムが吐く Shift_JIS CSV（型はすべて文字列で受けてから推論）</span>
+<span class="kw">var</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: csvURL, options: .init(csv: .init(
+    encoding: .shiftJIS,
+    inferTypes: <span class="kw">true</span>,
+    dateFormats: [<span class="st">"yyyy/MM/dd"</span>]
+)))
+
+<span class="kw">var</span> sheet = wb.sheets[<span class="nm">0</span>]
+sheet.name = <span class="st">"取引一覧"</span>
+sheet.style(<span class="st">"A1:E1"</span>) { $0.font.bold = <span class="kw">true</span>; $0.fill = .solid(<span class="st">"F5F5F7"</span>) }
+sheet.freezePanes = <span class="st">"A2"</span>
+wb.sheets[<span class="nm">0</span>] = sheet
+
+<span class="kw">try</span> wb.write(to: xlsxURL)   <span class="cm">// 社内共有用 xlsx</span>
+
+<span class="cm">// Excel でダブルクリックしても化けない CSV も併せて出力</span>
+<span class="kw">try</span> wb.write(to: csvOutURL, as: .csv,
+             options: .init(csv: .init(includeBOM: <span class="kw">true</span>)))</code></pre>
+  <div class="callout callout-tip">
+    <span class="label">レシピの位置づけ</span>
+    <p>15.1（ラウンドトリップ編集）と 15.3（一括変換）は P1 / P3 の受け入れテストを兼ねる。
+    ドキュメントのサンプルと CI のテストコードを同一ソースから生成し、「動かないサンプル」を
+    構造的に排除する（DocC の snippet 機構を利用）。</p>
+  </div>
+</section>
+
+<!-- ===================== APPENDIX ===================== -->
+<section class="chapter" id="apx">
+  <h2 class="section-title"><span class="ch-num">Appendix</span>用語集・参考資料</h2>
+
+  <h3>A.1 用語集</h3>
+  <div class="concept-grid">
+    <div class="concept-card"><div class="term">OPC</div><p class="desc">Open Packaging Conventions。OOXML の ZIP 梱包規約。Content_Types と rels による宣言・参照モデル</p></div>
+    <div class="concept-card"><div class="term">sharedStrings</div><p class="desc">XLSX の文字列共有プール。セルは索引で参照する。書き出し時に構築する派生物</p></div>
+    <div class="concept-card"><div class="term">calcChain</div><p class="desc">Excel の数式再計算順キャッシュ。数式変更時は削除しないと修復ダイアログの原因になる</p></div>
+    <div class="concept-card"><div class="term">date1904</div><p class="desc">Mac 由来の日付基準フラグ。1900系との取り違えは全日付が約4年ずれる事故になる</p></div>
+    <div class="concept-card"><div class="term">OpenFormula</div><p class="desc">ODF Part の数式仕様。適合レベル（Small/Medium/Large Group）とテストケースを内蔵する</p></div>
+    <div class="concept-card"><div class="term">number-columns-repeated</div><p class="desc">ODS のセル RLE 圧縮属性。空セル行末パディングの無限展開に注意</p></div>
+    <div class="concept-card"><div class="term">IWA</div><p class="desc">iWork Archive。独自フレーミングの Snappy + Protobuf ストリーム。Apple 非公開</p></div>
+    <div class="concept-card"><div class="term">TSPRegistry</div><p class="desc">IWA の type 整数と Protobuf メッセージ型の対応表。iWork アプリ内部から抽出された知見</p></div>
+    <div class="concept-card"><div class="term">decimal128</div><p class="desc">Numbers の数値格納形式。Double 経由の変換は精度損失を生むため Decimal で受ける</p></div>
+  </div>
+
+  <h3>A.2 参考資料</h3>
+  <ul>
+    <li>ECMA-376 — Office Open XML File Formats（SpreadsheetML）: <a href="https://ecma-international.org/publications-and-standards/standards/ecma-376/">ecma-international.org</a></li>
+    <li>OASIS OpenDocument v1.3 Part 3: Schema / Part 4: OpenFormula: <a href="https://docs.oasis-open.org/office/OpenDocument/v1.3/">docs.oasis-open.org</a></li>
+    <li>ISO/IEC 26300 シリーズ（ODF 1.2 国際標準版）</li>
+    <li>masaccio/numbers-parser（MIT。proto 定義・書き出し手法の先行実装）: <a href="https://github.com/masaccio/numbers-parser">github.com/masaccio/numbers-parser</a></li>
+    <li>obriensp/iWorkFileFormat（IWA 構造の基礎文書）: <a href="https://github.com/obriensp/iWorkFileFormat">github.com/obriensp/iWorkFileFormat</a></li>
+    <li>CoreOffice/CoreXLSX（Apache 2.0。読み込み層の設計参考）: <a href="https://github.com/CoreOffice/CoreXLSX">github.com/CoreOffice/CoreXLSX</a></li>
+    <li>LibreOffice ライセンス方針（閲覧禁止規約の根拠）: <a href="https://www.libreoffice.org/download/license/">libreoffice.org/download/license</a></li>
+  </ul>
+
+  <h3>A.3 改訂履歴</h3>
+  <div class="compare"><table>
+    <tr><th>Rev</th><th>日付</th><th>内容</th></tr>
+    <tr><td>1.0 Draft</td><td>2026-08-22</td><td>初版起草。全12章＋付録</td></tr>
+    <tr><td>1.1 Draft</td><td>2026-08-22</td><td>第14章（API 全一覧・openpyxl 対応表）・第15章（ユースケース集）を追加</td></tr>
+    <tr><td>1.2 Draft</td><td>2026-08-22</td><td>Numbers 書き出しを正式対応へ格上げ（警告機構を全形式共通の契約として再定義）。第9章 CSV コーデックを新設（UTF-8 BOM 自動判別・文字コード指定）</td></tr>
+    <tr><td>1.3 Draft</td><td>2026-08-22</td><td>P1・P2（SheetCore・XLSX/XLSM・CSV・数式 AST・F3 保全）の実装に伴う決定と逸脱を付録 B に記録。名称を SwiftSheets に確定</td></tr>
+  </table></div>
+  <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
+    本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
+  </p>
+</section>
+
+
+<!-- ===================== APPENDIX B ===================== -->
+<section class="chapter" id="apxb">
+  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 1.3）</h2>
+  <p class="lead">
+    P1・P2 を実装した 2026-08-22 時点で、本文と実装が異なる点・本文が決めていなかった点をここに固定する。
+    本文より本付録が優先する。理由のない逸脱は無い — 逸脱は必ず理由つきで載せ、戻すべきと判断したら本文ではなくここを直す。
+  </p>
+
+  <h3>B.1 名称とパッケージ構成</h3>
+  <ul>
+    <li><strong>名称は SwiftSheets</strong>（オーナー決定 2026-08-22。本文の SwiftSheet は仮称）。リポジトリは <code>~/Developer/Lab/SwiftSheets</code>（Stream の <code>app/SwiftSheets</code> から履歴ごと切り出し）。</li>
+    <li>ターゲットは <code>SheetCore</code> / <code>SheetXLSX</code> / <code>SheetCSV</code> / 全部入り <code>SwiftSheets</code>。未実装の <code>SheetODS</code> / <code>SheetNumbers</code> は空ターゲットを作らない（P3・P4 で追加）。CSV は §9 の方針どおり独立ターゲット。</li>
+    <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ Compression による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。</li>
+    <li>ZIP / XML の基盤は SheetCore に置き、<code>package</code> アクセスでコーデックへ公開する（L1 を別ターゲットにしない — 利用者に見せる必要がない）。</li>
+  </ul>
+
+  <h3>B.2 中間モデル（§3 との差分）</h3>
+  <div class="compare"><table>
+    <tr><th>本文</th><th>実装</th><th>理由</th></tr>
+    <tr><td><code>case number(Decimal)</code> のみ</td><td><code>.integer(Int)</code> と <code>.number(Decimal)</code> の二本立て</td><td>openpyxl の int / float 区別は表示文字列（<code>"1"</code> と <code>"1.0"</code>）に影響し、Stream の相互検証がそれに依存する。Decimal はファイルの数字文字列をそのまま保つ（<code>0.1</code> が <code>0.1000…55</code> にならない）</td></tr>
+    <tr><td><code>case date(Date)</code></td><td><code>.date(CivilDateTime)</code>（時差なし暦日時）＋ <code>.time(TimeOfDay)</code> / <code>.duration(Duration)</code></td><td>表計算の日付はタイムゾーンを持たない。<code>Foundation.Date</code> は <code>CellValue(Date, in: TimeZone)</code> で明示変換</td></tr>
+    <tr><td><code>case text</code> / <code>case empty</code></td><td><code>.text</code>（同じ）。空セルは <code>Cell.value == nil</code> で表し <code>.empty</code> は持たない。<code>.richText([TextRun])</code> を追加</td><td>Optional が Swift の流儀。書式だけのセルは <code>value == nil</code> のまま <code>cells</code> に存在する</td></tr>
+    <tr><td><code>formula(FormulaExpr, cached: String?)</code></td><td><code>formula(FormulaExpr, cached: CellValue?)</code></td><td>キャッシュ値には型がある（<code>t="b"</code> / <code>"str"</code> / <code>"e"</code> / 数値）。<code>dataOnly</code> 読み込みがその型を返す</td></tr>
+    <tr><td><code>Sheet.tables</code>・<code>Table.columnWidths</code></td><td>同じ構造。<code>Table</code> は <code>rowDimensions</code> / <code>columnDimensions</code>（高さ・幅・非表示・アウトライン・列既定スタイル）と <code>merges</code> を持つ。<code>Sheet</code> はセル API を既定テーブルへ転送する</td><td>§14.3 の「XLSX / ODS だけなら Table を意識しない」を API で保証する</td></tr>
+    <tr><td>シート名の検証</td><td><code>Workbook.sheets</code>（<code>Sheets</code> コレクション）に収めた時点で検証・重複回避（不正名は旧名維持、重複は数字サフィックス）。改名時は全シートの数式内参照を AST 経由で追随</td><td>値型ではシート単体が兄弟を知らないため</td></tr>
+    <tr><td><code>Workbook()</code> は "Sheet1"</td><td>同じ（openpyxl の "Sheet" から変更）</td><td>本文どおり</td></tr>
+    <tr><td><code>ColumnName(2)</code> / <code>ColumnIndex("C")</code></td><td><code>CellRef.columnName(2)</code> / <code>CellRef.columnIndex("C")</code></td><td>大文字の関数名は Swift では型に見える。意味は同じ（0 始まり）</td></tr>
+    <tr><td><code>Formula("=…")</code>（型）</td><td><code>Formula(_:)</code> は <code>CellValue</code> を返す関数（<code>sheet["C1"] = Formula("=SUM(A1:B2)")</code> は本文どおり書ける）。型としては <code>FormulaExpr</code></td><td>添字の代入型を <code>CellValue?</code> 一本に保つため</td></tr>
+    <tr><td>—</td><td><code>Comment</code> は <code>CellNote</code>（プロパティ名は <code>cell.comment</code> のまま）</td><td>Swift Testing の <code>Comment</code> と名前が衝突する</td></tr>
+    <tr><td>—</td><td><code>Workbook.epoch</code>（1900 / 1904）・<code>indexedColors</code>・<code>codeName</code> をモデルに保持</td><td>ファイル単位の意味属性であり、書き出し時に利用者が指定し得る（シリアル値そのものは持たない）</td></tr>
+  </table></div>
+
+  <h3>B.3 数式（§5 との差分）</h3>
+  <ul>
+    <li>AST に <code>.error</code>・<code>.column</code>（列全体）・<code>.row</code>（行全体）・<code>.name</code>（定義名・構造化参照）・<code>.array</code>・<code>.missing</code>（省略引数）を追加。本文の <code>range(a, b)</code> は端点に列・行も取る。</li>
+    <li><code>rendered(as: .xlsx)</code> は <code>=</code> なし（<code>&lt;f&gt;</code> の中身）、<code>rendered(as: .ods)</code> は <code>of:=</code> 付き（§14.7 の例どおり）。<code>FormulaExpr.text</code> が <code>=</code> 付きの Excel 表記。</li>
+    <li>関数名は英大文字に正規化するが、<code>_xlfn.</code> 等の名前空間接頭辞は小文字のまま（Excel が要求する）。</li>
+    <li>未対応: 交差演算子（空白）、外部ブック参照 <code>[1]Sheet!A1</code> の意味解釈（名前として文字列保持）。いずれも <code>.unparsed</code> / <code>.name</code> で往復は壊れない。</li>
+    <li>参照追随: <code>Sheet.insertRows(at:count:)</code> 等は同一シートの参照（無修飾と自シート名つき）を動かす。他シートからの参照も動かすには <code>Workbook.insertRows(inSheet:at:count:)</code>。削除で範囲が部分的に消えた場合は縮め、全部消えたら <code>#REF!</code>（Excel と同じ）。行列の挿入・削除は結合とディメンションも動かす（openpyxl は動かさない — 台帳では adapted）。</li>
+  </ul>
+
+  <h3>B.4 保全（§6・§7 の具体化）</h3>
+  <ul>
+    <li><code>Workbook.preserved</code>（<code>PreservationStore</code>）に加えて <strong><code>Sheet.preserved</code></strong>（<code>SheetPreservation</code>: 未解釈子要素の断片・ハイパーリンク以外の rels・元パート パス・rId・sheetId・ルート属性）。シートと一緒に移動・改名されるため名前キーの付け替えが要らない。</li>
+    <li>未解釈パーツはバイト列のまま <code>opaqueParts</code>。<code>&lt;workbook&gt;</code> / <code>&lt;worksheet&gt;</code> / <code>&lt;styleSheet&gt;</code> の未知の子要素は XML 断片として保持し、スキーマ順の位置へ再出力する（属性順は辞書順に正規化される — 意味は同じ）。</li>
+    <li>styles.xml はソースの fonts / fills / borders / numFmts を同じ順で種にして再生成し、<code>cellStyleXfs</code> / <code>cellStyles</code> / <code>dxfs</code> / <code>tableStyles</code> / <code>extLst</code> は verbatim。条件付き書式・テーブルの <code>dxfId</code> が切れない。</li>
+    <li>rId は不変・新規は最大値＋1（本文どおり）。sheetId・パート パスも同じ規則。<code>calcChain.xml</code> は常に削除し <code>fullCalcOnLoad="1"</code>。</li>
+    <li>既知の限界（F2 水準の劣化、Excel は修復を要求しない）: セルの名前付きスタイル参照 <code>xfId</code>、<code>&lt;c cm= vm=&gt;</code>（リッチ値メタデータ）、<code>&lt;pageSetup r:id&gt;</code>（printerSettings 本体は残る）、配列数式の範囲（通常の数式として読む）、<code>&lt;sheetView&gt;</code> の一部属性。</li>
+    <li>XLSM: コンテンツタイプ差分と VBA パーツの扱いは §7.4 どおり。<code>XLSMCodec</code> は <code>XLSXCodec</code> と実装を共有する。</li>
+  </ul>
+
+  <h3>B.5 CSV（§9 の具体化）</h3>
+  <ul>
+    <li>読み込み時の警告（lossy 置換）は <code>CSVCodec.readWithWarnings</code> で受け取る（コーデック契約の <code>read</code> は Workbook だけを返す）。</li>
+    <li>日付値に自動付与される表示書式（<code>yyyy-mm-dd</code> 等）は「書式」と数えない — CSV を読んで書き戻すだけのブックに要約警告を出さない。</li>
+    <li><code>""</code>（空の引用フィールド）は空フィールドと同じくセルなし。</li>
+  </ul>
+
+  <h3>B.6 テストと検証（§12 の実態）</h3>
+  <ul>
+    <li>最初のテスト <code>PreservationTests.editOneCellKeepsEverythingElse</code>: openpyxl で生成した「グラフ・テーブル・条件付き書式・データ検証・コメント・定義名」入りブックを 1 セル編集して保存 → 他セル・不透明パーツのバイト一致・rId の解決・Content_Types の整合・要素順を検査。三大要因（§7.4）はそれぞれ機械検出している。</li>
+    <li>外部審判: LibreOffice ヘッドレス（この Mac にある）と openpyxl の読み戻し。Excel 実機は未検証（オーナー環境に無い）。</li>
+    <li>openpyxl テスト台帳（<code>Tests/OpenpyxlParity/parity.json</code>）は継続。API が値型・0 始まりに変わったため移植テストは機械的に書き換え、出典コメントは不変。</li>
+    <li>数式の不動点性（parse → emit → parse）は固定ケース集で検査（ランダム生成は未実装 — ロードマップ）。</li>
+  </ul>
+
+  <h3>B.7 未着手（本文のとおりロードマップ）</h3>
+  <ul>
+    <li>ODS（P3）・Numbers（P4 / P5）: 形式判別 <code>SheetFormat.detect(from:)</code> のみ実装。読み書きは <code>SheetError.unsupportedFeature</code>。NOTICE・MAINTENANCE.md は Numbers 着手時に作る。</li>
+    <li>名前付きスタイル・コメントの書き出し（VML）・条件付き書式 / データ検証の API・ストリーミング読み書き・暗号化の明示エラー（現状は <code>corruptedContainer</code> / <code>unrecognizedFormat</code> で失敗する）。</li>
+  </ul>
+</section>
+
+</div><!-- /.container -->
+</body>
+</html>
