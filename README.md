@@ -138,6 +138,9 @@ present, and the worksheet children are in schema order. What makes it work:
   `tableStyles` (copied verbatim) keep their indices;
 - `calcChain.xml` is always dropped and `fullCalcOnLoad` set, so the application recalculates.
 
+Known asymmetry: read-side warnings exist per codec (`CSVCodec` / `ODSCodec` / `NumbersCodec.readWithWarnings`) but
+the facade `Workbook(contentsOf:)` does not surface them yet — roadmap.
+
 Known limits of the current preservation: a cell's named-style link (`xfId`), `cm` / `vm` rich-value attributes and
 `pageSetup r:id` are not carried over (the referenced parts are); array-formula ranges are read as plain formulas.
 
