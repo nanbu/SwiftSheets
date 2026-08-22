@@ -145,7 +145,7 @@ enum FormulaGenerator {
 
     static func expression(depth: Int, using rng: inout SeededGenerator) -> FormulaExpr {
         if depth <= 0 { return scalar(using: &rng) }
-        switch Int.random(in: 0..<10, using: &rng) {
+        switch Int.random(in: 0..<11, using: &rng) {
         case 0, 1: return .binary(operators.randomElement(using: &rng)!, expression(depth: depth - 1, using: &rng),
                                   expression(depth: depth - 1, using: &rng))
         case 2: return .unary(Bool.random(using: &rng) ? .negate : .plus, expression(depth: depth - 1, using: &rng))
@@ -154,6 +154,10 @@ enum FormulaGenerator {
         case 5: return range(using: &rng)
         case 6: return array(using: &rng)
         case 7: return .binary(.union, reference(using: &rng), reference(using: &rng))
+        // intersection: references and ranges only, which is the scope both dialects can spell (a name operand has
+        // no OpenFormula form — `FormulaTests.intersectionOfNamesHasNoODSForm`)
+        case 8: return .binary(.intersect, Bool.random(using: &rng) ? reference(using: &rng) : range(using: &rng),
+                                           Bool.random(using: &rng) ? reference(using: &rng) : range(using: &rng))
         default: return scalar(using: &rng)
         }
     }

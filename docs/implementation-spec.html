@@ -1956,6 +1956,18 @@ wb.sheets[<span class="nm">0</span>] = sheet
       「既知の差」も 1 つ消える）。審判: openpyxl が
       <code>ws["A7"].comment.text / .author</code> を読み戻す（双方向）、LibreOffice が
       <code>office:annotation</code> として取り込む。</li>
+    <li><strong>交差演算子</strong>（B.3 が唯一の穴として挙げていたもの）: Excel は空白（<code>A1:B5 B1:D5</code> は
+      B1:B5）、OpenFormula は <code>!</code>（LibreOffice の出力を観察して確認 — 併合は <code>~</code>）。
+      字句解析は<strong>空白の左が参照・列・行・名前で、右が参照になりうるとき</strong>だけ演算子として出す。
+      それ以外の空白は今までどおり読み飛ばす（<code>SUM(A1, B1)</code> が壊れない）。右辺が数字で始まるのは
+      全行範囲（<code>A1:C10 2:2</code>）だけなので、数字のあとに <code>:</code> が続くときに限り認める。
+      <code>)</code> の後ろの空白は対象外 — <code>(A1,B2) (C3,D4)</code> は引き続き <code>.unparsed</code>。
+      <strong>ODS の落とし穴</strong>: <code>!</code> はシート修飾名の区切りでもあるので、
+      <code>MyName!Other</code> は「MyName というシートの Other」と読めてしまう。
+      名前どうしの交差は OpenFormula で書けないと判定し（<code>FormulaExpr.isExpressible(in:)</code>）、
+      ODS 書き出しはキャッシュ値＋<code>degraded</code> 警告に退避する — 意味の違うものを黙って書かない。
+      直す前の <code>FormulaEmitter</code> は <code>.intersect</code> を両方言で空白として書いていたので、
+      交差を含む木は<strong>不正な OpenFormula になっていた</strong>（到達経路が無かったため表面化していない）。</li>
   </ul>
 
   <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>

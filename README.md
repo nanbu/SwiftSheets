@@ -173,7 +173,8 @@ Known limits of the current preservation: `cm` / `vm` rich-value attributes and 
 - **Numbers keep openpyxl's int / float split.** `.integer(Int)` for integral file text, `.number(Decimal)` otherwise —
   the text of a number survives a round trip and `Decimal` fits Numbers' decimal128 later.
 - **Formulas are trees.** Parse failures fall back to `.unparsed(text, dialect:)`, so a same-dialect round trip is
-  lossless; the intersection operator (space) is the known gap.
+  lossless. The intersection operator is understood in both spellings (Excel's space, OpenFormula's `!`); external
+  workbook references (`[1]Sheet!A1`) are carried as text rather than resolved.
 - **Element order matters to Excel.** Generated and preserved elements are merged in schema order; the two mandatory
   fills come first; colours are explicit RGB (no theme part is generated — a source theme is preserved).
 - **Sendable throughout.** Every model type is a `Sendable` value.

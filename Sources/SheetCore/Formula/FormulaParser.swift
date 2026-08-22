@@ -1,7 +1,9 @@
 import Foundation
 
-/// Lexer + Pratt parser for XLSX and ODS (OpenFormula) formula text. Whitespace between tokens is dropped (the
-/// intersection operator is not supported — such formulas fall back to `.unparsed`).
+/// Lexer + Pratt parser for XLSX and ODS (OpenFormula) formula text. Whitespace between tokens is dropped, except
+/// where it *is* a token: a space between two references is Excel's intersection operator (`A1:B5 B1:D5` is B1:B5).
+/// OpenFormula spells the same operator `!`. Only references, ranges and names take part — a space after `)` is
+/// still just whitespace, and such a formula falls back to `.unparsed`.
 struct FormulaParser {
     enum Token: Equatable {
         case number(Decimal)
@@ -189,6 +191,7 @@ struct FormulaParser {
         case ">=": .greaterOrEqual
         case "%": .percent
         case "~": .union
+        case " ", "!": .intersect
         default: nil
         }
     }
@@ -216,7 +219,12 @@ struct FormulaLexer {
 
     mutating func tokenize() throws -> [FormulaParser.Token] {
         while let c = peek() {
-            if c == " " || c == "\n" || c == "\r" || c == "\t" { i += 1; continue }
+            if c == " " || c == "\n" || c == "\r" || c == "\t" {
+                let intersection = dialect == .xlsx && startsIntersection()
+                while let w = peek(), w == " " || w == "\n" || w == "\r" || w == "\t" { i += 1 }
+                if intersection { tokens.append(.op(" ")) }
+                continue
+            }
             switch c {
             case "(": tokens.append(.lparen); i += 1
             case ")": tokens.append(.rparen); i += 1
@@ -228,6 +236,7 @@ struct FormulaLexer {
             case "|" where dialect == .ods: tokens.append(.rowSeparator); i += 1
             case "~" where dialect == .ods: tokens.append(.op("~")); i += 1   // OpenFormula's reference union
             case "+", "-", "*", "/", "^", "&", "%", "=": tokens.append(.op(String(c))); i += 1
+            case "!" where dialect == .ods: tokens.append(.op("!")); i += 1   // OpenFormula's reference intersection
             case "<":
                 if peek(1) == ">" { tokens.append(.op("<>")); i += 2 } else if peek(1) == "=" { tokens.append(.op("<=")); i += 2 } else { tokens.append(.op("<")); i += 1 }
             case ">":
@@ -245,6 +254,25 @@ struct FormulaLexer {
             }
         }
         return tokens
+    }
+
+    /// True when the whitespace at `i` is Excel's intersection operator rather than padding: a reference on the
+    /// left, and something that can begin a reference on the right. Anything else — an operator, a separator, a
+    /// number, a closing bracket — makes it padding, which is what it is in `SUM(A1, B1)`.
+    private func startsIntersection() -> Bool {
+        switch tokens.last {
+        case .ref, .column, .row, .name: break
+        default: return false
+        }
+        var j = i
+        while j < chars.count, chars[j] == " " || chars[j] == "\n" || chars[j] == "\r" || chars[j] == "\t" { j += 1 }
+        guard j < chars.count else { return false }
+        let next = chars[j]
+        if FormulaLexer.isIdentStart(next) || next == "$" || next == "'" { return true }
+        // a whole-row range (`A1:C10 2:2`) is the one operand that starts with a digit; a bare number never is
+        guard next.isNumber else { return false }
+        while j < chars.count, chars[j].isNumber { j += 1 }
+        return j < chars.count && chars[j] == ":"
     }
 
     private mutating func lexString() throws -> String {
@@ -437,7 +465,7 @@ struct FormulaEmitter {
         case .unary(.percent, let x): return operand(x, under: .percent, rightSide: false) + "%"
         case .unary(let op, let x): return op.symbol + operand(x, under: op, rightSide: true)
         case .binary(.union, let a, let b): return dialect == .ods ? emit(a) + "~" + emit(b) : "(" + emit(a) + "," + emit(b) + ")"
-        case .binary(let op, let a, let b): return operand(a, under: op, rightSide: false) + op.symbol + operand(b, under: op, rightSide: true)
+        case .binary(let op, let a, let b): return operand(a, under: op, rightSide: false) + symbol(op) + operand(b, under: op, rightSide: true)
         case .call(let name, let args): return name + "(" + args.map(emit).joined(separator: separator) + ")"
         case .array(let rows): return "{" + rows.map { $0.map(emit).joined(separator: dialect == .ods ? ";" : ",") }.joined(separator: dialect == .ods ? "|" : ";") + "}"
         case .missing: return ""
@@ -446,6 +474,10 @@ struct FormulaEmitter {
     }
 
     private var separator: String { dialect == .ods ? ";" : "," }
+
+    /// Every operator spells the same in both dialects but one: intersection is a space in Excel and `!` in
+    /// OpenFormula.
+    private func symbol(_ op: FormulaOp) -> String { op == .intersect && dialect == .ods ? "!" : op.symbol }
 
     private func operand(_ x: FormulaExpr, under op: FormulaOp, rightSide: Bool) -> String {
         let needsParens: Bool

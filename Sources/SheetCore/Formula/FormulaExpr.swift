@@ -55,6 +55,27 @@ public indirect enum FormulaExpr: Hashable, Sendable {
 
     public var isUnparsed: Bool { if case .unparsed = self { return true }; return false }
 
+    /// Whether `rendered(as:)` can write this tree in that dialect without changing what it means.
+    ///
+    /// One shape fails: OpenFormula writes the intersection operator as `!`, which is also how a sheet-qualified
+    /// name is written, so `MyName!Other` reads back as a reference to a sheet called MyName. Excel's spelling —
+    /// a space — has no such clash. A writer that meets one degrades to the cached value rather than emitting
+    /// something that means something else.
+    public func isExpressible(in dialect: SheetFormat) -> Bool {
+        guard dialect == .ods else { return true }
+        switch self {
+        case .binary(.intersect, let a, let b):
+            func isName(_ e: FormulaExpr) -> Bool { if case .name = e { return true }; return false }
+            return !isName(a) && !isName(b) && a.isExpressible(in: dialect) && b.isExpressible(in: dialect)
+        case .range(let a, let b): return a.isExpressible(in: dialect) && b.isExpressible(in: dialect)
+        case .unary(_, let e): return e.isExpressible(in: dialect)
+        case .binary(_, let a, let b): return a.isExpressible(in: dialect) && b.isExpressible(in: dialect)
+        case .call(_, let args): return args.allSatisfy { $0.isExpressible(in: dialect) }
+        case .array(let rows): return rows.allSatisfy { $0.allSatisfy { $0.isExpressible(in: dialect) } }
+        default: return true
+        }
+    }
+
     // MARK: - Walking
 
     /// Rebuilds the tree bottom-up through `transform`.

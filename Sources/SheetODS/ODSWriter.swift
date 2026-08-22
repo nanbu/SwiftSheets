@@ -464,6 +464,8 @@ enum ODSWriter {
         case .formula(let f, let cached)?:
             if case .unparsed(_, let dialect) = f, dialect != .ods {
                 sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
+            } else if !f.isExpressible(in: .ods) {
+                sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "OpenFormula cannot express this formula without changing its meaning (an intersection of defined names); cached value written")
             } else {
                 attrs += " table:formula=\"\(XML.esc(f.rendered(as: .ods)))\""
             }

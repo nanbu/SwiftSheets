@@ -9,6 +9,7 @@ import Testing
         "'My Sheet'!$A$1:B$2", "A:A", "$1:$3", "SUM(A1,,B1)", "{1,2;3,4}", "TRUE", "#REF!", "1.5", "LOG10(A1)",
         "_xlfn.XLOOKUP(A1,B:B,C:C)", "Table1[Col]", "10%", "-A1%", "(A1,B2)", "\"a\"\"b\"&A1", "SUM(Sheet1!A1:A3)",
         "A1<>B1", "A1<=B1", "A1>=B1", "A1=B1", "MyName*2", "Sheet1!MyName", "-(A1+B1)", "SUM(A1:A3)/COUNT(A1:A3)", "\"\"",
+        "A1:B5 B1:D5", "SUM(A1:B5 B1:D5)", "Sheet1!A1 Sheet2!B1", "A1:B5 B1:D5*2",
     ]
 
     @Test(arguments: fixedPoint) func parseEmitParseIsStable(_ text: String) {
@@ -18,6 +19,59 @@ import Testing
         #expect(FormulaExpr.parse(emitted) == ast, "\(text) → \(emitted)")
         // and the emitted ODS form reads back to the same tree
         #expect(FormulaExpr.parse(ast.rendered(as: .ods), dialect: .ods) == ast, "ods: \(ast.rendered(as: .ods))")
+    }
+
+    /// The intersection operator: a space in Excel, `!` in OpenFormula. It was the parser's one documented gap
+    /// (Appendix B.3) — such formulas were kept verbatim as `.unparsed`, so they did not follow row inserts and
+    /// could not be translated between dialects.
+    @Test func intersectionOperator() {
+        let cross = FormulaExpr.parse("A1:B5 B1:D5")
+        #expect(cross == .binary(.intersect, .range(.ref(CellRef("A1")!), .ref(CellRef("B5")!)),
+                                             .range(.ref(CellRef("B1")!), .ref(CellRef("D5")!))))
+        #expect(cross.rendered(as: .xlsx) == "A1:B5 B1:D5")
+        #expect(cross.rendered(as: .ods) == "of:=[.A1:.B5]![.B1:.D5]")   // OpenFormula spells it "!"
+        #expect(FormulaExpr.parse(cross.rendered(as: .ods), dialect: .ods) == cross)
+        // it binds tighter than arithmetic and looser than the range operator
+        #expect(FormulaExpr.parse("A1:B5 B1:D5*2") == .binary(.multiply, cross, .number(2)))
+        // and follows edits like any other reference
+        #expect(cross.shiftingReferences(axis: .rows, at: 0, delta: 2, onSheet: { _ in true }).rendered(as: .xlsx) == "A3:B7 B3:D7")
+    }
+
+    /// Names take part in an intersection in Excel (`MyName Other`), but OpenFormula's `!` is also how a
+    /// sheet-qualified name is written — so that one tree has no ODS form, and the ODS writer says so rather than
+    /// writing something that means something else.
+    @Test func intersectionOfNamesHasNoODSForm() throws {
+        let ast = FormulaExpr.parse("MyName Other")
+        #expect(ast == .binary(.intersect, .name("MyName"), .name("Other")))
+        #expect(ast.rendered(as: .xlsx) == "MyName Other")
+        #expect(FormulaExpr.parse(ast.rendered(as: .xlsx)) == ast)
+        #expect(ast.isExpressible(in: .xlsx))
+        #expect(!ast.isExpressible(in: .ods))
+
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = .formula(ast, cached: .integer(7))
+        let result = try wb.write(as: .ods)
+        #expect(result.warnings.contains { $0.subject == .formulas })
+        #expect(try Workbook(data: result.data).sheets[0]["A1"] == .integer(7))
+    }
+
+    /// Whitespace that is *not* the operator stays whitespace: an argument separator, an operator, a closing paren.
+    @Test func spacesThatAreNotIntersections() {
+        #expect(FormulaExpr.parse("SUM(A1, B1)") == .call(name: "SUM", args: [.ref(CellRef("A1")!), .ref(CellRef("B1")!)]))
+        #expect(FormulaExpr.parse("A1 + B1") == .binary(.add, .ref(CellRef("A1")!), .ref(CellRef("B1")!)))
+        #expect(FormulaExpr.parse("IF(A1>0, \"yes no\", \"x\")").rendered(as: .xlsx) == "IF(A1>0,\"yes no\",\"x\")")
+        #expect(FormulaExpr.parse("(A1,B2) (C3,D4)").isUnparsed)   // a union on the left is out of scope, and says so
+    }
+
+    /// External workbook references keep their text and round-trip; SwiftSheets does not resolve `[1]` to a file
+    /// (Appendix B.3). Quoted, the whole thing becomes the sheet name; unquoted, the formula stays verbatim.
+    @Test func externalWorkbookReferencesAreKeptAsText() {
+        let quoted = FormulaExpr.parse("'[1]Sheet'!A1")
+        #expect(quoted == .ref(CellRef("A1")!, sheet: "[1]Sheet"))
+        #expect(quoted.rendered(as: .xlsx) == "'[1]Sheet'!A1")
+        let bare = FormulaExpr.parse("[1]Sheet!A1")
+        #expect(bare.isUnparsed)
+        #expect(bare.rendered(as: .xlsx) == "[1]Sheet!A1")
     }
 
     @Test func unaryMinusBindsTighterThanPower() {
@@ -42,10 +96,11 @@ import Testing
     }
 
     @Test func unparsableTextIsKeptVerbatim() {
-        let ast = FormulaExpr.parse("=SUM(A1:B5 B2:C3)")   // the intersection operator is not supported
-        #expect(ast == .unparsed("SUM(A1:B5 B2:C3)", dialect: .xlsx))
-        #expect(ast.rendered(as: .xlsx) == "SUM(A1:B5 B2:C3)")
-        #expect(ast.text == "=SUM(A1:B5 B2:C3)")
+        // an external workbook reference: SwiftSheets does not resolve "[1]" to a file (Appendix B.3)
+        let ast = FormulaExpr.parse("=SUM([1]Sheet!A1:B5)")
+        #expect(ast == .unparsed("SUM([1]Sheet!A1:B5)", dialect: .xlsx))
+        #expect(ast.rendered(as: .xlsx) == "SUM([1]Sheet!A1:B5)")
+        #expect(ast.text == "=SUM([1]Sheet!A1:B5)")
         #expect(throws: SheetError.self) { try FormulaExpr.parseStrict("1+") }
     }
 
