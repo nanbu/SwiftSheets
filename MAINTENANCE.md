@@ -33,7 +33,20 @@ exposes the warnings). A hard failure (`SheetError.unsupportedVersion` / `malfor
    numbers-parser checks.
 5. Record the verified range in this file and in Appendix B.8 of `docs/implementation-spec.html`.
 
-## Manual checklist before a release (cannot be automated without Numbers.app)
+## Manual checklist before a release (cannot be automated without Numbers.app / Excel)
 
-- Open each generated fixture in Numbers: no "document needs repair" warning, values display, editing and saving works.
-- Open the same files in LibreOffice (libetonyek importer) as a second opinion.
+Build the samples first:
+
+```bash
+scripts/make-verification-samples.sh ~/Desktop/SwiftSheets検証サンプル
+```
+
+It seeds a realistic Japanese workbook with openpyxl, has LibreOffice write it as ODF, then reads that ODF with
+SwiftSheets and writes `.ods`, `.xlsx` and `.numbers` next to it, plus a warning report, PDF renderings and a
+per-application checklist (`はじめにお読みください.md`).
+
+- Open `03-swiftsheets.xlsx` in Excel: no "we found a problem with some content" dialog; formatting, filters,
+  frozen panes, formulas, Japanese text and the hidden sheet are as the checklist describes.
+- Open `04-swiftsheets.numbers` in Numbers: no "document needs repair" warning; values, merges and sizes are right;
+  editing and saving works. Formatting and formulas are expected to be absent (Appendix B.8).
+- Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).

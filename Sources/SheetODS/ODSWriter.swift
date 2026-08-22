@@ -197,6 +197,7 @@ enum ODSWriter {
         var body = ""
         for sheet in wb.sheets { body += tableXML(sheet, styles: styles, sink: sink) }
         body += namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name)
+        body += databaseRangesXML(wb)
 
         var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of"]) + " office:version=\"1.3\">"
         content += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
@@ -213,7 +214,9 @@ enum ODSWriter {
         var opaque: [String: Data] = [:]
         if preserved.sourceFormat == .ods {
             opaque = preserved.opaqueParts
-            if !opaque.isEmpty { sink.add(.dropped, "embedded objects/pictures of the source ODS are not re-linked: content.xml is regenerated") }
+            // only drawn content is worth a warning: metadata parts (manifest.rdf, Configurations2) are re-packed as they are
+            let drawn = opaque.keys.filter { $0.hasPrefix("Pictures/") || $0.hasPrefix("Object ") || $0.hasPrefix("ObjectReplacements/") || $0.hasPrefix("media/") }
+            if !drawn.isEmpty { sink.add(.dropped, "\(drawn.count) embedded object(s)/picture(s) of the source ODS are not re-linked: content.xml is regenerated") }
         } else if !preserved.opaqueParts.isEmpty {
             sink.add(.dropped, "\(preserved.opaqueParts.count) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
         }
@@ -318,6 +321,20 @@ enum ODSWriter {
             }
         }
         return s + "</table:named-expressions>"
+    }
+
+    /// Auto-filters, as the anonymous database ranges LibreOffice and Excel both understand. Child of
+    /// `office:spreadsheet` after `table:named-expressions` (ODF 1.3 §9.4).
+    static func databaseRangesXML(_ wb: Workbook) -> String {
+        let filtered = wb.sheets.enumerated().compactMap { i, sheet in sheet.autoFilter.map { (i, sheet.name, $0) } }
+        guard !filtered.isEmpty else { return "" }
+        var s = "<table:database-ranges>"
+        for (i, name, range) in filtered {
+            let prefix = String(odsSheetPrefix(name).dropFirst())
+            let address = "\(prefix).\(range.topLeft.a1):\(prefix).\(range.bottomRight.a1)"
+            s += "<table:database-range table:name=\"__Anonymous_Sheet_DB__\(i)\" table:display-filter-buttons=\"true\" table:target-range-address=\"\(XML.esc(address))\"/>"
+        }
+        return s + "</table:database-ranges>"
     }
 
     /// `$Sheet1` / `$'My Sheet'` — the sheet part of an absolute ODS address.

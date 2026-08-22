@@ -72,7 +72,8 @@ final class StyleRegistry {
     }
 
     private func numFmtID(_ code: String) -> Int {
-        if let b = NumberFormat.builtinIDs[code] { return b }
+        // locale-dependent builtins (the East Asian date formats) are written out in full so every reader agrees
+        if let b = NumberFormat.builtinIDs[code], !NumberFormat.localeDependentIDs.contains(b) { return b }
         if let id = customFormats[code] { return id }
         customFormats[code] = nextCustomID
         nextCustomID += 1

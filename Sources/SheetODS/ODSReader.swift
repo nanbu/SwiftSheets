@@ -226,7 +226,16 @@ final class ContentParser: SAXHandler {
             guard let n = ODSAttr.get(a, "table:name"), let expr = ODSAttr.get(a, "table:expression") else { return }
             let parsed = FormulaExpr.parse(expr, dialect: .ods)
             addName(n, parsed.isUnparsed ? expr : parsed.rendered(as: .xlsx))
-        case "frame", "shapes", "forms", "custom-shape", "control", "g", "content-validations", "database-ranges", "data-pilot-tables", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
+        case "database-range":
+            // LibreOffice stores an auto-filter as an anonymous database range with filter buttons
+            guard ODSAttr.get(a, "table:display-filter-buttons") == "true" || (ODSAttr.get(a, "table:name") ?? "").hasPrefix("__Anonymous_Sheet_DB__"),
+                  let address = ODSAttr.get(a, "table:target-range-address"),
+                  let range = CellRange(ContentParser.excelAddress(address)), let target = range.sheet else { return }
+            if let i = sheets.firstIndex(where: { $0.name == target }) {
+                var r = range; r.sheet = nil
+                sheets[i].autoFilter = r
+            }
+        case "frame", "shapes", "forms", "custom-shape", "control", "g", "content-validations", "data-pilot-tables", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
             skipDepth = 1
         case _ where ContentParser.transparent.contains(name):
             if name == "table-row-group" { groupDepth += 1 }

@@ -170,6 +170,10 @@ public enum NumberFormat {
     /// Ids below this are builtin; custom formats are numbered from here (openpyxl BUILTIN_FORMATS_MAX_SIZE).
     public static let firstCustomID = 164
 
+    /// Builtin ids whose meaning depends on the reader's locale (the East Asian date / time formats). Files that
+    /// reference them render differently in Excel, LibreOffice and Numbers, so writers spell the code out instead.
+    public static let localeDependentIDs: Set<Int> = Set(27...36).union(Set(50...58))
+
     /// The code of a builtin format id (openpyxl `builtin_format_code`).
     public static func builtinCode(_ id: Int) -> String? { builtin[id] }
     /// The builtin id of a code, if the code is one of the spec's builtins (openpyxl `builtin_format_id`).

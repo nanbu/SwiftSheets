@@ -445,4 +445,38 @@ import SwiftSheets
         #expect(back.sheets[0]["A1"] == wb.sheets[0]["A1"])
         #expect(back.sheets[0].cell("A1")?.comment?.text == "first column" || back.preserved.opaqueParts.keys.contains { $0.hasPrefix("xl/comments") })
     }
+
+    /// Auto-filters travel as anonymous database ranges (ODF 1.3 §9.4) — LibreOffice's own spelling.
+    @Test func autoFilterRoundTrip() throws {
+        var wb = Workbook()
+        wb.sheets[0].name = "Data"
+        wb.sheets[0].append([.text("部門"), .text("金額")])
+        wb.sheets[0].append([.text("営業"), .integer(100)])
+        wb.sheets[0].autoFilterA1 = "A1:B2"
+        wb.addSheet(named: "Plain")
+        wb.sheets[1]["A1"] = "no filter"
+        let ods = try ODSCodec.write(wb).data
+        let xml = try contentXML(ods)
+        #expect(xml.contains("<table:database-ranges>"))
+        #expect(xml.contains(#"table:display-filter-buttons="true""#))
+        #expect(xml.contains(#"table:target-range-address="Data.A1:Data.B2""#))
+        let back = try ODSCodec.read(ods)
+        #expect(back.sheets[0].autoFilter == CellRange("A1:B2"))
+        #expect(back.sheets[1].autoFilter == nil)
+
+        try withKnownIssue("LibreOffice is not installed", isIntermittent: false) {
+            try #require(Self.hasLibreOffice)
+            let url = Self.tmp.appendingPathComponent("filter.ods")
+            try ods.write(to: url)
+            let (xlsx, log) = try convert(url, to: "xlsx")
+            #expect(log.contains("convert"))
+            let viaLO = try XLSXCodec.read(try Data(contentsOf: xlsx))
+            #expect(viaLO.sheets[0].autoFilter == CellRange("A1:B2"), "LibreOffice kept the filter")
+            // and a LibreOffice-produced ODS reads back the same way
+            let (roundTrip, _) = try convert(xlsx, to: "ods")
+            #expect(try ODSCodec.read(try Data(contentsOf: roundTrip)).sheets[0].autoFilter == CellRange("A1:B2"))
+        } when: {
+            !Self.hasLibreOffice
+        }
+    }
 }
