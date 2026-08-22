@@ -188,7 +188,42 @@ import SwiftSheets
         #expect(back["J1000"] == .integer(7))
     }
 
-    /// `paddingRepeat` only judges *empty* runs. A repeat that carries a value multiplies just as hard — the row
+    /// A merged title band whose anchor holds nothing still has to come out as a span — the writer hangs
+    /// `number-columns-spanned` on the anchor cell, and the reader has to keep a row whose only content is that
+    /// span. Before this, `merge("A1:C1")` on an untouched anchor came back from ODS with no merges at all.
+    @Test func mergesWithAnEmptyAnchorSurviveTheRoundTrip() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        sheet.merge("A1:C1")     // horizontal, anchor empty
+        sheet.merge("E1:E3")     // vertical, anchor empty
+        sheet["A2"] = "body"
+        wb.sheets[0] = sheet
+        let back = try ODSCodec.read(try ODSCodec.write(wb).data)
+        #expect(back.sheets[0].merges.map(\.a1).sorted() == ["A1:C1", "E1:E3"])
+        #expect(back.sheets[0]["A2"] == .text("body"))
+        // and again, so that reading does not lose the anchor the next write needs
+        let twice = try ODSCodec.read(try ODSCodec.write(back).data)
+        #expect(twice.sheets[0].merges.map(\.a1).sorted() == ["A1:C1", "E1:E3"])
+    }
+
+    /// `A1:XFD1048576` is a merge anyone can make in Excel. Writing it used to build one covered-cell reference per
+    /// position — seventeen billion of them — and the process was killed before the first byte was written.
+    @Test func aSheetWideMergeDoesNotBlowUpTheWriter() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        sheet["A1"] = "everything"
+        sheet.merge("A1:XFD1048576")
+        wb.sheets[0] = sheet
+        let start = Date()
+        let data = try ODSCodec.write(wb).data
+        #expect(Date().timeIntervalSince(start) < 5.0)
+        #expect(data.count < 100_000)
+        let back = try ODSCodec.read(data)
+        #expect(back.sheets[0].merges.map(\.a1) == ["A1:XFD1048576"])
+        #expect(back.sheets[0]["A1"] == .text("everything"))
+    }
+
+    /// `paddingRepeat` only judges *empty* runs.    /// `paddingRepeat` only judges *empty* runs. A repeat that carries a value multiplies just as hard — the row
     /// below asks for 16,384 × 1,048,576 cells out of one kilobyte of XML — so the reader also has a budget for how
     /// much a document may expand to, and reports having stopped (spec §12: no allocation sized by the file's own
     /// numbers).
@@ -385,6 +420,22 @@ import SwiftSheets
     }
 
     // MARK: - 4. LibreOffice as the judge
+
+    @Test(.enabled(if: ODSCodecTests.hasLibreOffice, "LibreOffice is not installed at \(ODSCodecTests.soffice)"))
+    func libreOfficeKeepsAMergeWithAnEmptyAnchor() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        sheet.merge("A1:C1")
+        sheet["A2"] = "body"
+        wb.sheets[0] = sheet
+        let file = Self.tmp.appendingPathComponent("empty-anchor-merge.ods")
+        try ODSCodec.write(wb).data.write(to: file)
+        let (xlsx, log) = try convert(file, to: "xlsx")
+        #expect(log.contains("-> "), Comment(rawValue: log))
+        let back = try XLSXCodec.read(try Data(contentsOf: xlsx))
+        #expect(back.sheets[0].merges.map(\.a1) == ["A1:C1"])
+        #expect(back.sheets[0]["A2"] == .text("body"))
+    }
 
     @Test(.enabled(if: ODSCodecTests.hasLibreOffice, "LibreOffice is not installed at \(ODSCodecTests.soffice)"))
     func libreOfficeOpensOurODS() throws {

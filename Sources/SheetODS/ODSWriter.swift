@@ -358,8 +358,34 @@ enum ODSWriter {
 
     static func tableXML(_ sheet: Sheet, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
         let t = sheet.table
-        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1)
-        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1)
+        // merges: the anchor carries the span, the rest of the rectangle is written as covered cells. A merge may
+        // span the whole sheet, so its positions are only materialised while they are few — past that the geometry
+        // answers "is this covered?" directly, and the sheet is not grown to fit a rectangle nobody can see.
+        var anchors: [CellRef: CellRange] = [:]
+        var anchorRows = Set<Int>()
+        var covered = Set<CellRef>()
+        var coveredRows = Set<Int>()
+        var wideMerges: [CellRange] = []
+        var mergeMaxCol = -1, mergeMaxRow = -1
+        for m in t.merges {
+            anchors[m.topLeft] = m
+            anchorRows.insert(m.minRow)
+            let rows = m.maxRow - m.minRow + 1, cols = m.maxCol - m.minCol + 1
+            if rows > 0, cols > 0, rows <= Table.maxMaterialisedMergeCells / Swift.max(cols, 1) {
+                for ref in m.cells where ref != m.topLeft { covered.insert(ref); coveredRows.insert(ref.row) }
+                mergeMaxCol = Swift.max(mergeMaxCol, m.maxCol); mergeMaxRow = Swift.max(mergeMaxRow, m.maxRow)
+            } else {
+                wideMerges.append(m)
+            }
+        }
+        func isCovered(_ ref: CellRef) -> Bool {
+            covered.contains(ref) || wideMerges.contains { $0.contains(ref) && $0.topLeft != ref }
+        }
+        func rowIsCovered(_ r: Int) -> Bool {
+            coveredRows.contains(r) || wideMerges.contains { r >= $0.minRow && r <= $0.maxRow }
+        }
+        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1)
+        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1)
         var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(sheet.state == .visible ? "ta1" : "ta2")\">"
 
         // columns, adjacent equal ones merged
@@ -378,16 +404,9 @@ enum ODSWriter {
             s += " table:default-cell-style-name=\"\(spec.defaultCell ?? "Default")\"/>"
         }
 
-        // cells by row, merge anchors and covered cells
+        // cells by row
         var byRow: [Int: [Int: Cell]] = [:]
         for (ref, c) in t.cells { byRow[ref.row, default: [:]][ref.col] = c }
-        var anchors: [CellRef: CellRange] = [:]
-        var covered = Set<CellRef>()
-        var coveredRows = Set<Int>()
-        for m in t.merges {
-            anchors[m.topLeft] = m
-            for ref in m.cells where ref != m.topLeft { covered.insert(ref); coveredRows.insert(ref.row) }
-        }
 
         var emptyRun = 0
         func flushEmpty() {
@@ -398,7 +417,7 @@ enum ODSWriter {
         for r in 0..<nrows {
             let cells = byRow[r]
             let dim = t.rowDimensions[r]
-            guard cells != nil || dim != nil || coveredRows.contains(r) else { emptyRun += 1; continue }
+            guard cells != nil || dim != nil || rowIsCovered(r) || anchorRows.contains(r) else { emptyRun += 1; continue }
             flushEmpty()
             s += "<table:table-row"
             if let h = dim?.height { s += " table:style-name=\"\(styles.row(height: h))\"" }
@@ -407,17 +426,19 @@ enum ODSWriter {
             var c = 0
             while c < ncols {
                 let ref = CellRef(row: r, col: c)
-                if covered.contains(ref) {
+                if isCovered(ref) {
                     var n = 1
-                    while c + n < ncols, covered.contains(CellRef(row: r, col: c + n)), cells?[c + n] == nil { n += 1 }
+                    while c + n < ncols, isCovered(CellRef(row: r, col: c + n)), cells?[c + n] == nil { n += 1 }
                     s += "<table:covered-table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n
-                } else if let cell = cells?[c] {
+                } else if let cell = cells?[c] ?? (anchors[ref] != nil ? Cell() : nil) {
+                    // an anchor with no cell of its own still has to be written: the span hangs on it
                     s += cellXML(cell, at: ref, merge: anchors[ref], sheet: sheet.name, styles: styles, sink: sink)
                     c += 1
                 } else {
                     var n = 1
-                    while c + n < ncols, cells?[c + n] == nil, !covered.contains(CellRef(row: r, col: c + n)) { n += 1 }
+                    while c + n < ncols, cells?[c + n] == nil, anchors[CellRef(row: r, col: c + n)] == nil,
+                          !isCovered(CellRef(row: r, col: c + n)) { n += 1 }
                     s += "<table:table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n
                 }

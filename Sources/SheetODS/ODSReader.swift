@@ -302,6 +302,13 @@ final class ContentParser: SAXHandler {
         case "table":
             guard inTable else { return }
             inTable = false
+            // the anchor of a merge has to exist as a cell even when it holds nothing: it is where the span is
+            // written, so a merged band with an empty anchor would otherwise disappear on the way back out
+            if let s = sheet, !s.table.merges.isEmpty {
+                var t = s.table
+                for m in t.merges { t.cleanMergedRange(m) }
+                sheet?.table = t
+            }
             if truncated {
                 truncated = false
                 warnings.append(ConversionWarning(.degraded, sheet: sheet?.name,
@@ -464,7 +471,7 @@ final class ContentParser: SAXHandler {
         let hasDimension = height != nil || rowHidden || groupDepth > 0
         var expand: Int
         if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor) }
-        else if (!rowCells.isEmpty || hasDimension) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
+        else if (!rowCells.isEmpty || hasDimension || !rowMerges.isEmpty) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
         else { expand = 0 }
         // a repeated row of repeated cells multiplies: clip it to what the document may still spend
         if !rowCells.isEmpty, expand > 0 {

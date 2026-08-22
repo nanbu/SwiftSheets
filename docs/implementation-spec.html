@@ -1939,7 +1939,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
         これを超える結合では、アンカーの罫線と protection の伝播が「既に存在するセル」にしか届かない（openpyxl は
         プレースホルダを作る）。65,536 以下は openpyxl と同一挙動。あわせて、既定 protection を持つだけの空セルは作らない
         — <code>&lt;mergeCell ref="A1:CZ2000"/&gt;</code> 一つの 2 KB のファイルが 208,000 セル・554 MB になっていた。
-        <strong>アンカーセルだけは常に作る</strong>（ODS ライタが span 属性をそこに載せるため）。</li>
+        <strong>アンカーセルだけは常に作る</strong>（ODS ライタが span 属性をそこに載せるため）。ODS ライタ側も同じ上限で、
+        これを超える結合の covered セルは集合に展開せず幾何で判定する（従来は全面結合の書き出しで OOM kill されていた）。</li>
       <li><strong>ODS の RLE 展開は 1 文書あたり 1,000,000 セルまで</strong>（<code>ODSReader.maxCells</code>）。§8.3 の打ち切りは
         「中身のない反復」だけを見ており、値を持つセルの <code>number-columns-repeated</code> × <code>number-rows-repeated</code> は
         16,384 × 1,048,576 まで素直に展開していた（1 KB のファイルで 10 分・425 MB 以上・停止せず）。超過分は読まず、

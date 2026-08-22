@@ -296,7 +296,7 @@ public struct Table: Hashable, Sendable {
     /// documents merge title rows and small blocks; `A1:XFD1048576` is a single `<mergeCell>` element in a file
     /// anyone can hand us. Past this many, the formatting reaches only the cells that already exist — the same
     /// "a giant repeat is padding, not content" judgement the ODS reader makes for RLE runs (spec §8.3).
-    static let maxMaterialisedMergeCells = 65_536
+    package static let maxMaterialisedMergeCells = 65_536
 
     /// openpyxl `MergedCellRange`: the anchor takes the bottom / right sides from the bottom-right cell, then the cells
     /// along each edge take that side of the anchor's border (their own settings win), and every cell inherits the
