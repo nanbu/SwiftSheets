@@ -31,7 +31,11 @@ let package = Package(
         .target(name: "SheetXLSX", dependencies: ["SheetCore"]),
         .target(name: "SheetCSV", dependencies: ["SheetCore"]),
         .target(name: "SheetODS", dependencies: ["SheetCore"]),
-        .target(name: "SheetNumbers", dependencies: ["SheetCore"], resources: [.copy("Resources")]),
+        // `.process`, not `.copy`: a copied directory keeps its name inside the bundle, and a folder literally
+        // named "Resources" at the root of a flat (iOS) bundle makes codesign read it as a malformed
+        // versioned bundle — "bundle format unrecognized, invalid, or unsuitable". Processing flattens the
+        // files to the bundle root, which is also where `Bundle.module.url(forResource:)` looks first.
+        .target(name: "SheetNumbers", dependencies: ["SheetCore"], resources: [.process("Resources")]),
         .target(name: "SwiftSheets", dependencies: ["SheetCore", "SheetXLSX", "SheetCSV", "SheetODS", "SheetNumbers"]),
         .testTarget(
             name: "SwiftSheetsTests",
