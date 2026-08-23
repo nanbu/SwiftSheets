@@ -53,6 +53,9 @@ per-application checklist (`はじめにお読みください.md`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers
 
+**Decided 2026-08-24**: verify by hand before each release rather than acquiring a machine with Excel — the same
+arrangement Numbers already runs under, and there is no reason to treat pivot tables differently.
+
 SwiftSheets lays a pivot table out and asks the application to refresh it (`saveData="0" refreshOnLoad="1"`, no
 record part). openpyxl reads the parts back and LibreOffice both renders and recomputes them, so the layout is
 verified — but **Excel itself has not opened a pivot table SwiftSheets wrote**. Before a release, with a workbook
