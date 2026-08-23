@@ -66,6 +66,11 @@ public enum CSVCodec: SpreadsheetCodec {
             warnings.append(ConversionWarning(.dropped, subject: .sheets, message: "\(workbook.sheets.count - 1) other sheet(s) not written: CSV holds a single sheet"))
         }
         let table = sheet.table
+        // CSV is one grid: a canvas carrying several tables (Numbers) keeps only the first one
+        if sheet.tables.count > 1 {
+            warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name,
+                                              message: "\(sheet.tables.count - 1) other table(s) not written: CSV holds a single table (write .numbers to keep them)"))
+        }
         // a date value's automatic number format is not formatting the user applied — it does not count
         func hasFormatting(_ c: Cell) -> Bool {
             var plain = c.style; plain.numberFormat = CellStyle.default.numberFormat

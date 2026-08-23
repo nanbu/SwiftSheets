@@ -1198,7 +1198,7 @@ pre .vr { color: var(--code-var); }
   <h3>9.1 モデル写像</h3>
   <ul>
     <li><strong>読み込み</strong>：1シート・1テーブルの <code>Workbook</code> を生成する。書式・数式構造・結合の概念は形式に存在しないため、忠実度は定義上 F1（第6章）</li>
-    <li><strong>書き出し</strong>：既定ではアクティブシートの既定テーブルのみを出力する。複数シートのブックでは、出力されないシートを <code>ConversionWarning.dropped</code> として報告する（対象シートはオプションで指定可能）</li>
+    <li><strong>書き出し</strong>：既定ではアクティブシートの既定テーブルのみを出力する。複数シートのブックでは、出力されないシートを <code>ConversionWarning.dropped</code> として報告する（対象シートはオプションで指定可能）。そのシートが複数テーブルを持つ場合（Numbers 由来）も同じく、書かれなかったテーブル数を報告する（付録 B.12）</li>
     <li><strong>書式・数式の喪失</strong>：CSV の定義そのものであるため、セル単位の警告は出さず、ブック単位のサマリ警告1件（「書式と数式構造は CSV では保持されません」）に集約する。警告は出すが、ノイズにはしない</li>
     <li><strong>形式判別</strong>：CSV は ZIP コンテナではないため、第4章の判別規則に「非 PK データはテキスト妥当性検査＋区切り文字スニッフィングで CSV/TSV と判定（拡張子があれば優先）」の分岐を追加する</li>
   </ul>
@@ -2147,17 +2147,18 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <code>Sheet.hasUnmodelledFilters</code> が立つ（生成と保全の二重出力にならないよう、
       どちらか一方だけを出す）。読めた条件を中途半端に書き戻すと Excel が見せる行が変わる。
       ODS は範囲だけを書き（<code>table:database-ranges</code>）、条件は <code>dropped</code> 警告にする。</li>
-    <li><strong>シート上の 2 つ目以降のテーブル</strong>: XLSX / ODS のライターは <code>Sheet.tables[0]</code> しか見ておらず、
-      Numbers から読んだ（あるいは <code>addTable</code> で足した）2 つ目以降のテーブルが<strong>警告なしで消えていた</strong> —
-      §14.1 の「失敗は throws、損失は warnings」の唯一の破れ。ワークシートは 1 グリッド、ODS のシートは
-      <code>&lt;table:table&gt;</code> 1 つなので<strong>落とすこと自体は正しい</strong>。落としたことを言うようにした:
-      シートごとに <code>dropped</code>（<code>subject: .sheets</code>・シート名つき・落とした数と
-      「.numbers なら残せる」を本文に）。平坦化はしない（下の表）。
-      審判: 2 テーブルのシートを <code>.xlsx</code> / <code>.ods</code> に書き、警告が出ること・先頭テーブルだけが
-      正しく書かれること（<code>WriterTests.extraTablesOfASheetAreReported</code>・
-      <code>ODSCodecTests.extraTablesOfASheetAreReportedWhenWritingODS</code>）。
-      <strong>CSV は対象外</strong> — <code>CSVCodec</code> も先頭テーブルしか書かないが、警告は「他のシート」についてしか
-      出していない。同じ穴が残っている。</li>
+    <li><strong>シート上の 2 つ目以降のテーブル</strong>: XLSX / ODS / CSV のライターは <code>Sheet.tables[0]</code> しか
+      見ておらず、Numbers から読んだ（あるいは <code>addTable</code> で足した）2 つ目以降のテーブルが
+      <strong>警告なしで消えていた</strong> — §14.1 の「失敗は throws、損失は warnings」の唯一の破れ。
+      ワークシートは 1 グリッド、ODS のシートは <code>&lt;table:table&gt;</code> 1 つ、CSV は 1 グリッドなので
+      <strong>落とすこと自体は正しい</strong>。落としたことを言うようにした: シートごとに <code>dropped</code>
+      （<code>subject: .sheets</code>・シート名つき・落とした数と「.numbers なら残せる」を本文に）。
+      CSV はもともと「他の<em>シート</em>」しか警告していなかったので、同じ穴が 3 形式に開いていたことになる。
+      平坦化はしない（下の表）。
+      審判: 2 テーブルのシートを <code>.xlsx</code> / <code>.ods</code> / <code>.csv</code> に書き、警告が出ること・
+      先頭テーブルだけが正しく書かれること（<code>WriterTests.extraTablesOfASheetAreReported</code>・
+      <code>ODSCodecTests.extraTablesOfASheetAreReportedWhenWritingODS</code>・
+      <code>CSVCodecTests.extraTablesOfASheetAreReported</code>）。</li>
   </ul>
 
   <p><strong>実装せずに残したもの（理由つき）</strong>。「未実装」と書いたまま忘れるのを防ぐため、

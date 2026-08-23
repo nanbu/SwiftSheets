@@ -322,6 +322,19 @@ import SheetCore
         #expect(result.suggestion?.format == .xlsx)
     }
 
+    /// A canvas with several tables (Numbers) collapses to the first one — with a warning, never in silence.
+    @Test func extraTablesOfASheetAreReported() throws {
+        var sheet = Sheet(name: "Canvas")
+        sheet[0, 0] = .text("first")
+        let second = sheet.addTable(named: "Second", anchor: CellRef("D1")!)
+        sheet.tables[second][0, 0] = .text("second")
+        let (text, result) = try writeText(Workbook(sheets: [sheet]))
+        #expect(text == "first\r\n")
+        #expect(result.warnings.count == 1)
+        #expect(result.warnings[0] == ConversionWarning(.dropped, subject: .sheets, sheet: "Canvas",
+                                                        message: "1 other table(s) not written: CSV holds a single table (write .numbers to keep them)"))
+    }
+
     @Test func sheetSelectionByName() throws {
         var wb = workbook([[.text("first")]])
         wb.addSheet(named: "Second")
