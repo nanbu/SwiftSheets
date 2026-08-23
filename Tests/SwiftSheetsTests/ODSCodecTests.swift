@@ -300,7 +300,8 @@ import SwiftSheets
         let count = wb.preserved.opaqueParts.count
         #expect(count > 0)
         let result = try ODSCodec.write(wb)
-        let dropped = result.warnings.filter { $0.kind == .dropped }
+        // this fixture also carries data validations, which ODS drops too (B.13) — check the parts warning itself
+        let dropped = result.warnings.filter { $0.kind == .dropped && $0.message.contains("part(s)") }
         #expect(dropped.count == 1)
         #expect(dropped.first?.message.contains("\(count) part(s)") == true)
         #expect(result.suggestion?.format == .xlsx)

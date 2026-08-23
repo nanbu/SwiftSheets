@@ -22,6 +22,13 @@ public struct Sheet: Equatable, Sendable {
     /// groups). Such an `<autoFilter>` is kept as source XML and written back unchanged, so editing
     /// `filterColumns` on this sheet has no effect on a same-format write.
     public package(set) var hasUnmodelledFilters = false
+    /// Rules for what ranges of cells accept (`<dataValidation>`). Write side: these are emitted when the workbook
+    /// is written as XLSX / XLSM. Reading does not fill this in — see `hasUnmodelledValidations` (spec B.13).
+    public var dataValidations: [DataValidation] = []
+    /// True when the file this sheet was read from carries its own `<dataValidations>`. That block is kept as source
+    /// XML and written back unchanged, so `dataValidations` set on this sheet has no effect on a same-format write
+    /// (the writer says so with a `degraded` warning rather than dropping them in silence).
+    public package(set) var hasUnmodelledValidations = false
     public var properties = SheetProperties()
     public var view = SheetView()
     public var sheetFormat = SheetFormatProperties()

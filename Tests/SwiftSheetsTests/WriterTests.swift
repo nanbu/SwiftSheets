@@ -106,3 +106,102 @@ import Testing
         #expect(try Zip.inflate(packed, expectedSize: text.count) == text)
     }
 }
+
+/// Data validation is write-side only (spec appendix B.13): built from the model, preserved verbatim when the file
+/// had its own, and never dropped in silence.
+@Suite struct DataValidationTests {
+    static func sheetXML(_ wb: Workbook) throws -> String {
+        String(decoding: try ZipArchive(data: try XLSXCodec.write(wb).data).read("xl/worksheets/sheet1.xml"), as: UTF8.self)
+    }
+
+    /// `list(_:over:)` is the "suggest, do not reject" form the file format spells with three flags.
+    @Test func aListSuggestsWithoutRejecting() throws {
+        var wb = Workbook()
+        var ws = wb.activeSheet
+        ws["A1"] = "status"
+        ws.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("A2:A9")!)]
+        wb.sheets[0] = ws
+        let xml = try Self.sheetXML(wb)
+        #expect(xml.contains("<dataValidations count=\"1\">"))
+        #expect(xml.contains("type=\"list\""))
+        #expect(xml.contains("<formula1>'Choices'!$A$2:$A$4</formula1>"))
+        #expect(xml.contains("sqref=\"A2:A9\""))
+        #expect(xml.contains("allowBlank=\"1\""))
+        #expect(!xml.contains("showErrorMessage=\"1\""))       // ← nothing is rejected
+        #expect(!xml.contains("showDropDown=\"1\""))           // ← the arrow IS shown (the attribute is inverted)
+    }
+
+    /// The strict form, and the attributes that only it writes.
+    @Test func aRejectingListSaysSo() throws {
+        var wb = Workbook()
+        var ws = wb.activeSheet
+        ws.dataValidations = [.list("\"a,b\"", over: MultiCellRange("B2")!, rejects: true)]
+        wb.sheets[0] = ws
+        let xml = try Self.sheetXML(wb)
+        #expect(xml.contains("showErrorMessage=\"1\"") && xml.contains("errorStyle=\"stop\""))
+    }
+
+    /// `hideDropDown` is the meaning; `showDropDown="1"` is how the file spells it.
+    @Test func hidingTheArrowWritesTheInvertedAttribute() throws {
+        var wb = Workbook()
+        var ws = wb.activeSheet
+        var dv = DataValidation.list("\"a,b\"", over: MultiCellRange("A1")!)
+        dv.hideDropDown = true
+        ws.dataValidations = [dv]
+        wb.sheets[0] = ws
+        #expect(try Self.sheetXML(wb).contains("showDropDown=\"1\""))
+    }
+
+    /// Every attribute survives the trip to XML, including the two-sided operator form and the message texts.
+    @Test func everyAttributeIsWritten() throws {
+        var wb = Workbook()
+        var ws = wb.activeSheet
+        ws.dataValidations = [DataValidation(kind: .whole, ranges: MultiCellRange("A1:A5 C1")!, formula1: "0",
+                                             formula2: "100", operator: .between, errorStyle: .warning,
+                                             allowBlank: true, showInputMessage: true, showErrorMessage: true,
+                                             errorTitle: "範囲外", error: "0〜100 <で>", promptTitle: "入力",
+                                             prompt: "0〜100", imeMode: "halfAlpha")]
+        wb.sheets[0] = ws
+        let xml = try Self.sheetXML(wb)
+        for attribute in ["type=\"whole\"", "operator=\"between\"", "errorStyle=\"warning\"", "imeMode=\"halfAlpha\"",
+                          "allowBlank=\"1\"", "showInputMessage=\"1\"", "showErrorMessage=\"1\"",
+                          "errorTitle=\"範囲外\"", "promptTitle=\"入力\"", "sqref=\"A1:A5 C1\"",
+                          "<formula1>0</formula1>", "<formula2>100</formula2>"] {
+            #expect(xml.contains(attribute), Comment(rawValue: attribute))
+        }
+        #expect(xml.contains("&lt;で&gt;"))                    // message text is escaped
+        #expect(xml.contains("</dataValidation></dataValidations>"))
+    }
+
+    /// The schema allows one `<dataValidations>` per sheet, so a file that brought its own keeps it — and the
+    /// model's rules are reported as degraded rather than vanishing.
+    @Test func aPreservedBlockWinsAndTheLossIsReported() throws {
+        var wb = try XLSXCodec.read(try PreservationTests.fixture("charts-and-friends.xlsx")).workbook
+        var ws = wb.sheets[0]
+        #expect(ws.hasUnmodelledValidations, "the fixture is expected to carry its own validations")
+        #expect(ws.dataValidations.isEmpty, "reading does not model them")
+        ws.dataValidations = [.list("\"x,y\"", over: MultiCellRange("ZZ1")!)]
+        wb.sheets[0] = ws
+        let result = try XLSXCodec.write(wb)
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("data validation") })
+        let xml = String(decoding: try ZipArchive(data: result.data).read("xl/worksheets/sheet1.xml"), as: UTF8.self)
+        #expect(xml.components(separatedBy: "<dataValidations").count == 2, "exactly one block")
+        #expect(!xml.contains("ZZ1"))
+    }
+
+    /// A sheet with no rules writes no element at all (and the generated one sits in schema order).
+    @Test func noRulesNoElementAndTheOrderIsTheSchemas() throws {
+        var wb = Workbook()
+        #expect(try !Self.sheetXML(wb).contains("dataValidations"))
+        var ws = wb.activeSheet
+        ws["A1"] = 1
+        ws.merge("B1:C1")
+        ws.dataValidations = [.list("\"a\"", over: MultiCellRange("A1")!)]
+        ws[cell: "A2"].hyperlink = Hyperlink(target: "https://example.com/")
+        wb.sheets[0] = ws
+        let xml = try Self.sheetXML(wb)
+        let order = ["<sheetData>", "<mergeCells", "<dataValidations", "<hyperlinks>", "<pageMargins"]
+        let positions = order.map { xml.range(of: $0)!.lowerBound }
+        #expect(positions == positions.sorted())
+    }
+}

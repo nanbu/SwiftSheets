@@ -519,7 +519,12 @@ final class SheetParser: SAXHandler {
             // a bare ref, or conditions the model now carries, are regenerated; the exotic kinds are not
             guard SheetParser.unmodelledFilters.contains(where: { fragment.xml.contains("<" + $0) }) else { return }
             sheet.hasUnmodelledFilters = true
-        } else { depth -= 1 }
+        } else {
+            // the source's own validations are kept verbatim; reading does not model them (spec B.13)
+            // an empty <dataValidations count="0"/> is not a rule — openpyxl reports none either
+            if fragment.element == "dataValidations", fragment.xml.contains("<dataValidation ") { sheet.hasUnmodelledValidations = true }
+            depth -= 1
+        }
         sheet.preserved.fragments.append(fragment)
     }
 

@@ -56,6 +56,13 @@ import Testing
         wb.sheets["Plan"]!.table.arrayFormulas[CellRef("B7")!] = CellRange("B7:B8")
         wb.sheets["Plan"]![cell: "B6"].style = NamedStyle(name: "Accent X", style: accentStyle).applied
         wb.sheets["Plan"]!["B6"] = 1000
+        // a list that suggests without rejecting, and a strict numeric rule (spec B.13)
+        wb.sheets["Plan"]!.dataValidations = [
+            .list("\"Todo,Doing,Done\"", over: MultiCellRange("C4:C6")!),
+            DataValidation(kind: .whole, ranges: MultiCellRange("D4:D6")!, formula1: "0", formula2: "100",
+                           operator: .between, errorStyle: .stop, allowBlank: true, showErrorMessage: true,
+                           errorTitle: "範囲外", error: "0〜100 で入力してください"),
+        ]
         return wb
     }
 
@@ -104,6 +111,8 @@ import Testing
         #expect(wb.namedStyle("Accent X")?.style.numberFormat == "#,##0")
         #expect(wb.namedStyle("Accent X")?.style.font.bold == true)
         #expect(ws[cell: "B6"].style.namedStyle == "Accent X" && ws["B6"] == .integer(1000))
+        // reading does not model validations; it says the sheet has some so they are not silently overwritten (B.13)
+        #expect(ws.hasUnmodelledValidations && ws.dataValidations.isEmpty)
     }
 
     @Test(.enabled(if: dir != nil)) func writesVerificationWorkbook() throws {

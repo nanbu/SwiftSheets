@@ -47,6 +47,9 @@ struct NumbersWriter {
             sheetIDs.append(sid)
             doc.update(sid) { $0.set("name", string: sheet.name) }
             if sheet.state != .visible { warnings.append(ConversionWarning(.degraded, sheet: sheet.name, message: "Numbers has no hidden sheets; the sheet is visible")) }
+            if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "data validation dropped: Numbers rules are not written"))
+            }
             var infos = doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" } ?? []
             let tables = sheet.tables.isEmpty ? [Table()] : sheet.tables
             var y = 0.0

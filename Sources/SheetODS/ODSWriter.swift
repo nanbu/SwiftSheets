@@ -217,6 +217,9 @@ enum ODSWriter {
             if !sheet.filterColumns.isEmpty || sheet.sortState != nil || sheet.hasUnmodelledFilters {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "auto-filter conditions and sort state dropped: the range is written, what it lets through is not")
             }
+            if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "data validation dropped: this writer does not emit ODF content validations")
+            }
             let arrays = sheet.tables.reduce(0) { $0 + $1.arrayFormulas.count }
             if arrays > 0 {
                 sink.add(.degraded, subject: .formulas, sheet: sheet.name, "\(arrays) array formula(s) written as ordinary formulas: their range is not carried into ODS")

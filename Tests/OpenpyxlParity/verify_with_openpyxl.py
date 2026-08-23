@@ -70,6 +70,13 @@ if swift_test("writesVerificationWorkbook"):
            and cols[1].customFilters.customFilter[0].val == "10", "custom filter")
     expect(ws.auto_filter.sortState is not None and ws.auto_filter.sortState.sortCondition[0].descending
            and ws.auto_filter.sortState.sortCondition[0].ref in ("B1", "B1:B1"), "sort state")   # a one-cell range writes as "B1"
+    dvs = {str(d.sqref): d for d in ws.data_validations.dataValidation}
+    lst, whole = dvs.get("C4:C6"), dvs.get("D4:D6")
+    expect(lst is not None and lst.type == "list" and lst.formula1 == '"Todo,Doing,Done"'
+           and lst.allowBlank and not lst.showErrorMessage and not lst.showDropDown, "list validation (suggests, does not reject)")
+    expect(whole is not None and whole.type == "whole" and whole.operator == "between" and whole.formula1 == "0"
+           and whole.formula2 == "100" and whole.showErrorMessage and whole.errorStyle == "stop"
+           and whole.errorTitle == "範囲外", "whole-number validation")
     expect(ws.oddHeader.left.text == "四半期報告" and ws.oddHeader.center.text == "&P" and ws.oddFooter.right.text == "&F", "header / footer")
     expect([b.id for b in ws.row_breaks.brk] == [4] and [b.id for b in ws.col_breaks.brk] == [2], "page breaks")
     expect(str(ws["B7"].value) == "=SUM(B1:B2)" or getattr(ws["B7"].value, "text", None) == "=SUM(B1:B2)", "array formula value")
@@ -128,6 +135,9 @@ rb = Break(); rb.id = 4; ws.row_breaks.append(rb)
 cb = ColBreak(); ws.col_breaks.append(cb); ws.col_breaks.brk[0].id = 2   # append renumbers, so set it after
 from openpyxl.worksheet.formula import ArrayFormula
 ws["B7"] = ArrayFormula("B7:B8", "=SUM(B1:B2)")
+from openpyxl.worksheet.datavalidation import DataValidation as PyDataValidation
+dv = PyDataValidation(type="list", formula1='"Todo,Doing,Done"', allow_blank=True, showErrorMessage=False)
+ws.add_data_validation(dv); dv.add("C4:C6")
 wb.save(workdir / "openpyxl.xlsx")
 swift_test("readsVerificationWorkbook")
 

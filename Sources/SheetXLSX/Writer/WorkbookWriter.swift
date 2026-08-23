@@ -291,6 +291,28 @@ enum WorkbookWriter {
     }
 
     /// Worksheet XML in schema order, with the sheet's preserved fragments merged in at their positions.
+    /// One `<dataValidation>`. `hideDropDown` is written to the inverted `showDropDown` attribute it means.
+    static func dataValidationXML(_ dv: DataValidation) -> String {
+        var s = "<dataValidation"
+        if dv.kind != .none { s += " type=\"\(dv.kind.rawValue)\"" }
+        s += XML.attr("errorStyle", dv.errorStyle?.rawValue)
+        s += XML.attr("imeMode", dv.imeMode)
+        s += XML.attr("operator", dv.operator?.rawValue)
+        s += XML.attr("allowBlank", dv.allowBlank)
+        s += XML.attr("showDropDown", dv.hideDropDown)          // 1 HIDES the arrow — the attribute is inverted
+        s += XML.attr("showInputMessage", dv.showInputMessage)
+        s += XML.attr("showErrorMessage", dv.showErrorMessage)
+        s += XML.attr("errorTitle", dv.errorTitle)
+        s += XML.attr("error", dv.error)
+        s += XML.attr("promptTitle", dv.promptTitle)
+        s += XML.attr("prompt", dv.prompt)
+        s += " sqref=\"\(dv.ranges.description)\""
+        var inner = ""
+        if let f = dv.formula1 { inner += "<formula1>\(XML.esc(f))</formula1>" }
+        if let f = dv.formula2 { inner += "<formula2>\(XML.esc(f))</formula2>" }
+        return inner.isEmpty ? s + "/>" : s + ">" + inner + "</dataValidation>"
+    }
+
     /// `<filterColumn>` / `<sortState>` — the children of `<autoFilter>` the model carries.
     static func filterChildrenXML(_ ws: Sheet) -> String {
         var s = ""
@@ -431,6 +453,17 @@ enum WorkbookWriter {
         }
         if !table.merges.isEmpty {
             generated.append(("mergeCells", "<mergeCells count=\"\(table.merges.count)\">" + table.merges.map { "<mergeCell ref=\"\($0.a1)\"/>" }.joined() + "</mergeCells>"))
+        }
+        // data validation is write-side only (spec B.13): a source file's own block is preserved verbatim, and the
+        // schema allows a single <dataValidations>, so a sheet that has both keeps the file's and says what it lost
+        if !ws.dataValidations.isEmpty {
+            if fragments.contains(where: { $0.element == "dataValidations" }) {
+                sink.add(.degraded, subject: .formatting, sheet: ws.name,
+                         "\(ws.dataValidations.count) data validation(s) not written: this sheet was read from a file that carries its own, which is written back unchanged")
+            } else {
+                let rules = ws.dataValidations.map(dataValidationXML).joined()
+                generated.append(("dataValidations", "<dataValidations count=\"\(ws.dataValidations.count)\">" + rules + "</dataValidations>"))
+            }
         }
         // sheet relationships: preserved ones keep their ids; hyperlinks and regenerated note parts follow them.
         // A regenerated comments part replaces the source's, so the source's own two relationships step aside.

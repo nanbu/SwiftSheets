@@ -37,7 +37,7 @@ targets: [
 ]
 ```
 
-Status: **0.4.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
+Status: **0.5.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
 version here is what the library writes into the files it generates, and a test keeps the two in step.
 
 ## Limits
@@ -138,6 +138,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
 | `cell.comment = Comment(text, author)` | `sheet[cell: "A1"].comment = CellNote(text, author:)` — written as the comments part plus its legacy VML |
+| `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]` — **write side only**: a file's own rules are preserved verbatim (`sheet.hasUnmodelledValidations`). `hideDropDown` is named for what the inverted `showDropDown` attribute means |
 | charts / images / conditional formatting / data validation / pivots | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
 | `read_only` / `write_only` streaming | — (whole workbook in memory; see [Limits](#limits)) |
 
