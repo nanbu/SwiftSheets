@@ -37,6 +37,9 @@ import Testing
         ws["A6"] = "link"; ws[cell: "A6"].hyperlink = Hyperlink(target: "https://example.com/")
         ws.properties.summaryBelow = false
         ws.autoFilter = CellRange("A1:H1")
+        ws.filterColumns = [FilterColumn(column: 0, values: ["Title"], includesBlanks: true),
+                            FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "10")])]
+        ws.sortState = SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)])
         ws.printTitleRows = 0...0
         ws.setPrintArea("A1:H6")
         wb.activeSheet = ws
@@ -89,6 +92,9 @@ import Testing
         #expect(ws.rowDimension(1).height == 30 && ws.rowDimension(3).hidden && ws.rowDimension(3).outlineLevel == 1)
         #expect(ws[cell: "A6"].hyperlink?.target == "https://example.com/")
         #expect(ws.properties.summaryBelow == false && ws.autoFilter?.a1 == "A1:H1")
+        #expect(ws.filterColumns == [FilterColumn(column: 0, values: ["Title"], includesBlanks: true),
+                                     FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "10")])])
+        #expect(ws.sortState == SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)]))
         #expect(ws.printTitleRows == 0...0 && ws.printArea.map(\.a1) == ["A1:H6"])
         #expect(ws[cell: "A7"].comment == CellNote("確認してください\n2 行目", author: "南部"))
         #expect(ws.headerFooter.oddHeader == "&L四半期報告&C&P" && ws.headerFooter.oddFooter == "&R&F")

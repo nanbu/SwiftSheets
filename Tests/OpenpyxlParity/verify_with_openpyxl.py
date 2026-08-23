@@ -64,6 +64,12 @@ if swift_test("writesVerificationWorkbook"):
     expect(ws["A6"].hyperlink.target == "https://example.com/", "hyperlink")
     expect(ws.sheet_properties.outlinePr.summaryBelow is False and ws.auto_filter.ref == "A1:H1", "sheet properties / auto filter")
     expect(ws.print_title_rows == "$1:$1" and ws.print_area == "'Plan'!$A$1:$H$6", "print titles / area")
+    cols = ws.auto_filter.filterColumn
+    expect(len(cols) == 2 and cols[0].colId == 0 and list(cols[0].filters.filter) == ["Title"] and cols[0].filters.blank, "filter values")
+    expect(cols[1].colId == 1 and cols[1].customFilters.customFilter[0].operator == "greaterThan"
+           and cols[1].customFilters.customFilter[0].val == "10", "custom filter")
+    expect(ws.auto_filter.sortState is not None and ws.auto_filter.sortState.sortCondition[0].descending
+           and ws.auto_filter.sortState.sortCondition[0].ref in ("B1", "B1:B1"), "sort state")   # a one-cell range writes as "B1"
     expect(ws.oddHeader.left.text == "四半期報告" and ws.oddHeader.center.text == "&P" and ws.oddFooter.right.text == "&F", "header / footer")
     expect([b.id for b in ws.row_breaks.brk] == [4] and [b.id for b in ws.col_breaks.brk] == [2], "page breaks")
     expect(str(ws["B7"].value) == "=SUM(B1:B2)" or getattr(ws["B7"].value, "text", None) == "=SUM(B1:B2)", "array formula value")
@@ -99,6 +105,10 @@ ws["A4"] = "hidden row"; ws["A5"] = "level 1"
 ws["A6"].hyperlink = "https://example.com/"; ws["A6"] = "link"
 ws.sheet_properties.outlinePr.summaryBelow = False
 ws.auto_filter.ref = "A1:H1"
+ws.auto_filter.add_filter_column(0, ["Title"], blank=True)
+from openpyxl.worksheet.filters import CustomFilter, CustomFilters, FilterColumn as PyFilterColumn, SortState as PySortState, SortCondition as PySortCondition
+ws.auto_filter.filterColumn.append(PyFilterColumn(colId=1, customFilters=CustomFilters(customFilter=[CustomFilter(operator="greaterThan", val="10")])))
+ws.auto_filter.sortState = PySortState(ref="A1:H1", sortCondition=[PySortCondition(ref="B1:B1", descending=True)])
 ws.print_title_rows = "1:1"; ws.print_area = "A1:H6"
 wb.create_sheet("Hidden").sheet_state = "hidden"; wb["Hidden"]["A1"] = "secret"
 wb.properties.creator = "interop"; wb.properties.title = "Interop"

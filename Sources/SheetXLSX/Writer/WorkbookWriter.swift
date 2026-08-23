@@ -291,6 +291,33 @@ enum WorkbookWriter {
     }
 
     /// Worksheet XML in schema order, with the sheet's preserved fragments merged in at their positions.
+    /// `<filterColumn>` / `<sortState>` — the children of `<autoFilter>` the model carries.
+    static func filterChildrenXML(_ ws: Sheet) -> String {
+        var s = ""
+        for column in ws.filterColumns.sorted(by: { $0.column < $1.column }) {
+            s += "<filterColumn colId=\"\(column.column)\"\(column.buttonHidden ? " hiddenButton=\"1\"" : "")"
+            let hasValues = !column.values.isEmpty || column.includesBlanks
+            guard hasValues || !column.conditions.isEmpty else { s += "/>"; continue }
+            s += ">"
+            if hasValues {
+                s += "<filters\(column.includesBlanks ? " blank=\"1\"" : "")"
+                s += column.values.isEmpty ? "/>" : ">" + column.values.map { "<filter val=\"\(XML.esc($0))\"/>" }.joined() + "</filters>"
+            }
+            if !column.conditions.isEmpty {
+                s += "<customFilters\(column.matchesAllConditions ? " and=\"1\"" : "")>"
+                s += column.conditions.map { "<customFilter operator=\"\($0.comparison.rawValue)\" val=\"\(XML.esc($0.value))\"/>" }.joined()
+                s += "</customFilters>"
+            }
+            s += "</filterColumn>"
+        }
+        if let sort = ws.sortState {
+            s += "<sortState ref=\"\(sort.range.a1)\"\(sort.caseSensitive ? " caseSensitive=\"1\"" : "")\(sort.byColumn ? " columnSort=\"1\"" : "")"
+            s += sort.conditions.isEmpty ? "/>"
+                : ">" + sort.conditions.map { "<sortCondition\($0.descending ? " descending=\"1\"" : "") ref=\"\($0.range.a1)\"/>" }.joined() + "</sortState>"
+        }
+        return s
+    }
+
     /// Where a sheet's regenerated cell-note parts go. Nil when the sheet has no notes, or when the ones it has
     /// are exactly the ones it was read with — then the source parts are re-packed untouched.
     struct CommentPlan {
@@ -388,8 +415,15 @@ enum WorkbookWriter {
         }
         generated.append(("sheetData", s + "</sheetData>"))
         let fragments = preserve ? ws.preserved.fragments : []
+        // the source's own <autoFilter> is re-emitted verbatim only when it uses a filter kind the model cannot
+        // say (colour, icon, dynamic, top 10, date groups); otherwise it is regenerated from the model
         let hasFilterFragment = fragments.contains { $0.element == "autoFilter" }
-        if let af = ws.autoFilter, !hasFilterFragment { generated.append(("autoFilter", "<autoFilter ref=\"\(af.a1)\"/>")) }
+        if let af = ws.autoFilter, !hasFilterFragment {
+            var filter = "<autoFilter ref=\"\(af.a1)\""
+            let inner = filterChildrenXML(ws)
+            filter += inner.isEmpty ? "/>" : ">" + inner + "</autoFilter>"
+            generated.append(("autoFilter", filter))
+        }
         if !table.merges.isEmpty {
             generated.append(("mergeCells", "<mergeCells count=\"\(table.merges.count)\">" + table.merges.map { "<mergeCell ref=\"\($0.a1)\"/>" }.joined() + "</mergeCells>"))
         }

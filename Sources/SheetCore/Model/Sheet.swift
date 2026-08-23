@@ -14,6 +14,14 @@ public struct Sheet: Equatable, Sendable {
         didSet { if freezePanes == CellRef(row: 0, col: 0) { freezePanes = nil } }
     }
     public var autoFilter: CellRange?
+    /// What each filtered column lets through. Only meaningful together with `autoFilter`.
+    public var filterColumns: [FilterColumn] = []
+    /// The sort the auto-filter last applied. Excel records it; the rows are already in that order in the file.
+    public var sortState: SortState?
+    /// True when the file's auto-filter uses a kind `filterColumns` cannot say (colour, icon, dynamic, top 10, date
+    /// groups). Such an `<autoFilter>` is kept as source XML and written back unchanged, so editing
+    /// `filterColumns` on this sheet has no effect on a same-format write.
+    public package(set) var hasUnmodelledFilters = false
     public var properties = SheetProperties()
     public var view = SheetView()
     public var sheetFormat = SheetFormatProperties()

@@ -1773,8 +1773,54 @@
   },
   "worksheet/tests/test_filters.py": {
    "default": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState",
+   "tests": {
+    "TestFilterColumn::test_from_xml": {
+     "status": "adapted",
+     "reason": "XML 比較ではなく往復で検証"
+    },
+    "TestFilters::test_from_xml": {
+     "status": "adapted",
+     "reason": "<filters blank> と <filter val> を FilterColumn へ"
+    },
+    "TestFilters::test_write_filters": {
+     "status": "adapted",
+     "reason": "生成した <filters> の中身を検証"
+    },
+    "TestCustomFilters::test_from_xml": {
+     "status": "adapted",
+     "reason": "<customFilters and> を FilterColumn.matchesAllConditions へ"
+    },
+    "TestCustomFilter::test_from_xml": {
+     "status": "adapted",
+     "reason": "operator / val を FilterCondition へ"
+    },
+    "TestSortState::test_from_xml": {
+     "status": "adapted",
+     "reason": "ref / caseSensitive / columnSort"
+    },
+    "TestSortCondition::test_from_xml": {
+     "status": "adapted",
+     "reason": "ref / descending"
+    },
+    "TestAutoFilter::test_from_xml": {
+     "status": "adapted",
+     "reason": "ref と子要素をまとめて"
+    },
+    "TestAutoFilter::test_add_filter_column": {
+     "status": "adapted",
+     "reason": "filterColumns への追加（値型なので配列を組み立てる）"
+    },
+    "TestAutoFilter::test_add_sort_condition": {
+     "status": "adapted",
+     "reason": "sortState.conditions への追加"
+    },
+    "TestColorFilter::test_from_xml": {
+     "status": "adapted",
+     "reason": "モデルに無い種類 — ソースの XML をそのまま書き戻すことで検証"
+    }
+   }
   },
   "worksheet/tests/test_formula.py": {
    "default": "na_api",

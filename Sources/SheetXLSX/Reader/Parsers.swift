@@ -341,6 +341,8 @@ final class SheetParser: SAXHandler {
     private var headerFooterPart: String?
     private var headerFooterText = ""
     private var breakAxis: String?
+    private var filterColumn: FilterColumn?
+    private var inSortState = false
 
     init(name: String, sst: [CellValue], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
         self.sheet = Sheet(name: name); self.sst = sst; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
@@ -407,7 +409,26 @@ final class SheetParser: SAXHandler {
         case "mergeCell": if let r = a["ref"].flatMap(CellRange.init) { sheet.table.merges.append(r) }
         case "autoFilter":
             sheet.autoFilter = a["ref"].flatMap(CellRange.init)
-            if depth == 2 { beginCapture(deliveringEvents: true) }   // filter conditions inside are kept verbatim
+            // the conditions inside are read into the model *and* captured: `captured(_:)` throws the capture away
+            // unless the file uses a filter kind the model cannot say
+            if depth == 2 { beginCapture(deliveringEvents: true) }
+        case "filterColumn":
+            filterColumn = FilterColumn(column: Int(a["colId"] ?? "") ?? 0, buttonHidden: XMLBool.isTrue(a["hiddenButton"]))
+        case "filters" where filterColumn != nil: filterColumn!.includesBlanks = XMLBool.isTrue(a["blank"])
+        case "filter" where filterColumn != nil: if let v = a["val"] { filterColumn!.values.append(v) }
+        case "customFilters" where filterColumn != nil: filterColumn!.matchesAllConditions = XMLBool.isTrue(a["and"])
+        case "customFilter" where filterColumn != nil:
+            let op = FilterCondition.Comparison(rawValue: a["operator"] ?? "equal") ?? .equal
+            filterColumn!.conditions.append(FilterCondition(op, a["val"] ?? ""))
+        case "sortState":
+            guard let r = a["ref"].flatMap(CellRange.init) else { return }
+            inSortState = true
+            sheet.sortState = SortState(range: r, caseSensitive: XMLBool.isTrue(a["caseSensitive"]),
+                                        byColumn: XMLBool.isTrue(a["columnSort"]))
+        case "sortCondition" where inSortState:
+            if let r = a["ref"].flatMap(CellRange.init) {
+                sheet.sortState?.conditions.append(SortCondition(range: r, descending: XMLBool.isTrue(a["descending"])))
+            }
         case "hyperlink":
             // `ref` may be a range ("B4:B7"); the link goes on its first cell. A link on a merged cell goes to the anchor.
             if var ref = a["ref"].flatMap(CellRange.init)?.topLeft {
@@ -481,16 +502,23 @@ final class SheetParser: SAXHandler {
             }
             headerFooterPart = nil; headerFooterText = ""
         case "rowBreaks", "colBreaks": breakAxis = nil
+        case "filterColumn": if let c = filterColumn { sheet.filterColumns.append(c) }; filterColumn = nil
+        case "sortState": inSortState = false
         case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount }   // cells, not trailing empty rows, decide where `append` continues
         case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
         default: break
         }
     }
 
+    /// Filter kinds the model does not carry. A file that uses one keeps its `<autoFilter>` verbatim; everything
+    /// else is regenerated from `Sheet.filterColumns` / `sortState`.
+    static let unmodelledFilters = ["colorFilter", "iconFilter", "dynamicFilter", "top10", "dateGroupItem", "extLst"]
+
     func captured(_ fragment: XMLFragment) {
         if fragment.element == "autoFilter" {
-            // only worth keeping when it carries filter / sort conditions; a bare ref is regenerated from the model
-            guard fragment.xml.contains("</autoFilter>") else { return }
+            // a bare ref, or conditions the model now carries, are regenerated; the exotic kinds are not
+            guard SheetParser.unmodelledFilters.contains(where: { fragment.xml.contains("<" + $0) }) else { return }
+            sheet.hasUnmodelledFilters = true
         } else { depth -= 1 }
         sheet.preserved.fragments.append(fragment)
     }

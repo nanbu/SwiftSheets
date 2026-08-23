@@ -100,3 +100,75 @@ import SwiftSheets
                 == before.entry(named: "xl/printerSettings/printerSettings1.bin"))
     }
 }
+
+/// Auto-filter conditions and the sort state. Before this the range was in the model and the conditions were kept
+/// only as source XML — readable by nobody, and lost on conversion. The exotic filter kinds (colour, icon, dynamic,
+/// top 10, date groups) are still kept verbatim rather than half-modelled.
+@Suite struct AutoFilterConditionTests {
+    // openpyxl: worksheet/tests/test_filters.py::TestFilterColumn::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestFilters::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestFilters::test_write_filters
+    // openpyxl: worksheet/tests/test_filters.py::TestCustomFilters::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestCustomFilter::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestSortState::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestSortCondition::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestAutoFilter::test_from_xml
+    // openpyxl: worksheet/tests/test_filters.py::TestAutoFilter::test_add_filter_column
+    // openpyxl: worksheet/tests/test_filters.py::TestAutoFilter::test_add_sort_condition
+    @Test func valuesAndComparisonsRoundTrip() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        for r in 0..<5 { sheet[r, 0] = .text("r\(r)"); sheet[r, 1] = .integer(r) }
+        sheet.autoFilter = CellRange("A1:B5")
+        sheet.filterColumns = [
+            FilterColumn(column: 0, values: ["r1", "r3"], includesBlanks: true),
+            FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "1"), FilterCondition(.lessThanOrEqual, "4")],
+                         matchesAllConditions: true, buttonHidden: true),
+        ]
+        sheet.sortState = SortState(range: CellRange("A2:B5")!, conditions: [SortCondition(range: CellRange("B2:B5")!, descending: true)])
+        wb.sheets[0] = sheet
+
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx))
+        #expect(xml.contains("<filterColumn colId=\"0\"><filters blank=\"1\"><filter val=\"r1\"/><filter val=\"r3\"/></filters></filterColumn>"))
+        #expect(xml.contains("<filterColumn colId=\"1\" hiddenButton=\"1\"><customFilters and=\"1\"><customFilter operator=\"greaterThan\" val=\"1\"/><customFilter operator=\"lessThanOrEqual\" val=\"4\"/></customFilters></filterColumn>"))
+        #expect(xml.contains("<sortState ref=\"A2:B5\"><sortCondition descending=\"1\" ref=\"B2:B5\"/></sortState>"))
+
+        let again = try Workbook(data: try wb.data(as: .xlsx)).sheets[0]
+        #expect(again.autoFilter == CellRange("A1:B5"))
+        #expect(again.filterColumns == sheet.filterColumns)
+        #expect(again.sortState == sheet.sortState)
+        #expect(!again.hasUnmodelledFilters)
+    }
+
+    /// A filter kind the model does not carry keeps the file's own XML — a half-understood filter would change
+    /// which rows Excel shows.
+    // openpyxl: worksheet/tests/test_filters.py::TestColorFilter::test_from_xml
+    @Test func exoticFilterKindsAreKeptVerbatim() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].autoFilter = CellRange("A1:A5")
+        let plain = try wb.data(as: .xlsx)
+        let withColour = try Package.repacking(plain, replacing: "xl/worksheets/sheet1.xml", with: Data(
+            try Package.part("xl/worksheets/sheet1.xml", of: plain)
+                .replacingOccurrences(of: "<autoFilter ref=\"A1:A5\"/>",
+                                      with: "<autoFilter ref=\"A1:A5\"><filterColumn colId=\"0\"><colorFilter dxfId=\"0\"/></filterColumn></autoFilter>").utf8))
+
+        let read = try Workbook(data: withColour)
+        #expect(read.sheets[0].hasUnmodelledFilters)
+        #expect(read.sheets[0].autoFilter == CellRange("A1:A5"))
+        let out = try Package.part("xl/worksheets/sheet1.xml", of: try read.data(as: .xlsx))
+        #expect(out.contains("<colorFilter dxfId=\"0\"/>"))
+        #expect(out.components(separatedBy: "<autoFilter").count == 2)   // exactly one, not one generated and one kept
+    }
+
+    /// ODS writes the range but not what it lets through, and says so.
+    @Test func odsSaysItDropsTheConditions() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].autoFilter = CellRange("A1:A5")
+        wb.sheets[0].filterColumns = [FilterColumn(column: 0, values: ["1"])]
+        let result = try wb.write(as: .ods)
+        #expect(result.warnings.contains { $0.message.contains("auto-filter conditions") })
+        #expect(try Workbook(data: result.data).sheets[0].autoFilter == CellRange("A1:A5"))
+    }
+}

@@ -2,8 +2,8 @@
  "openpyxl": "3.1.5",
  "totals": {
   "ported": 224,
-  "adapted": 316,
-  "na_api": 961,
+  "adapted": 327,
+  "na_api": 950,
   "na_python": 210,
   "total": 1711,
   "cases": 2520
@@ -147,8 +147,8 @@
   },
   "worksheet": {
    "ported": 115,
-   "adapted": 162,
-   "na_api": 185,
+   "adapted": 173,
+   "na_api": 174,
    "na_python": 9,
    "total": 471,
    "cases": 543
@@ -1269,8 +1269,8 @@
   },
   "worksheet/tests/test_filters.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 50,
+   "adapted": 11,
+   "na_api": 39,
    "na_python": 0,
    "total": 50,
    "cases": 66
@@ -16956,8 +16956,8 @@
    "key": "TestFilterColumn::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -16966,9 +16966,12 @@
    "name": "test_from_xml",
    "key": "TestFilterColumn::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "XML 比較ではなく往復で検証",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -16978,8 +16981,8 @@
    "key": "TestSortCondition::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -16988,9 +16991,12 @@
    "name": "test_from_xml",
    "key": "TestSortCondition::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "ref / descending",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17000,8 +17006,8 @@
    "key": "TestAutoFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17010,9 +17016,12 @@
    "name": "test_from_xml",
    "key": "TestAutoFilter::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "ref と子要素をまとめて",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17021,9 +17030,12 @@
    "name": "test_add_filter_column",
    "key": "TestAutoFilter::test_add_filter_column",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "filterColumns への追加（値型なので配列を組み立てる）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17032,9 +17044,12 @@
    "name": "test_add_sort_condition",
    "key": "TestAutoFilter::test_add_sort_condition",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "sortState.conditions への追加",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17044,8 +17059,8 @@
    "key": "TestAutoFilter::test_bool",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17055,8 +17070,8 @@
    "key": "TestSortState::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17065,9 +17080,12 @@
    "name": "test_from_xml",
    "key": "TestSortState::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "ref / caseSensitive / columnSort",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17077,8 +17095,8 @@
    "key": "TestSortState::test_bool",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17088,8 +17106,8 @@
    "key": "TestIconFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17099,8 +17117,8 @@
    "key": "TestIconFilter::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17110,8 +17128,8 @@
    "key": "TestColorFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17120,9 +17138,12 @@
    "name": "test_from_xml",
    "key": "TestColorFilter::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "モデルに無い種類 — ソースの XML をそのまま書き戻すことで検証",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17132,8 +17153,8 @@
    "key": "TestDynamicFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17143,8 +17164,8 @@
    "key": "TestDynamicFilter::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17154,8 +17175,8 @@
    "key": "TestCustomFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17164,9 +17185,12 @@
    "name": "test_from_xml",
    "key": "TestCustomFilter::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "operator / val を FilterCondition へ",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17176,8 +17200,8 @@
    "key": "TestCustomFilter::test_convert",
    "params": 3,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17187,8 +17211,8 @@
    "key": "TestCustomFilter::test_convert_string",
    "params": 3,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17198,8 +17222,8 @@
    "key": "TestNumberFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17209,8 +17233,8 @@
    "key": "TestNumberFilter::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17220,8 +17244,8 @@
    "key": "TestBlankFilter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17231,8 +17255,8 @@
    "key": "TestBlankFilter::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17242,8 +17266,8 @@
    "key": "TestStringFilter::test_startswith",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17253,8 +17277,8 @@
    "key": "TestStringFilter::test_not_startswith",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17264,8 +17288,8 @@
    "key": "TestStringFilter::test_contains",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17275,8 +17299,8 @@
    "key": "TestStringFilter::test_not_contain",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17286,8 +17310,8 @@
    "key": "TestStringFilter::test_endswith",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17297,8 +17321,8 @@
    "key": "TestStringFilter::test_not_endswith",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17308,8 +17332,8 @@
    "key": "TestStringFilter::test_escape",
    "params": 4,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17319,8 +17343,8 @@
    "key": "TestStringFilter::test_unescape",
    "params": 4,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17330,8 +17354,8 @@
    "key": "TestStringFilter::test_dont_escape_wildcard",
    "params": 3,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17341,8 +17365,8 @@
    "key": "TestStringFilter::test_guess_operator",
    "params": 5,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17352,8 +17376,8 @@
    "key": "TestCustomFilters::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17363,8 +17387,8 @@
    "key": "TestCustomFilters::test_blank",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17374,8 +17398,8 @@
    "key": "TestCustomFilters::test_number",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17385,8 +17409,8 @@
    "key": "TestCustomFilters::test_string",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17396,8 +17420,8 @@
    "key": "TestCustomFilters::test_escape_string",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17407,8 +17431,8 @@
    "key": "TestCustomFilters::test_wildcard",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17417,9 +17441,12 @@
    "name": "test_from_xml",
    "key": "TestCustomFilters::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "<customFilters and> を FilterColumn.matchesAllConditions へ",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17429,8 +17456,8 @@
    "key": "TestTop10::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17440,8 +17467,8 @@
    "key": "TestTop10::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17451,8 +17478,8 @@
    "key": "TestDateGroupItem::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17462,8 +17489,8 @@
    "key": "TestDateGroupItem::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17473,8 +17500,8 @@
    "key": "TestFilters::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "api": "Sheet.filterColumns / sortState"
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17483,9 +17510,12 @@
    "name": "test_write_filters",
    "key": "TestFilters::test_write_filters",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "生成した <filters> の中身を検証",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17494,9 +17524,12 @@
    "name": "test_from_xml",
    "key": "TestFilters::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "フィルタ条件 / 並べ替え状態は未実装（autoFilter の ref のみ）",
-   "api": "Filter conditions"
+   "status": "adapted",
+   "reason": "<filters blank> と <filter val> を FilterColumn へ",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_formula.py",

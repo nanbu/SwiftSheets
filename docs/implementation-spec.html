@@ -1986,6 +1986,14 @@ wb.sheets[<span class="nm">0</span>] = sheet
       今回の変更は API と<strong>変換</strong>のためのもの。読みで解釈するようになった分、断片としては捕まえなくなる
       （二重出力にならない）。ODS はこの 4 つを表現しないので、書き出しでシートごとに
       <code>dropped</code> / <code>degraded</code> 警告を出す — 黙って落とさない。</li>
+    <li><strong>オートフィルタの条件と並べ替え状態</strong>: <code>Sheet.filterColumns</code>
+      （値の一覧 <code>&lt;filters&gt;</code> と比較 <code>&lt;customFilters&gt;</code>）と
+      <code>Sheet.sortState</code>。列番号は OOXML の <code>colId</code> と同じく<strong>フィルタ範囲の先頭列からの相対</strong>。
+      <strong>半端に解釈しない</strong>のが要点 — 色・アイコン・動的（上位 10・平均以上・今月）・日付グループの
+      フィルタはモデルに無いので、そういう <code>&lt;autoFilter&gt;</code> は<strong>ソースの XML のまま</strong>書き戻し、
+      <code>Sheet.hasUnmodelledFilters</code> が立つ（生成と保全の二重出力にならないよう、
+      どちらか一方だけを出す）。読めた条件を中途半端に書き戻すと Excel が見せる行が変わる。
+      ODS は範囲だけを書き（<code>table:database-ranges</code>）、条件は <code>dropped</code> 警告にする。</li>
   </ul>
 
   <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>

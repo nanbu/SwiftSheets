@@ -214,6 +214,9 @@ enum ODSWriter {
             if !sheet.rowBreaks.isEmpty || !sheet.columnBreaks.isEmpty {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "manual page breaks dropped")
             }
+            if !sheet.filterColumns.isEmpty || sheet.sortState != nil || sheet.hasUnmodelledFilters {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "auto-filter conditions and sort state dropped: the range is written, what it lets through is not")
+            }
             let arrays = sheet.tables.reduce(0) { $0 + $1.arrayFormulas.count }
             if arrays > 0 {
                 sink.add(.degraded, subject: .formulas, sheet: sheet.name, "\(arrays) array formula(s) written as ordinary formulas: their range is not carried into ODS")

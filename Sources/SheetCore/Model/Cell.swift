@@ -227,6 +227,62 @@ public struct PageSetup: Hashable, Sendable {
     public init() {}
 }
 
+/// What one column of an auto-filter lets through (`<filterColumn>`). The column index is relative to the filter
+/// range's first column, as OOXML's `colId` is.
+///
+/// SwiftSheets models the two filter kinds people actually set by hand: a list of values, and one or two
+/// comparisons. Excel's other kinds — colour, icon, dynamic (top 10, above average, this month) — are kept as the
+/// source XML instead, so a file that has them writes back unchanged (`Sheet.hasUnmodelledFilters`).
+public struct FilterColumn: Hashable, Sendable {
+    public var column: Int
+    /// The values that pass (`<filters><filter val>`); empty when the column filters by comparison instead.
+    public var values: [String]
+    /// Blank cells pass too (`<filters blank="1">`).
+    public var includesBlanks: Bool
+    /// Comparisons that pass (`<customFilters>`); Excel allows at most two.
+    public var conditions: [FilterCondition]
+    /// Both comparisons must hold (`<customFilters and="1">`); otherwise either does.
+    public var matchesAllConditions: Bool
+    /// The drop-down button is hidden on this column.
+    public var buttonHidden: Bool
+
+    public init(column: Int, values: [String] = [], includesBlanks: Bool = false, conditions: [FilterCondition] = [],
+                matchesAllConditions: Bool = false, buttonHidden: Bool = false) {
+        self.column = column; self.values = values; self.includesBlanks = includesBlanks
+        self.conditions = conditions; self.matchesAllConditions = matchesAllConditions; self.buttonHidden = buttonHidden
+    }
+}
+
+/// One comparison of a custom filter (`<customFilter operator val>`). The value is the file's text: Excel compares
+/// numbers as numbers and text as text, and `*` / `?` are wildcards.
+public struct FilterCondition: Hashable, Sendable {
+    public enum Comparison: String, Sendable, CaseIterable {
+        case equal, notEqual, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual
+    }
+    public var comparison: Comparison
+    public var value: String
+    public init(_ comparison: Comparison, _ value: String) { self.comparison = comparison; self.value = value }
+}
+
+/// The sort a sheet's auto-filter last applied (`<sortState>`). Excel stores it; it does not re-sort on open, and
+/// neither does SwiftSheets — the rows are already in the file in that order.
+public struct SortState: Hashable, Sendable {
+    public var range: CellRange
+    public var conditions: [SortCondition]
+    public var caseSensitive: Bool
+    /// Sorting left to right rather than top to bottom.
+    public var byColumn: Bool
+    public init(range: CellRange, conditions: [SortCondition] = [], caseSensitive: Bool = false, byColumn: Bool = false) {
+        self.range = range; self.conditions = conditions; self.caseSensitive = caseSensitive; self.byColumn = byColumn
+    }
+}
+
+public struct SortCondition: Hashable, Sendable {
+    public var range: CellRange
+    public var descending: Bool
+    public init(range: CellRange, descending: Bool = false) { self.range = range; self.descending = descending }
+}
+
 /// Printed page headers and footers (`<headerFooter>`, openpyxl `HeaderFooter`).
 ///
 /// The strings are Excel's own: `&L` / `&C` / `&R` start the left, centre and right sections, `&P` is the page
