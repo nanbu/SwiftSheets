@@ -377,6 +377,11 @@ enum ODSWriter {
 
     static func tableXML(_ sheet: Sheet, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
         let t = sheet.table
+        // one <table:table> per sheet: a canvas carrying several tables (Numbers) keeps only the first one
+        if sheet.tables.count > 1 {
+            sink.add(.dropped, subject: .sheets, sheet: sheet.name,
+                     "\(sheet.tables.count - 1) other table(s) not written: an ODS sheet holds a single table (write .numbers to keep them)")
+        }
         // merges: the anchor carries the span, the rest of the rectangle is written as covered cells. A merge may
         // span the whole sheet, so its positions are only materialised while they are few — past that the geometry
         // answers "is this covered?" directly, and the sheet is not grown to fit a rectangle nobody can see.

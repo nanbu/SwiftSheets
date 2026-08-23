@@ -329,6 +329,11 @@ enum WorkbookWriter {
     static func sheetXML(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool,
                          comments: CommentPlan?, sink: WarningSink) -> (xml: String, rels: String?, parts: [(path: String, data: Data)]) {
         let table = ws.table
+        // a worksheet is one grid: a canvas carrying several tables (Numbers) keeps only the first one
+        if ws.tables.count > 1 {
+            sink.add(.dropped, subject: .sheets, sheet: ws.name,
+                     "\(ws.tables.count - 1) other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)")
+        }
         var generated: [(String, String)] = []
         var s = "<sheetPr\(XML.attr("codeName", ws.properties.codeName))\(ws.properties.filterMode.map { " filterMode=\"\($0 ? 1 : 0)\"" } ?? "")>"
         if let tc = ws.properties.tabColor { s += StyleRegistry.colorXML("tabColor", tc) }

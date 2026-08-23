@@ -1609,9 +1609,9 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
     <tr><td><code>SheetFormat.detect(from: data)</code></td><td>共通</td><td>内容ベースの形式判別（第4章の判別規則を公開 API 化）</td></tr>
     <tr><td><code>ODSWriteOptions(strict: true)</code></td><td>ODS</td><td>ODF 1.2 互換の保守的出力（古い実装向け）</td></tr>
     <tr><td><code>sheet.tables[i].name / .anchor</code></td><td>Numbers</td><td>キャンバス上のテーブル名と位置。読み書き可</td></tr>
-    <tr><td><code>sheet.addTable(named:anchor:)</code></td><td>Numbers</td><td>テーブル追加（XLSX/ODS へ書き出す際は平坦化 — 第3章）</td></tr>
+    <tr><td><code>sheet.addTable(named:anchor:)</code></td><td>Numbers</td><td>テーブル追加。XLSX / ODS へ書き出すと<strong>先頭テーブルだけ</strong>が残り、残りは <code>dropped</code> 警告になる（第3章・付録 B.12）</td></tr>
     <tr><td><code>NumbersReadOptions(versionPolicy: .tolerant)</code></td><td>Numbers</td><td>未検証バージョンでも読み進め、警告で報告（第10章）</td></tr>
-    <tr><td><code>NumbersWriteOptions(flattening: .tablePerSheet)</code></td><td>Numbers→他形式</td><td>複数テーブルの平坦化規則の選択</td></tr>
+    <tr><td>（平坦化オプションは持たない）</td><td>Numbers→他形式</td><td>先頭テーブルを書き、落とした数を <code>dropped</code> 警告で言う。規則を選ばせる API を持たない理由は付録 B.12 の表</td></tr>
     <tr><td><code>CSVReadOptions(encoding: .shiftJIS)</code></td><td>CSV</td><td>文字コード明示。未指定時は UTF-8（BOM 有無を自動判別 — 第9章）</td></tr>
     <tr><td><code>CSVWriteOptions(encoding:includeBOM:dialect:)</code></td><td>CSV</td><td>既定は UTF-8・BOM なし。Excel 配布用に BOM 付与可</td></tr>
     <tr><td><code>CSVDialect(delimiter: "\t")</code></td><td>CSV</td><td>TSV・セミコロン区切り等の方言指定</td></tr>
@@ -1704,7 +1704,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
 }</code></pre>
 
   <h3>15.4 受け取った .numbers を xlsx に変換して共有する</h3>
-  <p>Numbers の複数テーブルは平坦化規則を選んで1グリッド世界へ落とす（第3章・第14.9節）。</p>
+  <p>Numbers の複数テーブルは1グリッド世界に収まらない。書き出しは<strong>先頭テーブルだけ</strong>を書き、
+    落とした数を <code>dropped</code> 警告で言う（第3章・付録 B.12）。テーブルごとにシートを分けたいなら、
+    規則は呼び出し側で選ぶ — <code>sheet.tables</code> は公開モデルなので数行で組める。</p>
   <pre><code><span class="kw">let</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"家計簿.numbers"</span>))
 
 <span class="cm">// シート構成を確認 — Numbers はシートごとに複数テーブルがあり得る</span>
@@ -1712,10 +1714,17 @@ wb.sheets[<span class="nm">0</span>] = sheet
     print(sheet.name, sheet.tables.map { $0.name ?? <span class="st">"(無名)"</span> })
 }
 
-<span class="kw">let</span> result = <span class="kw">try</span> wb.write(
-    to: <span class="ty">URL</span>(filePath: <span class="st">"家計簿.xlsx"</span>),
-    options: .init(numbersFlattening: .tablePerSheet)  <span class="cm">// テーブル→個別シート</span>
-)
+<span class="cm">// テーブル→個別シート（そのまま書くと 2 つ目以降は dropped 警告とともに落ちる）</span>
+<span class="kw">var</span> flat = <span class="ty">Workbook</span>(sheets: [])
+<span class="kw">for</span> sheet <span class="kw">in</span> wb.sheets {
+    <span class="kw">for</span> (i, table) <span class="kw">in</span> sheet.tables.enumerated() {
+        <span class="kw">var</span> s = i == <span class="num">0</span> ? sheet : <span class="ty">Sheet</span>(name: <span class="st">"\(sheet.name) \(i + 1)"</span>)  <span class="cm">// シート単位の設定は先頭に残す</span>
+        s.tables = [table]
+        flat.sheets.append(s)
+    }
+}
+
+<span class="kw">let</span> result = <span class="kw">try</span> flat.write(to: <span class="ty">URL</span>(filePath: <span class="st">"家計簿.xlsx"</span>))
 print(result.warnings.count, <span class="st">"件の変換警告"</span>)</code></pre>
 
   <h3>15.5 複数ブックを横断して値だけ高速に集計する</h3>
@@ -2138,6 +2147,17 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <code>Sheet.hasUnmodelledFilters</code> が立つ（生成と保全の二重出力にならないよう、
       どちらか一方だけを出す）。読めた条件を中途半端に書き戻すと Excel が見せる行が変わる。
       ODS は範囲だけを書き（<code>table:database-ranges</code>）、条件は <code>dropped</code> 警告にする。</li>
+    <li><strong>シート上の 2 つ目以降のテーブル</strong>: XLSX / ODS のライターは <code>Sheet.tables[0]</code> しか見ておらず、
+      Numbers から読んだ（あるいは <code>addTable</code> で足した）2 つ目以降のテーブルが<strong>警告なしで消えていた</strong> —
+      §14.1 の「失敗は throws、損失は warnings」の唯一の破れ。ワークシートは 1 グリッド、ODS のシートは
+      <code>&lt;table:table&gt;</code> 1 つなので<strong>落とすこと自体は正しい</strong>。落としたことを言うようにした:
+      シートごとに <code>dropped</code>（<code>subject: .sheets</code>・シート名つき・落とした数と
+      「.numbers なら残せる」を本文に）。平坦化はしない（下の表）。
+      審判: 2 テーブルのシートを <code>.xlsx</code> / <code>.ods</code> に書き、警告が出ること・先頭テーブルだけが
+      正しく書かれること（<code>WriterTests.extraTablesOfASheetAreReported</code>・
+      <code>ODSCodecTests.extraTablesOfASheetAreReportedWhenWritingODS</code>）。
+      <strong>CSV は対象外</strong> — <code>CSVCodec</code> も先頭テーブルしか書かないが、警告は「他のシート」についてしか
+      出していない。同じ穴が残っている。</li>
   </ul>
 
   <p><strong>実装せずに残したもの（理由つき）</strong>。「未実装」と書いたまま忘れるのを防ぐため、
@@ -2149,6 +2169,12 @@ wb.sheets[<span class="nm">0</span>] = sheet
         その決定の上に積んだもので、ストリーミングはモデルとコーデックの契約から作り直しになる。1.0 の後。</td></tr>
     <tr><td>条件付き書式・データ検証の API</td><td>F3 保全のみ（同形式の書き戻しで無傷）</td>
       <td>§14.11 が「v1.1 で検討」。値の損失は無く、B.11 で確定させた API 面をいま広げる理由が無い。</td></tr>
+    <tr><td>複数テーブルの平坦化（かつて §14.9 が挙げていた <code>NumbersWriteOptions(flattening:)</code>）</td>
+      <td>先頭テーブルだけを書き、残りは <code>dropped</code> 警告（B.12）</td>
+      <td>平坦化の規則（テーブルごとにシート／縦に連結／アンカー位置へ配置）は用途で変わり、どれを既定にしても
+        <strong>呼び出し側が決めるべき意味をライブラリが黙って決める</strong>ことになる。<code>sheet.tables</code> は
+        公開モデルなので、必要な規則は呼び出し側が数行で組める（§15.4）。損失は警告で見えるようになった。
+        API 面は B.11 で確定させたばかりで、広げる理由が無い。</td></tr>
     <tr><td>グラフ・画像・ピボットの<strong>生成</strong> API</td><td>F3 保全のみ</td>
       <td>§1.3 と §14.11 の設計どおりの非スコープ。読み書きの対象はデータであって描画ではない。</td></tr>
     <tr><td>GradientFill の API</td><td>生の <code>&lt;fill&gt;</code> XML としてバイト単位で往復する</td>

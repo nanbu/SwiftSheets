@@ -82,6 +82,23 @@ import Testing
         #expect(back.sheetNames == ["Sheet1"] && back.activeSheet.cells.isEmpty)
     }
 
+    /// A canvas with several tables (Numbers) collapses to the first one on the way into a worksheet — with a warning,
+    /// never in silence.
+    @Test func extraTablesOfASheetAreReported() throws {
+        var ws = Sheet(name: "Canvas")
+        ws["A1"] = .text("first")
+        let second = ws.addTable(named: "Second", anchor: CellRef("D1")!)
+        ws.tables[second]["A1"] = .text("second")
+        let result = try XLSXCodec.write(Workbook(sheets: [ws]))
+        let dropped = result.warnings.filter { $0.kind == .dropped }
+        #expect(dropped.count == 1)
+        #expect(dropped.first?.subject == .sheets && dropped.first?.sheet == "Canvas")
+        #expect(dropped.first?.message.contains("1 other table(s)") == true)
+        let back = try XLSXCodec.read(result.data).workbook.sheets[0]
+        #expect(back.tables.count == 1 && back["A1"] == .text("first"))
+        #expect(!back.cells.values.contains { $0.value == .text("second") })
+    }
+
     @Test func deflateRoundTrip() throws {
         let text = Data(String(repeating: "SwiftSheets deflate round trip. ", count: 200).utf8)
         let packed = try #require(Zip.deflate(text))

@@ -311,6 +311,23 @@ import SwiftSheets
         #expect(back.preserved.opaqueParts.isEmpty)
     }
 
+    /// ODS has one `<table:table>` per sheet, so a Numbers canvas loses every table but the first — with a warning.
+    @Test func extraTablesOfASheetAreReportedWhenWritingODS() throws {
+        var ws = Sheet(name: "Canvas")
+        ws["A1"] = .text("first")
+        let second = ws.addTable(named: "Second", anchor: CellRef("D1")!)
+        ws.tables[second]["A1"] = .text("second")
+        let result = try ODSCodec.write(Workbook(sheets: [ws]))
+        let dropped = result.warnings.filter { $0.kind == .dropped }
+        #expect(dropped.count == 1)
+        #expect(dropped.first?.subject == .sheets && dropped.first?.sheet == "Canvas")
+        #expect(dropped.first?.message.contains("1 other table(s)") == true)
+        let xml = try contentXML(result.data)
+        #expect(xml.contains("first") && !xml.contains("second"))
+        let back = try ODSCodec.read(result.data).workbook.sheets[0]
+        #expect(back.tables.count == 1 && back["A1"] == .text("first"))
+    }
+
     // MARK: - 7. Dates and times
 
     @Test func dateAndTimeValuesDecodeFromISOText() throws {
