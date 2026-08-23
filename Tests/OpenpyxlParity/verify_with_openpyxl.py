@@ -87,6 +87,82 @@ if swift_test("writesVerificationWorkbook"):
     accent = wb._named_styles["Accent X"]
     expect(accent.font.b and accent.font.sz == 12 and accent.fill.fgColor.rgb == "FFFFF2CC" and accent.number_format == "#,##0", "named style formatting")
 
+# ---- 1b. SwiftSheets → openpyxl: the features added after the first pass ---------------------------
+if swift_test("writesFeatureWorkbook"):
+    wb = openpyxl.load_workbook(workdir / "features.xlsx")
+    ws = wb["Data"]
+    rules = {str(rng): rs for rng, rs in ws.conditional_formatting._cf_rules.items()}
+    by_range = {k: v for k, v in rules.items()}
+    expect(sum(len(v) for v in by_range.values()) == 6, f"six conditional-formatting rules, got {by_range}")
+    cell_is = [r for v in by_range.values() for r in v if r.type == "cellIs"]
+    expect(len(cell_is) == 1 and cell_is[0].operator == "greaterThan" and cell_is[0].formula == ["3"], "cellIs rule")
+    expect(cell_is[0].dxfId is not None and wb._differential_styles[cell_is[0].dxfId].font.b
+           and wb._differential_styles[cell_is[0].dxfId].fill.bgColor.rgb == "FFFFC7CE"
+           or wb._differential_styles[cell_is[0].dxfId].fill.fgColor.rgb == "FFFFC7CE", "differential style")
+    kinds = sorted({r.type for v in by_range.values() for r in v})
+    expect(kinds == ["cellIs", "colorScale", "dataBar", "expression", "iconSet", "top10"], f"rule kinds {kinds}")
+    scale = [r for v in by_range.values() for r in v if r.type == "colorScale"][0]
+    expect(len(scale.colorScale.cfvo) == 3 and len(scale.colorScale.color) == 3, "colour scale")
+    bar = [r for v in by_range.values() for r in v if r.type == "dataBar"][0]
+    expect(bar.dataBar.minLength == 10 and bar.dataBar.maxLength == 90, "data bar")
+    icons = [r for v in by_range.values() for r in v if r.type == "iconSet"][0]
+    expect(icons.iconSet.iconSet == "3Arrows" and len(icons.iconSet.cfvo) == 3, "icon set")
+    priorities = sorted(r.priority for v in by_range.values() for r in v)
+    expect(priorities == [1, 2, 3, 4, 5, 6], f"priorities renumbered 1..n, got {priorities}")
+
+    expect(list(ws.tables) == ["Sales"], f"named table, got {list(ws.tables)}")
+    tbl = ws.tables["Sales"]
+    expect(tbl.ref == "A1:C4" and [c.name for c in tbl.tableColumns] == ["Item", "Qty", "Price"], "table columns")
+    expect(tbl.tableStyleInfo.name == "TableStyleMedium9" and tbl.tableStyleInfo.showRowStripes, "table style")
+
+    grad = ws["E1"].fill      # a StyleProxy, so check what it says rather than what class it is
+    expect(grad.tagname == "gradientFill" and grad.type == "linear" and grad.degree == 90
+           and [s.position for s in grad.stop] == [0.0, 1.0]
+           and [s.color.rgb for s in grad.stop] == ["FFFFFFFF", "FFBFD7F5"], f"gradient fill, got {grad}")
+
+    top10 = wb["Filtered"].auto_filter.filterColumn[0].top10
+    expect(top10 is not None and top10.val == 3 and top10.top is False and top10.percent, f"top-10 filter, got {top10}")
+
+    props = {p.name: p.value for p in wb.custom_doc_props}
+    expect(props.get("管理番号") == "A-1234" and props.get("改訂") == 7 and props.get("社外秘") is True,
+           f"custom document properties, got {props}")
+
+    pivots = wb["Pivot"]._pivots
+    expect(len(pivots) == 1, f"one pivot table, got {len(pivots)}")
+    if pivots:
+        pt = pivots[0]
+        expect(pt.name == "集計" and pt.location.ref == "A3:C5", f"pivot name / location, got {pt.name} {pt.location.ref}")
+        expect([f.axis for f in pt.pivotFields] == ["axisRow", None, None], f"pivot field axes, got {[f.axis for f in pt.pivotFields]}")
+        expect([f.x for f in (pt.rowFields or [])] == [0], "row field")
+        expect([f.x for f in (pt.colFields or [])] == [-2], "the values field is placed across the top")
+        expect([(d.fld, d.subtotal) for d in pt.dataFields] == [(1, "sum"), (2, "average")],
+               f"data fields, got {[(d.fld, d.subtotal) for d in pt.dataFields]}")
+        cache = pt.cache
+        expect(cache.cacheSource.worksheetSource.ref == "A1:C4" and cache.cacheSource.worksheetSource.sheet == "Data",
+               "cache source")
+        expect([f.name for f in cache.cacheFields] == ["Item", "Qty", "Price"], "cache fields")
+        expect(cache.refreshOnLoad is True, "cache asks for a refresh on load")
+    names = set(openpyxl.load_workbook(workdir / "features.xlsx").sheetnames)
+    expect(names == {"Data", "Pivot", "Filtered"}, f"sheets, got {names}")
+
+# ---- 1c. the streaming writer's output, read as an ordinary workbook -------------------------------
+if swift_test("writesStreamedWorkbook"):
+    wb = openpyxl.load_workbook(workdir / "streamed.xlsx")
+    expect(wb.sheetnames == ["Big", "Second"], f"streamed sheets, got {wb.sheetnames}")
+    ws = wb["Big"]
+    expect(ws.max_row == 2002 and ws["A1"].value == "n" and ws["C2"].value == "行 1", "streamed values")
+    expect(ws["A2001"].value == 2000 and ws["B2001"].value == 2000 * 2000, "streamed last data row")
+    head = ws["A2002"]
+    expect(head.value == "見出し" and head.font.b and head.fill.fgColor.rgb == "FFBFD7F5"
+           and head.number_format == "0.00", "streamed styling")
+    other = wb["Second"]
+    expect(other["A1"].value == "  余白  " and other["B1"].value is True
+           and other["C1"].value == "#N/A" and other["D1"].value == 1.5, "streamed types")
+    # and openpyxl's own read-only reader walks it too
+    ro = openpyxl.load_workbook(workdir / "streamed.xlsx", read_only=True)
+    expect(sum(1 for _ in ro["Big"].iter_rows(values_only=True)) == 2002, "openpyxl read_only row count")
+    ro.close()
+
 # ---- 2. openpyxl → SwiftSheets -------------------------------------------------------------------
 wb = openpyxl.Workbook()
 ws = wb.active

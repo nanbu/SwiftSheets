@@ -222,7 +222,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
     // openpyxl: styles/tests/test_fills.py::TestPatternFill::test_serialise
     @Test func patternSerialise() {
         let reg = StyleRegistry()
-        var st = CellStyle(); st.fill = PatternFill(patternType: .solid, foregroundColor: .rgb("999999"), backgroundColor: .rgb("999999"))
+        var st = CellStyle(); st.fill = .pattern(PatternFill(patternType: .solid, foregroundColor: .rgb("999999"), backgroundColor: .rgb("999999")))
         _ = reg.index(for: st)
         #expect(reg.xml().contains("<fill><patternFill patternType=\"solid\"><fgColor rgb=\"999999\"/><bgColor rgb=\"999999\"/></patternFill></fill>"))
     }
@@ -237,12 +237,12 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
     // openpyxl: styles/tests/test_fills.py::TestPatternFill::test_create
     @Test(arguments: createCases)
     func patternCreate(_ src: String, _ expected: PatternFill) throws {
-        #expect(try parseStyles("<fills>\(src)</fills>").fills == [expected])
+        #expect(try parseStyles("<fills>\(src)</fills>").fills == [.pattern(expected)])
     }
 
     // openpyxl: styles/tests/test_fills.py::test_create_empty_fill
     @Test func createEmptyFill() throws {
-        #expect(try parseStyles("<fills><fill/></fills>").fills == [PatternFill()])
+        #expect(try parseStyles("<fills><fill/></fills>").fills == [.pattern(PatternFill())])
     }
 
     // openpyxl: styles/tests/test_fills.py::test_read_fills

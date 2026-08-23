@@ -15,6 +15,8 @@ public enum SheetError: Error, Sendable, CustomStringConvertible, LocalizedError
     case formulaSyntax(offset: Int, detail: String)
     /// The model cannot be written as asked (e.g. a workbook with no sheets).
     case invalidWorkbook(String)
+    /// Reading or writing the file itself failed (the streaming writer's only failure mode of its own).
+    case ioFailure(detail: String)
 
     public var description: String {
         switch self {
@@ -25,6 +27,7 @@ public enum SheetError: Error, Sendable, CustomStringConvertible, LocalizedError
         case .unsupportedVersion(let f, let r): "unsupported version \(f) (supported: \(r.lowerBound)…\(r.upperBound))"
         case .formulaSyntax(let o, let d): "formula syntax error at \(o): \(d)"
         case .invalidWorkbook(let s): "invalid workbook: \(s)"
+        case .ioFailure(let d): "input/output failure: \(d)"
         }
     }
 

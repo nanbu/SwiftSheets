@@ -22,13 +22,35 @@ public struct Sheet: Equatable, Sendable {
     /// groups). Such an `<autoFilter>` is kept as source XML and written back unchanged, so editing
     /// `filterColumns` on this sheet has no effect on a same-format write.
     public package(set) var hasUnmodelledFilters = false
-    /// Rules for what ranges of cells accept (`<dataValidation>`). Write side: these are emitted when the workbook
-    /// is written as XLSX / XLSM. Reading does not fill this in — see `hasUnmodelledValidations` (spec B.13).
+    /// Rules for what ranges of cells accept (`<dataValidation>`), read and written alike (spec B.13).
     public var dataValidations: [DataValidation] = []
-    /// True when the file this sheet was read from carries its own `<dataValidations>`. That block is kept as source
-    /// XML and written back unchanged, so `dataValidations` set on this sheet has no effect on a same-format write
-    /// (the writer says so with a `degraded` warning rather than dropping them in silence).
+    /// True when the file this sheet was read from carries a validation the model cannot say — a rule with a vendor
+    /// attribute outside the schema's own. Such a `<dataValidations>` block is kept as source XML and written back
+    /// unchanged (and `dataValidations` is left empty rather than holding half of it), so rules set on this sheet
+    /// have no effect on a same-format write — the writer says so with a `degraded` warning.
+    ///
+    /// Validations that live in the worksheet's `<extLst>` (Excel's `x14` form, the one a cross-sheet list source
+    /// needs) are a different part of the file: they are preserved on their own and this flag says nothing of them.
     public package(set) var hasUnmodelledValidations = false
+    /// The conditional formats of the sheet (`<conditionalFormatting>`) — cells that repaint themselves according
+    /// to what they hold. Read and written alike.
+    public var conditionalFormatting: [ConditionalFormatting] = []
+    /// True when the file this sheet was read from carries a conditional format the model cannot say — a rule of an
+    /// unknown kind, or one with the `<extLst>` extensions Excel writes for data bars it improved after the original
+    /// schema. Such a block is kept as source XML and written back unchanged, and it is left out of
+    /// `conditionalFormatting` rather than being half-read.
+    public package(set) var hasUnmodelledConditionalFormats = false
+    /// The named tables drawn over this sheet's cells (`xl/tables/*.xml`) — Excel's "Format as Table". Distinct
+    /// from `tables`, which is the grid itself.
+    public var excelTables: [ExcelTable] = []
+    /// The pivot tables drawn on this sheet (`xl/pivotTables/*.xml`), each with the cache it reads.
+    public var pivotTables: [PivotTable] = []
+    /// What a protected sheet still lets people do (`<sheetProtection>`).
+    public var protection = SheetProtection()
+    /// Windows of a protected sheet that stay editable (`<protectedRanges>`).
+    public var protectedRanges: [ProtectedRange] = []
+    /// The sheet's "what if" scenarios (`<scenarios>`).
+    public var scenarios = ScenarioList()
     public var properties = SheetProperties()
     public var view = SheetView()
     public var sheetFormat = SheetFormatProperties()
@@ -82,6 +104,67 @@ public struct Sheet: Equatable, Sendable {
         var t = Table(name: name); t.anchor = anchor
         tables.append(t)
         return tables.count - 1
+    }
+
+    /// Adds a named table over `ref`, taking its column names from the sheet's own first row. Returns the name it
+    /// was given (sanitised, and de-duplicated against the tables already on this sheet).
+    @discardableResult
+    public mutating func addExcelTable(named name: String, over ref: CellRange,
+                                       styleInfo: TableStyleInfo? = .default) -> String {
+        var final = ExcelTable.sanitizedName(name)
+        let taken = excelTables.map { $0.name.lowercased() }
+        if taken.contains(final.lowercased()) {
+            var n = 2
+            while taken.contains((final + String(n)).lowercased()) { n += 1 }
+            final += String(n)
+        }
+        let header = (ref.topLeft.col...ref.bottomRight.col).map { self[ref.topLeft.row, $0] }
+        excelTables.append(ExcelTable(name: final, ref: ref, headerRow: header, styleInfo: styleInfo))
+        return final
+    }
+    @discardableResult
+    public mutating func addExcelTable(named name: String, over a1: String, styleInfo: TableStyleInfo? = .default) -> String? {
+        guard let r = CellRange(a1) else { return nil }
+        return addExcelTable(named: name, over: r, styleInfo: styleInfo)
+    }
+    /// The named table covering a cell, if any.
+    public func excelTable(containing ref: CellRef) -> ExcelTable? { excelTables.first { $0.ref.contains(ref) } }
+
+    /// Adds a pivot table summarising `source` on `sourceSheet`, laid out with its top-left cell at `anchor`.
+    ///
+    /// `rows`, `columns`, `values` and `filters` name source columns by their header text. The header row is read
+    /// from `headerRow`; use `Workbook.addPivotTable` when the source is on another sheet and you would rather not
+    /// fetch it yourself. Returns false when no field could be placed.
+    @discardableResult
+    public mutating func addPivotTable(named name: String, summarizing source: CellRange, on sourceSheet: String,
+                                       headerRow: [CellValue?], at anchor: CellRef,
+                                       rows: [String] = [], columns: [String] = [],
+                                       values: [(String, PivotDataField.Function)] = [],
+                                       filters: [String] = []) -> Bool {
+        guard let pivot = PivotTable.summarizing(source, on: sourceSheet, headerRow: headerRow, named: name,
+                                                 at: anchor, rows: rows, columns: columns, values: values,
+                                                 filters: filters), pivot.validationError() == nil else { return false }
+        pivotTables.append(pivot)
+        return true
+    }
+
+    /// Adds one rule over a range, as its own block (openpyxl `ws.conditional_formatting.add`).
+    public mutating func addConditionalFormatting(_ rule: ConditionalFormattingRule, over ranges: MultiCellRange) {
+        var r = rule
+        // a text rule's formula reads the range's own first cell, not A1
+        if let anchor = ranges.sorted.first?.topLeft { r.anchorTextFormula(at: anchor.a1) }
+        if r.priority == 1 { r.priority = (conditionalFormatting.flatMap(\.rules).map(\.priority).max() ?? 0) + 1 }
+        if let i = conditionalFormatting.firstIndex(where: { $0.ranges == ranges }) { conditionalFormatting[i].rules.append(r) }
+        else { conditionalFormatting.append(ConditionalFormatting(ranges: ranges, rules: [r])) }
+    }
+    /// Adds one rule over `"A2:D99"` (or `"A1 C1:C9"`); ignored when the text is not a range.
+    public mutating func addConditionalFormatting(_ rule: ConditionalFormattingRule, over sqref: String) {
+        guard let ranges = MultiCellRange(sqref) else { return }
+        addConditionalFormatting(rule, over: ranges)
+    }
+    /// The rules covering a cell, most important first.
+    public func conditionalFormattingRules(at ref: CellRef) -> [ConditionalFormattingRule] {
+        conditionalFormatting.filter { $0.ranges.contains(ref) }.flatMap(\.rules).sorted { $0.priority < $1.priority }
     }
 
     // MARK: - Titles

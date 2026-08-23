@@ -174,20 +174,46 @@ import Testing
         #expect(xml.contains("</dataValidation></dataValidations>"))
     }
 
-    /// The schema allows one `<dataValidations>` per sheet, so a file that brought its own keeps it — and the
-    /// model's rules are reported as degraded rather than vanishing.
-    @Test func aPreservedBlockWinsAndTheLossIsReported() throws {
+    /// A file's own rules arrive on the model, and an edit to them is what the next write says.
+    // openpyxl: worksheet/tests/test_datavalidation.py::TestDataValidation::test_parser
+    // openpyxl: worksheet/tests/test_datavalidation.py::TestDataValidation::test_from_xml
+    // openpyxl: worksheet/tests/test_datavalidation.py::TestDataValidation::test_read_formula
+    // openpyxl: worksheet/tests/test_datavalidation.py::TestDataValidationList::test_from_xml
+    @Test func aFilesOwnRulesAreReadAndCanBeEdited() throws {
         var wb = try XLSXCodec.read(try PreservationTests.fixture("charts-and-friends.xlsx")).workbook
         var ws = wb.sheets[0]
-        #expect(ws.hasUnmodelledValidations, "the fixture is expected to carry its own validations")
-        #expect(ws.dataValidations.isEmpty, "reading does not model them")
-        ws.dataValidations = [.list("\"x,y\"", over: MultiCellRange("ZZ1")!)]
+        #expect(!ws.hasUnmodelledValidations)
+        #expect(ws.dataValidations.count == 1, "the fixture carries one rule")
+        #expect(ws.dataValidations[0].kind == .list)
+        ws.dataValidations[0].ranges = MultiCellRange("ZZ1")!
         wb.sheets[0] = ws
         let result = try XLSXCodec.write(wb)
-        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("data validation") })
         let xml = String(decoding: try ZipArchive(data: result.data).read("xl/worksheets/sheet1.xml"), as: UTF8.self)
         #expect(xml.components(separatedBy: "<dataValidations").count == 2, "exactly one block")
-        #expect(!xml.contains("ZZ1"))
+        #expect(xml.contains("sqref=\"ZZ1\""))
+        #expect(try XLSXCodec.read(result.data).workbook.sheets[0].dataValidations == ws.dataValidations)
+    }
+
+    /// A rule carrying an attribute outside the schema's own cannot be regenerated faithfully: the block is kept
+    /// verbatim, the model is left empty rather than holding half of it, and rules added to the sheet are reported
+    /// as degraded rather than vanishing.
+    @Test func aRuleTheModelCannotSayKeepsTheSourceBlock() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        let plain = try wb.data(as: .xlsx)
+        let vendor = try Package.repacking(plain, replacing: "xl/worksheets/sheet1.xml", with: Data(
+            try Package.part("xl/worksheets/sheet1.xml", of: plain)
+                .replacingOccurrences(of: "<pageMargins",
+                                      with: "<dataValidations count=\"1\"><dataValidation type=\"list\" sqref=\"D2:D4\" xr:uid=\"{00000000-0002-0000-0000-000000000000}\"><formula1>\"yes,no\"</formula1></dataValidation></dataValidations><pageMargins").utf8))
+        var again = try Workbook(data: vendor)
+        #expect(again.sheets[0].hasUnmodelledValidations)
+        #expect(again.sheets[0].dataValidations.isEmpty, "half a rule is worse than none")
+        again.sheets[0].dataValidations = [.list("\"x,y\"", over: MultiCellRange("ZZ1")!)]
+        let result = try XLSXCodec.write(again)
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("data validation") })
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: result.data)
+        #expect(xml.components(separatedBy: "<dataValidations").count == 2, "exactly one block")
+        #expect(xml.contains("xr:uid") && !xml.contains("ZZ1"))
     }
 
     /// A sheet with no rules writes no element at all (and the generated one sits in schema order).

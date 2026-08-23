@@ -157,7 +157,7 @@ package enum Zip {
 
 /// CRC-32 (IEEE, poly 0xEDB88320).
 public enum CRC32 {
-    private static let table: [UInt32] = (0..<256).map { n in
+    package static let table: [UInt32] = (0..<256).map { n in
         var c = UInt32(n)
         for _ in 0..<8 { c = (c & 1) != 0 ? 0xEDB8_8320 ^ (c >> 1) : c >> 1 }
         return c

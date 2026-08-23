@@ -111,7 +111,7 @@ import Testing
         var s = Sheet(name: "S")
         s.style("A1:B1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")); $0.border.bottom = Side(style: .medium) }
         #expect(s.style("B1").font.bold && s.style("C1").font.bold == false)
-        #expect(s[cell: "A1"].fill == PatternFill.solid(.rgb("FFF5F5F7")))
+        #expect(s[cell: "A1"].fill == .solid(.rgb("FFF5F5F7")))
         s.setWidth(14, ofColumn: "C"); s.setHeight(24, ofRow: 0)
         #expect(s.columnDimension("C").width == 14 && s.columnDimension(2).width == 14 && s.rowDimension(0).height == 24)
         s.groupColumns("F", "H")

@@ -50,6 +50,15 @@ struct NumbersWriter {
             if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
                 warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "data validation dropped: Numbers rules are not written"))
             }
+            if !sheet.conditionalFormatting.isEmpty || sheet.hasUnmodelledConditionalFormats {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "conditional format(s) dropped: Numbers rules are not written"))
+            }
+            if !sheet.pivotTables.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name, message: "\(sheet.pivotTables.count) pivot table(s) dropped: Numbers pivot tables are not written"))
+            }
+            if !sheet.excelTables.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name, message: "\(sheet.excelTables.count) named table(s) dropped: every Numbers table is named, but its own header rows are not this frame"))
+            }
             var infos = doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" } ?? []
             let tables = sheet.tables.isEmpty ? [Table()] : sheet.tables
             var y = 0.0

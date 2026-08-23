@@ -19,10 +19,16 @@ import SwiftSheets
         #expect(wb.definedNames["Prices"] == "Data!$C$2:$C$4")
         #expect(wb.preserved.summary.contains("charts: 1"))
         #expect(wb.preserved.summary.contains("comments: 2"))
-        #expect(wb.preserved.summary.contains("tables: 1"))
+        #expect(wb.sheets[0].excelTables.map(\.name) == ["Items"])   // the table is modelled now, not an opaque part
         #expect(wb.preserved.opaqueParts["xl/theme/theme1.xml"] != nil)
-        #expect(Set(wb.sheets[0].preserved.fragments.map(\.element)).isSuperset(of: ["conditionalFormatting", "dataValidations", "drawing", "legacyDrawing", "tableParts"]))
-        #expect(wb.preserved.styleFragments.contains { $0.element == "dxfs" })
+        // conditional formatting, data validation and the table are modelled now, so they are regenerated rather
+        // than kept as bytes: what stays a fragment is only what the model still has no home for
+        #expect(Set(wb.sheets[0].preserved.fragments.map(\.element)).isSuperset(of: ["drawing", "legacyDrawing"]))
+        #expect(!wb.sheets[0].dataValidations.isEmpty)
+        // the differential formats are a table now, not a verbatim section — the entries keep their indices so
+        // that `tableStyles` and the conditional formats still address the right ones
+        #expect(!wb.differentialStyles.isEmpty)
+        #expect(wb.preserved.styleTables?.dxfXML.count == wb.differentialStyles.count)
 
         wb.sheets[0]["B2"] = 30   // the one edit
         let result = try XLSXCodec.write(wb)
@@ -38,7 +44,7 @@ import SwiftSheets
         #expect(again.definedNames == wb.definedNames)
         // opaque parts are the same bytes
         let before = try ZipArchive(data: original), after = try ZipArchive(data: result.data)
-        for part in ["xl/charts/chart1.xml", "xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/comments/comment1.xml", "xl/drawings/commentsDrawing1.vml", "xl/tables/table1.xml", "xl/theme/theme1.xml", "xl/comments/comment2.xml"] {
+        for part in ["xl/charts/chart1.xml", "xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/comments/comment1.xml", "xl/drawings/commentsDrawing1.vml", "xl/theme/theme1.xml", "xl/comments/comment2.xml"] {
             #expect(try before.read(part) == after.read(part), "\(part)")
         }
         // the sheet still points at its drawing, comments and table with the original ids, and the rels still resolve

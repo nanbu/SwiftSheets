@@ -1630,12 +1630,18 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
   <h3>14.11 openpyxl 機能との対応状況（未対応領域の明示）</h3>
   <div class="compare"><table>
     <tr><th>openpyxl 機能</th><th>v1 での扱い</th></tr>
-    <tr><td>チャート作成 / 画像挿入 / 条件付き書式</td><td><strong>読み書き API なし・F3 保全のみ</strong>（既存要素は無劣化温存、第6章）。条件付き書式は v1.1 で読み書き対応を検討</td></tr>
-    <tr><td>データ検証（<code>DataValidation</code>）</td><td><strong>書き出し API あり</strong>（<code>Sheet.dataValidations</code>・Rev 1.8・B.13）。<strong>読み込みはモデル化しない</strong> — ファイルにあった <code>&lt;dataValidations&gt;</code> は F3 保全のまま無劣化で書き戻し、<code>Sheet.hasUnmodelledValidations</code> がそれを知らせる</td></tr>
+    <tr><td>チャート作成 / 画像挿入</td><td><strong>読み書き API なし・F3 保全のみ</strong>（既存要素は無劣化温存、第6章）。読み書きの対象はデータであって描画ではない（§1.3）</td></tr>
+    <tr><td>条件付き書式</td><td><strong>読み書き対応済み</strong>（<code>Sheet.conditionalFormatting</code>・Rev 2.0・B.15）。<code>&lt;extLst&gt;</code> 拡張を含む規則だけは元の XML のまま書き戻す</td></tr>
+    <tr><td>差分書式（<code>dxfs</code>）・階調塗り</td><td><strong>読み書き対応済み</strong>（<code>DifferentialStyle</code>・<code>Fill.gradient</code>・Rev 2.0・B.15）</td></tr>
+    <tr><td>データ検証（<code>DataValidation</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.dataValidations</code>・書き出しは Rev 1.8・B.13、読み込みは Rev 2.0・B.15）。規約外の属性を持つ規則だけは元の XML のまま書き戻し、<code>Sheet.hasUnmodelledValidations</code> がそれを知らせる</td></tr>
     <tr><td>コメント</td><td>読み書き対応済み（VML 込み・Rev 1.7・B.12）</td></tr>
-    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td>ロードマップ項目。v1 は全載せモデルのみ（数十万行規模はメモリ要件を README に明記）</td></tr>
-    <tr><td>シート保護・ブック暗号化</td><td>非対応（暗号化は明示的エラー — 第1章）</td></tr>
-    <tr><td>ピボットテーブル</td><td>F3 保全のみ。生成 API は提供しない</td></tr>
+    <tr><td>名前付きの表（<code>ws.tables</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.excelTables</code>・Rev 2.0・B.15）</td></tr>
+    <tr><td>絞り込みの応用（色・アイコン・上位10・動的・日付グループ）</td><td><strong>読み書き対応済み</strong>（<code>FilterColumn</code>・Rev 2.0・B.15）。<code>&lt;extLst&gt;</code> 拡張だけは元の XML のまま</td></tr>
+    <tr><td>文書の自由項目（<code>custom_doc_props</code>）</td><td><strong>読み書き対応済み</strong>（<code>Workbook.customProperties</code>・Rev 2.0・B.15）。ODF の <code>meta:user-defined</code> とも往復する</td></tr>
+    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・XLSX / XLSM のみ・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない</td></tr>
+    <tr><td>シート保護・シナリオ</td><td><strong>読み書き対応済み</strong>（<code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code>・Rev 2.0・B.15）。合鍵は旧来の 16 ビット式のみ生成する</td></tr>
+    <tr><td>ブック暗号化</td><td>非対応（明示的エラー — 第1章）</td></tr>
+    <tr><td>ピボットテーブル</td><td><strong>配置の読み書き対応済み</strong>（<code>Sheet.pivotTables</code>・Rev 2.0・B.15）。<strong>集計はしない</strong> — 「開いたときに再計算」を立てて書くので、数字は開いた側が入れる</td></tr>
   </table></div>
 </section>
 
@@ -1838,6 +1844,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
     <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
+    <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -1847,7 +1854,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
 <!-- ===================== APPENDIX B ===================== -->
 <section class="chapter" id="apxb">
-  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 1.7）</h2>
+  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 2.0）</h2>
   <p class="lead">
     P1・P2 を実装した 2026-08-22 時点で、本文と実装が異なる点・本文が決めていなかった点をここに固定する。
     本文より本付録が優先する。理由のない逸脱は無い — 逸脱は必ず理由つきで載せ、戻すべきと判断したら本文ではなくここを直す。
@@ -1918,7 +1925,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.7 未着手（本文のとおりロードマップ）</h3>
   <ul>
-    <li>条件付き書式の API・ストリーミング読み書き。<strong>Rev 1.7 で解消</strong>: 暗号化の明示エラー・名前付きスタイル・コメントの読み書き（VML）（B.12）。<strong>Rev 1.8 で解消</strong>: データ検証の<strong>書き出し</strong> API（B.13。読み込みのモデル化は残件）。</li>
+    <li><strong>Rev 1.7 で解消</strong>: 暗号化の明示エラー・名前付きスタイル・コメントの読み書き（VML）（B.12）。<strong>Rev 1.8 で解消</strong>: データ検証の<strong>書き出し</strong> API（B.13）。<strong>Rev 2.0 で解消</strong>: 条件付き書式・ストリーミング読み書き・データ検証の読み取り・名前付きの表・ピボット表の配置・保護／シナリオ・階調塗り／差分書式・絞り込みの応用・文書の自由項目（B.15）。</li>
     <li>Numbers の数式を内部表現（TSCE 数式アーカイブ）で生成すること — B.8 参照。</li>
   </ul>
 
@@ -2172,31 +2179,33 @@ wb.sheets[<span class="nm">0</span>] = sheet
   ここで一件ずつ理由を固定する。判断を変えるなら本文ではなくこの表を直す。</p>
   <div class="compare"><table>
     <tr><th>項目</th><th>いまの状態</th><th>実装しない理由</th></tr>
-    <tr><td>ストリーミング読み書き（<code>read_only</code> / <code>write_only</code>）</td><td>全載せモデルのみ</td>
-      <td>§14.11 が「v1 は全載せのみ」と決めている。B.10 の実装（書式の共有・使用範囲の逐次維持・一時コピーの排除）は
-        その決定の上に積んだもので、ストリーミングはモデルとコーデックの契約から作り直しになる。1.0 の後。</td></tr>
-    <tr><td>条件付き書式の API</td><td>F3 保全のみ（同形式の書き戻しで無傷）</td>
-      <td>§14.11 が「v1.1 で検討」。値の損失は無く、B.11 で確定させた API 面をいま広げる理由が無い。</td></tr>
-    <tr><td>データ検証の<strong>読み込み</strong>モデル化</td><td>書き出しはモデルから、読み込みは F3 保全のまま（B.13）</td>
-      <td>読み込みまでモデル化すると、保全フラグメントから <code>dataValidations</code> を外して
-        <code>x14</code> 拡張形（別シート参照を古い Excel で表す形）との整合も引き受けることになる。
-        <strong>書き出しだけで呼び出し側の用途は満たせる</strong>ので、読み込みは審判（Excel 実機）が
-        用意できるまで温存に留める。モデルと保全がぶつかる唯一の場面は
-        <code>degraded</code> 警告で見えるようにした。</td></tr>
+    <tr><td>ストリーミング読み書き（<code>read_only</code> / <code>write_only</code>）</td>
+      <td><strong>Rev 2.0 で実装（B.15）</strong> — <code>StreamingReader</code> / <code>StreamingWriter</code></td>
+      <td>（かつての理由: 全載せモデルの上に積んだ最適化と契約が違う）。実際には<strong>モデルを作り直さずに済んだ</strong> —
+        既存のコーデックはそのままに、値と書式だけを扱う別経路を並べた。保全はしないと決めたことで契約の衝突が消えた。</td></tr>
+    <tr><td>条件付き書式の API</td><td><strong>Rev 2.0 で実装（B.15）</strong> — <code>Sheet.conditionalFormatting</code></td>
+      <td>（かつての理由: 値の損失が無く、API 面を広げる理由が無い）。2026-08-24 に方針を改めた —
+        「赤くなる条件をプログラムで判定したい」という用途は、保全だけでは満たせない。</td></tr>
+    <tr><td>データ検証の<strong>読み込み</strong>モデル化</td><td><strong>Rev 2.0 で実装（B.15）</strong></td>
+      <td>（かつての理由: 書き出しだけで用途は満たせ、<code>x14</code> 拡張形との整合を引き受けたくない）。
+        <code>x14</code> はワークシートの <code>&lt;extLst&gt;</code> という<strong>別の子要素</strong>なので、
+        そちらを保全したまま <code>&lt;dataValidations&gt;</code> だけをモデル化できることが分かった。</td></tr>
     <tr><td>複数テーブルの平坦化（かつて §14.9 が挙げていた <code>NumbersWriteOptions(flattening:)</code>）</td>
       <td>先頭テーブルだけを書き、残りは <code>dropped</code> 警告（B.12）</td>
       <td>平坦化の規則（テーブルごとにシート／縦に連結／アンカー位置へ配置）は用途で変わり、どれを既定にしても
         <strong>呼び出し側が決めるべき意味をライブラリが黙って決める</strong>ことになる。<code>sheet.tables</code> は
         公開モデルなので、必要な規則は呼び出し側が数行で組める（§15.4）。損失は警告で見えるようになった。
         API 面は B.11 で確定させたばかりで、広げる理由が無い。</td></tr>
-    <tr><td>グラフ・画像・ピボットの<strong>生成</strong> API</td><td>F3 保全のみ</td>
+    <tr><td>グラフ・画像の<strong>生成</strong> API</td><td>F3 保全のみ</td>
       <td>§1.3 と §14.11 の設計どおりの非スコープ。読み書きの対象はデータであって描画ではない。</td></tr>
-    <tr><td>GradientFill の API</td><td>生の <code>&lt;fill&gt;</code> XML としてバイト単位で往復する</td>
-      <td>API にするには <code>CellStyle.fill</code> の<strong>型</strong>を変えることになり、B.11 で確定させた API を壊す。
-        往復で失われないので、壊してまで得るものが無い。</td></tr>
-    <tr><td>拡張プロパティ・カスタムプロパティ</td><td><code>docProps/custom.xml</code> は不透明保全、
-      <code>app.xml</code> は生成し直す</td><td>openpyxl も <code>app.xml</code> を作り直す。カスタムプロパティは
-        触らないので無傷で残る。</td></tr>
+    <tr><td>ピボット表の<strong>集計</strong></td><td>配置は書く。数字は「開いたときに再計算」に任せる（B.15）</td>
+      <td>集計を自分でやるなら、この製品は表計算エンジンになる。<strong>それは別の製品</strong>。
+        配置を書いて再計算を頼むのは Excel 自身が採る道でもある。</td></tr>
+    <tr><td>GradientFill の API</td><td><strong>Rev 2.0 で実装（B.15）</strong> — <code>Fill.gradient</code></td>
+      <td>（かつての理由: <code>CellStyle.fill</code> の型を変えると B.11 で確定させた API を壊す）。
+        2026-08-24 に方針を改めた。<strong>1.0 前の破壊的変更</strong>として B.15 に理由を固定する。</td></tr>
+    <tr><td>拡張プロパティ（<code>app.xml</code>）</td><td>生成し直す</td>
+      <td>openpyxl も作り直す。自由項目（<code>custom.xml</code>）は Rev 2.0 でモデル化した（B.15）。</td></tr>
     <tr><td>ZIP64</td><td>4 GB / 65,535 パートを超えると <code>corruptedContainer</code></td>
       <td>全載せモデルの上限（数百 MB）の方が先に来る。ストリーミングと同時に考えるべき項目。</td></tr>
     <tr><td>Linux / visionOS</td><td>未達（B.1）</td>
@@ -2291,6 +2300,68 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
   <p>
     版数は <strong>0.5.0</strong> のまま（B.13 と同じ minor に相乗り。未公開のうちに入れることが、この変更の前提）。
+  </p>
+
+  <h3>B.15 openpyxl との差の 9 件（Rev 2.0）</h3>
+  <p>
+    openpyxl 3.1.5 との差として数え上げた 12 件のうち、<strong>9 件をこの改訂で実装した</strong>（2026-08-24 決定）。
+    残した 2 領域はグラフ（台帳 213 件）と図形／画像（148 件）で、どちらも「描画は対象外」という
+    §1.3 の設計どおりに残す。
+  </p>
+
+  <div class="callout callout-warn">
+    <span class="label">この改訂で F3 の意味が変わった箇所</span>
+    <p>
+      条件付き書式・データ検証・名前付きの表・ピボット表・差分書式（<code>dxfs</code>）は、これまで
+      <strong>バイト単位で温存</strong>されていた。モデル化した以上、これらは<strong>読み直して書き直す</strong>ものになる —
+      同じ意味の XML が出るが、同じバイト列が出るとは限らない。<code>PreservationTests</code> の
+      「不透明パーツのバイト一致」を見る対象から外し、代わりに<strong>読み戻しての一致</strong>を見るよう改めた。
+      グラフ・VBA・テーマ・画像など<strong>モデル化していないものの F3 は変わらない</strong>。
+    </p>
+  </div>
+
+  <p><strong>1 件ずつの決定</strong>。共通の型は「モデルにある物は作り直す／モデルに無い物は元の XML のまま」で、
+  どこまでをモデルとしたかが件ごとの判断になる。</p>
+  <div class="compare"><table>
+    <tr><th>件</th><th>入れたもの</th><th>境目（モデルにしなかったもの）</th></tr>
+    <tr><td>データ検証（読取）</td><td><code>Sheet.dataValidations</code> を読み込みでも埋める。B.13 の「読み込みはモデル化しない」を<strong>撤回</strong></td>
+      <td>規約外の属性を持つ <code>&lt;dataValidation&gt;</code> があれば、その塊ごと元の XML のまま書き戻し、モデルは空のままにする（半分だけ読むより無い方がまし）。<code>x14</code> 形はワークシートの <code>&lt;extLst&gt;</code> にあり、これまでどおり保全</td></tr>
+    <tr><td>絞り込みの応用</td><td><code>Top10Filter</code> / <code>DynamicFilter</code> / <code>ColorFilter</code> / <code>IconFilter</code> / <code>DateGroup</code> を <code>FilterColumn</code> に追加</td>
+      <td><code>&lt;extLst&gt;</code> 拡張だけが <code>hasUnmodelledFilters</code> の対象として残る。1 列は 1 通りにしか絞れない（形式の <code>xsd:choice</code>）ので、2 つ以上立っていたら先頭だけ書いて <code>degraded</code> 警告</td></tr>
+    <tr><td>文書の付帯情報</td><td><code>Workbook.customProperties</code>（<code>docProps/custom.xml</code>）。文字・整数・小数・真偽・日時・定義名リンクの 6 種</td>
+      <td>ODF には <code>meta:user-defined</code> があるので ODS とも往復する。ただしリンク型だけは ODF に無く、対象の名前を文字として書いて <code>substituted</code> 警告</td></tr>
+    <tr><td>階調塗り・差分書式</td><td><code>Fill</code> を列挙（<code>.pattern</code> / <code>.gradient</code>）に変更し、<code>DifferentialStyle</code>（<code>dxfs</code>）を読み書き</td>
+      <td><strong>1.0 前の破壊的変更</strong>: <code>CellStyle.fill</code> / <code>Cell.fill</code> の型が <code>PatternFill</code> から <code>Fill</code> へ。<code>.solid(_:)</code> / <code>.none</code> と <code>patternType</code> / <code>foregroundColor</code> の読み出しはそのまま通るので、直すのは <code>PatternFill(...)</code> を直接代入していた箇所だけ。差分書式の「下線を明示的に外す」（<code>&lt;u val="none"/&gt;</code>）は言えないが、元の項目は生の XML のまま再出力するので往復では失われない</td></tr>
+    <tr><td>条件付き書式</td><td><code>Sheet.conditionalFormatting</code>。17 種の規則、色階調・データバー・アイコンセット、規則ごとの <code>DifferentialStyle</code></td>
+      <td>知らない種類の規則、または <code>&lt;extLst&gt;</code> を持つ規則があれば塊ごと元の XML のまま（<code>hasUnmodelledConditionalFormats</code>）。<strong>優先順位はシート全体で 1…n に振り直す</strong> — Excel は重複を嫌い、順序だけが意味を持つため</td></tr>
+    <tr><td>Excel の「テーブル」</td><td><code>Sheet.excelTables</code>（<code>ExcelTable</code>）。パーツ・コンテンツタイプ・関係・<code>&lt;tableParts&gt;</code> の 4 点セットを生成</td>
+      <td>グリッドを表す <code>Table</code> と名前が衝突するので <code>ExcelTable</code>。列名の重複・空欄は Excel と同じ直し方（<code>Column2</code>・<code>Item2</code>）をする。形式が受け付けない表は書かずに <code>dropped</code> 警告。モデルに無い属性・子要素は verbatim で往復</td></tr>
+    <tr><td>保護・シナリオ</td><td><code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code></td>
+      <td>形式の真偽値は「<strong>禁止</strong>されている」向きだが、モデルは <code>allows…</code> と<strong>許可の向きで名づけて</strong>、コーデックが反転する（<code>hideDropDown</code> と同じ方針）。合鍵は旧来の 16 ビット式のみ生成し、Excel 2010 以降の <code>hashValue</code> / <code>saltValue</code> は<strong>読んで書き戻すだけ</strong>（openpyxl も同じ）。これは事故を防ぐ錠であって秘密を守る錠ではない、と型の説明に書いた</td></tr>
+    <tr><td>ピボット表</td><td><code>Sheet.pivotTables</code>（<code>PivotTable</code> ＋ <code>PivotCache</code>）。配置パーツ・キャッシュ定義・関係・<code>&lt;pivotCaches&gt;</code> を生成し、範囲から作る <code>Workbook.addPivotTable</code> も用意</td>
+      <td><strong>集計はしない</strong>。新しく作るキャッシュは <code>saveData="0" refreshOnLoad="1"</code> を立て、レコードのパーツを持たない — 開いた側が元の範囲を読んで計算する。計算していない数字を書かない、が理由。<strong>審判は openpyxl の読み戻しと LibreOffice</strong>（変換後の値が正しく集計されていることまで確認した）。<strong>Excel 実機では開いていない</strong> — Numbers と同じく MAINTENANCE.md のリリース確認項目に置く</td></tr>
+    <tr><td>逐次読み書き</td><td><code>StreamingReader</code>（openpyxl の <code>read_only</code>）・<code>StreamingWriter</code>（<code>write_only</code>）。書き出しは <code>ZipFileWriter</code> で 1 行ずつ圧縮しながらファイルへ流す</td>
+      <td>XLSX / XLSM のみ、値と書式のみ。結合・注釈・保全は扱わない。文字列は共有表ではなくセルに直接書く（最初の行の時点で最後の行が何を繰り返すか分からないため）ので、繰り返しの多いファイルは通常のライターより大きくなる。<strong>実測</strong>（75 万セル）: 逐次書き出し <strong>+3 MB</strong>・逐次読み取り <strong>+54 MB</strong>（展開後の 1 シート分の XML）に対し、全載せ読み込みは <strong>+190 MB</strong></td></tr>
+  </table></div>
+
+  <ul>
+    <li><strong>差分書式の共有</strong>: 1 つの <code>&lt;dxf&gt;</code> を 2 つの規則が指していることがある（LibreOffice はよくやる）。
+      片方だけ書式を変えたときに<strong>もう片方まで塗り替わらない</strong>よう、参照数を数えて、共有されている項目は
+      上書きせず末尾に新しい項目を足す。</li>
+    <li><strong>文字を含む規則の式の起点</strong>: <code>containsText</code> などは条件と<em>式</em>の両方で書かれ、
+      式は<strong>規則が覆う範囲の左上のマス</strong>を基準に読まれる。<code>addConditionalFormatting</code> が
+      範囲から起点を決めて式を書き直す（<code>A1</code> 決め打ちだと隣のマスを見てしまう）。</li>
+    <li><strong>審判</strong>: <code>verify_with_openpyxl.py</code> に 3 本目の経路（<code>features.xlsx</code>）と
+      4 本目（<code>streamed.xlsx</code>）を足した。openpyxl 3.1.5 が
+      条件付き書式・差分書式・階調塗り・名前付きの表・ピボット表・上位 10 絞り込み・自由項目・逐次書き出しの出力を
+      すべて期待どおりに読む。LibreOffice ヘッドレスは PDF 変換と XLSX 再変換の両方が通る。</li>
+    <li><strong>台帳</strong>: <code>na_api</code> 866 件（before 950）・<code>adapted</code> 411 件（before 327）。
+      84 件が「対応する API が無い」から「同じ振る舞いを Swift の形で検証」へ移った。</li>
+  </ul>
+  <p>
+    版数は <strong>0.6.0</strong> へ（SemVer 0.x の minor。<code>Fill</code> の型変更という 1 件の破壊的変更を含むが、
+    0.x では minor が major の役目を果たす。B.11 の「1.0 前に API を確定させる」に対する
+    2 度目の意図的な例外で、理由は上の表に固定した）。
   </p>
 
 </section>

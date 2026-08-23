@@ -50,3 +50,18 @@ per-application checklist (`はじめにお読みください.md`).
 - Open `04-swiftsheets.numbers` in Numbers: no "document needs repair" warning; values, merges and sizes are right;
   editing and saving works. Formatting and formulas are expected to be absent (Appendix B.8).
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
+
+### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers
+
+SwiftSheets lays a pivot table out and asks the application to refresh it (`saveData="0" refreshOnLoad="1"`, no
+record part). openpyxl reads the parts back and LibreOffice both renders and recomputes them, so the layout is
+verified — but **Excel itself has not opened a pivot table SwiftSheets wrote**. Before a release, with a workbook
+built by `Workbook.addPivotTable`:
+
+- Open it in Excel: no "we found a problem with some content" dialog, and the pivot table shows the summary rather
+  than an empty frame (Excel refreshes it on open).
+- Change a source cell, hit Refresh: the pivot follows.
+- Save from Excel and read the result back with SwiftSheets: the layout still parses and the cache is intact.
+
+If Excel does complain, the likely culprits are the cache definition (`xl/pivotCache/pivotCacheDefinition*.xml`) and
+the four-way wiring — part, content type, relationship, `<pivotCaches>` — not the layout part itself.

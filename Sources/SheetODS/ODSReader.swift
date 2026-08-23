@@ -45,6 +45,7 @@ enum ODSReader {
             let meta = MetaParser()
             try? meta.run(try zip.read("meta.xml"), part: "meta.xml")
             wb.metadata = meta.properties
+            wb.customProperties = meta.customProperties
             source.application = meta.generator
         }
         wb.sourceInfo = source
@@ -508,17 +509,38 @@ final class MetaParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
     var properties = DocumentProperties()
+    var customProperties = CustomDocumentProperties()
     var generator: String?
     private var current: String?
     private var buffer = ""
-    static let wanted: Set<String> = ["initial-creator", "creator", "title", "description", "subject", "keyword", "creation-date", "date", "generator"]
+    private var userDefinedName: String?
+    private var userDefinedType: String?
+    static let wanted: Set<String> = ["initial-creator", "creator", "title", "description", "subject", "keyword", "creation-date", "date", "generator", "user-defined"]
 
-    func start(_ name: String, _ a: [String: String]) { if MetaParser.wanted.contains(name) { current = name; buffer = "" } }
+    func start(_ name: String, _ a: [String: String]) {
+        guard MetaParser.wanted.contains(name) else { return }
+        current = name; buffer = ""
+        if name == "user-defined" {
+            userDefinedName = a["meta:name"] ?? a["name"]
+            userDefinedType = a["meta:value-type"] ?? a["value-type"]
+        }
+    }
     func text(_ s: String) { if current != nil { buffer += s } }
     func end(_ name: String) {
         guard let c = current, c == name else { return }
         current = nil
         let v = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if c == "user-defined" {
+            defer { userDefinedName = nil; userDefinedType = nil }
+            guard let n = userDefinedName, !n.isEmpty else { return }
+            switch userDefinedType {
+            case "float": customProperties[n] = Double(v).map { $0 == $0.rounded() && abs($0) < 1e15 ? .integer(Int($0)) : .number($0) } ?? .text(v)
+            case "boolean": customProperties[n] = .bool(v == "true" || v == "1")
+            case "date", "time": customProperties[n] = MetaParser.date(v).map { .date($0) } ?? .text(v)
+            default: customProperties[n] = .text(v)
+            }
+            return
+        }
         guard !v.isEmpty else { return }
         switch c {
         case "initial-creator": properties.creator = v

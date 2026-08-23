@@ -23,6 +23,8 @@ final class ODSStyleRegistry {
     private(set) var fonts: [String] = []
     /// A theme / indexed colour was written as the default colour.
     private(set) var nonRGBColour = false
+    /// A gradient fill was met: ODF has no equivalent in a cell style, so its first stop was used instead.
+    private(set) var gradientFill = false
     /// Number-format codes with no ODF form (written without a data style) and codes written partially.
     private(set) var unexpressibleCodes: [String] = []
     private(set) var partialCodes: [String] = []
@@ -92,7 +94,9 @@ final class ODSStyleRegistry {
         s += ">"
         // cell properties
         var cell = ""
-        if st.fill.patternType != .none, let fg = st.fill.foregroundColor ?? st.fill.backgroundColor {
+        if case .gradient = st.fill { gradientFill = true }
+        if st.fill.patternType != .none || st.fill.gradientFill != nil,
+           let fg = st.fill.foregroundColor ?? st.fill.backgroundColor {
             var nonRGB = false
             let hex = ODSColor.hex(fg, nonRGB: &nonRGB)
             if nonRGB { nonRGBColour = true } else { cell += " fo:background-color=\"\(hex)\"" }
@@ -217,6 +221,21 @@ enum ODSWriter {
             if !sheet.filterColumns.isEmpty || sheet.sortState != nil || sheet.hasUnmodelledFilters {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "auto-filter conditions and sort state dropped: the range is written, what it lets through is not")
             }
+            if !sheet.pivotTables.isEmpty {
+                sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.pivotTables.count) pivot table(s) dropped: ODF data pilots are not written")
+            }
+            if !sheet.scenarios.isEmpty {
+                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.scenarios.count) scenario(s) dropped: this writer does not emit ODF scenario tables")
+            }
+            if !sheet.protectedRanges.isEmpty {
+                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.protectedRanges.count) protected range(s) dropped")
+            }
+            if !sheet.excelTables.isEmpty {
+                sink.add(.dropped, subject: .tables, sheet: sheet.name, "\(sheet.excelTables.count) named table(s) dropped: ODF has database ranges, which this writer does not emit")
+            }
+            if !sheet.conditionalFormatting.isEmpty || sheet.hasUnmodelledConditionalFormats {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "conditional format(s) dropped: this writer does not emit ODF calculation-setting maps")
+            }
             if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "data validation dropped: this writer does not emit ODF content validations")
             }
@@ -228,6 +247,7 @@ enum ODSWriter {
 
         // warnings about what the styles could not say
         if styles.nonRGBColour { sink.add(.degraded, subject: .formatting, "theme/indexed colours written as default") }
+        if styles.gradientFill { sink.add(.substituted, subject: .formatting, "gradient fill(s) written as their first colour: an ODF cell style has one background colour") }
         for code in styles.unexpressibleCodes { sink.add(.substituted, subject: .formatting, "number format \(code) has no ODF data style; General used") }
         for code in styles.partialCodes { sink.add(.substituted, subject: .formatting, "number format \(code): only its first section is written") }
 
@@ -248,7 +268,11 @@ enum ODSWriter {
         archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides).utf8))
         archive.add("content.xml", Data(content.utf8))
         archive.add("styles.xml", Data(stylesXML(styles.fonts).utf8))
-        archive.add("meta.xml", Data(metaXML(wb.metadata).utf8))
+        for property in wb.customProperties where property.linkTarget != nil {
+            sink.add(.substituted, subject: .other,
+                     "custom property \"\(property.name)\" links to a defined name; ODF has no linked property, so the target was written as its text")
+        }
+        archive.add("meta.xml", Data(metaXML(wb.metadata, custom: wb.customProperties).utf8))
         archive.add("settings.xml", Data(settingsXML(wb).utf8))
         for name in opaque.keys.sorted() { archive.add(name, opaque[name]!) }
 
@@ -287,7 +311,7 @@ enum ODSWriter {
         return s + "</office:document-styles>"
     }
 
-    static func metaXML(_ p: DocumentProperties) -> String {
+    static func metaXML(_ p: DocumentProperties, custom: CustomDocumentProperties = CustomDocumentProperties()) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         let created = f.string(from: p.created ?? Date(timeIntervalSince1970: 1_767_225_600))
@@ -300,6 +324,20 @@ enum ODSWriter {
         if let t = p.subject { s += "<dc:subject>\(XML.esc(t))</dc:subject>" }
         if let t = p.description { s += "<dc:description>\(XML.esc(t))</dc:description>" }
         if let t = p.keywords { s += "<meta:keyword>\(XML.esc(t))</meta:keyword>" }
+        // ODF's own free-form fields. A property that only links to a defined name has no ODF equivalent, so its
+        // target is written as the text (the codec reports the substitution).
+        for property in custom {
+            let (type, text): (String, String)
+            switch property.value {
+            case .text(let v): (type, text) = ("string", v)
+            case .integer(let v): (type, text) = ("float", String(v))
+            case .number(let v): (type, text) = ("float", XML.num(v))
+            case .bool(let v): (type, text) = ("boolean", v ? "true" : "false")
+            case .date(let v): (type, text) = ("date", f.string(from: v))
+            case .link(let v): (type, text) = ("string", v)
+            }
+            s += "<meta:user-defined meta:name=\"\(XML.esc(property.name))\" meta:value-type=\"\(type)\">\(XML.esc(text))</meta:user-defined>"
+        }
         return s + "</office:meta></office:document-meta>"
     }
 

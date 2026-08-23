@@ -21,7 +21,7 @@ public struct PreservationStore: Sendable, Hashable {
     public var workbookRootAttributes: [String: String] = [:]
     /// Attributes of `<workbookPr>` other than the ones the model owns.
     public var workbookPrAttributes: [String: String] = [:]
-    /// Parts of styles.xml that index-reference each other and must be re-emitted verbatim (`dxfs`, `tableStyles`,
+    /// Parts of styles.xml that index-reference each other and must be re-emitted verbatim (`tableStyles`,
     /// `cellStyles`, `cellStyleXfs`, `extLst`), plus the source style tables in their original order.
     public var styleFragments: [XMLFragment] = []
     public var styleTables: StyleTables?
@@ -78,7 +78,7 @@ public struct Relationship: Sendable, Hashable {
 /// (`cellStyleXfs`, `dxfs` via `tableStyles`) and by `<col style>` stay valid after a rewrite.
 public struct StyleTables: Sendable, Hashable {
     public var fonts: [Font] = []
-    public var fills: [PatternFill] = []
+    public var fills: [Fill] = []
     public var borders: [Border] = []
     /// Custom number formats by id (ids ≥ 164).
     public var numberFormats: [Int: String] = [:]
@@ -96,6 +96,10 @@ public struct StyleTables: Sendable, Hashable {
     /// Named style name → its index in `cellStyleXfs`, as the source file had it. Names the file already knew keep
     /// their index on a write-back; new ones are appended.
     public var namedStyleXfIndex: [String: Int] = [:]
+    /// The differential formats (`<dxfs>`), parsed and raw. Conditional formats, tables and colour filters address
+    /// them by index, so the source entries keep their positions and new ones are appended after them.
+    public var dxfs: [DifferentialStyle] = []
+    public var dxfXML: [String] = []
     public init() {}
 }
 

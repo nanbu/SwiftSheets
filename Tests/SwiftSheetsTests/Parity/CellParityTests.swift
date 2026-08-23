@@ -182,8 +182,8 @@ import Testing
     // openpyxl: cell/tests/test_cell.py::test_fill
     @Test func fill() {
         var cell = dummyCell()
-        cell.fill = PatternFill(patternType: .solid, foregroundColor: .rgb("FF0000"))
-        #expect(cell.fill == PatternFill(patternType: .solid, foregroundColor: .rgb("FF0000")))
+        cell.fill = .pattern(PatternFill(patternType: .solid, foregroundColor: .rgb("FF0000")))
+        #expect(cell.fill == .pattern(PatternFill(patternType: .solid, foregroundColor: .rgb("FF0000"))))
     }
 
     // openpyxl: cell/tests/test_cell.py::test_border

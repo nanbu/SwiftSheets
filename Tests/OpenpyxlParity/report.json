@@ -2,8 +2,8 @@
  "openpyxl": "3.1.5",
  "totals": {
   "ported": 224,
-  "adapted": 327,
-  "na_api": 950,
+  "adapted": 411,
+  "na_api": 866,
   "na_python": 210,
   "total": 1711,
   "cases": 2520
@@ -67,8 +67,8 @@
   },
   "formatting": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 27,
+   "adapted": 17,
+   "na_api": 10,
    "na_python": 0,
    "total": 27,
    "cases": 39
@@ -91,16 +91,16 @@
   },
   "packaging": {
    "ported": 2,
-   "adapted": 11,
-   "na_api": 55,
+   "adapted": 21,
+   "na_api": 45,
    "na_python": 1,
    "total": 69,
    "cases": 71
   },
   "pivot": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 106,
+   "adapted": 9,
+   "na_api": 97,
    "na_python": 0,
    "total": 106,
    "cases": 106
@@ -115,24 +115,24 @@
   },
   "styles": {
    "ported": 16,
-   "adapted": 42,
-   "na_api": 41,
+   "adapted": 47,
+   "na_api": 36,
    "na_python": 30,
    "total": 129,
    "cases": 218
   },
   "utils": {
    "ported": 37,
-   "adapted": 7,
-   "na_api": 9,
+   "adapted": 8,
+   "na_api": 8,
    "na_python": 15,
    "total": 68,
    "cases": 276
   },
   "workbook": {
    "ported": 20,
-   "adapted": 26,
-   "na_api": 50,
+   "adapted": 29,
+   "na_api": 47,
    "na_python": 7,
    "total": 103,
    "cases": 144
@@ -147,8 +147,8 @@
   },
   "worksheet": {
    "ported": 115,
-   "adapted": 173,
-   "na_api": 174,
+   "adapted": 212,
+   "na_api": 135,
    "na_python": 9,
    "total": 471,
    "cases": 543
@@ -749,16 +749,16 @@
   },
   "formatting/tests/test_formatting.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 7,
+   "adapted": 2,
+   "na_api": 5,
    "na_python": 0,
    "total": 7,
    "cases": 7
   },
   "formatting/tests/test_rule.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 20,
+   "adapted": 15,
+   "na_api": 5,
    "na_python": 0,
    "total": 20,
    "cases": 32
@@ -789,8 +789,8 @@
   },
   "packaging/tests/test_custom.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 31,
+   "adapted": 10,
+   "na_api": 21,
    "na_python": 0,
    "total": 31,
    "cases": 31
@@ -845,8 +845,8 @@
   },
   "pivot/tests/test_cache.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 50,
+   "adapted": 4,
+   "na_api": 46,
    "na_python": 0,
    "total": 50,
    "cases": 50
@@ -869,8 +869,8 @@
   },
   "pivot/tests/test_table.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 35,
+   "adapted": 5,
+   "na_api": 30,
    "na_python": 0,
    "total": 35,
    "cases": 35
@@ -941,16 +941,16 @@
   },
   "styles/tests/test_differential.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 4,
+   "adapted": 3,
+   "na_api": 1,
    "na_python": 0,
    "total": 4,
    "cases": 4
   },
   "styles/tests/test_fills.py": {
    "ported": 2,
-   "adapted": 4,
-   "na_api": 13,
+   "adapted": 6,
+   "na_api": 11,
    "na_python": 0,
    "total": 19,
    "cases": 29
@@ -1125,8 +1125,8 @@
   },
   "utils/tests/test_protection.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 1,
+   "adapted": 1,
+   "na_api": 0,
    "na_python": 0,
    "total": 1,
    "cases": 1
@@ -1189,8 +1189,8 @@
   },
   "workbook/tests/test_protection.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 5,
+   "adapted": 3,
+   "na_api": 2,
    "na_python": 0,
    "total": 5,
    "cases": 5
@@ -1253,8 +1253,8 @@
   },
   "worksheet/tests/test_datavalidation.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 15,
+   "adapted": 4,
+   "na_api": 11,
    "na_python": 0,
    "total": 15,
    "cases": 15
@@ -1269,8 +1269,8 @@
   },
   "worksheet/tests/test_filters.py": {
    "ported": 0,
-   "adapted": 11,
-   "na_api": 39,
+   "adapted": 20,
+   "na_api": 30,
    "na_python": 0,
    "total": 50,
    "cases": 66
@@ -1349,16 +1349,16 @@
   },
   "worksheet/tests/test_protection.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 5,
+   "adapted": 4,
+   "na_api": 1,
    "na_python": 0,
    "total": 5,
    "cases": 6
   },
   "worksheet/tests/test_read_only.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 19,
+   "adapted": 4,
+   "na_api": 15,
    "na_python": 0,
    "total": 19,
    "cases": 21
@@ -1381,16 +1381,16 @@
   },
   "worksheet/tests/test_scenario.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 6,
+   "adapted": 6,
+   "na_api": 0,
    "na_python": 0,
    "total": 6,
    "cases": 6
   },
   "worksheet/tests/test_table.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 23,
+   "adapted": 8,
+   "na_api": 15,
    "na_python": 0,
    "total": 23,
    "cases": 23
@@ -1421,8 +1421,8 @@
   },
   "worksheet/tests/test_write_only.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 9,
+   "adapted": 4,
+   "na_api": 5,
    "na_python": 0,
    "total": 9,
    "cases": 10
@@ -8157,9 +8157,12 @@
    "name": "test_conditional_formatting_read",
    "key": "test_conditional_formatting_read",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_formatting.py",
@@ -8168,9 +8171,12 @@
    "name": "test_ctor",
    "key": "TestConditionalFormatting::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_formatting.py",
@@ -8234,9 +8240,12 @@
    "name": "test_create",
    "key": "TestFormatObject::test_create",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8245,9 +8254,12 @@
    "name": "test_serialise",
    "key": "TestFormatObject::test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8278,9 +8290,12 @@
    "name": "test_create",
    "key": "TestColorScale::test_create",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8289,9 +8304,12 @@
    "name": "test_serialise",
    "key": "TestColorScale::test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8311,9 +8329,12 @@
    "name": "test_three_colors",
    "key": "TestColorScale::test_three_colors",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8322,9 +8343,12 @@
    "name": "test_create",
    "key": "TestDataBar::test_create",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8333,9 +8357,12 @@
    "name": "test_serialise",
    "key": "TestDataBar::test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8344,9 +8371,12 @@
    "name": "test_create",
    "key": "TestIconSet::test_create",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8355,9 +8385,12 @@
    "name": "test_serialise",
    "key": "TestIconSet::test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8366,9 +8399,12 @@
    "name": "test_create",
    "key": "TestRule::test_create",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8377,9 +8413,12 @@
    "name": "test_serialise",
    "key": "TestRule::test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8399,9 +8438,12 @@
    "name": "test_formula_rule",
    "key": "test_formula_rule",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8410,9 +8452,12 @@
    "name": "test_cellis_rule",
    "key": "test_cellis_rule",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8432,9 +8477,12 @@
    "name": "test_iconset_rule",
    "key": "test_iconset_rule",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formatting/tests/test_rule.py",
@@ -8443,9 +8491,12 @@
    "name": "test_databar_rule",
    "key": "test_databar_rule",
    "params": 1,
-   "status": "na_api",
-   "reason": "条件付き書式は未実装",
-   "api": "Conditional formatting"
+   "status": "adapted",
+   "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）",
+   "api": "Conditional formatting",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "formula/tests/test_tokenizer.py",
@@ -8983,9 +9034,12 @@
    "name": "test_ctor",
    "key": "TestCustomDocumentProperty::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -8994,9 +9048,12 @@
    "name": "test_from_xml",
    "key": "TestCustomDocumentProperty::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9027,9 +9084,12 @@
    "name": "test_ctor",
    "key": "TestCustomDocumentProperyList::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9038,9 +9098,12 @@
    "name": "test_from_xml",
    "key": "TestCustomDocumentProperyList::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9137,9 +9200,12 @@
    "name": "test_string",
    "key": "TestTypedPropertyList::test_string",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9148,9 +9214,12 @@
    "name": "test_int",
    "key": "TestTypedPropertyList::test_int",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9159,9 +9228,12 @@
    "name": "test_float",
    "key": "TestTypedPropertyList::test_float",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9170,9 +9242,12 @@
    "name": "test_bool",
    "key": "TestTypedPropertyList::test_bool",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9181,9 +9256,12 @@
    "name": "test_datetime",
    "key": "TestTypedPropertyList::test_datetime",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9192,9 +9270,12 @@
    "name": "test_link",
    "key": "TestTypedPropertyList::test_link",
    "params": 1,
-   "status": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
-   "api": "Packaging"
+   "status": "adapted",
+   "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）",
+   "api": "Packaging",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "packaging/tests/test_custom.py",
@@ -9758,9 +9839,12 @@
    "name": "test_ctor",
    "key": "TestWorksheetSource::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_cache.py",
@@ -9780,9 +9864,12 @@
    "name": "test_ctor",
    "key": "TestCacheSource::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_cache.py",
@@ -9835,9 +9922,12 @@
    "name": "test_path",
    "key": "TestPivotCacheDefinition::test_path",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_cache.py",
@@ -9846,9 +9936,12 @@
    "name": "test_write",
    "key": "TestPivotCacheDefinition::test_write",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_cache.py",
@@ -10583,9 +10676,12 @@
    "name": "test_ctor",
    "key": "TestLocation::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_table.py",
@@ -10605,9 +10701,12 @@
    "name": "test_ctor",
    "key": "TestPivotTableStyle::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_table.py",
@@ -10638,9 +10737,12 @@
    "name": "test_ctor",
    "key": "TestPivotTableDefinition::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_table.py",
@@ -10660,9 +10762,12 @@
    "name": "test_write",
    "key": "TestPivotTableDefinition::test_write",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_table.py",
@@ -10682,9 +10787,12 @@
    "name": "test_ctor",
    "key": "TestPageField::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ピボットテーブルは未実装",
-   "api": "Pivot tables"
+   "status": "adapted",
+   "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）",
+   "api": "Pivot tables",
+   "swift": [
+    "PivotTableTests.swift"
+   ]
   },
   {
    "file": "pivot/tests/test_table.py",
@@ -11755,9 +11863,12 @@
    "name": "test_parse",
    "key": "test_parse",
    "params": 1,
-   "status": "na_api",
-   "reason": "差分スタイル（dxf）は未実装",
-   "api": "DifferentialStyle"
+   "status": "adapted",
+   "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）",
+   "api": "DifferentialStyle",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_differential.py",
@@ -11766,9 +11877,12 @@
    "name": "test_serialise",
    "key": "test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "差分スタイル（dxf）は未実装",
-   "api": "DifferentialStyle"
+   "status": "adapted",
+   "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）",
+   "api": "DifferentialStyle",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_differential.py",
@@ -11777,9 +11891,12 @@
    "name": "test_ctor",
    "key": "TestDifferentialStyleList::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "差分スタイル（dxf）は未実装",
-   "api": "DifferentialStyle"
+   "status": "adapted",
+   "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）",
+   "api": "DifferentialStyle",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_differential.py",
@@ -11810,9 +11927,12 @@
    "name": "test_ctor",
    "key": "TestGradientFill::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "GradientFill / Stop は未実装",
-   "api": "GradientFill"
+   "status": "adapted",
+   "reason": "階調塗りは Fill.gradient として読み書きする（Rev 1.9）",
+   "api": "GradientFill",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_fills.py",
@@ -11876,9 +11996,12 @@
    "name": "test_serialise",
    "key": "TestGradientFill::test_serialise",
    "params": 1,
-   "status": "na_api",
-   "reason": "GradientFill / Stop は未実装",
-   "api": "GradientFill"
+   "status": "adapted",
+   "reason": "階調塗りは Fill.gradient として読み書きする（Rev 1.9）",
+   "api": "GradientFill",
+   "swift": [
+    "ConditionalFormattingTests.swift"
+   ]
   },
   {
    "file": "styles/tests/test_fills.py",
@@ -14077,9 +14200,12 @@
    "name": "test_password",
    "key": "test_password",
    "params": 1,
-   "status": "na_api",
-   "reason": "シート保護のパスワードハッシュは未実装",
-   "api": "Sheet protection"
+   "status": "adapted",
+   "reason": "旧来の 16 ビット合鍵を LegacyPasswordHash として実装（Rev 1.9）",
+   "api": "Sheet protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "utils/tests/test_units.py",
@@ -14799,9 +14925,12 @@
    "name": "test_ctor",
    "key": "TestWorkbookProtection::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "ワークブック保護は未実装",
-   "api": "Workbook protection"
+   "status": "adapted",
+   "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）",
+   "api": "Workbook protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "workbook/tests/test_protection.py",
@@ -14810,9 +14939,12 @@
    "name": "test_ctor_with_passwords",
    "key": "TestWorkbookProtection::test_ctor_with_passwords",
    "params": 1,
-   "status": "na_api",
-   "reason": "ワークブック保護は未実装",
-   "api": "Workbook protection"
+   "status": "adapted",
+   "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）",
+   "api": "Workbook protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "workbook/tests/test_protection.py",
@@ -14821,9 +14953,12 @@
    "name": "test_from_xml",
    "key": "TestWorkbookProtection::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "ワークブック保護は未実装",
-   "api": "Workbook protection"
+   "status": "adapted",
+   "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）",
+   "api": "Workbook protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "workbook/tests/test_protection.py",
@@ -16485,9 +16620,12 @@
    "name": "test_from_xml",
    "key": "TestDataValidation::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "データ検証は未実装",
-   "api": "Data validation"
+   "status": "adapted",
+   "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）",
+   "api": "Data validation",
+   "swift": [
+    "WriterTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_datavalidation.py",
@@ -16551,9 +16689,12 @@
    "name": "test_read_formula",
    "key": "TestDataValidation::test_read_formula",
    "params": 1,
-   "status": "na_api",
-   "reason": "データ検証は未実装",
-   "api": "Data validation"
+   "status": "adapted",
+   "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）",
+   "api": "Data validation",
+   "swift": [
+    "WriterTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_datavalidation.py",
@@ -16562,9 +16703,12 @@
    "name": "test_parser",
    "key": "TestDataValidation::test_parser",
    "params": 1,
-   "status": "na_api",
-   "reason": "データ検証は未実装",
-   "api": "Data validation"
+   "status": "adapted",
+   "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）",
+   "api": "Data validation",
+   "swift": [
+    "WriterTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_datavalidation.py",
@@ -16595,9 +16739,12 @@
    "name": "test_from_xml",
    "key": "TestDataValidationList::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "データ検証は未実装",
-   "api": "Data validation"
+   "status": "adapted",
+   "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）",
+   "api": "Data validation",
+   "swift": [
+    "WriterTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_datavalidation.py",
@@ -17105,9 +17252,12 @@
    "name": "test_ctor",
    "key": "TestIconFilter::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17116,9 +17266,12 @@
    "name": "test_from_xml",
    "key": "TestIconFilter::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17127,9 +17280,12 @@
    "name": "test_ctor",
    "key": "TestColorFilter::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17139,7 +17295,7 @@
    "key": "TestColorFilter::test_from_xml",
    "params": 1,
    "status": "adapted",
-   "reason": "モデルに無い種類 — ソースの XML をそのまま書き戻すことで検証",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
    "api": "Sheet.filterColumns / sortState",
    "swift": [
     "WorksheetPartsTests.swift"
@@ -17152,9 +17308,12 @@
    "name": "test_ctor",
    "key": "TestDynamicFilter::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17163,9 +17322,12 @@
    "name": "test_from_xml",
    "key": "TestDynamicFilter::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17455,9 +17617,12 @@
    "name": "test_ctor",
    "key": "TestTop10::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17466,9 +17631,12 @@
    "name": "test_from_xml",
    "key": "TestTop10::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17477,9 +17645,12 @@
    "name": "test_ctor",
    "key": "TestDateGroupItem::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -17488,9 +17659,12 @@
    "name": "test_from_xml",
    "key": "TestDateGroupItem::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
-   "api": "Sheet.filterColumns / sortState"
+   "status": "adapted",
+   "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）",
+   "api": "Sheet.filterColumns / sortState",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_filters.py",
@@ -18410,9 +18584,12 @@
    "name": "test_ctor",
    "key": "TestSheetProtection::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "シート保護は未実装",
-   "api": "Sheet protection"
+   "status": "adapted",
+   "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）",
+   "api": "Sheet protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_protection.py",
@@ -18432,9 +18609,12 @@
    "name": "test_bool",
    "key": "TestSheetProtection::test_bool",
    "params": 1,
-   "status": "na_api",
-   "reason": "シート保護は未実装",
-   "api": "Sheet protection"
+   "status": "adapted",
+   "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）",
+   "api": "Sheet protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_protection.py",
@@ -18443,9 +18623,12 @@
    "name": "test_ctor_with_password",
    "key": "test_ctor_with_password",
    "params": 1,
-   "status": "na_api",
-   "reason": "シート保護は未実装",
-   "api": "Sheet protection"
+   "status": "adapted",
+   "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）",
+   "api": "Sheet protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_protection.py",
@@ -18454,9 +18637,12 @@
    "name": "test_explicit_password",
    "key": "test_explicit_password",
    "params": 2,
-   "status": "na_api",
-   "reason": "シート保護は未実装",
-   "api": "Sheet protection"
+   "status": "adapted",
+   "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）",
+   "api": "Sheet protection",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_read_only.py",
@@ -18487,9 +18673,12 @@
    "name": "test_empty_cell",
    "key": "TestReadOnlyWorksheet::test_empty_cell",
    "params": 1,
-   "status": "na_api",
-   "reason": "read_only モードは未実装",
-   "api": "read_only"
+   "status": "adapted",
+   "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）",
+   "api": "read_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_read_only.py",
@@ -18509,9 +18698,12 @@
    "name": "test_pad_row",
    "key": "TestReadOnlyWorksheet::test_pad_row",
    "params": 1,
-   "status": "na_api",
-   "reason": "read_only モードは未実装",
-   "api": "read_only"
+   "status": "adapted",
+   "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）",
+   "api": "read_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_read_only.py",
@@ -18542,9 +18734,12 @@
    "name": "test_read_rows",
    "key": "TestReadOnlyWorksheet::test_read_rows",
    "params": 1,
-   "status": "na_api",
-   "reason": "read_only モードは未実装",
-   "api": "read_only"
+   "status": "adapted",
+   "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）",
+   "api": "read_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_read_only.py",
@@ -18630,9 +18825,12 @@
    "name": "test_iter",
    "key": "TestReadOnlyWorksheet::test_iter",
    "params": 1,
-   "status": "na_api",
-   "reason": "read_only モードは未実装",
-   "api": "read_only"
+   "status": "adapted",
+   "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）",
+   "api": "read_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_read_only.py",
@@ -19477,9 +19675,12 @@
    "name": "test_ctor",
    "key": "TestInputCells::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "status": "adapted",
+   "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）",
+   "api": "Scenarios",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_scenario.py",
@@ -19488,9 +19689,12 @@
    "name": "test_from_xml",
    "key": "TestInputCells::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "status": "adapted",
+   "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）",
+   "api": "Scenarios",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_scenario.py",
@@ -19499,9 +19703,12 @@
    "name": "test_ctor",
    "key": "TestScenario::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "status": "adapted",
+   "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）",
+   "api": "Scenarios",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_scenario.py",
@@ -19510,9 +19717,12 @@
    "name": "test_from_xml",
    "key": "TestScenario::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "status": "adapted",
+   "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）",
+   "api": "Scenarios",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_scenario.py",
@@ -19521,9 +19731,12 @@
    "name": "test_ctor",
    "key": "TestScenarios::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "status": "adapted",
+   "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）",
+   "api": "Scenarios",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_scenario.py",
@@ -19532,9 +19745,12 @@
    "name": "test_from_xml",
    "key": "TestScenarios::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "status": "adapted",
+   "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）",
+   "api": "Scenarios",
+   "swift": [
+    "ProtectionTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19543,9 +19759,12 @@
    "name": "test_ctor",
    "key": "TestTableColumn::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19554,9 +19773,12 @@
    "name": "test_from_xml",
    "key": "TestTableColumn::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19565,9 +19787,12 @@
    "name": "test_ctor",
    "key": "TestTable::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19620,9 +19845,12 @@
    "name": "test_path",
    "key": "TestTable::test_path",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19631,9 +19859,12 @@
    "name": "test_write",
    "key": "TestTable::test_write",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19642,9 +19873,12 @@
    "name": "test_ctor",
    "key": "TestTableFormula::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19664,9 +19898,12 @@
    "name": "test_ctor",
    "key": "TestTableInfo::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -19708,9 +19945,12 @@
    "name": "test_ctor",
    "key": "TestTablePartList::test_ctor",
    "params": 1,
-   "status": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "status": "adapted",
+   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "api": "Tables",
+   "swift": [
+    "ExcelTableTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_table.py",
@@ -21194,9 +21434,12 @@
    "name": "test_path",
    "key": "test_path",
    "params": 1,
-   "status": "na_api",
-   "reason": "write_only モードは未実装",
-   "api": "write_only"
+   "status": "adapted",
+   "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）",
+   "api": "write_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_write_only.py",
@@ -21216,9 +21459,12 @@
    "name": "test_append",
    "key": "test_append",
    "params": 1,
-   "status": "na_api",
-   "reason": "write_only モードは未実装",
-   "api": "write_only"
+   "status": "adapted",
+   "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）",
+   "api": "write_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_write_only.py",
@@ -21249,9 +21495,12 @@
    "name": "test_close",
    "key": "test_close",
    "params": 1,
-   "status": "na_api",
-   "reason": "write_only モードは未実装",
-   "api": "write_only"
+   "status": "adapted",
+   "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）",
+   "api": "write_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_write_only.py",
@@ -21271,9 +21520,12 @@
    "name": "test_write_only_cell",
    "key": "test_write_only_cell",
    "params": 1,
-   "status": "na_api",
-   "reason": "write_only モードは未実装",
-   "api": "write_only"
+   "status": "adapted",
+   "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）",
+   "api": "write_only",
+   "swift": [
+    "StreamingTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_write_only.py",

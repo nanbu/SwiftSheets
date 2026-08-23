@@ -111,8 +111,75 @@ import Testing
         #expect(wb.namedStyle("Accent X")?.style.numberFormat == "#,##0")
         #expect(wb.namedStyle("Accent X")?.style.font.bold == true)
         #expect(ws[cell: "B6"].style.namedStyle == "Accent X" && ws["B6"] == .integer(1000))
-        // reading does not model validations; it says the sheet has some so they are not silently overwritten (B.13)
-        #expect(ws.hasUnmodelledValidations && ws.dataValidations.isEmpty)
+        // openpyxl's own list validation, read into the model (spec B.13)
+        #expect(!ws.hasUnmodelledValidations)
+        #expect(ws.dataValidations.count == 1)
+        #expect(ws.dataValidations[0].kind == .list && ws.dataValidations[0].formula1 == "\"Todo,Doing,Done\"")
+        #expect(ws.dataValidations[0].ranges == MultiCellRange("C4:C6") && ws.dataValidations[0].allowBlank)
+    }
+
+    /// The features added after the first interop pass — conditional formatting, named tables, differential and
+    /// gradient formats, the exotic filter kinds, custom document properties, protection and a pivot table. Written
+    /// by SwiftSheets and inspected by openpyxl; the reverse direction is covered by the checks openpyxl's own
+    /// writer supports.
+    static func buildFeatures() -> Workbook {
+        var wb = Workbook()
+        var ws = wb.activeSheet
+        ws.name = "Data"
+        ws.append([.text("Item"), .text("Qty"), .text("Price")])
+        ws.append([.text("apple"), .integer(3), .number(1.5)])
+        ws.append([.text("pear"), .integer(5), .number(2.25)])
+        ws.append([.text("plum"), .integer(2), .number(4)])
+
+        let red = DifferentialStyle(font: DifferentialFont(bold: true, color: .rgb("FF9C0006")),
+                                    fill: .solid(.rgb("FFFFC7CE")), numberFormat: "0.00")
+        ws.addConditionalFormatting(.cellIs(.greaterThan, "3", paint: red), over: "B2:B4")
+        ws.addConditionalFormatting(.expression("$A2=\"pear\"", paint: red), over: "A2:A4")
+        ws.addConditionalFormatting(.colorScale(.threeColor(from: .rgb("FFF8696B"), through: .rgb("FFFFEB84"),
+                                                            to: .rgb("FF63BE7B"))), over: "C2:C4")
+        ws.addConditionalFormatting(.dataBar(DataBar(color: .rgb("FF638EC6"), minLength: 10, maxLength: 90)), over: "B2:B4")
+        ws.addConditionalFormatting(.iconSet(.threeBand("3Arrows")), over: "C2:C4")
+        ws.addConditionalFormatting(.top(2, paint: red, bottom: true), over: "B2:B4")
+
+        ws.addExcelTable(named: "Sales", over: CellRange("A1:C4")!)
+
+        ws[cell: "E1"].fill = .gradient(GradientFill(from: .white, to: .rgb("FFBFD7F5"), degree: 90))
+        ws["E1"] = "gradient"
+
+        var pivotSheet = Sheet(name: "Pivot")
+        var other = Sheet(name: "Filtered")
+        for r in 0..<6 { other[r, 0] = .text("row\(r)"); other[r, 1] = .integer(r) }
+        other.autoFilter = CellRange("A1:B6")
+        other.filterColumns = [FilterColumn(column: 1, top10: Top10Filter(count: 3, top: false, percent: true))]
+        wb.sheets[0] = ws
+        wb.sheets.append(pivotSheet)
+        wb.sheets.append(other)
+        wb.addPivotTable(named: "集計", to: "Pivot", at: CellRef("A3")!,
+                         summarizing: CellRange("A1:C4")!, on: "Data",
+                         rows: ["Item"], values: [("Qty", .sum), ("Price", .average)])
+        _ = pivotSheet
+
+        wb.customProperties = [CustomDocumentProperty(name: "管理番号", "A-1234"),
+                               CustomDocumentProperty(name: "改訂", 7),
+                               CustomDocumentProperty(name: "社外秘", true)]
+        return wb
+    }
+
+    @Test(.enabled(if: dir != nil)) func writesFeatureWorkbook() throws {
+        try XLSXCodec.write(Self.buildFeatures()).data.write(to: Self.dir!.appendingPathComponent("features.xlsx"))
+    }
+
+    /// The streaming writer's output, for openpyxl to read as an ordinary workbook.
+    @Test(.enabled(if: dir != nil)) func writesStreamedWorkbook() throws {
+        let writer = try StreamingWriter(url: Self.dir!.appendingPathComponent("streamed.xlsx"), sheetName: "Big")
+        try writer.append([.text("n"), .text("square"), .text("note")])
+        for i in 1...2000 { try writer.append([.integer(i), .integer(i * i), .text("行 \(i)")]) }
+        var styled = Cell(); styled.value = .text("見出し"); styled.font.bold = true
+        styled.fill = .solid(.rgb("FFBFD7F5")); styled.numberFormat = "0.00"
+        try writer.append([styled])
+        try writer.addSheet(named: "Second")
+        try writer.append([.text("  余白  "), .bool(true), .error("#N/A"), .number(1.5)])
+        try writer.close()
     }
 
     @Test(.enabled(if: dir != nil)) func writesVerificationWorkbook() throws {

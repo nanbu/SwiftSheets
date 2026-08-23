@@ -634,7 +634,21 @@
   "styles/tests/test_differential.py": {
    "default": "na_api",
    "reason": "差分スタイル（dxf）は未実装",
-   "api": "DifferentialStyle"
+   "api": "DifferentialStyle",
+   "tests": {
+    "test_parse": {
+     "status": "adapted",
+     "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）"
+    },
+    "test_serialise": {
+     "status": "adapted",
+     "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）"
+    },
+    "TestDifferentialStyleList::test_ctor": {
+     "status": "adapted",
+     "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）"
+    }
+   }
   },
   "styles/tests/test_fills.py": {
    "default": "na_api",
@@ -662,6 +676,14 @@
     },
     "test_read_fills": {
      "status": "ported"
+    },
+    "TestGradientFill::test_ctor": {
+     "status": "adapted",
+     "reason": "階調塗りは Fill.gradient として読み書きする（Rev 1.9）"
+    },
+    "TestGradientFill::test_serialise": {
+     "status": "adapted",
+     "reason": "階調塗りは Fill.gradient として読み書きする（Rev 1.9）"
     }
    }
   },
@@ -1112,7 +1134,13 @@
   "utils/tests/test_protection.py": {
    "default": "na_api",
    "reason": "シート保護のパスワードハッシュは未実装",
-   "api": "Sheet protection"
+   "api": "Sheet protection",
+   "tests": {
+    "test_password": {
+     "status": "adapted",
+     "reason": "旧来の 16 ビット合鍵を LegacyPasswordHash として実装（Rev 1.9）"
+    }
+   }
   },
   "utils/tests/test_units.py": {
    "tests": {
@@ -1266,7 +1294,21 @@
   "workbook/tests/test_protection.py": {
    "default": "na_api",
    "reason": "ワークブック保護は未実装",
-   "api": "Workbook protection"
+   "api": "Workbook protection",
+   "tests": {
+    "TestWorkbookProtection::test_ctor": {
+     "status": "adapted",
+     "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）"
+    },
+    "TestWorkbookProtection::test_ctor_with_passwords": {
+     "status": "adapted",
+     "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）"
+    },
+    "TestWorkbookProtection::test_from_xml": {
+     "status": "adapted",
+     "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）"
+    }
+   }
   },
   "workbook/tests/test_smart_tags.py": {
    "default": "na_api",
@@ -1671,7 +1713,25 @@
   "worksheet/tests/test_datavalidation.py": {
    "default": "na_api",
    "reason": "データ検証は未実装",
-   "api": "Data validation"
+   "api": "Data validation",
+   "tests": {
+    "TestDataValidation::test_parser": {
+     "status": "adapted",
+     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+    },
+    "TestDataValidation::test_from_xml": {
+     "status": "adapted",
+     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+    },
+    "TestDataValidation::test_read_formula": {
+     "status": "adapted",
+     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+    },
+    "TestDataValidationList::test_from_xml": {
+     "status": "adapted",
+     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+    }
+   }
   },
   "worksheet/tests/test_dimensions.py": {
    "default": "na_python",
@@ -1818,7 +1878,43 @@
     },
     "TestColorFilter::test_from_xml": {
      "status": "adapted",
-     "reason": "モデルに無い種類 — ソースの XML をそのまま書き戻すことで検証"
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestColorFilter::test_ctor": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestIconFilter::test_ctor": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestIconFilter::test_from_xml": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestTop10::test_ctor": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestTop10::test_from_xml": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestDynamicFilter::test_ctor": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestDynamicFilter::test_from_xml": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestDateGroupItem::test_ctor": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+    },
+    "TestDateGroupItem::test_from_xml": {
+     "status": "adapted",
+     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
     }
    }
   },
@@ -2058,12 +2154,48 @@
   "worksheet/tests/test_protection.py": {
    "default": "na_api",
    "reason": "シート保護は未実装",
-   "api": "Sheet protection"
+   "api": "Sheet protection",
+   "tests": {
+    "TestSheetProtection::test_ctor": {
+     "status": "adapted",
+     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+    },
+    "TestSheetProtection::test_bool": {
+     "status": "adapted",
+     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+    },
+    "test_ctor_with_password": {
+     "status": "adapted",
+     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+    },
+    "test_explicit_password": {
+     "status": "adapted",
+     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+    }
+   }
   },
   "worksheet/tests/test_read_only.py": {
    "default": "na_api",
    "reason": "read_only モードは未実装",
-   "api": "read_only"
+   "api": "read_only",
+   "tests": {
+    "TestReadOnlyWorksheet::test_read_rows": {
+     "status": "adapted",
+     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+    },
+    "TestReadOnlyWorksheet::test_iter": {
+     "status": "adapted",
+     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+    },
+    "TestReadOnlyWorksheet::test_pad_row": {
+     "status": "adapted",
+     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+    },
+    "TestReadOnlyWorksheet::test_empty_cell": {
+     "status": "adapted",
+     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+    }
+   }
   },
   "worksheet/tests/test_reader.py": {
    "default": "na_api",
@@ -2314,12 +2446,72 @@
   "worksheet/tests/test_scenario.py": {
    "default": "na_api",
    "reason": "シナリオは未実装",
-   "api": "Scenarios"
+   "api": "Scenarios",
+   "tests": {
+    "TestScenario::test_ctor": {
+     "status": "adapted",
+     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+    },
+    "TestScenario::test_from_xml": {
+     "status": "adapted",
+     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+    },
+    "TestScenarios::test_ctor": {
+     "status": "adapted",
+     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+    },
+    "TestScenarios::test_from_xml": {
+     "status": "adapted",
+     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+    },
+    "TestInputCells::test_ctor": {
+     "status": "adapted",
+     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+    },
+    "TestInputCells::test_from_xml": {
+     "status": "adapted",
+     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+    }
+   }
   },
   "worksheet/tests/test_table.py": {
    "default": "na_api",
    "reason": "テーブル（ListObject）は未実装",
-   "api": "Tables"
+   "api": "Tables",
+   "tests": {
+    "TestTable::test_ctor": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTable::test_write": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTable::test_path": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTablePartList::test_ctor": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTableColumn::test_ctor": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTableColumn::test_from_xml": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTableInfo::test_ctor": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    },
+    "TestTableFormula::test_ctor": {
+     "status": "adapted",
+     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+    }
+   }
   },
   "worksheet/tests/test_views.py": {
    "tests": {
@@ -2718,7 +2910,25 @@
   "worksheet/tests/test_write_only.py": {
    "default": "na_api",
    "reason": "write_only モードは未実装",
-   "api": "write_only"
+   "api": "write_only",
+   "tests": {
+    "test_append": {
+     "status": "adapted",
+     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+    },
+    "test_close": {
+     "status": "adapted",
+     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+    },
+    "test_write_only_cell": {
+     "status": "adapted",
+     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+    },
+    "test_path": {
+     "status": "adapted",
+     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+    }
+   }
   },
   "worksheet/tests/test_writer.py": {
    "default": "na_api",
@@ -2887,6 +3097,170 @@
     "TestAuthor::test_from_xml": {
      "status": "adapted",
      "reason": "authors 表は CellNote.author に畳まれる"
+    }
+   }
+  },
+  "formatting/tests/test_formatting.py": {
+   "tests": {
+    "TestConditionalFormatting::test_ctor": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "test_conditional_formatting_read": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    }
+   }
+  },
+  "formatting/tests/test_rule.py": {
+   "tests": {
+    "TestRule::test_create": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestRule::test_serialise": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "test_cellis_rule": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "test_formula_rule": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestFormatObject::test_create": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestFormatObject::test_serialise": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestColorScale::test_create": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestColorScale::test_serialise": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestColorScale::test_three_colors": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestDataBar::test_create": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestDataBar::test_serialise": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "test_databar_rule": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestIconSet::test_create": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "TestIconSet::test_serialise": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    },
+    "test_iconset_rule": {
+     "status": "adapted",
+     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+    }
+   }
+  },
+  "pivot/tests/test_table.py": {
+   "tests": {
+    "TestPivotTableDefinition::test_ctor": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestPivotTableDefinition::test_write": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestLocation::test_ctor": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestPageField::test_ctor": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestPivotTableStyle::test_ctor": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    }
+   }
+  },
+  "pivot/tests/test_cache.py": {
+   "tests": {
+    "TestPivotCacheDefinition::test_write": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestPivotCacheDefinition::test_path": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestWorksheetSource::test_ctor": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    },
+    "TestCacheSource::test_ctor": {
+     "status": "adapted",
+     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+    }
+   }
+  },
+  "packaging/tests/test_custom.py": {
+   "tests": {
+    "TestCustomDocumentProperty::test_ctor": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestCustomDocumentProperty::test_from_xml": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestCustomDocumentProperyList::test_ctor": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestCustomDocumentProperyList::test_from_xml": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestTypedPropertyList::test_string": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestTypedPropertyList::test_int": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestTypedPropertyList::test_float": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestTypedPropertyList::test_bool": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestTypedPropertyList::test_datetime": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+    },
+    "TestTypedPropertyList::test_link": {
+     "status": "adapted",
+     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
     }
    }
   }

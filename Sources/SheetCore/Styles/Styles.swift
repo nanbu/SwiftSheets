@@ -242,7 +242,7 @@ public enum NumberFormat {
 /// The complete formatting of a cell (openpyxl's StyleArray resolved into objects).
 public struct CellStyle: Hashable, Sendable {
     public var font = Font.default
-    public var fill = PatternFill.none
+    public var fill = Fill.none
     public var border = Border.none
     public var alignment = Alignment.none
     public var protection = Protection()

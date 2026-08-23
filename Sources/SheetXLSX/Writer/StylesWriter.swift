@@ -6,13 +6,13 @@ import SheetCore
 /// so `cellStyleXfs`, `dxfs` / `tableStyles` and `<col style>` references written back verbatim stay valid.
 final class StyleRegistry {
     private(set) var fonts: [Font] = [Font.default]
-    private(set) var fills: [PatternFill] = [PatternFill(), PatternFill(patternType: .gray125)]  // Excel requires these two first
+    private(set) var fills: [Fill] = [.pattern(PatternFill()), .pattern(PatternFill(patternType: .gray125))]  // Excel requires these two first
     private(set) var borders: [Border] = [Border()]
     private var fontXML: [String] = []
     private var fillXML: [String] = []
     private var borderXML: [String] = []
     private var fontIndex: [Font: Int] = [:]
-    private var fillIndex: [PatternFill: Int] = [:]
+    private var fillIndex: [Fill: Int] = [:]
     private var borderIndex: [Border: Int] = [:]
     /// Custom number formats: code → id (ids ≥ 164).
     private(set) var customFormats: [String: Int] = [:]
@@ -27,6 +27,13 @@ final class StyleRegistry {
     private var sourceCellStyleXfs: [CellStyle] = []
     private var sourceCellStyleXfXML: [String] = []
     private var sourceNamedStyleXfIndex: [String: Int] = [:]
+    /// The differential formats, seeded from the source and appended to. Conditional formats, tables and colour
+    /// filters address them by index, so a source entry never moves and its raw XML is re-emitted unless the
+    /// model's copy of it has been edited.
+    private var dxfs: [DifferentialStyle] = []
+    private var dxfXML: [String] = []
+    private var sourceDxfs: [DifferentialStyle] = []
+    private var dxfIndex: [DifferentialStyle: Int] = [:]
     /// The workbook's named styles, in order; set before `xml()`.
     var namedStyles: [NamedStyle] = [.normal]
     var rootAttributes: [String: String] = [:]
@@ -43,12 +50,16 @@ final class StyleRegistry {
             sourceCellStyleXfs = seed.cellStyleXfs
             sourceCellStyleXfXML = seed.cellStyleXfXML.count == seed.cellStyleXfs.count ? seed.cellStyleXfXML : []
             sourceNamedStyleXfIndex = seed.namedStyleXfIndex
+            sourceDxfs = seed.dxfs
+            dxfs = seed.dxfs
+            dxfXML = seed.dxfXML.count == seed.dxfs.count ? seed.dxfXML : seed.dxfs.map(StyleRegistry.dxfXML)
             if fonts.isEmpty { fonts = [Font.default] }
             if borders.isEmpty { borders = [Border()] }
         }
         for (i, f) in fonts.enumerated() where fontIndex[f] == nil { fontIndex[f] = i }
         for (i, f) in fills.enumerated() where fillIndex[f] == nil { fillIndex[f] = i }
         for (i, b) in borders.enumerated() where borderIndex[b] == nil { borderIndex[b] = i }
+        for (i, d) in dxfs.enumerated() where dxfIndex[d] == nil { dxfIndex[d] = i }
         // index 0 of cellXfs is the default style; its font / fill / border are whatever sits at index 0 of each table
         xfs = [CellStyle.default]; xfIndex = [CellStyle.default: 0]
     }
@@ -59,7 +70,7 @@ final class StyleRegistry {
         if !fontXML.isEmpty { fontXML.append(StyleRegistry.fontXML(f)) }
         return fonts.count - 1
     }
-    private func fillID(_ f: PatternFill) -> Int {
+    private func fillID(_ f: Fill) -> Int {
         if let i = fillIndex[f] { return i }
         fills.append(f); fillIndex[f] = fills.count - 1
         if !fillXML.isEmpty { fillXML.append(StyleRegistry.fillXML(f)) }
@@ -83,6 +94,20 @@ final class StyleRegistry {
         }
     }
 
+    /// Brings the workbook's own list of differential formats into the table: an entry the model has edited since
+    /// it was read replaces the source's, and any beyond the source's count are appended in order.
+    func applyDifferentialStyles(_ list: [DifferentialStyle]) {
+        for (i, d) in list.enumerated() {
+            if dxfs.indices.contains(i) {
+                if dxfs[i] != d { replaceDXF(at: i, with: d) }
+            } else {
+                dxfs.append(d)
+                dxfXML.append(StyleRegistry.dxfXML(d))
+                if dxfIndex[d] == nil { dxfIndex[d] = dxfs.count - 1 }
+            }
+        }
+    }
+
     func index(for style: CellStyle) -> Int {
         if let i = xfIndex[style] { return i }
         _ = fontID(style.font); _ = fillID(style.fill); _ = borderID(style.border)
@@ -90,6 +115,62 @@ final class StyleRegistry {
         xfs.append(style)
         xfIndex[style] = xfs.count - 1
         return xfs.count - 1
+    }
+
+    /// The index of a differential format, adding it when it is new.
+    ///
+    /// `preferring` is where the style sat in the source file. An untouched entry keeps that index — and with it
+    /// the raw XML the file had, including whatever the model cannot say — rather than being deduped onto some
+    /// other entry that happens to parse the same way.
+    func dxfID(_ style: DifferentialStyle, preferring source: Int? = nil) -> Int {
+        if let source, sourceDxfs.indices.contains(source), sourceDxfs[source] == style { return source }
+        if let i = dxfIndex[style] { return i }
+        dxfs.append(style)
+        dxfXML.append(StyleRegistry.dxfXML(style))
+        dxfIndex[style] = dxfs.count - 1
+        return dxfs.count - 1
+    }
+
+    /// Replaces the entry `index` holds — for a source style the model has since edited.
+    func replaceDXF(at index: Int, with style: DifferentialStyle) {
+        guard dxfs.indices.contains(index) else { return }
+        dxfs[index] = style
+        dxfXML[index] = StyleRegistry.dxfXML(style)
+        if dxfIndex[style] == nil { dxfIndex[style] = index }
+    }
+
+    /// The differential formats as they will be written — index-addressable, so a caller can look one up.
+    var differentialStyles: [DifferentialStyle] { dxfs }
+
+    /// One `<dxf>`. CT_Dxf's children in schema order: font, numFmt, fill, alignment, border, protection.
+    static func dxfXML(_ d: DifferentialStyle) -> String {
+        var s = "<dxf>"
+        if let f = d.font, !f.isEmpty {
+            s += "<font>"
+            if let v = f.bold { s += "<b val=\"\(v ? 1 : 0)\"/>" }
+            if let v = f.italic { s += "<i val=\"\(v ? 1 : 0)\"/>" }
+            if let v = f.strikethrough { s += "<strike val=\"\(v ? 1 : 0)\"/>" }
+            if let v = f.underline { s += "<u val=\"\(v.rawValue)\"/>" }
+            if let v = f.vertAlign { s += "<vertAlign val=\"\(XML.esc(v))\"/>" }
+            if let v = f.size { s += "<sz val=\"\(XML.num(v))\"/>" }
+            s += colorXML("color", f.color)
+            if let v = f.name { s += "<name val=\"\(XML.esc(v))\"/>" }
+            s += "</font>"
+        }
+        if let code = d.numberFormat {
+            s += "<numFmt numFmtId=\"\(NumberFormat.builtinID(code) ?? NumberFormat.firstCustomID)\" formatCode=\"\(XML.esc(code))\"/>"
+        }
+        if let fill = d.fill { s += "<fill>" + fillBodyXML(fill) + "</fill>" }
+        if let al = d.alignment {
+            s += "<alignment\(XML.attr("horizontal", al.horizontal?.rawValue))\(XML.attr("vertical", al.vertical?.rawValue))"
+            s += "\(XML.attr("wrapText", al.wrapText))\(XML.attr("shrinkToFit", al.shrinkToFit))"
+            if al.indent != 0 { s += XML.attr("indent", al.indent) }
+            if al.textRotation != 0 { s += XML.attr("textRotation", al.textRotation) }
+            s += "/>"
+        }
+        if let b = d.border { s += borderXML(b) }
+        if let p = d.protection { s += "<protection locked=\"\(p.locked ? 1 : 0)\" hidden=\"\(p.hidden ? 1 : 0)\"/>" }
+        return s + "</dxf>"
     }
 
     private func numFmtID(_ code: String) -> Int {
@@ -129,11 +210,26 @@ final class StyleRegistry {
         return s + "</\(tag)>"
     }
 
-    static func fillXML(_ f: PatternFill) -> String {
-        var s = "<fill><patternFill"
-        if f.patternType != .none { s += " patternType=\"\(f.patternType.rawValue)\"" }
-        if f.foregroundColor == nil, f.backgroundColor == nil { return s + "/></fill>" }
-        return s + ">" + colorXML("fgColor", f.foregroundColor) + colorXML("bgColor", f.backgroundColor) + "</patternFill></fill>"
+    static func fillXML(_ f: Fill) -> String { "<fill>" + fillBodyXML(f) + "</fill>" }
+
+    /// The `<patternFill>` / `<gradientFill>` inside a `<fill>` or a `<dxf>`.
+    static func fillBodyXML(_ f: Fill) -> String {
+        switch f {
+        case .pattern(let p):
+            var s = "<patternFill"
+            if p.patternType != .none { s += " patternType=\"\(p.patternType.rawValue)\"" }
+            if p.foregroundColor == nil, p.backgroundColor == nil { return s + "/>" }
+            return s + ">" + colorXML("fgColor", p.foregroundColor) + colorXML("bgColor", p.backgroundColor) + "</patternFill>"
+        case .gradient(let g):
+            var s = "<gradientFill"
+            if g.kind != .linear { s += " type=\"\(g.kind.rawValue)\"" }
+            if g.degree != 0 { s += " degree=\"\(XML.num(g.degree))\"" }
+            for (name, v) in [("left", g.left), ("right", g.right), ("top", g.top), ("bottom", g.bottom)] where v != 0 {
+                s += " \(name)=\"\(XML.num(v))\""
+            }
+            guard !g.stops.isEmpty else { return s + "/>" }
+            return s + ">" + g.stops.map { "<stop position=\"\(XML.num($0.position))\">" + colorXML("color", $0.color) + "</stop>" }.joined() + "</gradientFill>"
+        }
     }
 
     static func borderXML(_ b: Border) -> String {
@@ -234,6 +330,7 @@ final class StyleRegistry {
                 + (named.builtinID.map { " builtinId=\"\($0)\"" } ?? "")
                 + (named.hidden ? " hidden=\"1\"" : "") + "/>"
         }.joined() + "</cellStyles>"
+        if !dxfs.isEmpty { sections["dxfs"] = "<dxfs count=\"\(dxfs.count)\">" + dxfXML.joined() + "</dxfs>" }
         if !indexedColors.isEmpty {
             sections["colors"] = "<colors><indexedColors>" + indexedColors.map { "<rgbColor rgb=\"\(XML.esc($0))\"/>" }.joined() + "</indexedColors></colors>"
         }

@@ -11,7 +11,12 @@ enum WorkbookReader {
     static let relCalcChain = "/calcChain"
     static let relCore = "/core-properties"
     static let relApp = "/extended-properties"
+    static let relCustom = "/custom-properties"
     static let relHyperlink = "/hyperlink"
+    static let relTable = "/table"
+    static let relPivotTable = "/pivotTable"
+    static let relPivotCacheDefinition = "/pivotCacheDefinition"
+    static let relPivotCacheRecords = "/pivotCacheRecords"
     static let relVBA = "/vbaProject"
 
     static func read(_ data: Data, options: ReadOptions) throws -> Workbook {
@@ -38,6 +43,7 @@ enum WorkbookReader {
         wb.epoch = wbParser.date1904 ? .mac1904 : .windows1900
         wb.definedNames = wbParser.definedNames
         wb.codeName = wbParser.codeName
+        wb.protection = wbParser.protection
         wb.preserved.workbookFragments = wbParser.fragments
         wb.preserved.workbookRootAttributes = wbParser.rootAttributes
         wb.preserved.workbookPrAttributes = wbParser.workbookPrAttributes
@@ -58,12 +64,38 @@ enum WorkbookReader {
         if zip.contains(stylesPath) { try styles.run(try zip.read(stylesPath), part: stylesPath); consumed.insert(stylesPath) }
         styles.resolveNamedStyleLinks()
         wb.indexedColors = styles.indexedColors
+        wb.differentialStyles = styles.dxfs
         wb.preserved.styleFragments = styles.fragments
         if zip.contains(stylesPath) {
             wb.preserved.styleTables = styles.styleTables
             if !styles.namedStyles.isEmpty { wb.namedStyles = styles.namedStyles }
         }
         if let calc = rels.first(where: { $0.type.hasSuffix(relCalcChain) }) { consumed.insert(resolve(calc.target)) }   // always dropped (Excel rebuilds it)
+
+        // pivot caches: declared on the workbook, one definition part each (plus a record part it points at).
+        // Reading them here means the pivot tables on the sheets below can be handed the cache they name.
+        var pivotCaches: [Int: PivotCache] = [:]
+        for declared in wbParser.pivotCaches {
+            guard let rel = rels.first(where: { $0.id == declared.rId }) else { continue }
+            let definition = resolve(rel.target)
+            guard let data = try? zip.read(definition) else { continue }
+            consumed.insert(definition); consumed.insert(relsPath(of: definition))
+            let parser = PivotCacheParser()
+            try? parser.run(data, part: definition)
+            var cache = parser.cache
+            cache.definitionPath = definition
+            cache.relationshipId = declared.rId
+            cache.cacheId = declared.cacheId
+            let definitionDir = (definition as NSString).deletingLastPathComponent
+            if let recordsRel = ((try? parseRels(zip, relsPath(of: definition))) ?? [])
+                .first(where: { $0.type.hasSuffix(relPivotCacheRecords) }) {
+                let records = resolvePart(recordsRel.target, relativeTo: definitionDir)
+                cache.recordsPath = records
+                cache.recordsXML = try? zip.read(records)
+                consumed.insert(records); consumed.insert(relsPath(of: records))
+            }
+            pivotCaches[declared.cacheId] = cache
+        }
 
         // sheets
         var sheets: [Sheet] = []
@@ -81,8 +113,39 @@ enum WorkbookReader {
             sheet.preserved.partPath = part
             sheet.preserved.relationshipId = info.rId
             sheet.preserved.sheetId = info.sheetId
-            sheet.preserved.relationships = sheetRels.filter { !$0.type.hasSuffix(relHyperlink) }
+            sheet.preserved.relationships = sheetRels.filter {
+                !$0.type.hasSuffix(relHyperlink) && !$0.type.hasSuffix(relTable) && !$0.type.hasSuffix(relPivotTable)
+            }
             sheet.preserved.rootAttributes = p.rootAttributes
+
+            // named tables: each `<tablePart>` names a relationship, which names a part. The parts stop being
+            // opaque, and `<tableParts>` is regenerated from the model rather than kept (`SheetParser` dropped it).
+            let sheetDir = (part as NSString).deletingLastPathComponent
+            for rel in sheetRels where rel.type.hasSuffix(relTable) {
+                let tablePart = resolvePart(rel.target, relativeTo: sheetDir)
+                guard let data = try? zip.read(tablePart) else { continue }
+                consumed.insert(tablePart); consumed.insert(relsPath(of: tablePart))
+                let tp = TablePartParser()
+                try? tp.run(data, part: tablePart)
+                guard var t = tp.table else { continue }
+                t.partPath = tablePart
+                t.relationshipId = rel.id
+                sheet.excelTables.append(t)
+            }
+
+            // pivot tables: the layout part names the cache it reads by id
+            for rel in sheetRels where rel.type.hasSuffix(relPivotTable) {
+                let pivotPart = resolvePart(rel.target, relativeTo: sheetDir)
+                guard let data = try? zip.read(pivotPart) else { continue }
+                consumed.insert(pivotPart); consumed.insert(relsPath(of: pivotPart))
+                let pp = PivotTableParser()
+                try? pp.run(data, part: pivotPart)
+                guard var pivot = pp.table else { continue }
+                pivot.partPath = pivotPart
+                pivot.relationshipId = rel.id
+                if let id = pp.cacheId, let cache = pivotCaches[id] { pivot.cache = cache }
+                sheet.pivotTables.append(pivot)
+            }
 
             // cell notes: the text from the comments part, the box size from the legacy VML beside it. Both parts
             // stay opaque as well — untouched notes are re-packed byte for byte (spec §6), and only an edit makes
@@ -121,15 +184,21 @@ enum WorkbookReader {
             source.application = ap.application; source.version = ap.version
             consumed.insert(app)
         }
+        if let custom = rootRels.first(where: { $0.type.hasSuffix(relCustom) }).map({ resolvePart($0.target, relativeTo: "") }), zip.contains(custom) {
+            let cu = CustomPropertiesParser()
+            try? cu.run(try zip.read(custom), part: custom)
+            wb.customProperties = cu.properties
+            consumed.insert(custom)
+        }
         wb.sourceInfo = source
         wb.preserved.application = source.application
 
         // everything else: kept byte for byte, with the relationships and content types that declare it
         if options.preserveUnknownParts {
             wb.preserved.relationships[workbookPath] = rels.filter { r in
-                ![relWorksheet, relSharedStrings, relStyles, relCalcChain].contains { r.type.hasSuffix($0) }
+                ![relWorksheet, relSharedStrings, relStyles, relCalcChain, relPivotCacheDefinition].contains { r.type.hasSuffix($0) }
             }
-            wb.preserved.relationships["_rels/.rels"] = rootRels.filter { r in ![relOfficeDocument, relCore, relApp].contains { r.type.hasSuffix($0) } }
+            wb.preserved.relationships["_rels/.rels"] = rootRels.filter { r in ![relOfficeDocument, relCore, relApp, relCustom].contains { r.type.hasSuffix($0) } }
             wb.preserved.contentTypeDefaults = ct.defaults
             for name in zip.entries.keys where !consumed.contains(name) && !name.hasSuffix("/") {
                 wb.preserved.opaqueParts[name] = try zip.read(name)

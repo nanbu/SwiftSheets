@@ -30,14 +30,14 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.2.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.6.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
 ]
 ```
 
-Status: **0.5.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
+Status: **0.6.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
 version here is what the library writes into the files it generates, and a test keeps the two in step.
 
 ## Limits
@@ -47,7 +47,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 
 | | |
 |---|---|
-| Whole workbook in memory | No streaming reader or writer yet (roadmap). Reckon on 100–200 bytes per cell — a million cells is a few hundred megabytes, and that is the working size, not the file size. |
+| Whole workbook in memory | `Workbook` holds every cell: reckon on 100–200 bytes each, so a million cells is a few hundred megabytes — the working size, not the file size. `StreamingReader` / `StreamingWriter` (XLSX only) walk a file row by row instead: measured over 750,000 cells, writing costs **+3 MB** whatever the row count and reading **+54 MB** (one sheet's expanded XML), against **+190 MB** for the whole model. They carry values and formatting and nothing else — no merges, no notes, no preservation. |
 | Cell budget | A read stops at `ReadOptions.cellLimit` cells (default 1,000,000) and says so. ODS run-length compression can otherwise describe seventeen billion cells in a kilobyte of XML. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | ZIP64 | Not supported: packages over 4 GB, or with more than 65,535 parts, are reported as `corruptedContainer`. |
@@ -89,8 +89,8 @@ up with new Numbers releases.
 
 | product | contents | depends on |
 |---|---|---|
-| `SheetCore` | `Workbook` → `Sheets` → `Sheet` → `[Table]` → `Cell` model, styles, `FormulaExpr` AST + parser / emitters (XLSX and ODS dialects), the `SpreadsheetCodec` contract, `PreservationStore`, ZIP / XML plumbing, CSV options | nothing |
-| `SheetXLSX` | `XLSXCodec` / `XLSMCodec` | SheetCore |
+| `SheetCore` | `Workbook` → `Sheets` → `Sheet` → `[Table]` → `Cell` model, styles and differential styles, conditional formatting, named tables, pivot tables, protection and scenarios, `FormulaExpr` AST + parser / emitters (XLSX and ODS dialects), the `SpreadsheetCodec` contract, `PreservationStore`, ZIP / XML plumbing, CSV options | nothing |
+| `SheetXLSX` | `XLSXCodec` / `XLSMCodec`, `StreamingReader` / `StreamingWriter` | SheetCore |
 | `SheetCSV` | `CSVCodec` (RFC 4180 + real-world dialects; UTF-8 BOM auto-detection, explicit encodings) | SheetCore |
 | `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect) | SheetCore |
 | `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table as JSON resources) | SheetCore |
@@ -130,7 +130,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `merge_cells`, `unmerge_cells`, `merged_cells.ranges` | `merge(_:)`, `unmerge(_:)`, `merges` |
 | `column_dimensions['A'].width = 18`, `row_dimensions[1].height = 24` | `setWidth(18, ofColumn: "A")`, `setHeight(24, ofRow: 0)` |
 | `freeze_panes`, `auto_filter.ref`, print titles / area, page setup | `freezePanes` (`CellRef?`), `autoFilter`, `printTitleRows`, `printArea`, `pageSetup`, … |
-| `auto_filter.add_filter_column(...)`, `auto_filter.sortState` | `sheet.filterColumns`, `sheet.sortState` — value lists and comparisons; colour / icon / dynamic / top-10 filters are kept as source XML (`sheet.hasUnmodelledFilters`) |
+| `auto_filter.add_filter_column(...)`, `auto_filter.sortState` | `sheet.filterColumns`, `sheet.sortState` — value lists, comparisons, colour, icon, dynamic, top 10 and whole-month filters. Only the `<extLst>` extensions are kept as source XML (`sheet.hasUnmodelledFilters`) |
 | `ws.oddHeader.left.text`, `ws.row_breaks`, `ws.col_breaks` | `sheet.headerFooter` (Excel's `&L`/`&C`/`&R` string, undecomposed), `sheet.rowBreaks`, `sheet.columnBreaks` |
 | `ArrayFormula(ref, text)` | `sheet.table.arrayFormulas[anchor] = CellRange("A2:A4")` |
 | `cell.value = '=SUM(A1:B2)'` | `sheet["C1"] = Formula("=SUM(A1:B2)")`; `value.formula?.rendered(as: .ods)` |
@@ -138,9 +138,16 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
 | `cell.comment = Comment(text, author)` | `sheet[cell: "A1"].comment = CellNote(text, author:)` — written as the comments part plus its legacy VML |
-| `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]` — **write side only**: a file's own rules are preserved verbatim (`sheet.hasUnmodelledValidations`). `hideDropDown` is named for what the inverted `showDropDown` attribute means |
-| charts / images / conditional formatting / data validation / pivots | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
-| `read_only` / `write_only` streaming | — (whole workbook in memory; see [Limits](#limits)) |
+| `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]` — read and written both ways; a rule with an attribute outside the schema keeps the file's own block (`sheet.hasUnmodelledValidations`). `hideDropDown` is named for what the inverted `showDropDown` attribute means |
+| `ws.conditional_formatting.add(range, Rule(...))` | `sheet.addConditionalFormatting(.cellIs(.greaterThan, "100", paint: .highlight(fill: red)), over: "B2:B99")` — 17 rule kinds plus colour scales, data bars and icon sets; priorities renumbered 1…n over the sheet |
+| `DifferentialStyle(...)`, `wb._differential_styles` | `DifferentialStyle` / `DifferentialFont`, `wb.differentialStyles` — every field optional, nil meaning "leave the cell as it is" |
+| `PatternFill` / `GradientFill` | `Fill.pattern(_:)` / `Fill.gradient(_:)`; `.solid(_:)` and `.none` for the everyday cases |
+| `ws.tables`, `Table(displayName:ref:)` | `sheet.excelTables`, `sheet.addExcelTable(named:over:)` — the part, its content type, its relationship and `<tableParts>` are all generated |
+| `ws.protection`, `wb.security`, `ws.scenarios` | `sheet.protection`, `wb.protection`, `sheet.protectedRanges`, `sheet.scenarios` — named for what is **allowed**, since the file's own booleans say what is forbidden |
+| `wb.custom_doc_props` | `wb.customProperties` — text, integers, numbers, booleans, dates and defined-name links (ODS keeps them as `meta:user-defined`) |
+| pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
+| charts / images | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
+| `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)`, `StreamingWriter(url:sheetName:)` + `append(_:)` / `close()` — XLSX only, values and formatting only (see [Limits](#limits)) |
 
 ### openpyxl test parity
 
@@ -155,7 +162,14 @@ are used where they apply (`Tests/SwiftSheetsTests/Fixtures/openpyxl`, MIT).
 The first test of the project (`PreservationTests.editOneCellKeepsEverythingElse`) opens a workbook with a chart, a
 table, conditional formatting, data validation, comments and a defined name, edits one cell, saves, and checks that
 every opaque part is byte-identical, every `r:id` still resolves, `[Content_Types].xml` declares exactly the parts
-present, and the worksheet children are in schema order. What makes it work:
+present, and the worksheet children are in schema order.
+
+**Byte-identical applies to what the model does not read.** Charts, VBA, themes, images, drawings — anything the
+codec leaves opaque — come out as the same bytes they went in as. What the model *does* read is rebuilt from the
+model: conditional formatting, data validation, named tables, pivot tables and differential formats are the same
+XML in meaning, not necessarily in bytes. Where an entry is addressed by index from elsewhere (a `dxf`, a
+`cellStyleXf`), the source's own entries keep their positions and their original XML, and new ones are appended
+after them. What makes it work:
 
 - parts the codec does not interpret stay bytes in `Workbook.preserved` (with their relationships and content types);
 - unknown children of `<workbook>`, `<worksheet>` and `<styleSheet>` are kept as XML fragments and re-emitted at their
@@ -163,7 +177,9 @@ present, and the worksheet children are in schema order. What makes it work:
 - existing relationship ids, sheet ids and part paths are immutable — new ones are numbered after the maximum;
 - `styles.xml` is rebuilt on top of the source's font / fill / border / numFmt tables so `cellStyleXfs`, `dxfs` and
   `tableStyles` (copied verbatim) keep their indices;
-- `calcChain.xml` is always dropped and `fullCalcOnLoad` set, so the application recalculates.
+- `calcChain.xml` is always dropped and `fullCalcOnLoad` set, so the application recalculates;
+- an element the model reads but cannot fully say — a data validation with a vendor attribute, a conditional format
+  with an `<extLst>` — keeps the file's own block instead, and a flag on the sheet says so.
 
 Reading reports its losses the same way writing does: `Workbook.read(contentsOf:)` answers with a `ReadResult`, and
 `Workbook(contentsOf:)` leaves the same list on `wb.readWarnings`.
@@ -186,7 +202,7 @@ carried over.
 ## Development
 
 ```bash
-swift test                                                                 # model, formulas, preservation, CSV, parity, property and fuzz suites
+swift test                                                                 # model, formulas, preservation, CSV, parity, property, streaming and fuzz suites
 SWIFTSHEETS_FUZZ_ROUNDS=20000 swift test --filter Fuzz                     # a longer fuzz campaign (seeds via SWIFTSHEETS_FUZZ_SEEDS)
 python3 Tests/FixtureGenerator/make_fixtures.py                           # regenerate openpyxl-made fixtures (any Python with openpyxl)
 python3 Tests/FixtureGenerator/make_preservation_fixtures.py              # chart / table / VBA fixtures

@@ -98,7 +98,7 @@ public struct Cell: Hashable, Sendable {
 
     // Style conveniences (openpyxl: cell.font = Font(...))
     public var font: Font { get { style.font } set { style.font = newValue } }
-    public var fill: PatternFill { get { style.fill } set { style.fill = newValue } }
+    public var fill: Fill { get { style.fill } set { style.fill = newValue } }
     public var border: Border { get { style.border } set { style.border = newValue } }
     public var alignment: Alignment { get { style.alignment } set { style.alignment = newValue } }
     public var protection: Protection { get { style.protection } set { style.protection = newValue } }
@@ -230,26 +230,142 @@ public struct PageSetup: Hashable, Sendable {
 /// What one column of an auto-filter lets through (`<filterColumn>`). The column index is relative to the filter
 /// range's first column, as OOXML's `colId` is.
 ///
-/// SwiftSheets models the two filter kinds people actually set by hand: a list of values, and one or two
-/// comparisons. Excel's other kinds — colour, icon, dynamic (top 10, above average, this month) — are kept as the
-/// source XML instead, so a file that has them writes back unchanged (`Sheet.hasUnmodelledFilters`).
+/// A column filters in exactly **one** way — the file format says so, and Excel's own dialog offers one at a time.
+/// The kinds, in the order the writer resolves them when more than one is set (it says so with a `degraded`
+/// warning rather than writing a file Excel would offer to repair):
+///
+/// 1. `values` / `includesBlanks` / `dateGroups` — the tick-list
+/// 2. `conditions` — one or two comparisons
+/// 3. `top10` — the highest or lowest few
+/// 4. `dynamicFilter` — a rule the application evaluates itself (above average, this month)
+/// 5. `colorFilter` — one fill or font colour
+/// 6. `iconFilter` — one icon of a conditional-format icon set
 public struct FilterColumn: Hashable, Sendable {
     public var column: Int
-    /// The values that pass (`<filters><filter val>`); empty when the column filters by comparison instead.
+    /// The values that pass (`<filters><filter val>`); empty when the column filters some other way.
     public var values: [String]
     /// Blank cells pass too (`<filters blank="1">`).
     public var includesBlanks: Bool
+    /// Whole days, months or years that pass (`<dateGroupItem>`) — the tree Excel shows for a column of dates.
+    public var dateGroups: [DateGroup]
+    /// The calendar the date groups are counted in (`<filters calendarType>`: "gregorian", "japan", "hijri", …).
+    /// Nil is the document's own.
+    public var calendarType: String?
     /// Comparisons that pass (`<customFilters>`); Excel allows at most two.
     public var conditions: [FilterCondition]
     /// Both comparisons must hold (`<customFilters and="1">`); otherwise either does.
     public var matchesAllConditions: Bool
-    /// The drop-down button is hidden on this column.
+    /// Only the highest or lowest few rows pass (`<top10>`).
+    public var top10: Top10Filter?
+    /// A rule the application evaluates for itself, against today's date or the column's own average
+    /// (`<dynamicFilter>`).
+    public var dynamicFilter: DynamicFilter?
+    /// Only cells of one colour pass (`<colorFilter>`).
+    public var colorFilter: ColorFilter?
+    /// Only cells showing one icon of a conditional-format icon set pass (`<iconFilter>`).
+    public var iconFilter: IconFilter?
+    /// The drop-down button is hidden on this column (`hiddenButton`).
     public var buttonHidden: Bool
+    /// The button is drawn at all (`showButton="0"` takes it away entirely). Excel's default is true.
+    public var buttonShown: Bool
 
     public init(column: Int, values: [String] = [], includesBlanks: Bool = false, conditions: [FilterCondition] = [],
-                matchesAllConditions: Bool = false, buttonHidden: Bool = false) {
+                matchesAllConditions: Bool = false, buttonHidden: Bool = false, dateGroups: [DateGroup] = [],
+                calendarType: String? = nil, top10: Top10Filter? = nil, dynamicFilter: DynamicFilter? = nil,
+                colorFilter: ColorFilter? = nil, iconFilter: IconFilter? = nil, buttonShown: Bool = true) {
         self.column = column; self.values = values; self.includesBlanks = includesBlanks
         self.conditions = conditions; self.matchesAllConditions = matchesAllConditions; self.buttonHidden = buttonHidden
+        self.dateGroups = dateGroups; self.calendarType = calendarType; self.top10 = top10
+        self.dynamicFilter = dynamicFilter; self.colorFilter = colorFilter; self.iconFilter = iconFilter
+        self.buttonShown = buttonShown
+    }
+
+    /// How many of the mutually exclusive kinds this column sets. More than one cannot be written.
+    public var criterionCount: Int {
+        var n = 0
+        if !values.isEmpty || includesBlanks || !dateGroups.isEmpty { n += 1 }
+        if !conditions.isEmpty { n += 1 }
+        if top10 != nil { n += 1 }
+        if dynamicFilter != nil { n += 1 }
+        if colorFilter != nil { n += 1 }
+        if iconFilter != nil { n += 1 }
+        return n
+    }
+}
+
+/// Only the highest or lowest few rows pass (`<top10>`) — Excel's "Top 10" dialog, which does any count and
+/// percentages as well as ten.
+public struct Top10Filter: Hashable, Sendable {
+    /// The top rather than the bottom.
+    public var top: Bool
+    /// `count` is a percentage of the rows rather than a number of them.
+    public var percent: Bool
+    /// How many rows (or what percentage).
+    public var count: Double
+    /// The boundary value the application computed when it last applied the filter (`filterVal`), informational.
+    public var boundary: Double?
+
+    public init(count: Double, top: Bool = true, percent: Bool = false, boundary: Double? = nil) {
+        self.count = count; self.top = top; self.percent = percent; self.boundary = boundary
+    }
+}
+
+/// A rule the application evaluates itself rather than a fixed list (`<dynamicFilter>`): the values are relative to
+/// today's date or to the column's own average, so the same file filters differently tomorrow.
+public struct DynamicFilter: Hashable, Sendable {
+    /// Excel's own rule name — "aboveAverage", "belowAverage", "today", "yesterday", "thisMonth", "lastQuarter",
+    /// "Q1", "M3", "yearToDate", … Carried verbatim: every reader agrees on the names, and a round trip cannot
+    /// lose one the model did not think of.
+    public var kind: String
+    /// The boundary the application computed, as a serial date or a number (`val` / `maxVal`), informational.
+    public var value: Double?
+    public var maxValue: Double?
+    /// The same boundaries spelled as ISO-8601 dates (`valIso` / `maxValIso`).
+    public var valueISO: String?
+    public var maxValueISO: String?
+
+    public init(kind: String, value: Double? = nil, maxValue: Double? = nil, valueISO: String? = nil, maxValueISO: String? = nil) {
+        self.kind = kind; self.value = value; self.maxValue = maxValue; self.valueISO = valueISO; self.maxValueISO = maxValueISO
+    }
+}
+
+/// Only cells of one colour pass (`<colorFilter>`). The colour itself is not named here — it is the fill (or font
+/// colour) of a differential format, by index into the workbook's `differentialStyles`.
+public struct ColorFilter: Hashable, Sendable {
+    public var differentialStyleID: Int?
+    /// Match the cell's fill colour rather than its font colour.
+    public var byCellColor: Bool
+    public init(differentialStyleID: Int? = nil, byCellColor: Bool = true) {
+        self.differentialStyleID = differentialStyleID; self.byCellColor = byCellColor
+    }
+}
+
+/// Only cells showing one icon pass (`<iconFilter>`) — of the icon set a conditional format put there.
+public struct IconFilter: Hashable, Sendable {
+    /// The set's name, as `ConditionalFormattingRule` spells it ("3TrafficLights1", "5Rating", …).
+    public var iconSet: String
+    /// Which icon of the set, counting from 0 at the bottom. Nil means any icon of that set.
+    public var iconID: Int?
+    public init(iconSet: String, iconID: Int? = nil) { self.iconSet = iconSet; self.iconID = iconID }
+}
+
+/// A whole day, month or year of a date column (`<dateGroupItem>`): "2026", "2026-03", "the 4th of March 2026".
+/// The fields below `grouping` are the ones that are set; the coarser ones are always set with them.
+public struct DateGroup: Hashable, Sendable {
+    /// How deep the group goes — `.month` means "all of that month".
+    public enum Grouping: String, Sendable, CaseIterable { case year, month, day, hour, minute, second }
+    public var grouping: Grouping
+    public var year: Int
+    public var month: Int?
+    public var day: Int?
+    public var hour: Int?
+    public var minute: Int?
+    public var second: Int?
+
+    public init(grouping: Grouping, year: Int, month: Int? = nil, day: Int? = nil, hour: Int? = nil,
+                minute: Int? = nil, second: Int? = nil) {
+        self.grouping = grouping; self.year = year; self.month = month; self.day = day
+        self.hour = hour; self.minute = minute; self.second = second
     }
 }
 

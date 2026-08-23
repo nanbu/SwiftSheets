@@ -1,0 +1,151 @@
+import Foundation
+import Testing
+@testable import SheetCore
+@testable import SheetXLSX
+import SwiftSheets
+
+/// Sheet and workbook protection, editable windows inside a protected sheet, and "what if" scenarios.
+@Suite struct ProtectionTests {
+
+    /// openpyxl's own hashes, digit for digit — the same file must lock and unlock in both libraries.
+    // openpyxl: utils/tests/test_protection.py::test_password
+    @Test(arguments: [("secret", "DAA7"), ("", "CE4B"), ("日本語", "CDC8"), ("a", "CE88"),
+                      ("abcdefghijklmnop", "C643"), ("A1!", "CF06")])
+    func theLegacyHashMatchesTheReference(_ password: String, _ expected: String) {
+        #expect(LegacyPasswordHash.hash(password) == expected)
+    }
+
+    /// Protection on, a password set, and the permissions written the way the file spells them — inverted.
+    // openpyxl: worksheet/tests/test_protection.py::TestSheetProtection::test_ctor
+    // openpyxl: worksheet/tests/test_protection.py::TestSheetProtection::test_bool
+    // openpyxl: worksheet/tests/test_protection.py::test_ctor_with_password
+    // openpyxl: worksheet/tests/test_protection.py::test_explicit_password
+    @Test func sheetProtectionRoundTrips() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws["A1"] = 1
+        ws["B1"] = 2; ws.style("B1") { $0.protection = Protection(locked: false) }   // the one editable cell
+        var p = SheetProtection.on
+        p.setPassword("secret")
+        p.allowsSorting = true
+        p.allowsFiltering = true
+        p.allowsSelectingLockedCells = false
+        p.allowsEditingObjects = false
+        wb.sheets[0].protection = p
+        wb.sheets[0] = { var s = ws; s.protection = p; return s }()
+
+        let data = try wb.data(as: .xlsx)
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
+        #expect(xml.contains("password=\"DAA7\"") && xml.contains("sheet=\"1\""))
+        #expect(xml.contains("sort=\"0\"") && xml.contains("autoFilter=\"0\""), "an allowed action is written as 0")
+        #expect(xml.contains("selectLockedCells=\"1\""), "a forbidden action is written as 1")
+        #expect(xml.contains("objects=\"1\""))
+        #expect(!xml.contains("formatCells="), "the format's own default needs no attribute")
+
+        let again = try Workbook(data: data).sheets[0]
+        #expect(again.protection == p)
+        #expect(again.protection.passwordMatches("secret") && !again.protection.passwordMatches("other"))
+        #expect(again.style("B1").protection.locked == false)
+    }
+
+    /// A sheet with no protection writes no element.
+    @Test func noProtectionNoElement() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        #expect(try !Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx)).contains("sheetProtection"))
+    }
+
+    // openpyxl: workbook/tests/test_protection.py::TestWorkbookProtection::test_ctor
+    // openpyxl: workbook/tests/test_protection.py::TestWorkbookProtection::test_ctor_with_passwords
+    // openpyxl: workbook/tests/test_protection.py::TestWorkbookProtection::test_from_xml
+    @Test func workbookProtectionRoundTrips() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.protection.lockStructure = true
+        wb.protection.lockWindows = true
+        wb.protection.setPassword("secret")
+        let data = try wb.data(as: .xlsx)
+        let xml = try Package.part("xl/workbook.xml", of: data)
+        #expect(xml.contains("<workbookProtection") && xml.contains("workbookPassword=\"DAA7\""))
+        #expect(xml.contains("lockStructure=\"1\"") && xml.contains("lockWindows=\"1\""))
+        // schema order: workbookPr, workbookProtection, bookViews, sheets
+        let order = ["<workbookPr", "<workbookProtection", "<bookViews", "<sheets"]
+        let positions = order.map { xml.range(of: $0)!.lowerBound }
+        #expect(positions == positions.sorted())
+
+        let again = try Workbook(data: data)
+        #expect(again.protection == wb.protection && again.protection.passwordMatches("secret"))
+    }
+
+    @Test func protectedRangesRoundTrip() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].protection = .on
+        var range = ProtectedRange(name: "入力欄", "B2:D9")!
+        range.setPassword("secret")
+        wb.sheets[0].protectedRanges = [range]
+        let data = try wb.data(as: .xlsx)
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
+        #expect(xml.contains("<protectedRange password=\"DAA7\" sqref=\"B2:D9\" name=\"入力欄\"/>"))
+        // schema order: sheetProtection then protectedRanges
+        #expect(xml.range(of: "<sheetProtection")!.lowerBound < xml.range(of: "<protectedRanges")!.lowerBound)
+        #expect(try Workbook(data: data).sheets[0].protectedRanges == [range])
+    }
+
+    /// A modern hash written by Excel 2010 or later is carried through untouched — SwiftSheets does not compute
+    /// new ones, but it must not lose the ones it finds.
+    @Test func aModernHashIsCarriedThrough() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        var p = SheetProtection.on
+        p.algorithmName = "SHA-512"
+        p.hashValue = "Zm9vYmFy"
+        p.saltValue = "c2FsdA=="
+        p.spinCount = 100_000
+        wb.sheets[0].protection = p
+        let data = try wb.data(as: .xlsx)
+        #expect(try Package.part("xl/worksheets/sheet1.xml", of: data).contains("algorithmName=\"SHA-512\" hashValue=\"Zm9vYmFy\" saltValue=\"c2FsdA==\" spinCount=\"100000\""))
+        #expect(try Workbook(data: data).sheets[0].protection == p)
+    }
+
+    // openpyxl: worksheet/tests/test_scenario.py::TestScenario::test_ctor
+    // openpyxl: worksheet/tests/test_scenario.py::TestScenario::test_from_xml
+    // openpyxl: worksheet/tests/test_scenario.py::TestScenarios::test_ctor
+    // openpyxl: worksheet/tests/test_scenario.py::TestScenarios::test_from_xml
+    // openpyxl: worksheet/tests/test_scenario.py::TestInputCells::test_ctor
+    // openpyxl: worksheet/tests/test_scenario.py::TestInputCells::test_from_xml
+    @Test func scenariosRoundTrip() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws["B1"] = 100; ws["B2"] = .number(0.05)
+        ws.scenarios = ScenarioList([
+            Scenario(name: "強気", cells: [Scenario.InputCell("B1", "150")!, Scenario.InputCell("B2", "0.08")!],
+                     user: "南部", comment: "上振れ"),
+            Scenario(name: "弱気", cells: [Scenario.InputCell("B1", "60")!], locked: true, hidden: true),
+        ], current: 0, shown: 0)
+        wb.sheets[0] = ws
+
+        let data = try wb.data(as: .xlsx)
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
+        #expect(xml.contains("<scenarios current=\"0\" show=\"0\" sqref=\"B1 B2\">"))
+        #expect(xml.contains("<scenario name=\"強気\" count=\"2\" user=\"南部\" comment=\"上振れ\">"))
+        #expect(xml.contains("<inputCells r=\"B1\" val=\"150\"/>"))
+        #expect(xml.contains("<scenario name=\"弱気\" locked=\"1\" hidden=\"1\" count=\"1\">"))
+
+        let again = try Workbook(data: data).sheets[0]
+        #expect(again.scenarios.scenarios == ws.scenarios.scenarios)
+        #expect(again.scenarios.current == 0 && again.scenarios.shown == 0)
+        #expect(again.scenarios["強気"]?.cells.count == 2)
+        #expect(again.scenarios.ranges == MultiCellRange("B1 B2"))
+    }
+
+    /// Converting to a format without protection or scenarios says so.
+    @Test func odsReportsTheLoss() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].protection = .on
+        wb.sheets[0].scenarios = [Scenario(name: "強気", cells: [Scenario.InputCell("A1", "2")!])]
+        let result = try wb.write(as: .ods)
+        #expect(result.warnings.contains { $0.message.contains("scenario") })
+    }
+}

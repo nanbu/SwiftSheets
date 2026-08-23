@@ -3,9 +3,9 @@ import Foundation
 /// What a range of cells accepts, and what the spreadsheet does about a value that does not fit
 /// (`<dataValidation>`; spec appendix B.13).
 ///
-/// **Write side only.** A validation read from a file is not turned into one of these: it stays in the sheet's
-/// preserved XML and is written back byte for byte (`Sheet.hasUnmodelledValidations` says when a sheet has one).
-/// Setting `Sheet.dataValidations` on a workbook built in memory is the supported use.
+/// Read and written both ways: a file's rules arrive on `Sheet.dataValidations`, and whatever is on that list when
+/// the workbook is written is what the file gets. The one exception is a rule carrying an attribute outside the
+/// schema's own — then the source block is kept verbatim and `Sheet.hasUnmodelledValidations` says so.
 public struct DataValidation: Hashable, Sendable {
     /// What the cell must hold. `.none` is a rule that checks nothing (it can still carry an input message).
     public enum Kind: String, Hashable, Sendable, CaseIterable {

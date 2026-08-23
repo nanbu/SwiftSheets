@@ -120,6 +120,9 @@ public struct Sheets: RandomAccessCollection, MutableCollection, RangeReplaceabl
 public struct Workbook: Equatable, Sendable {
     public var sheets = Sheets()
     public var metadata = DocumentProperties()
+    /// The free-form fields of `docProps/custom.xml` — a document number, a review date, a "confidential" flag.
+    /// Read and written; nothing else in the library reads them (openpyxl `wb.custom_doc_props`).
+    public var customProperties = CustomDocumentProperties()
     /// Which day serial 0 means in the file. Dates in the model are calendar dates; this only steers the XLSX codec.
     public var epoch: DateEpoch = .windows1900
     /// Workbook-scoped defined names: name → formula text (sheet-scoped names live on `Sheet.definedNames`).
@@ -128,9 +131,16 @@ public struct Workbook: Equatable, Sendable {
     public var indexedColors: [String] = []
     /// VBA code name of the workbook (`<workbookPr codeName>`), preserved when present.
     public var codeName: String?
+    /// Whether the shape of the workbook can be changed (`<workbookProtection>`).
+    public var protection = WorkbookProtection()
     /// Named cell styles, in the order the file lists them. Always starts with "Normal"; a cell points at one of
     /// these through `CellStyle.namedStyle`. Reading replaces the list with the file's; writing emits exactly it.
     public var namedStyles: [NamedStyle] = [.normal]
+    /// The workbook's differential formats (`<dxfs>`), in the file's order — what conditional formats, tables and
+    /// colour filters paint with. A rule carries its own `DifferentialStyle`, so this list only matters when
+    /// something addresses one by index (`ColorFilter.differentialStyleID`, `ExcelTable.styleInfo`). Reading fills
+    /// it in; writing keeps every entry where it is and appends whatever the rules need.
+    public var differentialStyles: [DifferentialStyle] = []
     /// True when loaded with `ReadOptions.dataOnly`: formula cells hold cached values.
     public var dataOnly = false
     /// Uninterpreted parts of the source file (charts, VBA, …), re-packed on a same-format write (spec §6).
@@ -220,6 +230,22 @@ public struct Workbook: Equatable, Sendable {
         guard let i = sheets.index(of: name) else { return nil }
         sheets[i].name = newName
         return sheets[i].name
+    }
+
+    /// Adds a pivot table to `sheet`, summarising `source` on `sourceSheet` — whose header row this reads for you.
+    ///
+    /// The table is laid out, not computed: it is written with "refresh when opened" set, so the application fills
+    /// the body in when the file is opened. Returns false when either sheet is missing or no field could be placed.
+    @discardableResult
+    public mutating func addPivotTable(named name: String, to sheet: String, at anchor: CellRef,
+                                       summarizing source: CellRange, on sourceSheet: String,
+                                       rows: [String] = [], columns: [String] = [],
+                                       values: [(String, PivotDataField.Function)] = [],
+                                       filters: [String] = []) -> Bool {
+        guard let target = sheets.index(of: sheet), let origin = sheets.index(of: sourceSheet) else { return false }
+        let header = (source.topLeft.col...source.bottomRight.col).map { sheets[origin][source.topLeft.row, $0] }
+        return sheets[target].addPivotTable(named: name, summarizing: source, on: sourceSheet, headerRow: header,
+                                            at: anchor, rows: rows, columns: columns, values: values, filters: filters)
     }
 
     // MARK: - Structure edits that other sheets must follow
