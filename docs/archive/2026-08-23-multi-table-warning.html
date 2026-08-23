@@ -95,7 +95,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p class="chip hot">完了報告</p>
 <h1>表が 2 つあるシートを保存すると、2 つ目が黙って消えていた</h1>
 <p class="lede">3 つの保存形式すべてで直しました。テストも通っています。<br>
-あわせて、<strong>決めていただきたいことが 1 件</strong>あります（返事は一言で結構です）。</p>
+あわせてお諮りした 1 件は<strong>「直して」とのご裁定をいただき、実施済み</strong>です（2026-08-23）。</p>
 <p class="meta">2026-08-23 ／ SwiftSheets ／ 作業ブランチ main・push とタグ付けはしていません</p>
 
 <hr class="rule">
@@ -113,9 +113,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
     <p><span class="chip">コミット 2 件</span><span class="chip">仕様書も更新済み</span></p>
   </div>
   <div class="card decide">
-    <p class="kv">決めていただきたいこと（1 件）</p>
-    <p>おまけ機能の「他の形式なら残せますよ」という<strong>案内が 1 か所だけ嘘</strong>をつきます。直すと利用者のコードに影響が出うるため、判断をお願いします。</p>
-    <p><span class="chip hot">推奨: いま直す</span></p>
+    <p class="kv">決裁いただいた件（実施済み）</p>
+    <p>おまけ機能の「他の形式なら残せますよ」という<strong>案内が 1 か所だけ嘘</strong>をついていた件。ご裁定どおり修正し、<strong>正しく「.numbers なら残せます」と案内する</strong>ようになりました。</p>
+    <p><span class="chip ok">裁定: いま直す</span><span class="chip ok">実施済み</span></p>
   </div>
 </div>
 
@@ -279,8 +279,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   </div>
 </div>
 
-<h2>5. 【決裁事項】おまけ機能が 1 か所だけ嘘をつきます</h2>
-<p class="lede">結論から言うと、<strong>「XLSX で保存し直せば残せますよ」と案内する場面で、実際には XLSX でも残せません。</strong>直すべきか、今回は見送るかをご判断ください。</p>
+<h2>5. 【決裁済み】おまけ機能が 1 か所だけ嘘をついていた件</h2>
+<p class="lede">結論から言うと、<strong>「XLSX で保存し直せば残せますよ」と案内する場面で、実際には XLSX でも残せませんでした。</strong>「直して」とのご裁定をいただき、修正済みです。以下は経緯と、実際に入れた内容です。</p>
 
 <h3>そもそも、この「提案機能」とは何か</h3>
 <p>保存のたびに、ライブラリは失ったものの一覧（警告）を作ります。それが多いとき、あるいは丸ごと 1 機能を落としたときに、<strong>「別の形式で保存すれば残せたのに」と 1 行だけ添える</strong>おまけの仕組みがあります。親切機能です。</p>
@@ -453,16 +453,25 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </div>
 
 <div class="card decide">
-  <p class="kv">私の推奨</p>
-  <p><strong>いま直す。</strong>間違った情報を出すのは、情報を出さないより一段悪いと考えます。かつ、費用が最小の窓が今しかありません。</p>
-  <div class="answer">お返事は <span class="q">「直して」</span> か <span class="q">「そのままで」</span> の一言で結構です。</div>
+  <p class="kv">ご裁定と、実際に入れた内容</p>
+  <p><strong>2026-08-23「直して下さい」</strong> — そのとおり実施しました。</p>
+  <ul class="plain">
+    <li>警告の種類ラベルに<strong>「表」を新設</strong>（従来は「シート」に相乗りしていたため区別できなかった）</li>
+    <li>提案の仕分けを 3 分岐に — <strong>マクロなら .xlsm ／ 表だけなら .numbers ／ それ以外は .xlsx</strong></li>
+    <li>表と他のものが<strong>同時に</strong>失われたときは、どの形式も全部は救えないので .xlsx を挙げ、
+      <strong>件数はその形式が実際に残せるぶんだけ数える</strong>ようにした（「表 1 件＋グラフ 1 件」なら「1 件は XLSX なら残せます」）。
+      過大な案内をしないための決まりです。</li>
+    <li>Excel に保存したときも、これからは「.numbers なら残せます」と案内が出ます（以前は無言でした）</li>
+  </ul>
+  <p>影響として申し上げていた「利用者のコードのビルドが通らなくなりうる」点は、<strong>0.5.0 の唯一のソース互換の破壊</strong>として仕様書（付録 B.14）に理由つきで記録しました。実行時の動きは変わりません。</p>
+  <p><span class="chip ok">テスト 717 件すべて合格</span><span class="chip ok">台帳チェック合格</span><span class="chip">コミット 374b43e</span></p>
 </div>
 
 <h2>6. やらなかったこと</h2>
 <ul class="plain">
   <li><strong>複数の表を自動でシートに割り振る機能は作っていません。</strong>割り振り方が用途で変わるため、ライブラリが黙って決めるべきではないという判断です（理由は仕様書に固定しました）。必要な人が自分で組めるよう、実例コードは仕様書に載せてあります。</li>
   <li><strong>push とタグ付けはしていません。</strong>0.4.0 のリリース作業はオーナーの手順に委ねます。</li>
-  <li><strong>提案機能の修正は未着手です。</strong>上記のご判断待ちです。</li>
+  <li><strong>提案機能の修正は実施しました</strong>（当初はご判断待ちとしていた項目です。第 5 章参照）。</li>
 </ul>
 
 <h2>7. 技術的な詳細</h2>
@@ -475,13 +484,14 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <li>テスト: <code>WriterTests.extraTablesOfASheetAreReported</code>、<code>ODSCodecTests.extraTablesOfASheetAreReportedWhenWritingODS</code>、<code>CSVCodecTests.extraTablesOfASheetAreReported</code>。いずれも「警告が 1 件出ること」と「1 つ目の表だけが正しく書かれ、2 つ目の値が出力に無いこと」を検査。</li>
   <li>仕様書: 付録 B.12 に項目を追加、§9.1（CSV のモデル写像）に追記、§14.9・§15.4 の平坦化の記述を実物に合わせ、「実装せずに残したもの」表に平坦化の行を追加。</li>
   <li>決裁事項の該当箇所: <code>WriteResult.suggest</code>（<code>SheetCore/Codec/Codec.swift</code>）と <code>ConversionWarning.Subject</code>。実測した提案文は <code>"1 element(s) cannot be represented in ODS; writing XLSX would keep them."</code>。</li>
-  <li>検証コマンド: <code>swift test</code>（711 件合格）、<code>python3 Tests/OpenpyxlParity/check.py</code>（合格）。</li>
+  <li>コミット <code>374b43e</code> — 決裁事項の実施。<code>ConversionWarning.Subject</code> に <code>.tables</code> を追加、<code>WriteResult.suggest</code> を 3 分岐化（混在時は名指しした形式が残せる警告だけを数える）、3 形式のライターの主題を差し替え、付録 B.14 と改訂履歴 Rev 1.9 を追加。</li>
+  <li>検証コマンド: <code>swift test</code>（初回 711 件 → 決裁事項の実施後 717 件、いずれも全合格）、<code>python3 Tests/OpenpyxlParity/check.py</code>（合格）。</li>
 </ul>
 </details>
 
 <footer>
-SwiftSheets ／ 2026-08-23 作成 ／ 保存先: <code>docs/archive/2026-08-23-multi-table-warning.html</code><br>
-この文書はまだコミットしていません（作業ツリーに別作業が進行中のため）。必要であれば、この文書だけを指定してコミットします。
+SwiftSheets ／ 2026-08-23 作成・同日更新（決裁事項の実施を反映）／ 保存先: <code>docs/archive/2026-08-23-multi-table-warning.html</code><br>
+この文書はリポジトリに入っています（データ検証のコミットに同梱される形で追跡対象になりました）。
 </footer>
 
 </main>
