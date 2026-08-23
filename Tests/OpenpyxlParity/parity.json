@@ -1783,8 +1783,22 @@
   },
   "worksheet/tests/test_header.py": {
    "default": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter",
+   "tests": {
+    "TestHeaderFooterItem::test_write": {
+     "status": "adapted",
+     "reason": "文字列をそのまま書く（分解しない）"
+    },
+    "TestHeaderFooter::test_from_xml": {
+     "status": "adapted",
+     "reason": "differentOddEven / differentFirst / scaleWithDoc / alignWithMargins と 6 つの本文を読む"
+    },
+    "TestHeaderFooter::test_bool": {
+     "status": "adapted",
+     "reason": "HeaderFooter.isEmpty"
+    }
+   }
   },
   "worksheet/tests/test_hyperlink.py": {
    "tests": {
@@ -1902,8 +1916,22 @@
   },
   "worksheet/tests/test_pagebreak.py": {
    "default": "na_api",
-   "reason": "改ページは未実装",
-   "api": "Page breaks"
+   "reason": "openpyxl の Break / BreakList 型に相当するものは無い — 改ページは 0 始まりの索引の配列",
+   "api": "Sheet.rowBreaks / columnBreaks",
+   "tests": {
+    "TestRowBreak::test_to_tree": {
+     "status": "adapted",
+     "reason": "XML 比較ではなく、生成した <rowBreaks> の中身と往復で検証"
+    },
+    "TestColBreak::test_to_tree": {
+     "status": "adapted",
+     "reason": "同上（<colBreaks>）"
+    },
+    "TestRowBreak::test_no_brks": {
+     "status": "adapted",
+     "reason": "空なら要素ごと書かない"
+    }
+   }
   },
   "worksheet/tests/test_print_settings.py": {
    "tests": {

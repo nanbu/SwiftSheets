@@ -2,8 +2,8 @@
  "openpyxl": "3.1.5",
  "totals": {
   "ported": 224,
-  "adapted": 310,
-  "na_api": 967,
+  "adapted": 316,
+  "na_api": 961,
   "na_python": 210,
   "total": 1711,
   "cases": 2520
@@ -147,8 +147,8 @@
   },
   "worksheet": {
    "ported": 115,
-   "adapted": 156,
-   "na_api": 191,
+   "adapted": 162,
+   "na_api": 185,
    "na_python": 9,
    "total": 471,
    "cases": 543
@@ -1285,8 +1285,8 @@
   },
   "worksheet/tests/test_header.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 16,
+   "adapted": 3,
+   "na_api": 13,
    "na_python": 0,
    "total": 16,
    "cases": 18
@@ -1325,8 +1325,8 @@
   },
   "worksheet/tests/test_pagebreak.py": {
    "ported": 0,
-   "adapted": 0,
-   "na_api": 5,
+   "adapted": 3,
+   "na_api": 2,
    "na_python": 0,
    "total": 5,
    "cases": 5
@@ -17528,8 +17528,8 @@
    "key": "test_split_into_parts",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17539,8 +17539,8 @@
    "key": "test_cannot_split",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17550,8 +17550,8 @@
    "key": "test_multiline_string",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17561,8 +17561,8 @@
    "key": "test_parse_format",
    "params": 3,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17572,8 +17572,8 @@
    "key": "TestHeaderFooterPart::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17583,8 +17583,8 @@
    "key": "TestHeaderFooterPart::test_read",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17594,8 +17594,8 @@
    "key": "TestHeaderFooterPart::test_bool",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17605,8 +17605,8 @@
    "key": "TestHeaderFooterPart::test_str",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17616,8 +17616,8 @@
    "key": "TestHeaderFooterItem::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17627,8 +17627,8 @@
    "key": "TestHeaderFooterItem::test_read",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17637,9 +17637,12 @@
    "name": "test_write",
    "key": "TestHeaderFooterItem::test_write",
    "params": 1,
-   "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "status": "adapted",
+   "reason": "文字列をそのまま書く（分解しない）",
+   "api": "Sheet.headerFooter",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17649,8 +17652,8 @@
    "key": "TestHeaderFooterItem::test_bool",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17660,8 +17663,8 @@
    "key": "TestHeaderFooterItem::test_str",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17671,8 +17674,8 @@
    "key": "TestHeaderFooter::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "api": "Sheet.headerFooter"
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17681,9 +17684,12 @@
    "name": "test_from_xml",
    "key": "TestHeaderFooter::test_from_xml",
    "params": 1,
-   "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "status": "adapted",
+   "reason": "differentOddEven / differentFirst / scaleWithDoc / alignWithMargins と 6 つの本文を読む",
+   "api": "Sheet.headerFooter",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_header.py",
@@ -17692,9 +17698,12 @@
    "name": "test_bool",
    "key": "TestHeaderFooter::test_bool",
    "params": 1,
-   "status": "na_api",
-   "reason": "ヘッダー / フッターは未実装",
-   "api": "Header & footer"
+   "status": "adapted",
+   "reason": "HeaderFooter.isEmpty",
+   "api": "Sheet.headerFooter",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_hyperlink.py",
@@ -18073,8 +18082,8 @@
    "key": "TestBreak::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "改ページは未実装",
-   "api": "Page breaks"
+   "reason": "openpyxl の Break / BreakList 型に相当するものは無い — 改ページは 0 始まりの索引の配列",
+   "api": "Sheet.rowBreaks / columnBreaks"
   },
   {
    "file": "worksheet/tests/test_pagebreak.py",
@@ -18083,9 +18092,12 @@
    "name": "test_no_brks",
    "key": "TestRowBreak::test_no_brks",
    "params": 1,
-   "status": "na_api",
-   "reason": "改ページは未実装",
-   "api": "Page breaks"
+   "status": "adapted",
+   "reason": "空なら要素ごと書かない",
+   "api": "Sheet.rowBreaks / columnBreaks",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_pagebreak.py",
@@ -18095,8 +18107,8 @@
    "key": "TestRowBreak::test_append",
    "params": 1,
    "status": "na_api",
-   "reason": "改ページは未実装",
-   "api": "Page breaks"
+   "reason": "openpyxl の Break / BreakList 型に相当するものは無い — 改ページは 0 始まりの索引の配列",
+   "api": "Sheet.rowBreaks / columnBreaks"
   },
   {
    "file": "worksheet/tests/test_pagebreak.py",
@@ -18105,9 +18117,12 @@
    "name": "test_to_tree",
    "key": "TestRowBreak::test_to_tree",
    "params": 1,
-   "status": "na_api",
-   "reason": "改ページは未実装",
-   "api": "Page breaks"
+   "status": "adapted",
+   "reason": "XML 比較ではなく、生成した <rowBreaks> の中身と往復で検証",
+   "api": "Sheet.rowBreaks / columnBreaks",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_pagebreak.py",
@@ -18116,9 +18131,12 @@
    "name": "test_to_tree",
    "key": "TestColBreak::test_to_tree",
    "params": 1,
-   "status": "na_api",
-   "reason": "改ページは未実装",
-   "api": "Page breaks"
+   "status": "adapted",
+   "reason": "同上（<colBreaks>）",
+   "api": "Sheet.rowBreaks / columnBreaks",
+   "swift": [
+    "WorksheetPartsTests.swift"
+   ]
   },
   {
    "file": "worksheet/tests/test_print_settings.py",

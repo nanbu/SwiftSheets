@@ -130,6 +130,8 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `merge_cells`, `unmerge_cells`, `merged_cells.ranges` | `merge(_:)`, `unmerge(_:)`, `merges` |
 | `column_dimensions['A'].width = 18`, `row_dimensions[1].height = 24` | `setWidth(18, ofColumn: "A")`, `setHeight(24, ofRow: 0)` |
 | `freeze_panes`, `auto_filter.ref`, print titles / area, page setup | `freezePanes` (`CellRef?`), `autoFilter`, `printTitleRows`, `printArea`, `pageSetup`, … |
+| `ws.oddHeader.left.text`, `ws.row_breaks`, `ws.col_breaks` | `sheet.headerFooter` (Excel's `&L`/`&C`/`&R` string, undecomposed), `sheet.rowBreaks`, `sheet.columnBreaks` |
+| `ArrayFormula(ref, text)` | `sheet.table.arrayFormulas[anchor] = CellRange("A2:A4")` |
 | `cell.value = '=SUM(A1:B2)'` | `sheet["C1"] = Formula("=SUM(A1:B2)")`; `value.formula?.rendered(as: .ods)` |
 | `wb.defined_names`, `wb.properties` | `wb.definedNames`, `wb.metadata` |
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
@@ -164,8 +166,8 @@ present, and the worksheet children are in schema order. What makes it work:
 Reading reports its losses the same way writing does: `Workbook.read(contentsOf:)` answers with a `ReadResult`, and
 `Workbook(contentsOf:)` leaves the same list on `wb.readWarnings`.
 
-Known limits of the current preservation: `cm` / `vm` rich-value attributes and `pageSetup r:id` are not carried over
-(the referenced parts are); array-formula ranges are read as plain formulas.
+Known limits of the current preservation: `cm` / `vm` rich-value attributes and some `<sheetView>` attributes are not
+carried over.
 
 ## Design notes
 

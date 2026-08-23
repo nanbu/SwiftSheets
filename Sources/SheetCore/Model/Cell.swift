@@ -227,6 +227,31 @@ public struct PageSetup: Hashable, Sendable {
     public init() {}
 }
 
+/// Printed page headers and footers (`<headerFooter>`, openpyxl `HeaderFooter`).
+///
+/// The strings are Excel's own: `&L` / `&C` / `&R` start the left, centre and right sections, `&P` is the page
+/// number, `&F` the file name, `&"Arial,Bold"&12` a font change. SwiftSheets carries the code verbatim rather than
+/// taking it apart — every reader agrees on what it means, and a round trip cannot lose a code it did not model.
+public struct HeaderFooter: Hashable, Sendable {
+    public var oddHeader: String?
+    public var oddFooter: String?
+    /// Used on even pages when `differentOddEven` is set.
+    public var evenHeader: String?
+    public var evenFooter: String?
+    /// Used on the first page when `differentFirst` is set.
+    public var firstHeader: String?
+    public var firstFooter: String?
+    public var differentOddEven = false
+    public var differentFirst = false
+    /// Scale the header with the sheet's print scaling (Excel's default is true).
+    public var scaleWithDoc = true
+    /// Align the header with the page margins rather than the printable area (Excel's default is true).
+    public var alignWithMargins = true
+
+    public init() {}
+    public var isEmpty: Bool { self == HeaderFooter() }
+}
+
 /// `<printOptions>` (openpyxl PrintOptions).
 public struct PrintOptions: Hashable, Sendable {
     public var horizontalCentered = false

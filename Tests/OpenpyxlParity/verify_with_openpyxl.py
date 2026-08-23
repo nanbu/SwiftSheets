@@ -64,6 +64,10 @@ if swift_test("writesVerificationWorkbook"):
     expect(ws["A6"].hyperlink.target == "https://example.com/", "hyperlink")
     expect(ws.sheet_properties.outlinePr.summaryBelow is False and ws.auto_filter.ref == "A1:H1", "sheet properties / auto filter")
     expect(ws.print_title_rows == "$1:$1" and ws.print_area == "'Plan'!$A$1:$H$6", "print titles / area")
+    expect(ws.oddHeader.left.text == "四半期報告" and ws.oddHeader.center.text == "&P" and ws.oddFooter.right.text == "&F", "header / footer")
+    expect([b.id for b in ws.row_breaks.brk] == [4] and [b.id for b in ws.col_breaks.brk] == [2], "page breaks")
+    expect(str(ws["B7"].value) == "=SUM(B1:B2)" or getattr(ws["B7"].value, "text", None) == "=SUM(B1:B2)", "array formula value")
+    expect(getattr(ws["B7"].value, "ref", None) == "B7:B8", "array formula range")
     expect(ws["A7"].comment is not None and ws["A7"].comment.text == "確認してください\n2 行目" and ws["A7"].comment.author == "南部", "cell note")
     expect([s.name for s in wb._named_styles] == ["Normal", "Accent X"], "named styles declared")
     expect(ws["B6"].style == "Accent X" and ws["B6"].value == 1000, "named style applied to B6")
@@ -108,6 +112,12 @@ wb.add_named_style(accent)
 ws["B6"] = 1000; ws["B6"].style = "Accent X"
 from openpyxl.comments import Comment
 ws["A7"].comment = Comment("確認してください\n2 行目", "南部")
+ws.oddHeader.left.text = "四半期報告"; ws.oddHeader.center.text = "&P"; ws.oddFooter.right.text = "&F"
+from openpyxl.worksheet.pagebreak import Break, ColBreak
+rb = Break(); rb.id = 4; ws.row_breaks.append(rb)
+cb = ColBreak(); ws.col_breaks.append(cb); ws.col_breaks.brk[0].id = 2   # append renumbers, so set it after
+from openpyxl.worksheet.formula import ArrayFormula
+ws["B7"] = ArrayFormula("B7:B8", "=SUM(B1:B2)")
 wb.save(workdir / "openpyxl.xlsx")
 swift_test("readsVerificationWorkbook")
 

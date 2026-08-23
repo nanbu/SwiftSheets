@@ -45,6 +45,12 @@ import Testing
         wb.definedNames["PlanRange"] = "Plan!$A$1:$H$6"
         wb.addNamedStyle(NamedStyle(name: "Accent X", style: accentStyle))
         wb.sheets["Plan"]![cell: "A7"].comment = CellNote("確認してください\n2 行目", author: "南部")
+        wb.sheets["Plan"]!.headerFooter.oddHeader = "&L四半期報告&C&P"
+        wb.sheets["Plan"]!.headerFooter.oddFooter = "&R&F"
+        wb.sheets["Plan"]!.rowBreaks = [4]
+        wb.sheets["Plan"]!.columnBreaks = [2]
+        wb.sheets["Plan"]!["B7"] = .formula(FormulaExpr.parse("=SUM(B1:B2)"), cached: .integer(42))
+        wb.sheets["Plan"]!.table.arrayFormulas[CellRef("B7")!] = CellRange("B7:B8")
         wb.sheets["Plan"]![cell: "B6"].style = NamedStyle(name: "Accent X", style: accentStyle).applied
         wb.sheets["Plan"]!["B6"] = 1000
         return wb
@@ -85,6 +91,9 @@ import Testing
         #expect(ws.properties.summaryBelow == false && ws.autoFilter?.a1 == "A1:H1")
         #expect(ws.printTitleRows == 0...0 && ws.printArea.map(\.a1) == ["A1:H6"])
         #expect(ws[cell: "A7"].comment == CellNote("確認してください\n2 行目", author: "南部"))
+        #expect(ws.headerFooter.oddHeader == "&L四半期報告&C&P" && ws.headerFooter.oddFooter == "&R&F")
+        #expect(ws.rowBreaks == [4] && ws.columnBreaks == [2])
+        #expect(ws.table.arrayFormulas[CellRef("B7")!] == CellRange("B7:B8"))
         #expect(wb.namedStyles.map(\.name) == ["Normal", "Accent X"])
         #expect(wb.namedStyle("Accent X")?.style.numberFormat == "#,##0")
         #expect(wb.namedStyle("Accent X")?.style.font.bold == true)

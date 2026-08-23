@@ -20,6 +20,10 @@ public struct Sheet: Equatable, Sendable {
     public var pageMargins = PageMargins()
     public var pageSetup = PageSetup()
     public var printOptions = PrintOptions()
+    public var headerFooter = HeaderFooter()
+    /// Manual page breaks: the 0-based row / column index the break sits *above* / *left of*.
+    public var rowBreaks: [Int] = []
+    public var columnBreaks: [Int] = []
     /// Rows repeated at the top of every printed page (`_xlnm.Print_Titles`), 0-based.
     public var printTitleRows: ClosedRange<Int>?
     /// Columns repeated at the left of every printed page, 0-based.

@@ -205,6 +205,21 @@ enum ODSWriter {
         content += "<office:automatic-styles>" + styles.xml() + "</office:automatic-styles>"
         content += "<office:body><office:spreadsheet>" + body + "</office:spreadsheet></office:body></office:document-content>"
 
+        // sheet features the ODS writer does not express (all of them read and written for XLSX; none of them
+        // silently dropped)
+        for sheet in wb.sheets {
+            if !sheet.headerFooter.isEmpty {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "printed header / footer dropped: it lives in a master page, which this writer does not generate")
+            }
+            if !sheet.rowBreaks.isEmpty || !sheet.columnBreaks.isEmpty {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "manual page breaks dropped")
+            }
+            let arrays = sheet.tables.reduce(0) { $0 + $1.arrayFormulas.count }
+            if arrays > 0 {
+                sink.add(.degraded, subject: .formulas, sheet: sheet.name, "\(arrays) array formula(s) written as ordinary formulas: their range is not carried into ODS")
+            }
+        }
+
         // warnings about what the styles could not say
         if styles.nonRGBColour { sink.add(.degraded, subject: .formatting, "theme/indexed colours written as default") }
         for code in styles.unexpressibleCodes { sink.add(.substituted, subject: .formatting, "number format \(code) has no ODF data style; General used") }

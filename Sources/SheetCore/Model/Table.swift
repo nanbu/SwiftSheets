@@ -73,6 +73,10 @@ public struct Table: Equatable, Sendable {
     public var rowDimensions: [Int: RowDimension] = [:]
     public var columnDimensions: [Int: ColumnDimension] = [:]
     public var merges: [CellRange] = []
+    /// Array formulas by their anchor cell: one formula that fills a whole range (`{=TRANSPOSE(A1:C1)}` — entered
+    /// in Excel with ctrl-shift-enter). The anchor holds the formula; the other cells of the range hold its
+    /// results. Without the range Excel treats the formula as an ordinary one, which changes what it computes.
+    public var arrayFormulas: [CellRef: CellRange] = [:]
     /// The row `append` writes next (0-based). The reader sets it past the last row of the file.
     public var nextAppendRow = 0
 

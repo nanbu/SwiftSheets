@@ -1883,7 +1883,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <li>未解釈パーツはバイト列のまま <code>opaqueParts</code>。<code>&lt;workbook&gt;</code> / <code>&lt;worksheet&gt;</code> / <code>&lt;styleSheet&gt;</code> の未知の子要素は XML 断片として保持し、スキーマ順の位置へ再出力する（属性順は辞書順に正規化される — 意味は同じ）。</li>
     <li>styles.xml はソースの fonts / fills / borders / numFmts を同じ順で種にして再生成し、<code>dxfs</code> / <code>tableStyles</code> / <code>extLst</code> は verbatim。条件付き書式・テーブルの <code>dxfId</code> が切れない。<code>cellStyleXfs</code> / <code>cellStyles</code> も Rev 1.7 までは verbatim だったが、名前付きスタイルを持てるようになったため「元の項目は順番も生の XML も保ったまま、新しい名前だけ末尾に足す」方式へ変えた（B.12）。</li>
     <li>rId は不変・新規は最大値＋1（本文どおり）。sheetId・パート パスも同じ規則。<code>calcChain.xml</code> は常に削除し <code>fullCalcOnLoad="1"</code>。</li>
-    <li>既知の限界（F2 水準の劣化、Excel は修復を要求しない）: <code>&lt;c cm= vm=&gt;</code>（リッチ値メタデータ）、<code>&lt;pageSetup r:id&gt;</code>（printerSettings 本体は残る）、配列数式の範囲（通常の数式として読む）、<code>&lt;sheetView&gt;</code> の一部属性。</li>
+    <li>既知の限界（F2 水準の劣化、Excel は修復を要求しない）: <code>&lt;c cm= vm=&gt;</code>（リッチ値メタデータ）、<code>&lt;sheetView&gt;</code> の一部属性。<strong>Rev 1.7 で解消</strong>: <code>&lt;pageSetup r:id&gt;</code> と配列数式の範囲（B.12）。</li>
     <li>XLSM: コンテンツタイプ差分と VBA パーツの扱いは §7.4 どおり。<code>XLSMCodec</code> は <code>XLSXCodec</code> と実装を共有する。</li>
   </ul>
 
@@ -1968,6 +1968,24 @@ wb.sheets[<span class="nm">0</span>] = sheet
       ODS 書き出しはキャッシュ値＋<code>degraded</code> 警告に退避する — 意味の違うものを黙って書かない。
       直す前の <code>FormulaEmitter</code> は <code>.intersect</code> を両方言で空白として書いていたので、
       交差を含む木は<strong>不正な OpenFormula になっていた</strong>（到達経路が無かったため表面化していない）。</li>
+    <li><strong>ワークシートの残り 4 つ</strong>（保全の既知の限界 2 件と台帳の na_api 2 件）:
+      <ul>
+        <li><strong>配列数式の範囲</strong> — <code>Table.arrayFormulas: [CellRef: CellRange]</code>。
+          <code>&lt;f t="array" ref&gt;</code> を読み、書き戻す。範囲が無いと Excel は普通の数式として扱い、
+          計算結果が変わる。</li>
+        <li><strong><code>&lt;pageSetup r:id&gt;</code></strong> — printerSettings のパート自体は不透明保全されていたのに、
+          それを指す属性だけが落ちていた（宙に浮いたパート）。
+          <code>SheetPreservation.pageSetupRelationshipId</code> に控え、リレーションが残っているときだけ書き戻す。</li>
+        <li><strong>ヘッダー / フッター</strong> — <code>Sheet.headerFooter</code>。
+          <code>&amp;L</code> / <code>&amp;C</code> / <code>&amp;R</code> の符号つき文字列を<strong>分解せずそのまま</strong>運ぶ
+          （openpyxl は左中右に割る）。モデルが知らない符号を往復で失わないため。</li>
+        <li><strong>改ページ</strong> — <code>Sheet.rowBreaks</code> / <code>columnBreaks</code>、0 始まりの索引。
+          <code>&lt;brk id&gt;</code> は仕様上 0 始まりなのでそのまま。</li>
+      </ul>
+      4 つとも今までは「未解釈の子要素」として断片保全されていた（同形式の書き戻しでは失われない）ので、
+      今回の変更は API と<strong>変換</strong>のためのもの。読みで解釈するようになった分、断片としては捕まえなくなる
+      （二重出力にならない）。ODS はこの 4 つを表現しないので、書き出しでシートごとに
+      <code>dropped</code> / <code>degraded</code> 警告を出す — 黙って落とさない。</li>
   </ul>
 
   <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>

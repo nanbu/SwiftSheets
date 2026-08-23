@@ -60,4 +60,30 @@ with zipfile.ZipFile(OUT / "with-vba.xlsm", "w", zipfile.ZIP_DEFLATED) as dst:
             data = data.replace(b"</Relationships>", b'<Relationship Id="rId99" Type="http://schemas.microsoft.com/office/2006/relationships/vbaProject" Target="vbaProject.bin"/></Relationships>')
         dst.writestr(item, data)
     dst.writestr("xl/vbaProject.bin", bytes(range(256)) * 4)   # not a real project; the bytes only have to survive untouched
+# a workbook whose <pageSetup> names a printerSettings part. openpyxl never writes one (Excel does, every time it
+# prints), so the part, its relationship and the r:id are wired in by hand.
+wb = Workbook()
+ws = wb.active
+ws.title = "Print"
+ws["A1"] = "printed"
+ws.page_setup.orientation = "landscape"
+ws.page_setup.paperSize = 9
+wb.save(OUT / "printer-settings.xlsx")
+
+src = zipfile.ZipFile(OUT / "printer-settings.xlsx")
+items = [(i.filename, src.read(i.filename)) for i in src.infolist()]
+src.close()
+with zipfile.ZipFile(OUT / "printer-settings.xlsx", "w", zipfile.ZIP_DEFLATED) as dst:
+    for name, data in items:
+        if name == "[Content_Types].xml":
+            data = data.replace(b"</Types>", b'<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.printerSettings"/></Types>')
+        if name == "xl/worksheets/sheet1.xml":
+            data = data.replace(b"<pageSetup ", b'<pageSetup r:id="rId9" ')
+        dst.writestr(name, data)
+    dst.writestr("xl/worksheets/_rels/sheet1.xml.rels",
+                 b'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                 b'<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/printerSettings"'
+                 b' Target="../printerSettings/printerSettings1.bin"/></Relationships>')
+    dst.writestr("xl/printerSettings/printerSettings1.bin", bytes(range(128)) * 2)
+
 print("wrote", sorted(p.name for p in OUT.iterdir()))

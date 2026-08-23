@@ -318,7 +318,7 @@ final class StylesParser: SAXHandler {
 final class SheetParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
-    static let knownChildren: Set<String> = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "autoFilter", "mergeCells", "hyperlinks", "printOptions", "pageMargins", "pageSetup"]
+    static let knownChildren: Set<String> = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "autoFilter", "mergeCells", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks"]
     var sheet: Sheet
     private let sst: [CellValue]
     private let styles: StylesParser
@@ -338,6 +338,9 @@ final class SheetParser: SAXHandler {
     private var formulaRef: String?
     private var sharedFormulaIndex: String?
     private var sharedFormulas: [String: (FormulaExpr, CellRef)] = [:]
+    private var headerFooterPart: String?
+    private var headerFooterText = ""
+    private var breakAxis: String?
 
     init(name: String, sst: [CellValue], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
         self.sheet = Sheet(name: name); self.sst = sst; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
@@ -430,12 +433,25 @@ final class SheetParser: SAXHandler {
             p.fitToWidth = Int(a["fitToWidth"] ?? ""); p.fitToHeight = Int(a["fitToHeight"] ?? ""); p.scale = Int(a["scale"] ?? "")
             p.firstPageNumber = Int(a["firstPageNumber"] ?? ""); p.useFirstPageNumber = a["useFirstPageNumber"].map { $0 == "1" }
             sheet.pageSetup = p
+            sheet.preserved.pageSetupRelationshipId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value
+        case "headerFooter":
+            sheet.headerFooter.differentOddEven = XMLBool.isTrue(a["differentOddEven"])
+            sheet.headerFooter.differentFirst = XMLBool.isTrue(a["differentFirst"])
+            sheet.headerFooter.scaleWithDoc = XMLBool.isNotFalse(a["scaleWithDoc"])
+            sheet.headerFooter.alignWithMargins = XMLBool.isNotFalse(a["alignWithMargins"])
+        case "oddHeader", "oddFooter", "evenHeader", "evenFooter", "firstHeader", "firstFooter":
+            headerFooterPart = name; headerFooterText = ""
+        case "brk":
+            guard let id = Int(a["id"] ?? ""), id > 0 else { return }
+            if breakAxis == "rowBreaks" { sheet.rowBreaks.append(id) } else if breakAxis == "colBreaks" { sheet.columnBreaks.append(id) }
+        case "rowBreaks", "colBreaks": breakAxis = name
         default: break
         }
     }
 
     func text(_ s: String) {
         if inV { vText += s } else if inF { fText += s } else if inT, skipDepth == 0 { if inR { runText += s } else { isText += s } }
+        else if headerFooterPart != nil { headerFooterText += s }
     }
 
     func end(_ name: String) {
@@ -454,6 +470,17 @@ final class SheetParser: SAXHandler {
             cell.value = value(at: ref)
             sheet.table.store(cell, at: ref)
             cellRef = nil
+        case "oddHeader", "oddFooter", "evenHeader", "evenFooter", "firstHeader", "firstFooter":
+            switch name {
+            case "oddHeader": sheet.headerFooter.oddHeader = headerFooterText
+            case "oddFooter": sheet.headerFooter.oddFooter = headerFooterText
+            case "evenHeader": sheet.headerFooter.evenHeader = headerFooterText
+            case "evenFooter": sheet.headerFooter.evenFooter = headerFooterText
+            case "firstHeader": sheet.headerFooter.firstHeader = headerFooterText
+            default: sheet.headerFooter.firstFooter = headerFooterText
+            }
+            headerFooterPart = nil; headerFooterText = ""
+        case "rowBreaks", "colBreaks": breakAxis = nil
         case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount }   // cells, not trailing empty rows, decide where `append` continues
         case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
         default: break
@@ -482,7 +509,7 @@ final class SheetParser: SAXHandler {
         if !fText.isEmpty {
             let expr = FormulaExpr.parse(fText, dialect: .xlsx)
             if formulaType == "shared", let si = sharedFormulaIndex { sharedFormulas[si] = (expr, ref) }
-            if formulaType == "array" { return .formula(expr, cached: cached) }   // array formulas: the range is lost (roadmap)
+            if formulaType == "array", let r = formulaRef, let range = CellRange(r) { sheet.table.arrayFormulas[ref] = range }
             return .formula(expr, cached: cached)
         }
         if formulaType == "shared", let si = sharedFormulaIndex, let (master, origin) = sharedFormulas[si] {

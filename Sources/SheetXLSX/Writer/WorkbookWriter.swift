@@ -375,7 +375,10 @@ enum WorkbookWriter {
                     }
                     var t = "", cv = ""
                     if let cached { (t, cv) = valueXML(cached, epoch: epoch, strings: strings, inline: true) }
-                    s += "<c r=\"\(a1)\"\(st)\(t)><f>\(XML.esc(f.rendered(as: .xlsx)))</f>\(cv)</c>"
+                    // an array formula fills a range from one cell; without t="array" and the range Excel reads it
+                    // as an ordinary formula, which computes something else
+                    let array = table.arrayFormulas[ref].map { " t=\"array\" ref=\"\($0.a1)\"" } ?? ""
+                    s += "<c r=\"\(a1)\"\(st)\(t)><f\(array)>\(XML.esc(f.rendered(as: .xlsx)))</f>\(cv)</c>"
                 case let v?:
                     let (t, body) = valueXML(v, epoch: epoch, strings: strings, inline: false)
                     s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"
@@ -433,8 +436,29 @@ enum WorkbookWriter {
         let m = ws.pageMargins
         generated.append(("pageMargins", "<pageMargins left=\"\(XML.num(m.left))\" right=\"\(XML.num(m.right))\" top=\"\(XML.num(m.top))\" bottom=\"\(XML.num(m.bottom))\" header=\"\(XML.num(m.header))\" footer=\"\(XML.num(m.footer))\"/>"))
         let p = ws.pageSetup
-        if p != PageSetup() {
-            generated.append(("pageSetup", "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))\(XML.attr("firstPageNumber", p.firstPageNumber))\(p.useFirstPageNumber.map { " useFirstPageNumber=\"\($0 ? 1 : 0)\"" } ?? "")/>"))
+        // the printer-settings part travels as an opaque part; `r:id` is the only thing that ties it to the sheet
+        let printerSettings = preserve ? ws.preserved.pageSetupRelationshipId.flatMap { id in
+            preservedRels.contains { $0.id == id } ? id : nil
+        } : nil
+        if p != PageSetup() || printerSettings != nil {
+            generated.append(("pageSetup", "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))\(XML.attr("firstPageNumber", p.firstPageNumber))\(p.useFirstPageNumber.map { " useFirstPageNumber=\"\($0 ? 1 : 0)\"" } ?? "")\(printerSettings.map { " r:id=\"\($0)\"" } ?? "")/>"))
+        }
+        let hf = ws.headerFooter
+        if !hf.isEmpty {
+            s = "<headerFooter\(XML.attr("differentOddEven", hf.differentOddEven))\(XML.attr("differentFirst", hf.differentFirst))"
+            if !hf.scaleWithDoc { s += " scaleWithDoc=\"0\"" }
+            if !hf.alignWithMargins { s += " alignWithMargins=\"0\"" }
+            s += ">"
+            for (tag, text) in [("oddHeader", hf.oddHeader), ("oddFooter", hf.oddFooter), ("evenHeader", hf.evenHeader),
+                                ("evenFooter", hf.evenFooter), ("firstHeader", hf.firstHeader), ("firstFooter", hf.firstFooter)] {
+                if let text { s += "<\(tag)>\(XML.esc(text))</\(tag)>" }
+            }
+            generated.append(("headerFooter", s + "</headerFooter>"))
+        }
+        for (element, breaks) in [("rowBreaks", ws.rowBreaks), ("colBreaks", ws.columnBreaks)] where !breaks.isEmpty {
+            let max = element == "rowBreaks" ? CellRef.maxCol : CellRef.maxRow
+            generated.append((element, "<\(element) count=\"\(breaks.count)\" manualBreakCount=\"\(breaks.count)\">"
+                + breaks.sorted().map { "<brk id=\"\($0)\" max=\"\(max)\" man=\"1\"/>" }.joined() + "</\(element)>"))
         }
         var xml = "<worksheet" + XMLWriter.rootAttributes(preserve ? ws.preserved.rootAttributes : [:], defaults: ["xmlns": XMLWriter.nsMain, "xmlns:r": XMLWriter.nsRel]) + ">"
         xml += XMLWriter.ordered(generated, fragments: noteFragments, order: worksheetOrder)
