@@ -1907,6 +1907,150 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <ul>
     <li>条件付き書式 / データ検証の API・ストリーミング読み書き。<strong>Rev 1.7 で解消</strong>: 暗号化の明示エラー・名前付きスタイル・コメントの読み書き（VML）（B.12）。</li>
     <li>Numbers の数式を内部表現（TSCE 数式アーカイブ）で生成すること — B.8 参照。</li>
+  </ul>
+
+  <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>
+  <div class="callout callout-warn">
+    <span class="label">本文 §10〜§11 からの逸脱（理由つき）</span>
+    <ul>
+      <li><strong>Protobuf は SwiftProtobuf ＋ protoc ではなく、依存ゼロの動的ツリー</strong>（ワイヤ形式のデコード／エンコードを自前実装し、フィールド番号で辿る）。理由: (1) 外部依存ゼロを全ターゲットで保つ、(2) 未知フィールドの保全（§10.2）が構造的に成立する — 読んだバイト列をフィールド順のまま持ち、触ったフィールドだけ書き換える、(3) protoc / protoc-gen-swift のビルド環境を要求しない、(4) 1,129 メッセージ分の生成コードを抱えない。型安全性は失うため、使うメッセージとフィールド番号は <strong>numbers-parser の記述子から機械抽出した JSON リソース</strong>（<code>Sources/SheetNumbers/Resources/</code>）から引き、手で書き写さない。</li>
+      <li><strong>Numbers の数式は書き出さない</strong>（§11.1・§11.2「◎ 内部表現で生成」は未達）。数式セルはキャッシュ値を書き、<code>degraded</code> 警告を返す — §11.2 の「マッピング不能な関数」の退避規則を全関数に適用した形。理由: 参照実装 numbers-parser 自身が数式アーカイブを書けず（読みのみ）、この Mac には Numbers が無いため新規生成した内部表現を検証できない。</li>
+      <li><strong>検証の審判</strong>: Numbers 実機での開封確認は不可（環境に無い）。自動審判は numbers-parser による読み戻し（§11.3 の「クロス実装検証」）と自前の往復。ODS は LibreOffice ヘッドレス（§8.4）。Excel 生成の ODS コーパス（§8.4）は Excel が無いため未収集。</li>
+    </ul>
+  </div>
+  <ul>
+    <li><strong>ODS（P3・実装済み）</strong>: §8 のとおり自前実装（LibreOffice のソースは閲覧していない — 審判として実行し出力ファイルを観察しただけ）。mimetype は stored で先頭、RLE は読みで展開し末尾の空反復は打ち切り、書きは対称に畳む。結合は <code>number-columns-spanned</code> / <code>rows-spanned</code> と <code>covered-table-cell</code>、日付 / 時刻は ISO テキスト（<code>PT26H</code> 以上は継続時間）、数式は AST の ODS 方言（<code>of:=</code>）。列幅は <strong>2.0 mm / 文字</strong>（読み書き同一の定数。LibreOffice 既定の 8.43 文字 = 2.267 cm には合わせない）、行高は pt（<code>use-optimal-row-height="false"</code>、読みでは optimal=true の高さは無視）。罫線は thin / medium / thick = 0.75 / 1.75 / 2.5 pt。列の <code>default-cell-style-name</code> は <code>ColumnDimension.style</code> へ写し、自前スタイルを持たないセルに適用する（LibreOffice は列書式をここに畳む）。表示書式は XLSX コードと <code>number:*-style</code> をトークン単位で双方向変換し、複数セクション（先頭のみ・<code>substituted</code>）、<code>style:map</code> 付き・元号・四半期・分数は General ＋ <code>degraded</code>（データスタイルごとに 1 回）。凍結は settings.xml の <code>Tables</code> マップ、非表示シートは <code>table:display</code>、定義名は <code>named-expressions</code>、注釈は <code>office:annotation</code>、リンクは <code>text:a</code>。ODS → ODS の書き戻しは content.xml を再生成するため図形・グラフは再リンクされない（<code>dropped</code> 警告、Pictures 等は opaque 保持して manifest に再登録）。行グループは読みのみ。数式を持たない <code>.error</code> は文字列になる。検証: LibreOffice ヘッドレスで生成 ODS を xlsx 化して値・結合・凍結・書式・注釈が一致、LibreOffice 産 ODS（同梱コーパス 2 件）を読んで元の xlsx と一致。Excel 産 ODS コーパスは未収集。</li>
+    <li><strong>Numbers 読み（P4・実装済み）</strong>: IWA（4 バイトヘッダ＋ Snappy 生ブロック、自前伸長）→ varint 長 → ArchiveInfo → 動的 Protobuf ツリー → オブジェクト ID で解決。Document → Sheet → TableInfo → TableModel → DataStore（タイル・文字列表・数式表・リッチテキスト表）をモデルへ写像: 値（空・数値 decimal128 / double・文字列・リッチテキストは平文・日付 2001-01-01 起点・真偽・継続時間・エラー）、数式は TSCE の後置ノード列を関数表（numbers-parser の functionmap）で XLSX 方言の文字列に戻して <code>FormulaExpr.parse</code>（他テーブル参照は <code>'シート::テーブル'!A1</code>、失敗時 <code>.unparsed</code>）、結合（formula store の COLON_TRACT → region map の順）、列幅（pt ÷ 5.7 = 文字数）/ 行高、非表示行列、テーブル位置を <code>Table.anchor</code>（20pt × 98pt 格子に丸め）、ヘッダ行列を <code>freezePanes</code>。書式（太字・塗り・表示形式）は読まない（F1 水準。F2 はロードマップ）。バージョン方針は §10.3（tolerant 既定。<code>BuildVersionHistory.plist</code> の最終エントリを <code>sourceInfo.version</code> に載せ、検証済みは Numbers 11〜15 世代）。検証: numbers-parser のテストスイートから 11 文書を同梱し、numbers-parser が読んだ値・数式ツリー・結合・テーブル名・行数と一致（<code>NumbersReaderTests</code>）。</li>
+    <li><strong>Numbers 書き（P5・実装済み、数式を除く）</strong>: §11.1 のテンプレート・パッチ方式。テンプレートは numbers-parser 同梱の <code>empty.numbers</code>（MIT。NOTICE 参照）。最初のシート / テーブルはその場でパッチ、2 枚目以降のシートとテーブルは「テーブル固有の型だけ」（TableInfo / TableModel / DataList / Tile / HeaderStorageBucket / 各 FormulaOwner 等、スタイルは共有）をサブグラフ複製して参照を張り替え、UUID を一貫して振り直し、計算エンジンの owner 表と PackageMetadata のコンポーネント登録を追加する。セルはタイル形式（cell storage v5・wide offsets）へパック、文字列は TableDataList へ登録、結合は MergeRegionMapArchive、行高 / 列幅はヘッダバケット、<code>freezePanes</code> はヘッダ行列。非対応: 数式（キャッシュ値＋ <code>degraded</code>）・書式（テーブルごとに 1 件の <code>degraded</code>）・非表示シート（Numbers に概念が無い）。読み込み済みファイルへの書き戻しもこの生成経路を通す（読んだ文書を土台にした F3 パッチはロードマップ）。検証: 自前の往復、numbers-parser による読み戻し（<code>Tests/NumbersParity/verify_with_numbers_parser.py</code>）、LibreOffice の Numbers インポータ（libetonyek）での値一致。<strong>Numbers 実機での開封は未確認</strong>。</li>
+    <li><strong>運用</strong>: <code>NOTICE</code>（numbers-parser 由来: レジストリ・関数表・記述子由来スキーマ・テンプレート・テストフィクスチャ）と <code>MAINTENANCE.md</code>（§10.3 のバージョン追従手順）をリポジトリ直下に置く。</li>
+  </ul>
+
+  <h3>B.9 堅牢性の上限（Rev 1.5・§12 柱5）</h3>
+  <p>
+    §12 の柱5「malformed コーパス＋ランダム破壊入力でクラッシュ・無限ループ・メモリ爆発がないこと」は 0.2.1 時点で
+    未達だった。監査で 5 系統の再現（プロセス落ち 4・メモリ無限膨張 1）が取れたため、以下の上限を実装側の決定として固定する。
+    <strong>いずれも「読めない」ではなく「そこで止める」</strong>方針で、止めたことは値の欠落なら <code>degraded</code> 警告、
+    構造の破損なら <code>SheetError</code> で必ず伝える。
+  </p>
+  <div class="callout callout-warn">
+    <span class="label">忠実度と引き換えにした上限（オーナー承認 2026-08-22）</span>
+    <ul>
+      <li><strong>数式のネストは 64 段まで</strong>（<code>FormulaParser.maxDepth</code>）＝ Excel 自身の上限。超える数式は <code>.unparsed</code>
+        として原文のまま保持するので同形式の往復はバイト一致だが、<strong>行列挿入時の参照追随と方言変換はそのセルで行われない</strong>。
+        再帰下降 1 段の実測コストは最適化なしで約 7 KB・最適化ありでその数分の一で、64 段は Dispatch が渡す 512 KB スタックと
+        全リリースビルドに収まる。<strong>debug ビルドを 256 KB 以下のスタックで走らせる場合だけは収まらない</strong>。</li>
+      <li><strong>A1 座標は走査しながら上限を検査する</strong>（<code>CellRef</code>）。列は 3 文字まで、行は 1,048,576 まで。
+        従来は上限検査がループの後にあり、20 桁の行番号でアキュムレータが桁あふれしてトラップしていた。
+        <code>&lt;row r="0"&gt;</code> と 1,048,576 超は <code>malformedPart</code> で失敗する（従来は黙って通っていた）。</li>
+      <li><strong>結合セルが実体化してよいのは 65,536 セルまで</strong>（<code>Table.maxMaterialisedMergeCells</code>）。
+        これを超える結合では、アンカーの罫線と protection の伝播が「既に存在するセル」にしか届かない（openpyxl は
+        プレースホルダを作る）。65,536 以下は openpyxl と同一挙動。あわせて、既定 protection を持つだけの空セルは作らない
+        — <code>&lt;mergeCell ref="A1:CZ2000"/&gt;</code> 一つの 2 KB のファイルが 208,000 セル・554 MB になっていた。
+        <strong>アンカーセルだけは常に作る</strong>（ODS ライタが span 属性をそこに載せるため）。ODS ライタ側も同じ上限で、
+        これを超える結合の covered セルは集合に展開せず幾何で判定する（従来は全面結合の書き出しで OOM kill されていた）。</li>
+      <li><strong>ODS の RLE 展開は 1 文書あたり 1,000,000 セルまで</strong>（<code>ODSReader.maxCells</code>）。§8.3 の打ち切りは
+        「中身のない反復」だけを見ており、値を持つセルの <code>number-columns-repeated</code> × <code>number-rows-repeated</code> は
+        16,384 × 1,048,576 まで素直に展開していた（1 KB のファイルで 10 分・425 MB 以上・停止せず）。超過分は読まず、
+        シートごとに 1 件の <code>degraded</code> 警告を返す。1,000,000 は Excel のシート 1 枚（16,384 × 1,048,576）の
+        0.006% で、そこまで展開して初めて「これは内容ではなく指定だ」と判断できる規模。<strong>本来は <code>ReadOptions</code> の
+        設定値</strong>で、利用者が選ぶ理由ができた時点で移す。</li>
+      <li><strong>ZIP は中央ディレクトリの自己申告長を全て検証する</strong>。名前長・extra・comment がバッファ外へ出る、
+        ローカルヘッダのオフセットがファイル外を指す、は <code>corruptedContainer</code>。Numbers 側も同様に
+        length-delimited フィールド長と varint の桁数を検証する。</li>
+      <li><strong><code>write(to:)</code> はアトミック</strong>（<code>Data.WritingOptions.atomic</code>）。開いたファイルへの上書き保存が
+        本ライブラリの存在理由である以上、書き込み途中の中断が元のファイルを壊してはならない。inode は差し替わる。</li>
+    </ul>
+  </div>
+  <h3>B.10 大量データのための実装（Rev 1.5）</h3>
+  <p>
+    §14.11 のとおり v1 は全載せモデルであり、ストリーミングは持たない。そのぶん「1 枚のシートがメモリに載る」ことは
+    実装の責任になる。監査時点では 20 万セルで RSS 458 MB、100 万セルで 1.5 GB 超と、iOS を対応プラットフォームに
+    掲げる以上は成立していなかった。原因と対処を記録する。
+  </p>
+  <ul>
+    <li><strong><code>Cell</code> は書式を値で内包しない</strong>（496 B → 24 B）。<code>CellStyle</code> は <code>SharedStyle</code>
+      （不変・Sendable な参照型）に載せ、既定書式のセルは何も持たない。稀なハイパーリンクと注釈は <code>CellExtras</code> に畳む。
+      <strong>同じ書式は共有する</strong> — XLSX は <code>xf</code> 索引ごと、ODS は自動スタイル名ごと、<code>style(範囲)</code> は
+      クロージャの結果ごとに 1 インスタンス。§3.2 が禁じているのは「<em>ファイル形式の</em>索引（sharedStringIndex・styleIndex）を
+      モデルに持ち込むこと」であって、モデル内部で同じ値を共有することではない。公開 API は不変（<code>cell.style</code> は
+      今までどおり値を読み書きする）。実測: 60 万セルの構築が 982 MB → 105 MB、全セル書式つき 15 万セルの読み込みが 469 MB → 100 MB。</li>
+    <li><strong>使用範囲（<code>Table.extent</code>）は逐次維持する</strong>。全セル走査の計算プロパティで、
+      <code>rowCount</code> / <code>row(_:)</code> / <code>rows(in:)</code> / 各ライタが内部で呼ぶため、
+      <code>for r in 0..&lt;sheet.rowCount { sheet.row(r) }</code> という自然なコードが O(n²) だった。型付きの変更経路
+      （添字・<code>append</code>・<code>store(_:at:)</code>）で範囲を更新し、<code>cells</code> を直接書き換えられたときだけ
+      「不明」に落として次回 1 回だけ走査する。60 万セルのシートを 3,000 行なめる操作が 4.49 s → 0.00 s。</li>
+    <li><strong>一時コピーを作らない</strong>。ZIP はパートごとにファイル全体を配列へ写していた（O(ファイル×パート数)）ので
+      <code>withUnsafeBytes</code> でその場で読む。XLSX / ODS のライタは行ごとにセルを詰め直していたので、キーだけをまとめる。</li>
+    <li><strong>残る上限</strong>: ストリーミング読み書きは引き続きロードマップ（§14.11）。1 セルあたりの実測はおよそ
+      100〜200 B（辞書のオーバーヘッド込み）で、100 万セルで 100〜200 MB。</li>
+  </ul>
+
+  <h3>B.11 API の確定（Rev 1.6・1.0 前の破壊的変更）</h3>
+  <p>
+    1.0 で固定すると直せなくなるものを、この時点でまとめて直した。いずれも本文の意図に近づける変更であり、
+    本文（§4.1・§14）の記述はここが優先する。
+  </p>
+  <ul>
+    <li><strong>読み込みも結果型を返す</strong>: <code>SpreadsheetCodec.read</code> は <code>Workbook</code> ではなく
+      <code>ReadResult</code>（workbook ＋ warnings）を返す。従来は ODS / CSV / Numbers だけが <code>readWithWarnings</code> という
+      抜け道を持ち、ファサード（<code>Workbook(contentsOf:)</code>）からは読み込み警告が一切見えなかった — §6 の
+      「損失を黙って落とさない」は読みにも掛かる契約なので、抜け道を廃してひとつの形に揃えた。
+      <code>Workbook.read(contentsOf:)</code> / <code>read(_:format:options:)</code> が結果型を返し、
+      利便のための <code>Workbook(contentsOf:)</code> は残す — 警告は <code>Workbook.readWarnings</code> に載って一緒に運ばれるので、
+      どちらの入口でも黙って消えることはない。</li>
+    <li><strong>展開量の上限は <code>ReadOptions.cellLimit</code></strong>（既定 1,000,000）。B.9 で内部定数として入れたものを
+      設定値へ移した（「本来は <code>ReadOptions</code> の設定値」と書いた持ち越しの解消）。</li>
+    <li><strong>警告は主題を持つ</strong>: <code>ConversionWarning.subject</code>（<code>.macros</code> / <code>.objects</code> /
+      <code>.formatting</code> / <code>.formulas</code> / <code>.sheets</code> / <code>.other</code>）。
+      <code>WriteResult.suggest</code> は書き出し先ではなく<strong>失われた物</strong>から代替形式を選ぶ
+      （マクロが落ちたなら XLSM、それ以外は XLSX、既にその形式なら提案しない）。従来は xlsx へ書くたびに
+      「XLSM なら残せます」と言いかねなかった。</li>
+    <li><strong>形式判別はひとつの実装</strong>: <code>SheetFormat.detect(in: ZipInspection)</code> を追加し、各コーデックの
+      <code>canDecode</code> はそれと自分の形式を比べるだけにした。§4.2 の判別順序が二重に書かれている状態を解消。</li>
+    <li><strong>§14.4 の範囲ビューを実装</strong>: <code>sheet.range("A1:C3")</code> が <code>RangeView</code> を返す。
+      行は要求されたときに 1 行ずつ作られ、セルはテーブルと共有する（値の二次元配列を作るのは <code>.values</code> を呼んだときだけ）。
+      スナップショットであり、後からシートを編集してもビューの見え方は変わらない。</li>
+    <li><strong>名前で取ったシートはその場で編集できる</strong>: <code>wb.sheets["集計"]?["A1"] = 1</code> が
+      <code>_modify</code> 経路（コレクションから一時的に取り出して戻す）になり、セル辞書の複製が起きない。
+      <code>activeSheet</code> も同じ。§15.1 の「コピーして書き戻す」書き方はそのまま使える。</li>
+    <li><strong><code>SheetError</code> は <code>LocalizedError</code></strong>。<code>localizedDescription</code> が
+      「The operation couldn’t be completed.」ではなく理由を返す。</li>
+    <li><strong>大きな集合体は <code>Equatable</code> どまり</strong>: <code>Workbook</code> / <code>Sheet</code> / <code>Table</code> は
+      <code>Hashable</code> をやめた（<code>Cell</code> と <code>CellValue</code> は据え置き — 文字列プールがキーに使う）。
+      比較は要るが、ハッシュを取ることは「シート 1 枚を <code>Set</code> に入れて全セル分の計算を黙って払う」入口を開けるだけだった。</li>
+    <li><strong>Numbers はスキーマのずれで落ちない</strong>: 読み取り側のフィールド参照は、スキーマが名前を知らなければ
+      「そのフィールドは無い」として扱う（§10.3 の tolerant 方針）。書き戻せない型のオブジェクトは
+      <code>unsupportedFeature</code> を投げる（従来は <code>preconditionFailure</code> でプロセスごと落ちた）。
+      書き出し側の <code>set</code> だけは同梱スキーマの不整合＝ビルドの問題なので precondition のまま。</li>
+    <li><strong>版数はひとつ</strong>: <code>SwiftSheetsInfo</code>（name / version / generator / appVersion）。
+      <code>docProps/app.xml</code>・ODS の <code>meta:generator</code>・README の Status 行が同じ値を指し、
+      README との一致はテストが検査する（<code>APIContractTests</code>）。</li>
+  </ul>
+
+  <p>
+    検証は <code>Tests/SwiftSheetsTests/MalformedInputTests.swift</code>（座標・行番号・数式深さ・壊れた ZIP・全面結合・
+    固定シードのランダムバイト破壊 200 回）と <code>ODSCodecTests</code> の RLE 上限テストで、いずれも上の再現をそのまま回帰にしている。
+    §12.1 の malformed コーパスはファイルではなくテスト内で組み立てる（数バイトの違いが要点なので、生成コードの方が読める）。
+  </p>
+  <h3>B.12 1.0 に向けた残件の消化（Rev 1.7）</h3>
+  <p>
+    B.7 に「未着手」として並べていた項目と、§12 が求めながら B.6 が「未実装」と書いていた検証を、
+    <strong>この Mac に審判がある範囲で</strong>実装した。審判が無いもの（Numbers 実機・Excel 実機）と、
+    本文自身が v1 の非スコープと決めているもの（ストリーミング・グラフ / ピボットの生成 API）は
+    引き続き未実装で、理由をこの節の末尾に残す。
+  </p>
+  <ul>
+    <li><strong>暗号化ファイル・レガシー .xls の明示エラー</strong>（§1.3・§14.11）: <code>UnopenableInput.probe</code> が
+      OLE 複合ファイル署名（[MS-CFB] §2.2）を見て、ディレクトリに <code>EncryptedPackage</code> ストリーム名（UTF-16LE）が
+      現れれば暗号化 OOXML、無ければ 1997–2003 世代の複合ファイル（.xls 等）と判定する。ODF はパッケージが
+      <code>mimetype</code> を平文で残すため <code>.ods</code> と判別されてしまうので、
+      <code>META-INF/manifest.xml</code> の <code>manifest:encryption-data</code>（ODF 1.3 §4.3）を読み手側で見る。
+      いずれも <code>SheetError.unsupportedFeature</code> に理由つきで着地する（従来は
+      <code>corruptedContainer</code> / <code>unrecognizedFormat</code>、つまり「壊れたファイル」と区別がつかなかった）。
+      判定はファサードの判別より<strong>前</strong>に置く — 後ろに置くと <code>secret.csv</code> という名前が
+      暗号化パッケージを CSV 読みへ回してしまう。フィクスチャは
+      <code>Tests/FixtureGenerator/make_encrypted_fixtures.py</code>（msoffcrypto-tool・LibreOffice・
+      ODF 1.3 §4.3 の自前暗号化）。<strong>復号はしない</strong> — 本文の非スコープのまま。</li>
     <li><strong>プロパティテストとファズ</strong>（§12 の「プロパティテスト」「ファズ」）: 乱数は
       SplitMix64 を固定シードで回す — 失敗が再現できない検査は検査ではない。
       <code>PropertyTests</code> は (1) A1 ⇄ (row, col) の全単射（サンプリング＋列名は 0…ZZZ を全数）、
@@ -1996,150 +2140,49 @@ wb.sheets[<span class="nm">0</span>] = sheet
       ODS は範囲だけを書き（<code>table:database-ranges</code>）、条件は <code>dropped</code> 警告にする。</li>
   </ul>
 
-  <h3>B.8 ODS・Numbers の実装方針（Rev 1.4・P3〜P5）</h3>
-  <div class="callout callout-warn">
-    <span class="label">本文 §10〜§11 からの逸脱（理由つき）</span>
-    <ul>
-      <li><strong>Protobuf は SwiftProtobuf ＋ protoc ではなく、依存ゼロの動的ツリー</strong>（ワイヤ形式のデコード／エンコードを自前実装し、フィールド番号で辿る）。理由: (1) 外部依存ゼロを全ターゲットで保つ、(2) 未知フィールドの保全（§10.2）が構造的に成立する — 読んだバイト列をフィールド順のまま持ち、触ったフィールドだけ書き換える、(3) protoc / protoc-gen-swift のビルド環境を要求しない、(4) 1,129 メッセージ分の生成コードを抱えない。型安全性は失うため、使うメッセージとフィールド番号は <strong>numbers-parser の記述子から機械抽出した JSON リソース</strong>（<code>Sources/SheetNumbers/Resources/</code>）から引き、手で書き写さない。</li>
-      <li><strong>Numbers の数式は書き出さない</strong>（§11.1・§11.2「◎ 内部表現で生成」は未達）。数式セルはキャッシュ値を書き、<code>degraded</code> 警告を返す — §11.2 の「マッピング不能な関数」の退避規則を全関数に適用した形。理由: 参照実装 numbers-parser 自身が数式アーカイブを書けず（読みのみ）、この Mac には Numbers が無いため新規生成した内部表現を検証できない。</li>
-      <li><strong>検証の審判</strong>: Numbers 実機での開封確認は不可（環境に無い）。自動審判は numbers-parser による読み戻し（§11.3 の「クロス実装検証」）と自前の往復。ODS は LibreOffice ヘッドレス（§8.4）。Excel 生成の ODS コーパス（§8.4）は Excel が無いため未収集。</li>
-    </ul>
-  </div>
-  <ul>
-    <li><strong>ODS（P3・実装済み）</strong>: §8 のとおり自前実装（LibreOffice のソースは閲覧していない — 審判として実行し出力ファイルを観察しただけ）。mimetype は stored で先頭、RLE は読みで展開し末尾の空反復は打ち切り、書きは対称に畳む。結合は <code>number-columns-spanned</code> / <code>rows-spanned</code> と <code>covered-table-cell</code>、日付 / 時刻は ISO テキスト（<code>PT26H</code> 以上は継続時間）、数式は AST の ODS 方言（<code>of:=</code>）。列幅は <strong>2.0 mm / 文字</strong>（読み書き同一の定数。LibreOffice 既定の 8.43 文字 = 2.267 cm には合わせない）、行高は pt（<code>use-optimal-row-height="false"</code>、読みでは optimal=true の高さは無視）。罫線は thin / medium / thick = 0.75 / 1.75 / 2.5 pt。列の <code>default-cell-style-name</code> は <code>ColumnDimension.style</code> へ写し、自前スタイルを持たないセルに適用する（LibreOffice は列書式をここに畳む）。表示書式は XLSX コードと <code>number:*-style</code> をトークン単位で双方向変換し、複数セクション（先頭のみ・<code>substituted</code>）、<code>style:map</code> 付き・元号・四半期・分数は General ＋ <code>degraded</code>（データスタイルごとに 1 回）。凍結は settings.xml の <code>Tables</code> マップ、非表示シートは <code>table:display</code>、定義名は <code>named-expressions</code>、注釈は <code>office:annotation</code>、リンクは <code>text:a</code>。ODS → ODS の書き戻しは content.xml を再生成するため図形・グラフは再リンクされない（<code>dropped</code> 警告、Pictures 等は opaque 保持して manifest に再登録）。行グループは読みのみ。数式を持たない <code>.error</code> は文字列になる。検証: LibreOffice ヘッドレスで生成 ODS を xlsx 化して値・結合・凍結・書式・注釈が一致、LibreOffice 産 ODS（同梱コーパス 2 件）を読んで元の xlsx と一致。Excel 産 ODS コーパスは未収集。</li>
-    <li><strong>Numbers 読み（P4・実装済み）</strong>: IWA（4 バイトヘッダ＋ Snappy 生ブロック、自前伸長）→ varint 長 → ArchiveInfo → 動的 Protobuf ツリー → オブジェクト ID で解決。Document → Sheet → TableInfo → TableModel → DataStore（タイル・文字列表・数式表・リッチテキスト表）をモデルへ写像: 値（空・数値 decimal128 / double・文字列・リッチテキストは平文・日付 2001-01-01 起点・真偽・継続時間・エラー）、数式は TSCE の後置ノード列を関数表（numbers-parser の functionmap）で XLSX 方言の文字列に戻して <code>FormulaExpr.parse</code>（他テーブル参照は <code>'シート::テーブル'!A1</code>、失敗時 <code>.unparsed</code>）、結合（formula store の COLON_TRACT → region map の順）、列幅（pt ÷ 5.7 = 文字数）/ 行高、非表示行列、テーブル位置を <code>Table.anchor</code>（20pt × 98pt 格子に丸め）、ヘッダ行列を <code>freezePanes</code>。書式（太字・塗り・表示形式）は読まない（F1 水準。F2 はロードマップ）。バージョン方針は §10.3（tolerant 既定。<code>BuildVersionHistory.plist</code> の最終エントリを <code>sourceInfo.version</code> に載せ、検証済みは Numbers 11〜15 世代）。検証: numbers-parser のテストスイートから 11 文書を同梱し、numbers-parser が読んだ値・数式ツリー・結合・テーブル名・行数と一致（<code>NumbersReaderTests</code>）。</li>
-    <li><strong>Numbers 書き（P5・実装済み、数式を除く）</strong>: §11.1 のテンプレート・パッチ方式。テンプレートは numbers-parser 同梱の <code>empty.numbers</code>（MIT。NOTICE 参照）。最初のシート / テーブルはその場でパッチ、2 枚目以降のシートとテーブルは「テーブル固有の型だけ」（TableInfo / TableModel / DataList / Tile / HeaderStorageBucket / 各 FormulaOwner 等、スタイルは共有）をサブグラフ複製して参照を張り替え、UUID を一貫して振り直し、計算エンジンの owner 表と PackageMetadata のコンポーネント登録を追加する。セルはタイル形式（cell storage v5・wide offsets）へパック、文字列は TableDataList へ登録、結合は MergeRegionMapArchive、行高 / 列幅はヘッダバケット、<code>freezePanes</code> はヘッダ行列。非対応: 数式（キャッシュ値＋ <code>degraded</code>）・書式（テーブルごとに 1 件の <code>degraded</code>）・非表示シート（Numbers に概念が無い）。読み込み済みファイルへの書き戻しもこの生成経路を通す（読んだ文書を土台にした F3 パッチはロードマップ）。検証: 自前の往復、numbers-parser による読み戻し（<code>Tests/NumbersParity/verify_with_numbers_parser.py</code>）、LibreOffice の Numbers インポータ（libetonyek）での値一致。<strong>Numbers 実機での開封は未確認</strong>。</li>
-    <li><strong>運用</strong>: <code>NOTICE</code>（numbers-parser 由来: レジストリ・関数表・記述子由来スキーマ・テンプレート・テストフィクスチャ）と <code>MAINTENANCE.md</code>（§10.3 のバージョン追従手順）をリポジトリ直下に置く。</li>
-  </ul>
-
-  <h3>B.9 堅牢性の上限（Rev 1.5・§12 柱5）</h3>
-  <p>
-    §12 の柱5「malformed コーパス＋ランダム破壊入力でクラッシュ・無限ループ・メモリ爆発がないこと」は 0.2.1 時点で
-    未達だった。監査で 5 系統の再現（プロセス落ち 4・メモリ無限膨張 1）が取れたため、以下の上限を実装側の決定として固定する。
-    <strong>いずれも「読めない」ではなく「そこで止める」</strong>方針で、止めたことは値の欠落なら <code>degraded</code> 警告、
-    構造の破損なら <code>SheetError</code> で必ず伝える。
-  </p>
-  <div class="callout callout-warn">
-    <span class="label">忠実度と引き換えにした上限（オーナー承認 2026-08-22）</span>
-    <ul>
-      <li><strong>数式のネストは 64 段まで</strong>（<code>FormulaParser.maxDepth</code>）＝ Excel 自身の上限。超える数式は <code>.unparsed</code>
-        として原文のまま保持するので同形式の往復はバイト一致だが、<strong>行列挿入時の参照追随と方言変換はそのセルで行われない</strong>。
-        再帰下降 1 段の実測コストは最適化なしで約 7 KB・最適化ありでその数分の一で、64 段は Dispatch が渡す 512 KB スタックと
-        全リリースビルドに収まる。<strong>debug ビルドを 256 KB 以下のスタックで走らせる場合だけは収まらない</strong>。</li>
-      <li><strong>A1 座標は走査しながら上限を検査する</strong>（<code>CellRef</code>）。列は 3 文字まで、行は 1,048,576 まで。
-        従来は上限検査がループの後にあり、20 桁の行番号でアキュムレータが桁あふれしてトラップしていた。
-        <code>&lt;row r="0"&gt;</code> と 1,048,576 超は <code>malformedPart</code> で失敗する（従来は黙って通っていた）。</li>
-      <li><strong>結合セルが実体化してよいのは 65,536 セルまで</strong>（<code>Table.maxMaterialisedMergeCells</code>）。
-        これを超える結合では、アンカーの罫線と protection の伝播が「既に存在するセル」にしか届かない（openpyxl は
-        プレースホルダを作る）。65,536 以下は openpyxl と同一挙動。あわせて、既定 protection を持つだけの空セルは作らない
-        — <code>&lt;mergeCell ref="A1:CZ2000"/&gt;</code> 一つの 2 KB のファイルが 208,000 セル・554 MB になっていた。
-        <strong>アンカーセルだけは常に作る</strong>（ODS ライタが span 属性をそこに載せるため）。ODS ライタ側も同じ上限で、
-        これを超える結合の covered セルは集合に展開せず幾何で判定する（従来は全面結合の書き出しで OOM kill されていた）。</li>
-      <li><strong>ODS の RLE 展開は 1 文書あたり 1,000,000 セルまで</strong>（<code>ODSReader.maxCells</code>）。§8.3 の打ち切りは
-        「中身のない反復」だけを見ており、値を持つセルの <code>number-columns-repeated</code> × <code>number-rows-repeated</code> は
-        16,384 × 1,048,576 まで素直に展開していた（1 KB のファイルで 10 分・425 MB 以上・停止せず）。超過分は読まず、
-        シートごとに 1 件の <code>degraded</code> 警告を返す。1,000,000 は Excel のシート 1 枚（16,384 × 1,048,576）の
-        0.006% で、そこまで展開して初めて「これは内容ではなく指定だ」と判断できる規模。<strong>本来は <code>ReadOptions</code> の
-        設定値</strong>で、利用者が選ぶ理由ができた時点で移す。</li>
-      <li><strong>ZIP は中央ディレクトリの自己申告長を全て検証する</strong>。名前長・extra・comment がバッファ外へ出る、
-        ローカルヘッダのオフセットがファイル外を指す、は <code>corruptedContainer</code>。Numbers 側も同様に
-        length-delimited フィールド長と varint の桁数を検証する。</li>
-      <li><strong><code>write(to:)</code> はアトミック</strong>（<code>Data.WritingOptions.atomic</code>）。開いたファイルへの上書き保存が
-        本ライブラリの存在理由である以上、書き込み途中の中断が元のファイルを壊してはならない。inode は差し替わる。</li>
-    </ul>
-  </div>
-  <h3>B.10 大量データのための実装（Rev 1.5）</h3>
-  <p>
-    §14.11 のとおり v1 は全載せモデルであり、ストリーミングは持たない。そのぶん「1 枚のシートがメモリに載る」ことは
-    実装の責任になる。監査時点では 20 万セルで RSS 458 MB、100 万セルで 1.5 GB 超と、iOS を対応プラットフォームに
-    掲げる以上は成立していなかった。原因と対処を記録する。
-  </p>
-  <ul>
-    <li><strong><code>Cell</code> は書式を値で内包しない</strong>（496 B → 24 B）。<code>CellStyle</code> は <code>SharedStyle</code>
-      （不変・Sendable な参照型）に載せ、既定書式のセルは何も持たない。稀なハイパーリンクと注釈は <code>CellExtras</code> に畳む。
-      <strong>同じ書式は共有する</strong> — XLSX は <code>xf</code> 索引ごと、ODS は自動スタイル名ごと、<code>style(範囲)</code> は
-      クロージャの結果ごとに 1 インスタンス。§3.2 が禁じているのは「<em>ファイル形式の</em>索引（sharedStringIndex・styleIndex）を
-      モデルに持ち込むこと」であって、モデル内部で同じ値を共有することではない。公開 API は不変（<code>cell.style</code> は
-      今までどおり値を読み書きする）。実測: 60 万セルの構築が 982 MB → 105 MB、全セル書式つき 15 万セルの読み込みが 469 MB → 100 MB。</li>
-    <li><strong>使用範囲（<code>Table.extent</code>）は逐次維持する</strong>。全セル走査の計算プロパティで、
-      <code>rowCount</code> / <code>row(_:)</code> / <code>rows(in:)</code> / 各ライタが内部で呼ぶため、
-      <code>for r in 0..&lt;sheet.rowCount { sheet.row(r) }</code> という自然なコードが O(n²) だった。型付きの変更経路
-      （添字・<code>append</code>・<code>store(_:at:)</code>）で範囲を更新し、<code>cells</code> を直接書き換えられたときだけ
-      「不明」に落として次回 1 回だけ走査する。60 万セルのシートを 3,000 行なめる操作が 4.49 s → 0.00 s。</li>
-    <li><strong>一時コピーを作らない</strong>。ZIP はパートごとにファイル全体を配列へ写していた（O(ファイル×パート数)）ので
-      <code>withUnsafeBytes</code> でその場で読む。XLSX / ODS のライタは行ごとにセルを詰め直していたので、キーだけをまとめる。</li>
-    <li><strong>残る上限</strong>: ストリーミング読み書きは引き続きロードマップ（§14.11）。1 セルあたりの実測はおよそ
-      100〜200 B（辞書のオーバーヘッド込み）で、100 万セルで 100〜200 MB。</li>
-  </ul>
-
-  <h3>B.12 1.0 に向けた残件の消化（Rev 1.7）</h3>
-  <p>
-    B.7 に「未着手」として並べていた項目と、§12 が求めながら B.6 が「未実装」と書いていた検証を、
-    <strong>この Mac に審判がある範囲で</strong>実装した。審判が無いもの（Numbers 実機・Excel 実機）と、
-    本文自身が v1 の非スコープと決めているもの（ストリーミング・グラフ / ピボットの生成 API）は
-    引き続き未実装で、理由をこの節の末尾に残す。
-  </p>
-  <ul>
-    <li><strong>暗号化ファイル・レガシー .xls の明示エラー</strong>（§1.3・§14.11）: <code>UnopenableInput.probe</code> が
-      OLE 複合ファイル署名（[MS-CFB] §2.2）を見て、ディレクトリに <code>EncryptedPackage</code> ストリーム名（UTF-16LE）が
-      現れれば暗号化 OOXML、無ければ 1997–2003 世代の複合ファイル（.xls 等）と判定する。ODF はパッケージが
-      <code>mimetype</code> を平文で残すため <code>.ods</code> と判別されてしまうので、
-      <code>META-INF/manifest.xml</code> の <code>manifest:encryption-data</code>（ODF 1.3 §4.3）を読み手側で見る。
-      いずれも <code>SheetError.unsupportedFeature</code> に理由つきで着地する（従来は
-      <code>corruptedContainer</code> / <code>unrecognizedFormat</code>、つまり「壊れたファイル」と区別がつかなかった）。
-      判定はファサードの判別より<strong>前</strong>に置く — 後ろに置くと <code>secret.csv</code> という名前が
-      暗号化パッケージを CSV 読みへ回してしまう。フィクスチャは
-      <code>Tests/FixtureGenerator/make_encrypted_fixtures.py</code>（msoffcrypto-tool・LibreOffice・
-      ODF 1.3 §4.3 の自前暗号化）。<strong>復号はしない</strong> — 本文の非スコープのまま。</li>
-  </ul>
-
-  <h3>B.11 API の確定（Rev 1.6・1.0 前の破壊的変更）</h3>
-  <p>
-    1.0 で固定すると直せなくなるものを、この時点でまとめて直した。いずれも本文の意図に近づける変更であり、
-    本文（§4.1・§14）の記述はここが優先する。
-  </p>
-  <ul>
-    <li><strong>読み込みも結果型を返す</strong>: <code>SpreadsheetCodec.read</code> は <code>Workbook</code> ではなく
-      <code>ReadResult</code>（workbook ＋ warnings）を返す。従来は ODS / CSV / Numbers だけが <code>readWithWarnings</code> という
-      抜け道を持ち、ファサード（<code>Workbook(contentsOf:)</code>）からは読み込み警告が一切見えなかった — §6 の
-      「損失を黙って落とさない」は読みにも掛かる契約なので、抜け道を廃してひとつの形に揃えた。
-      <code>Workbook.read(contentsOf:)</code> / <code>read(_:format:options:)</code> が結果型を返し、
-      利便のための <code>Workbook(contentsOf:)</code> は残す — 警告は <code>Workbook.readWarnings</code> に載って一緒に運ばれるので、
-      どちらの入口でも黙って消えることはない。</li>
-    <li><strong>展開量の上限は <code>ReadOptions.cellLimit</code></strong>（既定 1,000,000）。B.9 で内部定数として入れたものを
-      設定値へ移した（「本来は <code>ReadOptions</code> の設定値」と書いた持ち越しの解消）。</li>
-    <li><strong>警告は主題を持つ</strong>: <code>ConversionWarning.subject</code>（<code>.macros</code> / <code>.objects</code> /
-      <code>.formatting</code> / <code>.formulas</code> / <code>.sheets</code> / <code>.other</code>）。
-      <code>WriteResult.suggest</code> は書き出し先ではなく<strong>失われた物</strong>から代替形式を選ぶ
-      （マクロが落ちたなら XLSM、それ以外は XLSX、既にその形式なら提案しない）。従来は xlsx へ書くたびに
-      「XLSM なら残せます」と言いかねなかった。</li>
-    <li><strong>形式判別はひとつの実装</strong>: <code>SheetFormat.detect(in: ZipInspection)</code> を追加し、各コーデックの
-      <code>canDecode</code> はそれと自分の形式を比べるだけにした。§4.2 の判別順序が二重に書かれている状態を解消。</li>
-    <li><strong>§14.4 の範囲ビューを実装</strong>: <code>sheet.range("A1:C3")</code> が <code>RangeView</code> を返す。
-      行は要求されたときに 1 行ずつ作られ、セルはテーブルと共有する（値の二次元配列を作るのは <code>.values</code> を呼んだときだけ）。
-      スナップショットであり、後からシートを編集してもビューの見え方は変わらない。</li>
-    <li><strong>名前で取ったシートはその場で編集できる</strong>: <code>wb.sheets["集計"]?["A1"] = 1</code> が
-      <code>_modify</code> 経路（コレクションから一時的に取り出して戻す）になり、セル辞書の複製が起きない。
-      <code>activeSheet</code> も同じ。§15.1 の「コピーして書き戻す」書き方はそのまま使える。</li>
-    <li><strong><code>SheetError</code> は <code>LocalizedError</code></strong>。<code>localizedDescription</code> が
-      「The operation couldn’t be completed.」ではなく理由を返す。</li>
-    <li><strong>大きな集合体は <code>Equatable</code> どまり</strong>: <code>Workbook</code> / <code>Sheet</code> / <code>Table</code> は
-      <code>Hashable</code> をやめた（<code>Cell</code> と <code>CellValue</code> は据え置き — 文字列プールがキーに使う）。
-      比較は要るが、ハッシュを取ることは「シート 1 枚を <code>Set</code> に入れて全セル分の計算を黙って払う」入口を開けるだけだった。</li>
-    <li><strong>Numbers はスキーマのずれで落ちない</strong>: 読み取り側のフィールド参照は、スキーマが名前を知らなければ
-      「そのフィールドは無い」として扱う（§10.3 の tolerant 方針）。書き戻せない型のオブジェクトは
-      <code>unsupportedFeature</code> を投げる（従来は <code>preconditionFailure</code> でプロセスごと落ちた）。
-      書き出し側の <code>set</code> だけは同梱スキーマの不整合＝ビルドの問題なので precondition のまま。</li>
-    <li><strong>版数はひとつ</strong>: <code>SwiftSheetsInfo</code>（name / version / generator / appVersion）。
-      <code>docProps/app.xml</code>・ODS の <code>meta:generator</code>・README の Status 行が同じ値を指し、
-      README との一致はテストが検査する（<code>APIContractTests</code>）。</li>
-  </ul>
+  <p><strong>実装せずに残したもの（理由つき）</strong>。「未実装」と書いたまま忘れるのを防ぐため、
+  ここで一件ずつ理由を固定する。判断を変えるなら本文ではなくこの表を直す。</p>
+  <div class="compare"><table>
+    <tr><th>項目</th><th>いまの状態</th><th>実装しない理由</th></tr>
+    <tr><td>ストリーミング読み書き（<code>read_only</code> / <code>write_only</code>）</td><td>全載せモデルのみ</td>
+      <td>§14.11 が「v1 は全載せのみ」と決めている。B.10 の実装（書式の共有・使用範囲の逐次維持・一時コピーの排除）は
+        その決定の上に積んだもので、ストリーミングはモデルとコーデックの契約から作り直しになる。1.0 の後。</td></tr>
+    <tr><td>条件付き書式・データ検証の API</td><td>F3 保全のみ（同形式の書き戻しで無傷）</td>
+      <td>§14.11 が「v1.1 で検討」。値の損失は無く、B.11 で確定させた API 面をいま広げる理由が無い。</td></tr>
+    <tr><td>グラフ・画像・ピボットの<strong>生成</strong> API</td><td>F3 保全のみ</td>
+      <td>§1.3 と §14.11 の設計どおりの非スコープ。読み書きの対象はデータであって描画ではない。</td></tr>
+    <tr><td>GradientFill の API</td><td>生の <code>&lt;fill&gt;</code> XML としてバイト単位で往復する</td>
+      <td>API にするには <code>CellStyle.fill</code> の<strong>型</strong>を変えることになり、B.11 で確定させた API を壊す。
+        往復で失われないので、壊してまで得るものが無い。</td></tr>
+    <tr><td>拡張プロパティ・カスタムプロパティ</td><td><code>docProps/custom.xml</code> は不透明保全、
+      <code>app.xml</code> は生成し直す</td><td>openpyxl も <code>app.xml</code> を作り直す。カスタムプロパティは
+        触らないので無傷で残る。</td></tr>
+    <tr><td>ZIP64</td><td>4 GB / 65,535 パートを超えると <code>corruptedContainer</code></td>
+      <td>全載せモデルの上限（数百 MB）の方が先に来る。ストリーミングと同時に考えるべき項目。</td></tr>
+    <tr><td>Linux / visionOS</td><td>未達（B.1）</td>
+      <td>ZIP の deflate に Apple の Compression を使っているため。復帰には自前 deflate か zlib 経路が要る。
+        オーナー環境に Linux CI が無く、審判を立てられない。</td></tr>
+    <tr><td>Numbers の数式生成（TSCE アーカイブ）</td><td>キャッシュ値＋<code>degraded</code> 警告（B.8）</td>
+      <td>参照実装 numbers-parser 自身が書けず、この Mac に Numbers.app が無い。
+        <strong>検証できない生成物を出荷しない</strong>のがこのリポジトリの規律。</td></tr>
+    <tr><td>Numbers の書式読み（F2）・読んだ文書を土台にした F3 パッチ書き戻し</td><td>F1（値・数式・結合・寸法）</td>
+      <td>同上。Numbers 実機で開いて確かめられない変更を積み増すと、壊れたときに切り分けられない。</td></tr>
+    <tr><td>Numbers の暗号化判定</td><td><code>corruptedContainer</code> で失敗する</td>
+      <td>OOXML（複合ファイル署名）と ODF（マニフェスト）は公開仕様で判定できるが、
+        パスワード付き iWork 文書の目印は仕様が無く、フィクスチャも作れない（Numbers.app が無い）。
+        推測で「暗号化です」と言うのは、壊れたファイルを取り違える分だけ有害。</td></tr>
+    <tr><td>ISO 8601 日付での書き出し（openpyxl の <code>iso_dates</code>）</td><td>常にシリアル値</td>
+      <td>Excel が読めるのはシリアル値。ISO テキストは openpyxl 独自の互換モードで、
+        両方の経路を持つと日付の往復が二通りになる。</td></tr>
+    <tr><td>Excel 実機・Numbers 実機での開封確認</td><td>MAINTENANCE.md のリリース前チェックリスト</td>
+      <td>オーナー環境に無い。LibreOffice・openpyxl・numbers-parser を機械の審判に据えている（B.6・B.8）。</td></tr>
+  </table></div>
 
   <p>
-    検証は <code>Tests/SwiftSheetsTests/MalformedInputTests.swift</code>（座標・行番号・数式深さ・壊れた ZIP・全面結合・
-    固定シードのランダムバイト破壊 200 回）と <code>ODSCodecTests</code> の RLE 上限テストで、いずれも上の再現をそのまま回帰にしている。
-    §12.1 の malformed コーパスはファイルではなくテスト内で組み立てる（数バイトの違いが要点なので、生成コードの方が読める）。
+    版数は <strong>0.4.0</strong> へ（SemVer 0.x の minor — 追加のみで、B.11 で確定させた API 面は壊していない）。
+    <code>SwiftSheetsInfo.version</code> と README がずれないことはテストが見ている。
   </p>
+
 </section>
 
 </div><!-- /.container -->

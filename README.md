@@ -30,14 +30,14 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.2.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.4.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
 ]
 ```
 
-Status: **0.3.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
+Status: **0.4.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
 version here is what the library writes into the files it generates, and a test keeps the two in step.
 
 ## Limits
