@@ -1,0 +1,3 @@
+# このリポジトリは公開されています。
+# 手元の pre-commit 検査がこの印を見て、外に出せない記述が混ざっていないか調べます。
+# This repository is public. A local pre-commit check uses this marker.

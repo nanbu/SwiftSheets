@@ -1855,7 +1855,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.1 名称とパッケージ構成</h3>
   <ul>
-    <li><strong>名称は SwiftSheets</strong>（オーナー決定 2026-08-22。本文の SwiftSheets は仮称）。リポジトリは <code>~/Developer/Lab/SwiftSheets</code>（Stream の <code>app/SwiftSheets</code> から履歴ごと切り出し）。</li>
+    <li><strong>名称は SwiftSheets</strong>（2026-08-22 に確定。本文中の SwiftSheets は、それ以前の仮称のまま残っている箇所がある）。上位アプリの一部だったものを、履歴ごと独立したリポジトリへ切り出した。</li>
     <li>ターゲットは <code>SheetCore</code> / <code>SheetXLSX</code> / <code>SheetCSV</code> / 全部入り <code>SwiftSheets</code>。未実装の <code>SheetODS</code> / <code>SheetNumbers</code> は空ターゲットを作らない（P3・P4 で追加）。CSV は §9 の方針どおり独立ターゲット。</li>
     <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ Compression による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。
       <strong>代償として §1.1 の「Linux 上で動作する」は未達</strong>: Compression は Apple のフレームワークで、Linux にも
@@ -1911,7 +1911,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <h3>B.6 テストと検証（§12 の実態）</h3>
   <ul>
     <li>最初のテスト <code>PreservationTests.editOneCellKeepsEverythingElse</code>: openpyxl で生成した「グラフ・テーブル・条件付き書式・データ検証・コメント・定義名」入りブックを 1 セル編集して保存 → 他セル・不透明パーツのバイト一致・rId の解決・Content_Types の整合・要素順を検査。三大要因（§7.4）はそれぞれ機械検出している。</li>
-    <li>外部審判: LibreOffice ヘッドレス（この Mac にある）と openpyxl の読み戻し。Excel 実機は未検証（オーナー環境に無い）。</li>
+    <li>外部審判: LibreOffice ヘッドレス（この Mac にある）と openpyxl の読み戻し。Excel 実機は未検証（開発環境に Excel が無いため）。</li>
     <li>openpyxl テスト台帳（<code>Tests/OpenpyxlParity/parity.json</code>）は継続。API が値型・0 始まりに変わったため移植テストは機械的に書き換え、出典コメントは不変。</li>
     <li>数式の不動点性（parse → emit → parse）は固定ケース集で検査。<strong>Rev 1.7 で追加</strong>: 乱数生成による検査（<code>PropertyTests</code>）とファズ（<code>FuzzTests</code>）— B.12。</li>
   </ul>
@@ -1946,7 +1946,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     構造の破損なら <code>SheetError</code> で必ず伝える。
   </p>
   <div class="callout callout-warn">
-    <span class="label">忠実度と引き換えにした上限（オーナー承認 2026-08-22）</span>
+    <span class="label">忠実度と引き換えにした上限（2026-08-22 に決定）</span>
     <ul>
       <li><strong>数式のネストは 64 段まで</strong>（<code>FormulaParser.maxDepth</code>）＝ Excel 自身の上限。超える数式は <code>.unparsed</code>
         として原文のまま保持するので同形式の往復はバイト一致だが、<strong>行列挿入時の参照追随と方言変換はそのセルで行われない</strong>。
@@ -2201,7 +2201,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>全載せモデルの上限（数百 MB）の方が先に来る。ストリーミングと同時に考えるべき項目。</td></tr>
     <tr><td>Linux / visionOS</td><td>未達（B.1）</td>
       <td>ZIP の deflate に Apple の Compression を使っているため。復帰には自前 deflate か zlib 経路が要る。
-        オーナー環境に Linux CI が無く、審判を立てられない。</td></tr>
+        開発環境に Linux CI が無く、審判を立てられない。</td></tr>
     <tr><td>Numbers の数式生成（TSCE アーカイブ）</td><td>キャッシュ値＋<code>degraded</code> 警告（B.8）</td>
       <td>参照実装 numbers-parser 自身が書けず、この Mac に Numbers.app が無い。
         <strong>検証できない生成物を出荷しない</strong>のがこのリポジトリの規律。</td></tr>
@@ -2215,7 +2215,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>Excel が読めるのはシリアル値。ISO テキストは openpyxl 独自の互換モードで、
         両方の経路を持つと日付の往復が二通りになる。</td></tr>
     <tr><td>Excel 実機・Numbers 実機での開封確認</td><td>MAINTENANCE.md のリリース前チェックリスト</td>
-      <td>オーナー環境に無い。LibreOffice・openpyxl・numbers-parser を機械の審判に据えている（B.6・B.8）。</td></tr>
+      <td>開発環境に無い。LibreOffice・openpyxl・numbers-parser を機械の審判に据えている（B.6・B.8）。</td></tr>
   </table></div>
 
   <p>
@@ -2283,7 +2283,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       形式の選び方と件数の両方で守る。</li>
     <li><strong>API への影響</strong>: 主題は公開 enum なので、<strong>0.5.0 に含む唯一のソース互換の破壊</strong>。
       主題を網羅 <code>switch</code> している利用側だけが再コンパイルで気づく（実行時の挙動は変わらない）。
-      1.0 後なら major 相当になるため、<strong>公開前のいま入れる</strong>という判断をオーナーが下した（2026-08-23）。
+      1.0 後なら major 相当になるため、<strong>公開前のいま入れる</strong>という判断をした（2026-08-23）。
       B.11 の「1.0 前に API を確定させる」に対する意図的な一度きりの例外で、理由はこの節に固定する。</li>
     <li><strong>審判</strong>: <code>APIContractTests.theSuggestedFormatFollowsWhatWasLost</code>（表だけ → Numbers、
       混在 → XLSX かつ件数は表を除く、書き出し先が Numbers なら無言）と、3 形式の書き出しテストの
