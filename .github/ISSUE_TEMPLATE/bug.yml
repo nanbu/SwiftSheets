@@ -1,0 +1,38 @@
+name: Bug (crash, hang, or wrong error)
+description: A file throws the wrong error, aborts, hangs, or uses unreasonable memory.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the file came from an untrusted source, please read [SECURITY.md](../blob/main/SECURITY.md)
+        first — report it privately instead of here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      placeholder: "Reading the attached .ods aborts with a fatal error instead of throwing."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: A thrown `SheetError`, a `degraded` warning, or a documented limit — the reader is never supposed to abort.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Attach the smallest file that shows it, and the code you ran.
+      render: swift
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: SwiftSheets version and platform
+      placeholder: 0.5.0, macOS 15.3 / iOS 18.3
+    validations:
+      required: true

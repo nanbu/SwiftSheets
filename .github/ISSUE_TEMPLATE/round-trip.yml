@@ -1,0 +1,48 @@
+name: Round-trip or fidelity problem
+description: Something changed in a file you did not touch, or a feature came back wrong.
+labels: ["fidelity"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the highest-value report for this library: the core promise is that anything you did not
+        touch comes out exactly as it went in. Please attach **the smallest file that reproduces it**.
+  - type: input
+    id: produced-by
+    attributes:
+      label: Which application produced the original file?
+      placeholder: Excel 365 for Mac / Numbers 14.2 / LibreOffice 24.8 / SwiftSheets itself
+    validations:
+      required: true
+  - type: input
+    id: opened-in
+    attributes:
+      label: Which application did you open the result in?
+      placeholder: Excel 365 for Mac / Numbers 14.2 / openpyxl
+    validations:
+      required: true
+  - type: textarea
+    id: what-changed
+    attributes:
+      label: What changed, or what was lost?
+      placeholder: The chart on Sheet2 lost its series colours. The pivot cache disappeared.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: The code you ran
+      render: swift
+  - type: textarea
+    id: warnings
+    attributes:
+      label: Warnings reported
+      description: "`wb.readWarnings` and the `WriteResult.warnings` — the library is expected to tell you what it could not keep."
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: SwiftSheets version and platform
+      placeholder: 0.5.0, macOS 15.3 / iOS 18.3
+    validations:
+      required: true
