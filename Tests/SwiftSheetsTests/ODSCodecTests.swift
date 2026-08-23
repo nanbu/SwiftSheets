@@ -321,8 +321,9 @@ import SwiftSheets
         let result = try ODSCodec.write(Workbook(sheets: [ws]))
         let dropped = result.warnings.filter { $0.kind == .dropped }
         #expect(dropped.count == 1)
-        #expect(dropped.first?.subject == .sheets && dropped.first?.sheet == "Canvas")
+        #expect(dropped.first?.subject == .tables && dropped.first?.sheet == "Canvas")
         #expect(dropped.first?.message.contains("1 other table(s)") == true)
+        #expect(result.suggestion?.format == .numbers)   // not XLSX: a worksheet is one grid as well
         let xml = try contentXML(result.data)
         #expect(xml.contains("first") && !xml.contains("second"))
         let back = try ODSCodec.read(result.data).workbook.sheets[0]

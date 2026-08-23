@@ -353,7 +353,7 @@ enum WorkbookWriter {
         let table = ws.table
         // a worksheet is one grid: a canvas carrying several tables (Numbers) keeps only the first one
         if ws.tables.count > 1 {
-            sink.add(.dropped, subject: .sheets, sheet: ws.name,
+            sink.add(.dropped, subject: .tables, sheet: ws.name,
                      "\(ws.tables.count - 1) other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)")
         }
         var generated: [(String, String)] = []

@@ -1837,6 +1837,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.5 Draft</td><td>2026-08-22</td><td>§12 柱5（不正入力でクラッシュしない）を満たすための上限と検証を付録 B.9 に固定: 座標・数式の深さ・ZIP の長さ検証、結合と ODS の RLE が展開してよいセル数、保存のアトミック化。大量データのための実装（Cell の書式共有・使用範囲の逐次維持・一時コピーの排除）を B.10 に記録</td></tr>
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
+    <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -2016,7 +2017,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <code>.formatting</code> / <code>.formulas</code> / <code>.sheets</code> / <code>.other</code>）。
       <code>WriteResult.suggest</code> は書き出し先ではなく<strong>失われた物</strong>から代替形式を選ぶ
       （マクロが落ちたなら XLSM、それ以外は XLSX、既にその形式なら提案しない）。従来は xlsx へ書くたびに
-      「XLSM なら残せます」と言いかねなかった。</li>
+      「XLSM なら残せます」と言いかねなかった。<strong>Rev 1.9 で <code>.tables</code> を追加</strong>し、
+      2 択だった選び方を 3 分岐にした（B.14）。</li>
     <li><strong>形式判別はひとつの実装</strong>: <code>SheetFormat.detect(in: ZipInspection)</code> を追加し、各コーデックの
       <code>canDecode</code> はそれと自分の形式を比べるだけにした。§4.2 の判別順序が二重に書かれている状態を解消。</li>
     <li><strong>§14.4 の範囲ビューを実装</strong>: <code>sheet.range("A1:C3")</code> が <code>RangeView</code> を返す。
@@ -2161,7 +2163,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
       審判: 2 テーブルのシートを <code>.xlsx</code> / <code>.ods</code> / <code>.csv</code> に書き、警告が出ること・
       先頭テーブルだけが正しく書かれること（<code>WriterTests.extraTablesOfASheetAreReported</code>・
       <code>ODSCodecTests.extraTablesOfASheetAreReportedWhenWritingODS</code>・
-      <code>CSVCodecTests.extraTablesOfASheetAreReported</code>）。</li>
+      <code>CSVCodecTests.extraTablesOfASheetAreReported</code>）。
+      この時点では主題を <code>.sheets</code> に相乗りさせていたため、<code>WriteResult.suggest</code> が
+      「XLSX なら残せます」と誤った案内をしていた — <strong>Rev 1.9 の B.14 で解消</strong>。</li>
   </ul>
 
   <p><strong>実装せずに残したもの（理由つき）</strong>。「未実装」と書いたまま忘れるのを防ぐため、
@@ -2252,7 +2256,41 @@ wb.sheets[<span class="nm">0</span>] = sheet
       （<code>conditionalFormatting</code> の後・<code>hyperlinks</code> の前）を <code>PreservationTests</code> が見る。</li>
   </ul>
   <p>
-    版数は <strong>0.5.0</strong> へ（SemVer 0.x の minor — 公開 API の追加のみで、B.11 で確定させた面は壊していない）。
+    版数は <strong>0.5.0</strong> へ（SemVer 0.x の minor — 公開 API の追加のみで、B.11 で確定させた面は壊していない。
+    同じ 0.5.0 に入る B.14 の <code>.tables</code> だけが唯一の例外で、そちらは主題を網羅している利用側のコンパイルに影響する）。
+  </p>
+
+  <h3>B.14 代替形式の提案の主題（Rev 1.9）</h3>
+  <p>
+    B.12 で「シート上の 2 つ目以降のテーブルを <code>dropped</code> 警告にする」を入れたとき、主題を
+    <code>.sheets</code> に相乗りさせた。その結果 <code>WriteResult.suggest</code> が
+    <strong>「XLSX で保存すれば残せます」と案内していた — XLSX も 1 ワークシート = 1 グリッドなので残せない</strong>。
+    損失の記録（警告本文）は正しく「.numbers なら残せる」と言っていたので、ずれていたのは提案の 1 行だけだが、
+    <strong>間違った情報を出すのは、情報を出さないより悪い</strong>。
+  </p>
+  <ul>
+    <li><strong>原因は主題の粒度</strong>: B.11 で提案を「書き出し先ではなく<em>失われた物</em>から選ぶ」に直した時点では、
+      <em>XLSX で救えない損失が存在しなかった</em>ので「マクロなら XLSM / それ以外は XLSX」の 2 択で足りていた。
+      表の損失は、初めて現れた「XLSX でも救えない損失」だった。設計の誤りというより、世界が 1 つ広がった結果。</li>
+    <li><strong>入れた変更</strong>: <code>ConversionWarning.Subject</code> に <code>.tables</code> を追加し
+      （<code>.sheets</code> = シートそのものの損失とは、それを残せる形式が違うので別物）、選び方を 3 分岐にした —
+      <strong>マクロ → XLSM、表だけ → Numbers、それ以外 → XLSX</strong>。3 形式のライターは主題を
+      <code>.tables</code> に差し替えた。</li>
+    <li><strong>混在したときの規則</strong>: 表と他の損失が同時に落ちると、<em>どの形式も全部は救えない</em>。
+      そこで名前を挙げるのは XLSX にし、<strong>件数はその形式が実際に残せるものだけ数える</strong>
+      （表 1 件＋グラフ 1 件なら「1 件は XLSX なら残せます」）。<code>.numbers</code> を挙げるのは
+      表が損失の全部であるときだけ、という非対称はここから来ている。過大な提案をしないことを、
+      形式の選び方と件数の両方で守る。</li>
+    <li><strong>API への影響</strong>: 主題は公開 enum なので、<strong>0.5.0 に含む唯一のソース互換の破壊</strong>。
+      主題を網羅 <code>switch</code> している利用側だけが再コンパイルで気づく（実行時の挙動は変わらない）。
+      1.0 後なら major 相当になるため、<strong>公開前のいま入れる</strong>という判断をオーナーが下した（2026-08-23）。
+      B.11 の「1.0 前に API を確定させる」に対する意図的な一度きりの例外で、理由はこの節に固定する。</li>
+    <li><strong>審判</strong>: <code>APIContractTests.theSuggestedFormatFollowsWhatWasLost</code>（表だけ → Numbers、
+      混在 → XLSX かつ件数は表を除く、書き出し先が Numbers なら無言）と、3 形式の書き出しテストの
+      <code>suggestion?.format == .numbers</code>。</li>
+  </ul>
+  <p>
+    版数は <strong>0.5.0</strong> のまま（B.13 と同じ minor に相乗り。未公開のうちに入れることが、この変更の前提）。
   </p>
 
 </section>

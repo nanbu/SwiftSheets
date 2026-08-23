@@ -68,6 +68,18 @@ import SwiftSheets
         // and below the threshold, with nothing wholesale lost, there is no suggestion at all
         #expect(WriteResult.suggest(from: [ConversionWarning(.degraded, subject: .formulas, location: CellRef("A1"), message: "x")],
                                     target: .ods, options: WriteOptions()) == nil)
+
+        // several tables on one sheet: only Numbers keeps them, so XLSX must not be offered as the cure
+        let tables = [ConversionWarning(.dropped, subject: .tables, sheet: "Canvas", message: "1 other table(s) not written")]
+        #expect(WriteResult.suggest(from: tables, target: .ods, options: options)?.format == .numbers)
+        #expect(WriteResult.suggest(from: tables, target: .xlsx, options: options)?.format == .numbers)
+        #expect(WriteResult.suggest(from: tables, target: .numbers, options: options) == nil)
+
+        // mixed loss: no format keeps both, so the named one is XLSX and the count is of what XLSX would keep
+        let mixed = tables + [ConversionWarning(.dropped, subject: .objects, message: "chart dropped")]
+        let suggestion = WriteResult.suggest(from: mixed, target: .ods, options: options)
+        #expect(suggestion?.format == .xlsx)
+        #expect(suggestion?.message.hasPrefix("1 element(s)") == true)   // the table is not counted: XLSX cannot keep it
     }
 
     /// A real conversion, end to end: xlsm → xlsx drops the macros and says which format keeps them.

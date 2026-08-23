@@ -79,15 +79,22 @@ public struct WriteResult: Sendable {
     }
 
     /// Builds the suggestion from the warnings (spec §11.2): many warnings, or a whole feature dropped, point to the
-    /// format that would have kept them — which is decided by *what* was lost, not by what was asked for. Macros
-    /// need a macro-enabled workbook; everything else the library writes is kept best by XLSX. When the target
-    /// already is that format there is nowhere better to go, and nothing is suggested.
+    /// format that would have kept them — which is decided by *what* was lost, not by what was asked for. Macros need
+    /// a macro-enabled workbook; several tables on one sheet need Numbers; everything else the library writes is kept
+    /// best by XLSX. No format keeps all three, so Numbers is named only when the tables are the whole loss, and the
+    /// count is of the elements the named format would actually keep — a suggestion that overstates is worse than
+    /// none. When the target already is that format there is nowhere better to go, and nothing is suggested.
     public static func suggest(from warnings: [ConversionWarning], target: SheetFormat, options: WriteOptions) -> Suggestion? {
         let dropped = warnings.filter { $0.kind == .dropped }
         guard warnings.count >= options.suggestionThreshold || dropped.contains(where: { $0.location == nil }) else { return nil }
-        let alternative: SheetFormat = dropped.contains { $0.subject == .macros } ? .xlsm : .xlsx
+        let alternative: SheetFormat
+        if dropped.contains(where: { $0.subject == .macros }) { alternative = .xlsm }
+        else if !dropped.isEmpty, dropped.allSatisfy({ $0.subject == .tables }) { alternative = .numbers }
+        else { alternative = .xlsx }
         guard alternative != target else { return nil }
-        return Suggestion(format: alternative, message: "\(warnings.count) element(s) cannot be represented in \(target.rawValue.uppercased()); writing \(alternative.rawValue.uppercased()) would keep them.")
+        let kept = warnings.filter { alternative == .numbers ? $0.subject == .tables : $0.subject != .tables }
+        guard !kept.isEmpty else { return nil }
+        return Suggestion(format: alternative, message: "\(kept.count) element(s) cannot be represented in \(target.rawValue.uppercased()); writing \(alternative.rawValue.uppercased()) would keep them.")
     }
 }
 
@@ -110,6 +117,9 @@ public struct ConversionWarning: Sendable, Hashable, CustomStringConvertible {
         case formatting
         case formulas
         case sheets
+        /// Several tables on one sheet (a Numbers canvas). Only Numbers can hold them; a worksheet, an ODS sheet and
+        /// a CSV file are one grid each. Distinct from `.sheets` because the format that would keep it is different.
+        case tables
         case other
     }
     public let kind: Kind

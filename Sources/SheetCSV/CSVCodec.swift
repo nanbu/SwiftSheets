@@ -68,7 +68,7 @@ public enum CSVCodec: SpreadsheetCodec {
         let table = sheet.table
         // CSV is one grid: a canvas carrying several tables (Numbers) keeps only the first one
         if sheet.tables.count > 1 {
-            warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name,
+            warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name,
                                               message: "\(sheet.tables.count - 1) other table(s) not written: CSV holds a single table (write .numbers to keep them)"))
         }
         // a date value's automatic number format is not formatting the user applied — it does not count

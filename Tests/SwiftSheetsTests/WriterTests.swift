@@ -92,8 +92,9 @@ import Testing
         let result = try XLSXCodec.write(Workbook(sheets: [ws]))
         let dropped = result.warnings.filter { $0.kind == .dropped }
         #expect(dropped.count == 1)
-        #expect(dropped.first?.subject == .sheets && dropped.first?.sheet == "Canvas")
+        #expect(dropped.first?.subject == .tables && dropped.first?.sheet == "Canvas")
         #expect(dropped.first?.message.contains("1 other table(s)") == true)
+        #expect(result.suggestion?.format == .numbers)   // XLSX cannot hold them either — only Numbers can
         let back = try XLSXCodec.read(result.data).workbook.sheets[0]
         #expect(back.tables.count == 1 && back["A1"] == .text("first"))
         #expect(!back.cells.values.contains { $0.value == .text("second") })

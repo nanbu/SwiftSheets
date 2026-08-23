@@ -331,8 +331,9 @@ import SheetCore
         let (text, result) = try writeText(Workbook(sheets: [sheet]))
         #expect(text == "first\r\n")
         #expect(result.warnings.count == 1)
-        #expect(result.warnings[0] == ConversionWarning(.dropped, subject: .sheets, sheet: "Canvas",
+        #expect(result.warnings[0] == ConversionWarning(.dropped, subject: .tables, sheet: "Canvas",
                                                         message: "1 other table(s) not written: CSV holds a single table (write .numbers to keep them)"))
+        #expect(result.suggestion?.format == .numbers)
     }
 
     @Test func sheetSelectionByName() throws {
