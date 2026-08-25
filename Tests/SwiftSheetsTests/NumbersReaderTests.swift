@@ -8,7 +8,11 @@ import SwiftSheets
 /// (`<name>.expected.json`, produced by Tests/NumbersParity/dump_with_numbers_parser.py) must match what we read.
 @Suite struct NumbersReaderTests {
     static let fixtures = Bundle.module.resourceURL!.appendingPathComponent("Fixtures/numbers")
-    static let names = ["issue-3", "issue-18", "simple-func", "test-empty-rows", "test-xref-coverage", "test-2", "test-10", "test-1", "test-formats", "test-hlinks", "issue-17"]
+    /// The `-15` pair are documents **Numbers 15.3.1 produced** — the corpus was Numbers 11–14 era until then
+    /// (MAINTENANCE.md, spec Appendix B.18).
+    static let names = ["issue-3", "issue-18", "simple-func", "test-empty-rows", "test-xref-coverage", "test-2",
+                        "test-10", "test-1", "test-formats", "test-hlinks", "issue-17",
+                        "conditional-formats-15", "links-notes-15"]
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
@@ -27,9 +31,23 @@ import SwiftSheets
     }
 
     /// numbers-parser's formula dialect → ours, for the comparable subset.
+    /// numbers-parser renders a formula the way Numbers shows it; the model speaks the XLSX dialect. The
+    /// operators are one substitution each. A reference to another table is spelled `Sheet::Table::A1` there and
+    /// `\'Sheet::Table\'!A1` here, so the last `::` becomes the `!` and the name is quoted.
     static func normalize(_ f: String) -> String {
-        f.replacingOccurrences(of: "×", with: "*").replacingOccurrences(of: "÷", with: "/").replacingOccurrences(of: "≥", with: ">=")
-         .replacingOccurrences(of: "≤", with: "<=").replacingOccurrences(of: "≠", with: "<>")
+        var out = f.replacingOccurrences(of: "×", with: "*").replacingOccurrences(of: "÷", with: "/")
+                   .replacingOccurrences(of: "≥", with: ">=").replacingOccurrences(of: "≤", with: "<=")
+                   .replacingOccurrences(of: "≠", with: "<>")
+        // `Other::Table 1::A1` → `'Other::Table 1'!A1`, including inside a range or a function call
+        let pattern = #"([\p{L}\p{N} _]+::[\p{L}\p{N} _]+)::(\$?[A-Z]+\$?\d+|\$?[A-Z]+|\$?\d+)"#
+        while let range = out.range(of: pattern, options: .regularExpression) {
+            let piece = String(out[range])
+            let parts = piece.components(separatedBy: "::")
+            guard parts.count >= 3 else { break }
+            let table = parts.dropLast().joined(separator: "::")
+            out.replaceSubrange(range, with: "'" + table + "'!" + parts[parts.count - 1])
+        }
+        return out
     }
 
     @Test(arguments: names) func matchesNumbersParser(_ name: String) throws {
@@ -67,7 +85,10 @@ import SwiftSheets
                     }
                     if let f = ec.f {
                         #expect(value.formula != nil, "\(name) \(ref.a1): formula expected (\(f))")
-                        if !f.contains("'"), let ours = value.formula {   // named-column references are numbers-parser's own rendering
+                        // a cross-table *range* is rendered by numbers-parser without its cell addresses
+                        // (`SUM(Other::Table 1:Table 1)`), so there is nothing left to compare against
+                        let degenerate = Self.normalize(f).contains("::")
+                        if !f.contains("'"), !degenerate, let ours = value.formula {   // named-column references are numbers-parser's own rendering
                             formulaChecks += 1
                             // numbers-parser keeps the user's parentheses; our text comes from the tree, so compare trees
                             #expect(FormulaExpr.parse(Self.normalize(f)) == ours, "\(name) \(ref.a1): formula \(ours.rendered(as: .xlsx)) vs \(f)")
