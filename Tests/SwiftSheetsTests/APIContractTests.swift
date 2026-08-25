@@ -174,5 +174,12 @@ import SwiftSheets
         let readme = try String(contentsOf: root.appending(path: "README.md"), encoding: .utf8)
         #expect(readme.contains("Status: **\(SwiftSheetsInfo.version)**"),
                 Comment(rawValue: "README's status line must name \(SwiftSheetsInfo.version)"))
+        // The line people actually copy. It drifted once: the 0.6.0 tag stayed put while thirty-nine commits of
+        // ODS and Numbers work landed on top of it, so `from: "0.6.0"` fetched a build without any of it.
+        #expect(readme.contains("from: \"\(SwiftSheetsInfo.version)\""),
+                Comment(rawValue: "README's Installation pin must be from: \"\(SwiftSheetsInfo.version)\""))
+        let changelog = try String(contentsOf: root.appending(path: "CHANGELOG.md"), encoding: .utf8)
+        #expect(changelog.contains("## [\(SwiftSheetsInfo.version)]"),
+                Comment(rawValue: "CHANGELOG must carry a section for \(SwiftSheetsInfo.version)"))
     }
 }

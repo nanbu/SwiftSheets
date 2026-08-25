@@ -4,8 +4,9 @@ import Foundation
 /// `meta:generator` and the README cannot drift apart — a test checks that last one.
 public enum SwiftSheetsInfo: Sendable {
     public static let name = "SwiftSheets"
-    /// The version this source tree is working towards (SemVer; the released tags are behind it while work is in flight).
-    public static let version = "0.6.0"
+    /// The released version. Bumped in the release commit itself, so this constant, the README's status line,
+    /// the README's `from:` and the git tag always name the same thing — `APIContractTests` checks the first three.
+    public static let version = "0.7.0"
     /// "SwiftSheets/0.6.0" — ODF's `meta:generator`.
     public static var generator: String { "\(name)/\(version)" }
     /// OOXML's `AppVersion` takes `major.minor` and nothing more.

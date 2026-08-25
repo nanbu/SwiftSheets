@@ -77,6 +77,30 @@ about the machine matter, all of them found the hard way:
 than the last, starting from the template itself. When Numbers refuses one, the first refusal names the feature
 that broke it — which is how the two copy defects in Appendix B.18 were found.
 
+## Cutting a release
+
+The tag is the only thing a user of the library ever sees. It drifted once — `0.6.0` stayed where it was while
+thirty-nine commits of ODS and Numbers work landed on top of it, so anyone following the README's
+`from: "0.6.0"` fetched a build without any of it, for two days. The rule that prevents a repeat:
+
+**Bump the version in the release commit, and tag that commit.** In one commit:
+
+1. `SwiftSheetsInfo.version` — the constant the library stamps into every file it writes;
+2. `README.md` — the `Status: **x.y.z**` line **and** the `from: "x.y.z"` pin under Installation;
+3. `CHANGELOG.md` — a `## [x.y.z]` section and its compare link at the bottom.
+
+`APIContractTests.theReadmeSaysTheVersionTheLibraryWrites` fails if any of the three disagrees, so this is checked
+rather than remembered. Then, once CI is green on that commit:
+
+```bash
+git tag -a x.y.z -m "x.y.z"
+git push origin x.y.z
+gh release create x.y.z --title "vx.y.z" --notes-file <(...)   # notes come from the CHANGELOG section
+```
+
+Tag an unreleased version only when you mean to release it: a version number living in the source tree without a
+tag is how 0.4.0 and 0.5.0 came to exist and never ship.
+
 ## Manual checklist before a release (what still needs a person, or Excel)
 
 Build the samples first:

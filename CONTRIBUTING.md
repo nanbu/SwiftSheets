@@ -32,6 +32,20 @@ Both must pass. Parity suites under `Tests/OpenpyxlParity` and `Tests/NumbersPar
 Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `perf:`, `chore:`), one logical
 change per commit.
 
+## AI-assisted development
+
+This library is written with AI assistance and will continue to be. Pull requests written the same way are welcome
+— the bar does not move either way, and it is the same bar for everyone:
+
+- the spec is revised in the same pull request when the change contradicts it;
+- `swift build` and `swift test` pass, and new behaviour arrives with a test that fails without it;
+- a claim about what another application does is backed by that application, not by recollection — the parity
+  scripts under `Tests/OpenpyxlParity` and `Tests/NumbersParity` exist for exactly this;
+- you have read what you are sending and can answer questions about it.
+
+The last one is the only one worth spelling out. A patch nobody has read is not reviewable, and "the model wrote
+it" is not an answer to "why does this branch exist". Say in the pull request which parts you verified and how.
+
 ## Language
 
 Issues and pull requests in English or Japanese are equally welcome. The design spec is Japanese; the README, the API,

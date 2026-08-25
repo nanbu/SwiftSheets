@@ -37,15 +37,16 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.6.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.7.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
 ]
 ```
 
-Status: **0.6.0** — all five formats are usable; the API may still change before 1.0 (see the roadmap below). The
-version here is what the library writes into the files it generates, and a test keeps the two in step.
+Status: **0.7.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
+is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
+test keeps the constant, this line and the pin above in step.
 
 ## Limits
 
@@ -274,6 +275,26 @@ python3 scripts/extract-numbers-schema.py                                 # rege
 and the way Swift packages name their products (swift-collections → `Collections`). The spec's working title was the
 singular "SwiftSheet", which is also taken on GitHub by an unrelated CSV-sharing tool; a handful of unrelated toy
 repositories (≤ 1 star) share the plural name. Decided by the owner on 2026-08-22.
+
+## How this library is built
+
+SwiftSheets is written with AI assistance — the owner decides and reviews, an AI agent does most of the typing —
+and it will go on being built that way. It is said here because you are entitled to know how the code you are
+depending on came to exist.
+
+What that changes is nothing about the bar, and one thing about where the bar sits. Correctness here does not rest
+on who typed the code; it rests on the same things it would have to rest on anyway:
+
+- **The design is written down before the code.** The spec is revised first, and Appendix B records every
+  implementation decision with the reason behind it — including the ones that were measured and then rejected.
+- **Independent implementations are the judges.** openpyxl, LibreOffice, numbers-parser and Numbers.app read what
+  SwiftSheets writes. A format is not called supported until something that did not come from this project agrees.
+- **813 tests**, including a fuzz campaign over every reader, run on every push.
+- **Nothing is dropped in silence.** Every read and every write answers with the list of what it could not keep.
+
+The reverse is also true, and worth saying plainly: an AI-written library needs those checks *more* than a
+hand-written one, because there is no author whose memory of the tricky parts can be consulted. That is why they
+are there, and why a pull request that skips them is not accepted from anyone — see [CONTRIBUTING](CONTRIBUTING.md).
 
 ## License
 
