@@ -209,4 +209,51 @@ import SwiftSheets
         #expect(back.sheets[0]["A1"] == .text("Item") && back.sheets[0]["B3"] == .integer(5))
         try result.data.write(to: Self.outDir.appendingPathComponent("from-xlsx.numbers"))
     }
+
+    // MARK: - What Numbers.app found (Appendix B.18)
+
+    /// Numbers refused a document with more than one sheet or table as *damaged*, and the reason was here: a copied
+    /// object goes into a file of its own, and its entry in the package metadata has to name that file. A template
+    /// component with no locator means "the file named by the preferred locator", and a copy that inherited that
+    /// emptiness sent Numbers to the original's file. Nothing else noticed — our reader, numbers-parser and
+    /// LibreOffice all resolve objects by identifier and never look at the locator.
+    @Test func everyCopiedComponentNamesTheFileItIsIn() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "one"
+        _ = wb.sheets[0].addTable(named: "Second", anchor: CellRef("A10")!)
+        wb.addSheet(named: "Notes"); wb.sheets[1]["A1"] = "two"
+        let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
+        let components = doc.object(NumbersDocument.packageID)?.messages("components") ?? []
+        #expect(!components.isEmpty)
+        let locators = Dictionary(components.compactMap { c in c.int("identifier").map { ($0, c.string("locator") ?? "") } },
+                                  uniquingKeysWith: { a, _ in a })
+        for (id, location) in doc.locations {
+            let path = location.0
+            guard path.hasPrefix("Index/Tables/"), path.hasSuffix("-\(id).iwa"), let locator = locators[id] else { continue }
+            #expect(locator == String(path.dropFirst("Index/".count).dropLast(4)),
+                    "object \(id) is in \(path) but its component says \(locator.isEmpty ? "«nothing»" : locator)")
+        }
+    }
+
+    /// The second finding of the same session: a sheet copied after the first sheet had grown a second table
+    /// inherited that table. Numbers showed it as a table whose cells it could not read; we simply never looked.
+    @Test func aCopiedSheetHasOnlyTheTablesItsSheetAsksFor() throws {
+        var wb = Workbook()
+        var first = wb.sheets[0]
+        first["A1"] = "one"
+        let t = first.addTable(named: "Second", anchor: CellRef("A10")!)
+        first.tables[t]["A1"] = "second table"
+        wb.sheets[0] = first
+        wb.addSheet(named: "Notes"); wb.sheets[1]["A1"] = "two"
+        wb.addSheet(named: "Third"); wb.sheets[2]["A1"] = "three"
+        let data = try wb.write(as: .numbers).data
+        let doc = try NumbersDocument(data: data)
+        let sheets = doc.object(NumbersDocument.documentID)?.references("sheets").filter { doc.typeName($0) == "TN.SheetArchive" } ?? []
+        let tablesPerSheet = sheets.map { sid in
+            doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" }.count ?? 0
+        }
+        #expect(tablesPerSheet == [2, 1, 1], "tables per sheet \(tablesPerSheet)")
+        let back = try NumbersCodec.read(data).workbook
+        #expect(back.sheets.map { $0.tables.count } == [2, 1, 1])
+    }
 }

@@ -56,10 +56,13 @@ struct NumbersWriter {
         } else if workbook.epoch == .mac1904 {
             warnings.append(ConversionWarning(.dropped, message: "the 1904 date origin is dropped: the template has no calculation engine to record it on"))
         }
-        var sheetIDs: [Int] = []
+        // Every sheet is copied before any of them is patched. A sheet cloned later would inherit whatever the
+        // template sheet had grown by then — the second table of the first sheet, for instance, which Numbers finds
+        // and cannot make sense of (Appendix B.18).
+        var sheetIDs: [Int] = [templateSheet]
+        for _ in 1..<workbook.sheets.count { sheetIDs.append(try cloneSheet()) }
         for (i, sheet) in workbook.sheets.enumerated() {
-            let sid = i == 0 ? templateSheet : try cloneSheet()
-            sheetIDs.append(sid)
+            let sid = sheetIDs[i]
             doc.update(sid) { $0.set("name", string: sheet.name) }
             if sheet.state != .visible { warnings.append(ConversionWarning(.degraded, sheet: sheet.name, message: "Numbers has no hidden sheets; the sheet is visible")) }
             if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
@@ -235,13 +238,20 @@ struct NumbersWriter {
         return copy
     }
 
+    /// The copy's own entry in the package metadata. The locator has to name the file the copy was actually written
+    /// to, whatever the original's entry said: a template component with **no** locator means "the file named by the
+    /// preferred locator", and a copy that inherits that emptiness sends Numbers to the original's file — where the
+    /// copy is not. Numbers then calls the whole document damaged and refuses to open it (Appendix B.18).
     private func registerComponent(_ new: Int, like old: Int) {
+        let path = doc.locations[new]?.0 ?? ""
+        var locator = path.hasPrefix("Index/") ? String(path.dropFirst("Index/".count)) : path
+        if locator.hasSuffix(".iwa") { locator.removeLast(4) }
         doc.update(NumbersDocument.packageID) { pkg in
             var comps = pkg.messages("components")
             guard let template = comps.first(where: { $0.int("identifier") == old }) else { return }
             var c = template
             c.set("identifier", int: new)
-            if let loc = c.string("locator"), let preferred = c.string("preferred_locator") { c.set("locator", string: preferred + "-\(new)"); _ = loc }
+            if !locator.isEmpty { c.set("locator", string: locator) }
             comps.append(c)
             pkg.set("components", messages: comps)
         }
