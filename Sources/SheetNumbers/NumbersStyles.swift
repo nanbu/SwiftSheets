@@ -104,7 +104,7 @@ struct NumbersStyleResolver {
         if let v = bool(id, "char_properties", "bold") { style.font.bold = v }
         if let v = bool(id, "char_properties", "italic") { style.font.italic = v }
         if let v = float(id, "char_properties", "font_size") { style.font.size = (v * 100).rounded() / 100 }
-        if let v = string(id, "char_properties", "font_name") { style.font.name = NumbersStyleResolver.familyName(v); style.font.scheme = nil }
+        if let v = string(id, "char_properties", "font_name") { style.font.name = NumbersSchema.shared.fontFamily(v); style.font.scheme = nil }
         if let c = message(id, "char_properties", "font_color").flatMap(NumbersStyleResolver.color) { style.font.color = c }
         if let u = int(id, "char_properties", "underline"), u != 0 { style.font.underline = u == 2 ? .double : .single }
         if let s = int(id, "char_properties", "strikethru") { style.font.strikethrough = s != 0 }
@@ -159,16 +159,6 @@ struct NumbersStyleResolver {
         return Side(style: style, color: colour)
     }
 
-    /// Numbers stores the PostScript font name ("HelveticaNeue-Bold"); the model wants the family ("Helvetica Neue").
-    static func familyName(_ postScript: String) -> String {
-        let stem = postScript.split(separator: "-").first.map(String.init) ?? postScript
-        var out = ""
-        for (i, ch) in stem.enumerated() {
-            if i > 0, ch.isUppercase, !out.hasSuffix(" ") { out.append(" ") }
-            out.append(ch)
-        }
-        return out
-    }
 }
 
 /// `TSK.FormatStructArchive` ⇄ an Excel number-format code.
@@ -348,6 +338,8 @@ struct NumbersStyleWriter {
     private var cellKeys: [CellStyle: Int] = [:]
     private var formatKeys: [String: Int] = [:]
     private(set) var styleEntries: [ProtoMessage] = []
+    /// The style objects the list names, so the package metadata can record the cross-component reference.
+    private(set) var styleObjects: [Int] = []
     private(set) var formatEntries: [ProtoMessage] = []
     /// Number-format codes Numbers has no description for; the writer reports them once each.
     private(set) var unexpressibleFormats: [String] = []
@@ -411,6 +403,7 @@ struct NumbersStyleWriter {
     }
 
     private mutating func addEntry(_ objectID: Int) -> Int {
+        styleObjects.append(objectID)
         let key = styleEntries.count + 1
         var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
         entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("reference", reference: objectID)
@@ -434,7 +427,8 @@ struct NumbersStyleWriter {
         if font.bold { char.set("bold", bool: true); overrides += 1 }
         if font.italic { char.set("italic", bool: true); overrides += 1 }
         if let size = font.size, size != base.size { char.set("font_size", float: Float(size)); overrides += 1 }
-        if let name = font.name, name != base.name { char.set("font_name", string: name); overrides += 1 }
+        // Numbers names a font by its PostScript name, not by its family
+        if let name = font.name, name != base.name { char.set("font_name", string: NumbersSchema.shared.fontPostScriptName(name)); overrides += 1 }
         if case .rgb(let hex)? = font.color, let colour = NumbersStyleWriter.color(hex) {
             char.set("font_color", message: colour); overrides += 1
         }

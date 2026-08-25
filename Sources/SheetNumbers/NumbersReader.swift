@@ -139,7 +139,8 @@ struct NumbersReader {
         let tileSize = tiles?.int("tile_size").flatMap { $0 > 0 ? $0 : nil } ?? 256
         var decoder = NumbersFormulaDecoder { [tableUUIDToName] hex in tableUUIDToName[hex] }
         // cell formatting: the style / format lists of this table, plus the defaults its header and footer regions use
-        var styles = options.dataOnly ? nil : NumbersStyleResolver(doc: doc, model: model, store: store)
+        // `dataOnly` is about formulas, not formatting (the XLSX and ODS readers keep styles either way)
+        var styles = NumbersStyleResolver(doc: doc, model: model, store: store)
         var sharedStyles: [CellStyle: SharedStyle] = [:]
         for tileRef in tiles?.messages("tiles") ?? [] {
             guard let tid2 = tileRef.reference("tile"), let tile = doc.object(tid2) else { continue }
@@ -163,7 +164,7 @@ struct NumbersReader {
                     do {
                         let s = try CellStorage.decode(record)
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
-                        let style = styles?.style(s, row: row, col: col) ?? .default
+                        let style = styles.style(s, row: row, col: col)
                         if value != nil || style != .default {
                             var cell = Cell(value: value)
                             if style != .default {

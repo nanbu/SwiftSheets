@@ -169,6 +169,21 @@ import SwiftSheets
 
         let doc = try NumbersDocument(data: result.data)
         #expect(doc.integrityProblems().isEmpty, "\(doc.integrityProblems().prefix(5))")
+
+        // the style list names objects of another component, and Numbers keeps that crossing in the metadata
+        let store = try #require(doc.object(doc.identifiers(ofType: "TST.TableModelArchive").first ?? 0)?.message("base_data_store"))
+        let listID = try #require(store.reference("styleTable"))
+        let named = try #require(doc.object(listID)).messages("entries").compactMap { $0.reference("reference") }
+        #expect(!named.isEmpty)
+        let listComponent = try #require(doc.componentID(forObject: listID))
+        let recorded = doc.object(NumbersDocument.packageID)?.messages("components")
+            .first { $0.int("identifier") == listComponent }?
+            .messages("external_references").compactMap { $0.int("object_identifier") } ?? []
+        #expect(Set(named).isSubset(of: Set(recorded)), "every style the list names is recorded as an external reference")
+
+        // Numbers names a font by its PostScript name, not by its family
+        let stylesheet = named.compactMap { doc.object($0)?.message("char_properties")?.string("font_name") }
+        #expect(stylesheet.allSatisfy { !$0.contains(" ") }, "\(stylesheet)")
     }
 
     /// Numbers describes one presentation per format, so Excel's sections, colours and conditions are reported.

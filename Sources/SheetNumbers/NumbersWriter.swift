@@ -333,6 +333,13 @@ struct NumbersWriter {
                 list.set("entries", messages: entries)
                 list.set("nextListID", int: entries.count + 1)
             }
+            // the list names objects of the stylesheet component; Numbers keeps that crossing in the metadata
+            if let listComponent = doc.componentID(forObject: sid) {
+                let crossings = styleWriter.styleObjects.compactMap { object in
+                    doc.componentID(forObject: object).map { (object: object, component: $0) }
+                }
+                doc.addExternalReferences(from: listComponent, to: crossings)
+            }
         }
         if let fid = store.reference("format_table") {
             let entries = styleWriter.formatEntries

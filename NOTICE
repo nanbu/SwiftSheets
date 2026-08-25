@@ -4,6 +4,9 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
 
 1. numbers-parser (https://github.com/masaccio/numbers-parser), MIT License, Copyright 2021 Jon Connell.
    Used, unmodified or machine-derived, for Apple Numbers support (spec chapters 10–11, Appendix B.8):
+   - Sources/SheetNumbers/Resources/fonts.json — the PostScript-font-name → family map (numbers-parser
+     `generated/fontmap.py`), which Numbers needs in both directions: it names a font "HelveticaNeue-Bold"
+     where the model names the family "Helvetica Neue"
    - Sources/SheetNumbers/Resources/constants.json — the integer constants Apple declared as plain int32 in the
      Protobuf, so the schema carries no names for them (number-format kinds, text alignment, duration styles),
      extracted from numbers_parser.constants / numbers_parser.cell

@@ -251,7 +251,7 @@ struct ProtoMessage: Hashable {
 }
 
 /// The machine-extracted schema (Sources/SheetNumbers/Resources/schema.json, registry.json, functions.json,
-/// constants.json — see NOTICE).
+/// constants.json, fonts.json — see NOTICE).
 final class NumbersSchema: Sendable {
     struct FieldInfo: Sendable { let name: String; let number: Int; let type: String; let typeName: String?; let repeated: Bool }
     static let shared = NumbersSchema()
@@ -267,6 +267,9 @@ final class NumbersSchema: Sendable {
     /// The integer constants Apple left unnamed in the Protobuf (number-format kinds, alignment, duration styles),
     /// recovered by numbers-parser: group name → case name → value.
     let constants: [String: [String: Int]]
+    /// PostScript font name → family name, and the first PostScript name of each family for the way back.
+    let fontFamilies: [String: String]
+    let fontPostScriptNames: [String: String]
     let sourceVersion: String
 
     private init() {
@@ -294,6 +297,15 @@ final class NumbersSchema: Sendable {
         registry = r
         registryByName = Dictionary(r.map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
         constants = (load("constants")["constants"] as? [String: [String: Int]]) ?? [:]
+        let families = (load("fonts")["families"] as? [String: String]) ?? [:]
+        fontFamilies = families
+        // the family's plain face is the shortest of its names, which is the one Numbers uses for a plain run
+        var byFamily: [String: String] = [:]
+        for (postScript, family) in families {
+            if let existing = byFamily[family], (existing.count, existing) <= (postScript.count, postScript) { continue }
+            byFamily[family] = postScript
+        }
+        fontPostScriptNames = byFamily
         let fn = load("functions")["functions"] as? [String: String] ?? [:]
         var f: [Int: String] = [:]
         for (k, v) in fn { if let i = Int(k) { f[i] = v } }
@@ -310,4 +322,8 @@ final class NumbersSchema: Sendable {
     /// A named constant of `constants.json`, e.g. `constant("FormatType", "PERCENT")`.
     func constant(_ group: String, _ name: String) -> Int? { constants[group]?[name] }
     func constantName(_ group: String, _ value: Int) -> String? { constants[group]?.first { $0.value == value }?.key }
+    /// "HelveticaNeue-Bold" → "Helvetica Neue"; an unknown name is its own family.
+    func fontFamily(_ postScript: String) -> String { fontFamilies[postScript] ?? postScript }
+    /// "Helvetica Neue" → "HelveticaNeue"; an unknown family is written as it stands.
+    func fontPostScriptName(_ family: String) -> String { fontPostScriptNames[family] ?? family }
 }

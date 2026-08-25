@@ -152,6 +152,41 @@ final class NumbersDocument {
         }
     }
 
+    /// The `TSP.ComponentInfo` identifier of the component an object lives in — the package metadata names each
+    /// component by a locator, which is its IWA file without the "Index/" prefix and the ".iwa" suffix. A component
+    /// that saved to its default place leaves `locator` empty and only names its `preferred_locator`.
+    func componentID(forObject id: Int) -> Int? {
+        guard let (path, _) = locations[id], path.hasPrefix("Index/"), path.hasSuffix(".iwa") else { return nil }
+        let locator = String(path.dropFirst("Index/".count).dropLast(".iwa".count))
+        guard let pkg = object(NumbersDocument.packageID) else { return nil }
+        for c in pkg.messages("components") {
+            let name = c.string("locator").flatMap { $0.isEmpty ? nil : $0 } ?? c.string("preferred_locator") ?? ""
+            if name == locator { return c.int("identifier") }
+        }
+        return nil
+    }
+
+    /// Records that one component now names objects living in another. Numbers keeps this list itself, and a
+    /// document whose cross-component references are missing from it is one it offers to repair.
+    func addExternalReferences(from component: Int, to objects: [(object: Int, component: Int)]) {
+        guard !objects.isEmpty else { return }
+        update(NumbersDocument.packageID) { pkg in
+            var comps = pkg.messages("components")
+            guard let i = comps.firstIndex(where: { $0.int("identifier") == component }) else { return }
+            var known = Set(comps[i].messages("external_references").compactMap { ref -> String? in
+                guard let o = ref.int("object_identifier"), let c = ref.int("component_identifier") else { return nil }
+                return "\(o)|\(c)"
+            })
+            for entry in objects where known.insert("\(entry.object)|\(entry.component)").inserted {
+                var ref = ProtoMessage(typeName: "TSP.ComponentExternalReference")
+                ref.set("object_identifier", int: entry.object)
+                ref.set("component_identifier", int: entry.component)
+                comps[i].append("external_references", message: ref)
+            }
+            pkg.set("components", messages: comps)
+        }
+    }
+
     func setBlob(_ path: String, _ data: Data) { if files[path] == nil { order.append(path) }; files[path] = .blob(data) }
 
     // MARK: - Output

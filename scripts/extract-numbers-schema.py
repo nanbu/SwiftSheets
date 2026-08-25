@@ -3,6 +3,7 @@
 into JSON resources under Sources/SheetNumbers/Resources/ — nothing is hand-copied (spec §10.1, Appendix B.8):
 
     registry.json   IWA message type id → fully qualified message name        (numbers_parser.generated.mapping.ID_NAME_MAP)
+    fonts.json      PostScript font name → family name                         (numbers_parser.generated.fontmap.FONT_NAME_TO_FAMILY)
     constants.json  the integer constants Apple left unnamed in the Protobuf   (numbers_parser.constants: FormatType,
                     (number-format kinds, alignment, duration styles)          HorizontalJustification, VerticalJustification, DurationStyle, DurationUnits)
     functions.json  Numbers function id → name                                (numbers_parser.generated.functionmap.FUNCTION_MAP)
@@ -24,6 +25,7 @@ import numbers_parser  # noqa: E402
 import numbers_parser.generated as generated  # noqa: E402
 from google.protobuf import descriptor_pb2  # noqa: E402
 from numbers_parser.generated.functionmap import FUNCTION_MAP  # noqa: E402
+from numbers_parser.generated.fontmap import FONT_NAME_TO_FAMILY  # noqa: E402
 from numbers_parser.generated.mapping import ID_NAME_MAP  # noqa: E402
 from numbers_parser import cell as np_cell  # noqa: E402
 from numbers_parser import constants as np_constants  # noqa: E402
@@ -96,7 +98,9 @@ meta = {"source": "numbers-parser", "version": version, "license": "MIT",
         "note": "machine-extracted by scripts/extract-numbers-schema.py — do not edit by hand"}
 (OUT / "registry.json").write_text(json.dumps({"_meta": meta, "types": registry}, indent=1, sort_keys=True) + "\n")
 (OUT / "functions.json").write_text(json.dumps({"_meta": meta, "functions": functions}, indent=1, sort_keys=True) + "\n")
+# Numbers names a font by its PostScript name ("HelveticaNeue-Bold"); the model names the family ("Helvetica Neue").
+(OUT / "fonts.json").write_text(json.dumps({"_meta": meta, "families": dict(FONT_NAME_TO_FAMILY)}, indent=1, sort_keys=True) + "\n")
 (OUT / "constants.json").write_text(json.dumps({"_meta": meta, "constants": constants}, indent=1, sort_keys=True) + "\n")
 (OUT / "schema.json").write_text(json.dumps({"_meta": meta, "messages": messages, "enums": enums}, indent=1, sort_keys=True) + "\n")
 print(f"numbers-parser {version}: {len(registry)} registry types, {len(functions)} functions, {len(messages)} messages, "
-      f"{len(enums)} enums, {len(constants)} constant groups → {OUT}")
+      f"{len(enums)} enums, {len(constants)} constant groups, {len(FONT_NAME_TO_FAMILY)} fonts → {OUT}")
