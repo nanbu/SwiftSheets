@@ -251,7 +251,10 @@ enum NumbersFormat {
         // number, where `0%` multiplies the value by a hundred. Reading the quotes away turned one into the other
         // and made 80 come back as 8000 (reported by a user of the library, 2026-08-26).
         let section = plain.split(separator: ";", maxSplits: 1).first.map(String.init) ?? plain
-        let (body, literals) = NumbersFormat.split(section)
+        let split = NumbersFormat.split(section)
+        let body = split.body
+        var literals = split.literals
+        var drawn: String?
         let decimals = body.split(separator: ".", maxSplits: 1).dropFirst().first.map { $0.filter { $0 == "0" || $0 == "#" }.count } ?? 0
         let grouping = body.contains("#,##")
         if body.hasSuffix("%") {
@@ -265,6 +268,7 @@ enum NumbersFormat {
         } else if let symbol = currencySymbol(inCode: plain) {
             f.set("format_type", int: type("CURRENCY") ?? 257)
             f.set("currency_code", string: currencyCode(symbol))
+            drawn = String(symbol)
         } else if body.contains("0") || body.contains("#") {
             f.set("format_type", int: type("DECIMAL") ?? 256)
         } else {
@@ -277,6 +281,8 @@ enum NumbersFormat {
         // ignore the format altogether and show a bare number. So the *kind* stays one Numbers can draw, and the
         // code rides along in `custom_format_string` for the way back. Numbers will not show the literal; the
         // codec says so, and — the point of the bug this came from — the value is never rescaled.
+        // the currency symbol *is* drawn — by the currency description — so it is not a literal left behind
+        if let drawn { literals.removeAll { $0 == drawn } }
         if !literals.isEmpty { f.set("custom_format_string", string: plain) }
         return f
     }
@@ -520,10 +526,10 @@ struct NumbersStyleWriter {
         }
         // Numbers describes one presentation, not Excel's four sections and their colours and conditions
         if code.contains(";") || NumbersFormat.hasDirective(code) { partialFormats.append(code) }
-        // literal text beside the number survives a round trip but Numbers will not draw it
-        if !NumbersFormat.split(code.split(separator: ";", maxSplits: 1).first.map(String.init) ?? code).literals.isEmpty {
-            literalFormats.append(code)
-        }
+        // literal text beside the number survives a round trip but Numbers will not draw it. Only the codes that
+        // actually end up carrying it verbatim qualify: a currency symbol and a date's own words are drawn by the
+        // currency and date descriptions, and saying otherwise would be a warning about nothing.
+        if archive.has("custom_format_string") { literalFormats.append(code) }
         let key = formatEntries.count + 1
         var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
         entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("format", message: archive)

@@ -564,13 +564,24 @@ struct NumbersWriter {
                     value = c
                 }
             }
+            // A link, or formatting that changes part-way through, moves the cell's text into the document
+            // engine — and the engine holds *text*. A link on a number would turn the number into a string, so
+            // the number wins and the link is reported instead.
             var richID: Int?
-            if cell.hyperlink != nil || { if case .richText = value { return true }; return false }() {
-                let runs: [TextRun]
-                let text: String
-                if case .richText(let r) = value { runs = r; text = r.map(\.text).joined() } else { runs = []; text = value?.stringValue ?? "" }
-                richID = try richKey(text: text, runs: runs, link: cell.hyperlink?.target)
-                if richID != nil { value = nil }
+            var isRich = false
+            if case .richText = value { isRich = true }
+            if isRich || cell.hyperlink != nil {
+                let carriesText = isRich || { if case .text = value { return true }; return value == nil }()
+                if carriesText {
+                    let runs: [TextRun]
+                    let text: String
+                    if case .richText(let r) = value { runs = r; text = r.map(\.text).joined() } else { runs = []; text = value?.stringValue ?? "" }
+                    richID = try richKey(text: text, runs: runs, link: cell.hyperlink?.target)
+                    if richID != nil { value = nil }
+                } else {
+                    warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName, location: ref,
+                                                      message: "the link on a cell holding a \(value.map { "\($0)" }.map { $0.prefix(while: { $0 != "(" }) } ?? "value") is dropped: a Numbers link lives inside text, and the value is worth more than the link"))
+                }
             }
             let commentID = try cell.comment.map { try commentKey(for: $0) }
             let style = cell.style

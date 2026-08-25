@@ -79,11 +79,32 @@ import SwiftSheets
         conditional.sheets[0] = c
         out.append(("12-conditional-format", conditional))
 
+        var extras = Workbook()
+        var e = extras.sheets[0]
+        e["A1"] = "visit example"
+        e[cell: "A1"].hyperlink = Hyperlink(target: "https://example.com/one")
+        e["B1"] = .richText([TextRun("bold", font: Font(bold: true)), TextRun("plain")])
+        e["C1"] = "has a note"
+        e[cell: "C1"].comment = CellNote("first note text", author: "Author One")
+        extras.sheets[0] = e
+        out.append(("13-links-runs-notes", extras))
+
+        var crossTable = Workbook()
+        crossTable.sheets[0].name = "Data"
+        crossTable.addSheet(named: "Other")
+        crossTable.sheets[1]["A1"] = 21
+        crossTable.sheets[1]["A2"] = 2
+        var x = crossTable.sheets[0]
+        x[cell: "D1"].value = .formula(FormulaExpr.parse("Other!A1*2"), cached: nil)
+        x[cell: "D2"].value = .formula(FormulaExpr.parse("SUM(Other!A1:A2)"), cached: nil)
+        crossTable.sheets[0] = x
+        out.append(("14-cross-table", crossTable))
+
         var big = Workbook()
         var b = big.sheets[0]
         for r in 0..<300 { b[CellRef(row: r, col: 0)] = .integer(r) }
         big.sheets[0] = b
-        out.append(("13-two-tiles", big))
+        out.append(("15-two-tiles", big))
         return out
     }
 

@@ -112,3 +112,23 @@ import SwiftSheets
         #expect(expr.referencedSheets.contains { $0.hasPrefix("Other::") }, "\(expr.referencedSheets)")
     }
 }
+
+extension NumbersRichTextTests {
+    /// A link belongs to text. Numbers' text engine holds a string, so a link on a number could only be written
+    /// by turning the number into one — the number is worth more, and the link is reported instead.
+    @Test func aLinkNeverCostsTheValue() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        sheet["A1"] = 42
+        sheet[cell: "A1"].hyperlink = Hyperlink(target: "https://example.com/")
+        sheet["A2"] = CellValue(CivilDate(year: 2026, month: 9, day: 1)!)
+        sheet[cell: "A2"].hyperlink = Hyperlink(target: "https://example.com/")
+        wb.sheets[0] = sheet
+        let result = try wb.write(as: .numbers)
+        #expect(result.warnings.filter { $0.message.contains("link on a cell") }.count == 2, "\(result.warnings.map(\.message))")
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+        #expect(back["A1"] == .integer(42), "the number survives: \(String(describing: back["A1"]))")
+        #expect(back["A2"]?.dateValue?.date.description == "2026-09-01")
+        #expect(back[cell: "A1"].hyperlink == nil)
+    }
+}
