@@ -50,6 +50,12 @@ struct NumbersWriter {
         if !workbook.customProperties.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .other, message: "\(workbook.customProperties.count) custom document propert(ies) dropped: Numbers has no free-form document fields"))
         }
+        // the date origin: Numbers keeps it on the calculation engine, as the reader expects to find it
+        if let engine = doc.identifiers(ofType: "TSCE.CalculationEngineArchive").first {
+            doc.update(engine) { $0.set("base_date_1904", bool: workbook.epoch == .mac1904) }
+        } else if workbook.epoch == .mac1904 {
+            warnings.append(ConversionWarning(.dropped, message: "the 1904 date origin is dropped: the template has no calculation engine to record it on"))
+        }
         var sheetIDs: [Int] = []
         for (i, sheet) in workbook.sheets.enumerated() {
             let sid = i == 0 ? templateSheet : try cloneSheet()

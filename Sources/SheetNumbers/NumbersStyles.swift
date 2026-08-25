@@ -231,7 +231,7 @@ enum NumbersFormat {
             f.set("format_type", int: type("FRACTION") ?? 262)
             f.set("fraction_accuracy", int: body.contains("??") ? 2 : 1)
             return f
-        } else if let symbol = body.first(where: { "$¥€£".contains($0) }) {
+        } else if let symbol = currencySymbol(inCode: plain) {
             f.set("format_type", int: type("CURRENCY") ?? 257)
             f.set("currency_code", string: currencyCode(symbol))
         } else if body.contains("0") || body.contains("#") {
@@ -244,17 +244,35 @@ enum NumbersFormat {
         return f
     }
 
-    /// True when the code carries a `[…]` directive that is not an elapsed-time marker — a colour or a condition,
-    /// neither of which a Numbers format describes.
+    /// True when the code carries a `[…]` directive that is not an elapsed-time marker and not a currency —
+    /// a colour or a condition, neither of which a Numbers format describes.
     static func hasDirective(_ code: String) -> Bool {
         var i = code.startIndex
         while let open = code[i...].firstIndex(of: "["), let close = code[open...].firstIndex(of: "]") {
-            let body = String(code[code.index(after: open)..<close]).lowercased()
-            if !["h", "hh", "m", "mm", "s", "ss"].contains(body) { return true }
+            let body = String(code[code.index(after: open)..<close])
+            let lower = body.lowercased()
+            let elapsed = ["h", "hh", "m", "mm", "s", "ss"].contains(lower)
+            if !elapsed, !body.hasPrefix("$") { return true }
             i = code.index(after: close)
             if i >= code.endIndex { break }
         }
         return false
+    }
+
+    /// The currency a code names. `[$¥-411]` names it inside the bracket — where a naive scan finds the `$` of the
+    /// bracket itself and reads every currency in the world as dollars.
+    static func currencySymbol(inCode code: String) -> Character? {
+        if let open = code.range(of: "[$"), let close = code[open.upperBound...].firstIndex(of: "]") {
+            let body = code[open.upperBound..<close]
+            let name = body.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
+            if let first = name.first { return first }
+        }
+        // a quoted or bare symbol, with the bracket forms already ruled out
+        var stripped = code
+        while let open = stripped.range(of: "["), let close = stripped[open.upperBound...].firstIndex(of: "]") {
+            stripped.removeSubrange(open.lowerBound...close)
+        }
+        return stripped.first { "$¥€£₩".contains($0) }
     }
 
     static let symbols: [String: String] = ["USD": "$", "JPY": "¥", "EUR": "€", "GBP": "£", "CNY": "¥", "KRW": "₩"]

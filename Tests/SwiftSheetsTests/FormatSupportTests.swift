@@ -65,6 +65,19 @@ import SwiftSheets
         d.tabColor = "FF0000"
         wb.sheets[0] = d
 
+        // what only OpenDocument has (spec Appendix B.17)
+        wb.epoch = .mac1904
+        wb.calculationSettings.useRegularExpressions = true
+        wb.calculationSettings.nullYear = 1930
+        wb.labelRanges = [LabelRange(labels: CellRange("Data!A1:D1")!, data: CellRange("Data!A2:D9")!, orientation: .column)]
+        wb.consolidation = Consolidation(function: .sum, sources: [CellRange("Data!A1:D9")!],
+                                         target: CellRef("A20")!, targetSheet: "Data", useLabels: .both)
+        wb.sheets[0].table.detective[CellRef("F1")!] = CellDetective(
+            highlighted: [CellDetective.HighlightedRange(range: CellRange("Data!C2:C9"), direction: .fromSameTable)],
+            operations: [CellDetective.Operation(.tracePrecedents, index: 0)])
+        wb.sheets[0]["I1"] = .number(Decimal(string: "1234.5")!)
+        wb.sheets[0].style("I1") { $0.numberFormat = "[$¥-411]#,##0.00" }
+
         wb.addSheet(named: "Pivot")
         _ = wb.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A3")!, summarizing: CellRange("A1:D9")!,
                              on: "Data", rows: ["Region"], columns: ["Product"], values: [("Qty", .sum)])
@@ -79,7 +92,7 @@ import SwiftSheets
         return wb
     }
 
-    /// The 40 rows of the published table, in its order. Each says whether the feature came home.
+    /// The 46 rows of the published table, in its order. Each says whether the feature came home.
     static func profile(of workbook: Workbook) -> [String: Bool] {
         let s = workbook.sheets["Data"] ?? workbook.sheets[0]
         let pivot = workbook.sheets["Pivot"]
@@ -127,12 +140,19 @@ import SwiftSheets
             "文書の自由項目": !workbook.customProperties.isEmpty,
             "隠しシート": workbook.sheets.contains { $0.isHidden },
             "1シート複数テーブル": (workbook.sheets["Multi"]?.tables.count ?? 0) > 1,
+            // ODF only (Appendix B.17)
+            "ラベル範囲": !workbook.labelRanges.isEmpty,
+            "統合の定義": workbook.consolidation != nil,
+            "探偵の矢印": !s.tables.allSatisfy(\.detective.isEmpty),
+            "計算設定": workbook.calculationSettings.useRegularExpressions,
+            "日付の原点": workbook.epoch == .mac1904,
+            "通貨のセル種別": s.style("I1").numberFormat.contains("¥"),
         ]
     }
 
     /// What each format is *expected* to lose. Everything not named here has to survive.
     static let expectedLosses: [SheetFormat: Set<String>] = [
-        .xlsx: ["1シート複数テーブル"],
+        .xlsx: ["1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
         .ods: ["保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
         .numbers: [
             "数式", "配列数式", "グループ化", "ハイパーリンク", "メモ", "リッチテキスト",
@@ -141,11 +161,12 @@ import SwiftSheets
             "シート保護", "保護範囲", "シナリオ",
             "印刷・ヘッダフッタ", "印刷・向き", "印刷・範囲", "印刷・タイトル行", "改ページ", "タブ色",
             "定義名・ブック", "定義名・シート", "ブック保護", "文書の自由項目", "隠しシート",
+            "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定",
         ],
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 1, .ods: 8, .numbers: 20]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 24]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {
@@ -163,7 +184,7 @@ import SwiftSheets
             unexpectedly kept: \(expected.subtracting(lost).sorted()))
             docs/format-support.html has to be updated with the code.
             """)
-        #expect(survived.count == 40, "the published table has 40 rows")
+        #expect(survived.count == 46, "the published table has 46 rows")
 
         // nothing is dropped in silence: every loss is answered by a warning
         #expect(result.warnings.count == Self.expectedWarningCount[format]!,

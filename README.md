@@ -62,12 +62,27 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSX | ✅ | ✅ | ✅ F3 — uninterpreted parts re-packed byte for byte, ids kept | P1 done |
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
-| ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes; pictures / objects of a source ODS are not re-linked | P3 done |
+| ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
 | Numbers | ✅ values, formulas (as text), cell formatting, number formats, hyperlinks, merges, sizes, several tables per sheet | ✅ values, cell formatting, number formats, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
 up with new Numbers releases.
+
+### ODS: what OpenDocument has that Excel has not
+
+The comparison runs both ways. Six things OpenDocument says have no OOXML equivalent at all, and SwiftSheets reads
+and writes every one of them (spec Appendix B.17): **label ranges** — headings a formula may name directly, so
+`=SUM(Sales)` finds the column headed *Sales* without a defined name, which Excel could do until 2003 and OOXML
+cannot write; the **consolidation definition**, which ODF stores in the document where Excel consolidates as a
+one-off command and keeps nothing; the **detective's arrows**, which Excel draws and never saves; the
+**calculation settings** that decide whether a search condition is a regular expression, whether it must match a
+whole cell, and where the two-digit-year window starts — settings of the application in Excel, of the file in ODF;
+the **date origin**, which ODF lets be any date; and a cell that knows **which currency** it holds as data rather
+than only inside a format code. Writing such a workbook to any other format reports what goes.
+
+The element and attribute names come from the OASIS ODF 1.3 RelaxNG schema, and LibreOffice re-saves a file
+SwiftSheets wrote with all six still in it.
 
 ### ODS: what the conditional formats ride on
 
