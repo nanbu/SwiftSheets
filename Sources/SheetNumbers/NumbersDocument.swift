@@ -66,6 +66,7 @@ final class NumbersDocument {
     // MARK: - Mutation
 
     func update(_ id: Int, _ body: (inout ProtoMessage) -> Void) {
+        if id == NumbersDocument.packageID { componentsByLocator = nil }
         guard let (path, i) = locations[id], case .iwa(var f)? = files[path] else { return }
         var obj = f.archives[i].objects[0]
         body(&obj)
@@ -155,15 +156,24 @@ final class NumbersDocument {
     /// The `TSP.ComponentInfo` identifier of the component an object lives in — the package metadata names each
     /// component by a locator, which is its IWA file without the "Index/" prefix and the ".iwa" suffix. A component
     /// that saved to its default place leaves `locator` empty and only names its `preferred_locator`.
+    /// locator → component identifier. Reading it out of the package metadata means decoding every component
+    /// and its hundreds of external references, so the answer is kept until the metadata changes. Without the
+    /// cache, a document with many styles spent minutes here (measured: 104 s for one workbook).
+    private var componentsByLocator: [String: Int]?
+
     func componentID(forObject id: Int) -> Int? {
         guard let (path, _) = locations[id], path.hasPrefix("Index/"), path.hasSuffix(".iwa") else { return nil }
         let locator = String(path.dropFirst("Index/".count).dropLast(".iwa".count))
-        guard let pkg = object(NumbersDocument.packageID) else { return nil }
-        for c in pkg.messages("components") {
-            let name = c.string("locator").flatMap { $0.isEmpty ? nil : $0 } ?? c.string("preferred_locator") ?? ""
-            if name == locator { return c.int("identifier") }
+        if componentsByLocator == nil {
+            var map: [String: Int] = [:]
+            for c in object(NumbersDocument.packageID)?.messages("components") ?? [] {
+                let name = c.string("locator").flatMap { $0.isEmpty ? nil : $0 } ?? c.string("preferred_locator") ?? ""
+                guard let identifier = c.int("identifier"), map[name] == nil else { continue }
+                map[name] = identifier
+            }
+            componentsByLocator = map
         }
-        return nil
+        return componentsByLocator?[locator]
     }
 
     /// Records that one component now names objects living in another. Numbers keeps this list itself, and a

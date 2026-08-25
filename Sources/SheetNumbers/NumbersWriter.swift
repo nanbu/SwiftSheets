@@ -26,6 +26,9 @@ struct NumbersWriter {
     private var tableUUIDs: [String: ProtoMessage] = [:]
     /// Author name → its archive, so two notes by the same person share one author.
     private var authorIDs: [String: Int] = [:]
+    /// Component entries waiting to go into the package metadata. Registering them one at a time meant walking
+    /// the whole metadata once per object — with four sheets that was most of the time the write took.
+    private var pendingComponents: [(new: Int, like: Int?, locator: String)] = []
 
     init(workbook: Workbook, options: WriteOptions) throws {
         self.workbook = workbook
@@ -153,6 +156,7 @@ struct NumbersWriter {
                 }
             }
         }
+        flushComponents()
         doc.update(NumbersDocument.documentID) { $0.set("sheets", references: sheetIDs) }
         doc.setBlob("Metadata/DocumentIdentifier", Data(UUID().uuidString.utf8))
         return doc.encoded()
@@ -296,21 +300,55 @@ struct NumbersWriter {
         return id
     }
 
-    private func registerComponent(_ new: Int, like old: Int) {
+    private mutating func registerComponent(_ new: Int, like old: Int) {
         let path = doc.locations[new]?.0 ?? ""
         var locator = path.hasPrefix("Index/") ? String(path.dropFirst("Index/".count)) : path
         if locator.hasSuffix(".iwa") { locator.removeLast(4) }
+        pendingComponents.append((new: new, like: old, locator: locator))
+    }
+
+    /// Everything queued goes into the package metadata in one pass. Each pass re-walks the metadata, so doing
+    /// this per object turned a one-second write into a two-minute one.
+    private mutating func flushComponents() {
+        guard !pendingComponents.isEmpty else { return }
+        let queued = pendingComponents
+        pendingComponents = []
         doc.update(NumbersDocument.packageID) { pkg in
             var comps = pkg.messages("components")
-            guard let template = comps.first(where: { $0.int("identifier") == old }) else { return }
-            var c = template
-            c.set("identifier", int: new)
-            if !locator.isEmpty { c.set("locator", string: locator) }
-            comps.append(c)
+            var byID = Dictionary(comps.compactMap { c in c.int("identifier").map { ($0, c) } }, uniquingKeysWith: { a, _ in a })
+            let calcEngine = comps.firstIndex { $0.string("preferred_locator") == "CalculationEngine" }
+            for entry in queued {
+                var registered = false
+                if let old = entry.like, let template = byID[old] {
+                    var c = template
+                    c.set("identifier", int: entry.new)
+                    if !entry.locator.isEmpty { c.set("locator", string: entry.locator) }
+                    comps.append(c)
+                    byID[entry.new] = c
+                    registered = true
+                } else if entry.like == nil {
+                    var c = ProtoMessage(typeName: "TSP.ComponentInfo")
+                    c.set("identifier", int: entry.new)
+                    c.set("preferred_locator", string: "Tables/Tile")
+                    c.set("locator", string: entry.locator)
+                    c.set("is_stored_outside_object_archive", bool: false)
+                    for v in [2, 0, 0] { c.fields.append(ProtoMessage.Field(number: NumbersSchema.shared.fieldNumber("TSP.ComponentInfo", "document_read_version")!, value: .varint(UInt64(v)))) }
+                    for v in [2, 0, 0] { c.fields.append(ProtoMessage.Field(number: NumbersSchema.shared.fieldNumber("TSP.ComponentInfo", "document_write_version")!, value: .varint(UInt64(v)))) }
+                    c.set("save_token", int: 1)
+                    comps.append(c)
+                    byID[entry.new] = c
+                    registered = true
+                }
+                // the calculation engine names every table component it uses — but only the ones that exist:
+                // a copy whose original had no component entry gets none, and must not be referenced either
+                if registered, let i = calcEngine {
+                    var ref = ProtoMessage(typeName: "TSP.ComponentExternalReference")
+                    ref.set("component_identifier", int: entry.new)
+                    comps[i].append("external_references", message: ref)
+                }
+            }
             pkg.set("components", messages: comps)
         }
-        // the calculation engine component lists the table components it uses
-        addExternalReference(toComponentNamed: "CalculationEngine", componentID: new, objectID: nil)
     }
 
     private func addExternalReference(toComponentNamed name: String, componentID: Int, objectID: Int?, weak: Bool = false) {
@@ -802,21 +840,11 @@ struct NumbersWriter {
         return (width, height)
     }
 
-    private func registerTileComponent(_ id: Int) {
-        doc.update(NumbersDocument.packageID) { pkg in
-            var comps = pkg.messages("components")
-            var c = ProtoMessage(typeName: "TSP.ComponentInfo")
-            c.set("identifier", int: id)
-            c.set("preferred_locator", string: "Tables/Tile")
-            c.set("locator", string: "Tables/Tile-\(id)")
-            c.set("is_stored_outside_object_archive", bool: false)
-            for v in [2, 0, 0] { c.fields.append(ProtoMessage.Field(number: NumbersSchema.shared.fieldNumber("TSP.ComponentInfo", "document_read_version")!, value: .varint(UInt64(v)))) }
-            for v in [2, 0, 0] { c.fields.append(ProtoMessage.Field(number: NumbersSchema.shared.fieldNumber("TSP.ComponentInfo", "document_write_version")!, value: .varint(UInt64(v)))) }
-            c.set("save_token", int: 1)
-            comps.append(c)
-            pkg.set("components", messages: comps)
-        }
-        addExternalReference(toComponentNamed: "CalculationEngine", componentID: id, objectID: nil)
+    private mutating func registerTileComponent(_ id: Int) {
+        let path = doc.locations[id]?.0 ?? ""
+        var locator = path.hasPrefix("Index/") ? String(path.dropFirst("Index/".count)) : path
+        if locator.hasSuffix(".iwa") { locator.removeLast(4) }
+        pendingComponents.append((new: id, like: nil, locator: locator))
     }
 
     /// The packed record for a value (nil for kinds Numbers cannot hold, after a warning). The number format goes

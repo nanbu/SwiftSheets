@@ -100,11 +100,14 @@ import SwiftSheets
         crossTable.sheets[0] = x
         out.append(("14-cross-table", crossTable))
 
+        // everything the format-support table measures, in one document: the sweep the owner asked for
+        out.append(("15-kitchen-sink", FormatSupportTests.kitchenSink()))
+
         var big = Workbook()
         var b = big.sheets[0]
         for r in 0..<300 { b[CellRef(row: r, col: 0)] = .integer(r) }
         big.sheets[0] = b
-        out.append(("15-two-tiles", big))
+        out.append(("16-two-tiles", big))
         return out
     }
 
