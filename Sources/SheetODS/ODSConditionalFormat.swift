@@ -4,10 +4,11 @@ import SheetCore
 /// Conditional formats in ODF, both ways.
 ///
 /// ODF 1.3 itself only has `style:map` — one condition per cell style, and nothing at all for colour scales, data
-/// bars or icon sets. Everything richer lives in LibreOffice's `calcext:` extension namespace, which is what
-/// LibreOffice, Calligra and Excel's own ODF filter read and write. SwiftSheets therefore writes
-/// `calcext:conditional-formats` as the record of truth and adds the `style:map` form for the two kinds ODF 1.3 can
-/// say (`.cellIs` and `.expression`), so that a reader with no `calcext:` support still shows something.
+/// bars or icon sets. Everything richer lives in LibreOffice's `calcext:` extension namespace, which is what every
+/// current application reads and writes. SwiftSheets **writes** `calcext:conditional-formats` only; it **reads**
+/// both, falling back to `style:map` for a file that has no `calcext:` block at all (a producer older than the
+/// extension). LibreOffice writes both forms of the same rules, so a sheet that produced any `calcext:` block
+/// ignores its `style:map` copies rather than counting every rule twice.
 ///
 /// The condition texts here are LibreOffice's own, taken from what it writes when it converts a workbook carrying
 /// every rule kind (`docs/implementation-spec.html`, Appendix B.16).
@@ -57,31 +58,6 @@ enum ODSCondition {
         case .containsBlanks: return "formula-is(LEN(TRIM([.\(anchor.a1)]))=0)"
         case .notContainsBlanks: return "formula-is(LEN(TRIM([.\(anchor.a1)]))>0)"
         case .colorScale, .dataBar, .iconSet, .timePeriod: return nil
-        }
-    }
-
-    /// The `style:map style:condition` text of the two kinds ODF 1.3 itself can say; nil for every other kind.
-    static func legacyCondition(for rule: ConditionalFormattingRule) -> String? {
-        switch rule.kind {
-        case .cellIs:
-            guard let op = rule.operator else { return nil }
-            let a = rule.formulas.first.map(operand) ?? ""
-            let b = rule.formulas.count > 1 ? operand(rule.formulas[1]) : ""
-            switch op {
-            case .lessThan: return "cell-content()<\(a)"
-            case .lessThanOrEqual: return "cell-content()<=\(a)"
-            case .equal: return "cell-content()=\(a)"
-            case .notEqual: return "cell-content()!=\(a)"
-            case .greaterThanOrEqual: return "cell-content()>=\(a)"
-            case .greaterThan: return "cell-content()>\(a)"
-            case .between: return "cell-content-is-between(\(a),\(b))"
-            case .notBetween: return "cell-content-is-not-between(\(a),\(b))"
-            default: return nil
-            }
-        case .expression:
-            guard let f = rule.formulas.first else { return nil }
-            return "is-true-formula(\(operand(f)))"
-        default: return nil
         }
     }
 

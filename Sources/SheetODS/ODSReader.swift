@@ -224,8 +224,17 @@ final class ContentParser: SAXHandler {
 
     private var filterSetTarget: Int?
     private var inValidationParagraph = false
+    /// Cells naming a style that carries `style:map` — ODF 1.3's own conditional format, which producers older
+    /// than LibreOffice's `calcext:` extension are the only ones to write.
+    private var styleMapCells: [String: [(row: Int, from: Int, to: Int)]] = [:]
+    private var styleMapColumns: [(style: String, from: Int, to: Int)] = []
+    private var rowStyleMaps: [(style: String, from: Int, to: Int)] = []
+    private var rowHasStyleMap = false
     /// A `calcext:` rule the model has no word for; the sheet says so with `hasUnmodelledConditionalFormats`.
     private var unreadableConditionalFormat = false
+    /// True once this sheet has produced a `calcext:` block. LibreOffice writes both forms, and the `style:map`
+    /// copy of the same rules would double every one of them.
+    private var sheetHasCalcextFormats = false
 
     // the table style of the sheet being read, so its master page can be applied afterwards
     var tableStyleNames: [String] = []
@@ -259,7 +268,7 @@ final class ContentParser: SAXHandler {
             sheet = s
             columnCursor = 0; rowCursor = 0; groupDepth = 0; columnDefaults = []
             cfRules = []; cfRanges = MultiCellRange(); cfPriority = 0
-            validationCells = [:]
+            validationCells = [:]; styleMapCells = [:]; styleMapColumns = []; sheetHasCalcextFormats = false
         case "table-column":
             guard inTable, !inRow else { return }
             let n = Swift.max(1, ODSAttr.int(a, "table:number-columns-repeated") ?? 1)
@@ -272,6 +281,9 @@ final class ContentParser: SAXHandler {
             }
             if catalog.hasBreakBefore(styleName, row: false), n < ODSReader.paddingRepeat, columnCursor < ODSReader.maxColumns {
                 sheet?.columnBreaks.append(columnCursor)
+            }
+            if let d = defaultCell, !catalog.conditionalMaps(d).isEmpty, n < ODSReader.paddingRepeat, columnCursor < ODSReader.maxColumns {
+                styleMapColumns.append((d, columnCursor, Swift.min(columnCursor + n, ODSReader.maxColumns) - 1))
             }
             if n < ODSReader.paddingRepeat, width != nil || hidden || (defaultCell != nil && defaultCell != "Default") {
                 let style = defaultCell.flatMap { $0 == "Default" ? nil : catalog.cellStyle(named: $0) }
@@ -287,7 +299,7 @@ final class ContentParser: SAXHandler {
             rowStyle = ODSAttr.get(a, "table:style-name")
             rowHidden = ODSAttr.get(a, "table:visibility") == "collapse"
             rowCells = []; rowMerges = []; rowMatrices = []; rowHasContent = false; cellCursor = 0
-            rowValidations = []; rowHasValidation = false
+            rowValidations = []; rowHasValidation = false; rowStyleMaps = []; rowHasStyleMap = false
             if catalog.hasBreakBefore(rowStyle, row: true), rowCursor < ODSReader.maxRows { sheet?.rowBreaks.append(rowCursor) }
         case "table-cell", "covered-table-cell":
             guard inRow else { return }
@@ -365,11 +377,13 @@ final class ContentParser: SAXHandler {
             guard let value = a["calcext:value"] else { return }
             cfPriority += 1
             let style = catalog.differentialStyle(named: a["calcext:apply-style-name"])
+            sheetHasCalcextFormats = true
             let anchor = a["calcext:base-cell-address"].map { ContentParser.internalTarget($0) }
                 .flatMap { $0.split(separator: "!").last.map(String.init) } ?? (cfRanges.sorted.first?.topLeft.a1 ?? "A1")
             if let rule = ODSCondition.rule(from: value, style: style, priority: cfPriority, anchor: anchor) { cfRules.append(rule) }
             else { unreadableConditionalFormat = true }
         case "date-is":
+            sheetHasCalcextFormats = true
             guard let period = a["calcext:date"].flatMap(ODSCondition.timePeriod) else { unreadableConditionalFormat = true; return }
             cfPriority += 1
             var rule = ConditionalFormattingRule(kind: .timePeriod, priority: cfPriority,
@@ -377,6 +391,7 @@ final class ContentParser: SAXHandler {
             rule.timePeriod = period
             cfRules.append(rule)
         case "color-scale", "data-bar", "icon-set":
+            sheetHasCalcextFormats = true
             cfValues = []; cfColors = []
             if name == "data-bar" { cfBar = a }
             if name == "icon-set" { cfIcon = a["calcext:icon-set-type"] }
@@ -525,12 +540,42 @@ final class ContentParser: SAXHandler {
                 sheet?.dataValidations.append(ODSValidation.validation(parsed, ranges: ContentParser.ranges(of: runs)))
             }
             validationCells = [:]
+            readStyleMaps()
             if unreadableConditionalFormat { sheet?.hasUnmodelledConditionalFormats = true }
             unreadableConditionalFormat = false
             if let s = sheet { sheets.append(s) }
             sheet = nil
         case "table-row-group": groupDepth = Swift.max(0, groupDepth - 1)
         default: break
+        }
+    }
+
+    /// ODF 1.3's own conditional formats: a `style:map` on the cell style, which only a producer with no
+    /// `calcext:` support writes on its own. Read once the sheet's rows are in, and only when the sheet carried no
+    /// `calcext:` block — LibreOffice writes both forms of the same rules.
+    private func readStyleMaps() {
+        defer { styleMapCells = [:]; styleMapColumns = [] }
+        guard !sheetHasCalcextFormats, !styleMapCells.isEmpty || !styleMapColumns.isEmpty else { return }
+        let lastRow = sheet?.table.extent?.maxRow ?? 0
+        var byStyle: [String: MultiCellRange] = [:]
+        for (name, runs) in styleMapCells { byStyle[name] = ContentParser.ranges(of: runs) }
+        for column in styleMapColumns {
+            var ranges = byStyle[column.style] ?? MultiCellRange()
+            ranges.add(CellRange(minRow: 0, minCol: column.from, maxRow: lastRow, maxCol: column.to))
+            byStyle[column.style] = ranges
+        }
+        var priority = 0
+        for name in byStyle.keys.sorted() {
+            guard let ranges = byStyle[name], !ranges.isEmpty else { continue }
+            let anchor = ranges.sorted.first?.topLeft.a1 ?? "A1"
+            var rules: [ConditionalFormattingRule] = []
+            for map in catalog.conditionalMaps(name) {
+                priority += 1
+                let base = map.base.map { ContentParser.internalTarget($0) }.flatMap { $0.split(separator: "!").last.map(String.init) } ?? anchor
+                if let rule = ODSCondition.rule(from: map.condition, style: map.style, priority: priority, anchor: base) { rules.append(rule) }
+                else { unreadableConditionalFormat = true }
+            }
+            if !rules.isEmpty { sheet?.conditionalFormatting.append(ConditionalFormatting(ranges: ranges, rules: rules)) }
         }
     }
 
@@ -576,6 +621,10 @@ final class ContentParser: SAXHandler {
         if let rule = attr(a, "table:content-validation-name") {
             rowValidations.append((rule, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
             rowHasValidation = true
+        }
+        if let styleName, styleName != "Default", !catalog.conditionalMaps(styleName).isEmpty {
+            rowStyleMaps.append((styleName, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
+            rowHasStyleMap = true
         }
 
         let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0
@@ -731,7 +780,7 @@ final class ContentParser: SAXHandler {
         let hasDimension = height != nil || rowHidden || groupDepth > 0
         var expand: Int
         if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor) }
-        else if (!rowCells.isEmpty || hasDimension || !rowMerges.isEmpty || rowHasValidation) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
+        else if (!rowCells.isEmpty || hasDimension || !rowMerges.isEmpty || rowHasValidation || rowHasStyleMap) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
         else { expand = 0 }
         // a repeated row of repeated cells multiplies: clip it to what the document may still spend
         if !rowCells.isEmpty, expand > 0 {
@@ -752,6 +801,7 @@ final class ContentParser: SAXHandler {
                 s.table.arrayFormulas[CellRef(row: r, col: m.col)] = CellRange(minRow: r, minCol: m.col, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxCol: Swift.min(m.col + m.cols - 1, CellRef.maxCol))
             }
             for v in rowValidations { validationCells[v.name, default: []].append((r, v.from, v.to)) }
+            for m in rowStyleMaps { styleMapCells[m.style, default: []].append((r, m.from, m.to)) }
         }
         if expand > 0 { s.table.nextAppendRow = Swift.max(s.table.nextAppendRow, rowCursor + expand) }
         rowCursor += rowRepeat

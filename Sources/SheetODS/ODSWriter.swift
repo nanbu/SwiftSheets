@@ -584,8 +584,11 @@ enum ODSWriter {
         }
         func validationName(_ ref: CellRef) -> String? { validations.first { $0.ranges.contains(ref) }?.name }
 
-        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1, validationMaxCol + 1)
-        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1, validationMaxRow + 1)
+        // a manual break past the last cell still has to be written, so the grid reaches it
+        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1, validationMaxCol + 1,
+                              (sheet.columnBreaks.max() ?? -1) + 1)
+        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1, validationMaxRow + 1,
+                              (sheet.rowBreaks.max() ?? -1) + 1)
         var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage))\""
         if sheet.protection.enabled { s += " table:protected=\"true\"" }
         if !sheet.printArea.isEmpty {

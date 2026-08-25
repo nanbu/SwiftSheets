@@ -574,4 +574,94 @@ import SwiftSheets
             !Self.hasLibreOffice
         }
     }
+
+    /// Print setup lives in a master page and a page layout of styles.xml, one per sheet.
+    @Test func printSetupRoundTrip() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws.name = "Report"
+        ws["A1"] = 1
+        ws.pageSetup.orientation = .landscape
+        ws.pageSetup.scale = 80
+        ws.pageSetup.paperSize = 9
+        ws.pageSetup.firstPageNumber = 3
+        ws.pageSetup.useFirstPageNumber = true
+        ws.pageMargins.left = 0.5; ws.pageMargins.right = 0.5
+        ws.pageMargins.top = 1.0; ws.pageMargins.bottom = 1.0
+        ws.pageMargins.header = 0.3; ws.pageMargins.footer = 0.3
+        ws.printOptions.horizontalCentered = true
+        ws.printOptions.gridLines = true
+        ws.headerFooter.oddHeader = "&L左&C中&R右"
+        ws.headerFooter.oddFooter = "&Cページ &P / &N"
+        ws.rowBreaks = [4]; ws.columnBreaks = [2]
+        ws.setPrintArea("A1:C9")
+        ws.printTitleRows = 0...0
+        ws.protection.enabled = true
+        wb.sheets[0] = ws
+
+        let ods = try ODSCodec.write(wb).data
+        let styles = try Package.part("styles.xml", of: ods)
+        #expect(styles.contains("<style:master-page"))
+        #expect(styles.contains(#"style:print-orientation="landscape""#))
+        #expect(styles.contains("<style:region-left>"))
+
+        let back = try ODSCodec.read(ods).workbook.sheets[0]
+        #expect(back.pageSetup.orientation == .landscape)
+        #expect(back.pageSetup.scale == 80)
+        #expect(back.pageSetup.paperSize == 9)
+        #expect(back.pageSetup.firstPageNumber == 3)
+        #expect(back.pageMargins == ws.pageMargins)
+        #expect(back.printOptions == ws.printOptions)
+        #expect(back.headerFooter.oddHeader == "&L左&C中&R右")
+        #expect(back.headerFooter.oddFooter == "&Cページ &P / &N")
+        #expect(back.rowBreaks == [4])
+        #expect(back.columnBreaks == [2])
+        #expect(back.printArea == [CellRange("A1:C9")!])
+        #expect(back.printTitleRows == 0...0)
+        #expect(back.protection.enabled)
+    }
+
+    /// A rule over several rectangles keeps all of them: ODF writes them space separated in one address.
+    @Test func conditionalFormatOverSeveralRanges() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        let paint = DifferentialStyle.highlight(fill: Color(hex: "FFC7CE"))
+        wb.sheets[0].addConditionalFormatting(.cellIs(.greaterThan, "0", paint: paint), over: "A1:A5 C1:C5")
+        let ods = try ODSCodec.write(wb).data
+        let name = wb.sheets[0].name
+        #expect(try contentXML(ods).contains("calcext:target-range-address=\"\(name).A1:\(name).A5 \(name).C1:\(name).C5\""))
+        let back = try ODSCodec.read(ods).workbook.sheets[0]
+        #expect(back.conditionalFormatting.count == 1)
+        #expect(back.conditionalFormatting[0].ranges == MultiCellRange("A1:A5 C1:C5"))
+    }
+
+    /// ODF 1.3's own form: a producer with no `calcext:` support writes `style:map` on the cell style instead.
+    @Test func readsTheODF13StyleMapForm() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0]["A2"] = 2
+        let ods = try ODSCodec.write(wb).data
+        var content = try Package.part("content.xml", of: ods)
+        var styles = try Package.part("styles.xml", of: ods)
+        styles = styles.replacingOccurrences(
+            of: #"<style:style style:name="Default" style:family="table-cell"/>"#,
+            with: #"<style:style style:name="Default" style:family="table-cell"/>"# +
+                  ##"<style:style style:name="Red" style:family="table-cell"><style:text-properties fo:color="#ff0000"/></style:style>"##)
+        content = content.replacingOccurrences(
+            of: "<office:automatic-styles>",
+            with: #"<office:automatic-styles><style:style style:name="ceCF" style:family="table-cell" style:parent-style-name="Default">"# +
+                  #"<style:map style:condition="cell-content()&gt;1" style:apply-style-name="Red" style:base-cell-address="Sheet.A1"/></style:style>"#)
+        content = content.replacingOccurrences(of: "<table:table-cell office:value-type=\"float\" office:value=\"1\"",
+                                               with: "<table:table-cell table:style-name=\"ceCF\" office:value-type=\"float\" office:value=\"1\"")
+        let patched = try Package.repacking(try Package.repacking(ods, replacing: "content.xml", with: Data(content.utf8)),
+                                            replacing: "styles.xml", with: Data(styles.utf8))
+
+        let back = try ODSCodec.read(patched).workbook.sheets[0]
+        #expect(back.conditionalFormatting.count == 1)
+        let rule = try #require(back.conditionalFormatting.first?.rules.first)
+        #expect(rule.kind == .cellIs)
+        #expect(rule.operator == .greaterThan)
+        #expect(rule.formulas == ["1"])
+        #expect(rule.style?.font?.color == Color(hex: "FF0000"))
+    }
 }
