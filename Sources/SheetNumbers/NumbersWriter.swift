@@ -24,6 +24,8 @@ struct NumbersWriter {
     private var calcEngineID: Int
     /// "Sheet::Table" → the identifier a cross-table reference names it by.
     private var tableUUIDs: [String: ProtoMessage] = [:]
+    /// Author name → its archive, so two notes by the same person share one author.
+    private var authorIDs: [String: Int] = [:]
 
     init(workbook: Workbook, options: WriteOptions) throws {
         self.workbook = workbook
@@ -282,6 +284,18 @@ struct NumbersWriter {
         return style
     }
 
+    /// The object a note's author is, minted once per name and registered with the document's author storage.
+    private mutating func authorID(named name: String?) throws -> Int? {
+        let name = (name?.isEmpty == false ? name! : "Author")
+        if let hit = authorIDs[name] { return hit }
+        guard let storage = doc.identifiers(ofType: "TSK.AnnotationAuthorStorageArchive").first,
+              let file = doc.locations[storage]?.0 else { return nil }
+        let id = try doc.add(NumbersRichText.author(named: name), file: file)
+        doc.update(storage) { $0.append("annotation_author", reference: id) }
+        authorIDs[name] = id
+        return id
+    }
+
     private func registerComponent(_ new: Int, like old: Int) {
         let path = doc.locations[new]?.0 ?? ""
         var locator = path.hasPrefix("Index/") ? String(path.dropFirst("Index/".count)) : path
@@ -402,7 +416,6 @@ struct NumbersWriter {
         // cell records per row, with the styles and number formats they name
         var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: cols), count: rows)
         var styleWriter = NumbersStyleWriter(doc: doc, model: model)
-        var hyperlinkCount = 0, noteCount = 0, richTextCount = 0
 
         // formulas → the table's own formula list, the same shape as the string list. A formula the encoder has no
         // observed spelling for keeps the old behaviour: its cached value, and a warning saying which part stopped it.
@@ -483,6 +496,57 @@ struct NumbersWriter {
             conditionalEntries[i].set("refcount", int: conditionalKeys.values.filter { $0 == key }.count)
         }
 
+        // a link, formatting that changes part-way through the text, and a note: three things a cell keeps
+        // outside its value, each in a list of its own (Appendix B.18)
+        let richList = store.reference("rich_text_table")
+        let richFile = richList.flatMap { doc.locations[$0]?.0 } ?? NumbersStyleWriter.stylesheetFile
+        let commentList = store.reference("commentStorageTable")
+        let commentFile = commentList.flatMap { doc.locations[$0]?.0 } ?? NumbersStyleWriter.stylesheetFile
+        let plainRun = NumbersRichText.templateCharacterStyle("character-style-null", in: doc)
+        let linkRun = NumbersRichText.templateCharacterStyle("character-style-hyperlink", in: doc)
+        let listStyle = NumbersRichText.templateListStyle(in: doc)
+        var richEntries: [ProtoMessage] = [], commentEntries: [ProtoMessage] = []
+
+        /// The rich-text list key for a cell that carries a link, formatting runs, or both.
+        func richKey(text: String, runs: [TextRun], link: String?) throws -> Int? {
+            var attributes: [(index: Int, style: Int?)] = []
+            var index = 0
+            for run in runs {
+                var style: Int?
+                if let font = run.font, let parent = plainRun { style = try styleWriter.characterArchive(for: font, parent: parent) }
+                attributes.append((index, style))
+                index += run.text.count
+            }
+            var fields: [(index: Int, object: Int)] = []
+            if let link {
+                let field = try doc.add(NumbersRichText.hyperlink(link), file: richFile)
+                fields.append((0, field))
+                if attributes.isEmpty, let linkRun { attributes.append((0, linkRun)) }
+            }
+            guard !attributes.isEmpty || !fields.isEmpty else { return nil }
+            let storageID = try doc.add(NumbersRichText.storage(text: text, stylesheet: styleWriter.stylesheetID,
+                                                               paragraphStyle: styleWriter.defaultTextStyle,
+                                                               listStyle: listStyle, runs: attributes, fields: fields),
+                                        file: richFile)
+            let payloadID = try doc.add(NumbersRichText.payload(storage: storageID), file: richFile)
+            let key = richEntries.count + 1
+            var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+            entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("rich_text_payload", reference: payloadID)
+            richEntries.append(entry)
+            return key
+        }
+
+        /// The comment-list key for a cell that carries a note.
+        func commentKey(for note: CellNote) throws -> Int {
+            let archive = NumbersRichText.comment(note, author: try authorID(named: note.author))
+            let id = try doc.add(archive, file: commentFile)
+            let key = commentEntries.count + 1
+            var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+            entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("comment_storage", reference: id)
+            commentEntries.append(entry)
+            return key
+        }
+
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
             guard let stored = cell.value else { continue }
             var value: CellValue? = stored
@@ -500,15 +564,21 @@ struct NumbersWriter {
                     value = c
                 }
             }
-            if cell.hyperlink != nil { hyperlinkCount += 1 }
-            if cell.comment != nil { noteCount += 1 }
-            if case .richText = value { richTextCount += 1 }
+            var richID: Int?
+            if cell.hyperlink != nil || { if case .richText = value { return true }; return false }() {
+                let runs: [TextRun]
+                let text: String
+                if case .richText(let r) = value { runs = r; text = r.map(\.text).joined() } else { runs = []; text = value?.stringValue ?? "" }
+                richID = try richKey(text: text, runs: runs, link: cell.hyperlink?.target)
+                if richID != nil { value = nil }
+            }
+            let commentID = try cell.comment.map { try commentKey(for: $0) }
             let style = cell.style
             let keys = try styleWriter.keys(for: style)
             let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
             records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
                                                formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
-                                               conditionalStyleID: conditionalKeys[ref])
+                                               conditionalStyleID: conditionalKeys[ref], richID: richID, commentID: commentID)
         }
         for i in formulaEntries.indices {
             let k = formulaEntries[i].int("key") ?? 0
@@ -518,18 +588,6 @@ struct NumbersWriter {
         // that happened to hold something
         for (ref, key) in conditionalKeys where records[ref.row][ref.col] == nil {
             records[ref.row][ref.col] = CellStorage.encode(type: .generic, conditionalStyleID: key)
-        }
-        if hyperlinkCount > 0 {
-            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
-                                              message: "\(hyperlinkCount) hyperlink(s) dropped: a Numbers link lives in a rich-text run, which this writer does not generate"))
-        }
-        if richTextCount > 0 {
-            warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheetName,
-                                              message: "\(richTextCount) rich-text cell(s) written as plain text: a run of its own formatting inside one cell needs a Numbers rich-text payload, which this writer does not generate"))
-        }
-        if noteCount > 0 {
-            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
-                                              message: "\(noteCount) note(s) dropped: Numbers comment storage is not written"))
         }
         for code in styleWriter.unexpressibleFormats {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
@@ -586,6 +644,38 @@ struct NumbersWriter {
         } else if !conditionalEntries.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
                                               message: "conditional formats dropped: the template's table has no conditional-style list"))
+        }
+
+        // rich-text and comment lists
+        if let rid = richList, !richEntries.isEmpty {
+            let entries = richEntries
+            doc.update(rid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
+            if let component = doc.componentID(forObject: rid) {
+                // everything the storage names and does not live beside it: the stylesheet, the styles a run
+                // wears, the paragraph and list styles. An undeclared crossing is a document Numbers will not open.
+                let named = styleWriter.allStyleObjects
+                    + [plainRun, linkRun, listStyle, styleWriter.stylesheetID, styleWriter.defaultTextStyle].compactMap { $0 }
+                let crossings = Set(named).compactMap { object in
+                    doc.componentID(forObject: object).map { (object: object, component: $0) }
+                }
+                doc.addExternalReferences(from: component, to: crossings)
+            }
+        }
+        if let cid = commentList, !commentEntries.isEmpty {
+            let entries = commentEntries
+            doc.update(cid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
+            if let component = doc.componentID(forObject: cid) {
+                let crossings = authorIDs.values.compactMap { object in
+                    doc.componentID(forObject: object).map { (object: object, component: $0) }
+                }
+                doc.addExternalReferences(from: component, to: crossings)
+            }
         }
 
         // formula list
@@ -722,7 +812,7 @@ struct NumbersWriter {
     /// in the slot the *value* asks for — Numbers has one per kind, not one per cell.
     private mutating func record(for value: CellValue?, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
                                  formatKey: Int? = nil, code: String = NumberFormat.general, formulaID: Int? = nil,
-                                 conditionalStyleID: Int? = nil) -> Data? {
+                                 conditionalStyleID: Int? = nil, richID: Int? = nil, commentID: Int? = nil) -> Data? {
         let isCurrency = code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£")
         func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil,
                     stringID: Int? = nil) -> Data {
@@ -735,13 +825,16 @@ struct NumbersWriter {
             default: if isCurrency { currency = formatKey } else { number = formatKey }
             }
             return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, double: double,
-                                      seconds: seconds, stringID: stringID, cellStyleID: cellStyleID, textStyleID: textStyleID,
+                                      seconds: seconds, stringID: stringID, richID: richID, commentID: commentID,
+                                      cellStyleID: cellStyleID, textStyleID: textStyleID,
                                       conditionalStyleID: conditionalStyleID, formulaID: formulaID, numFormatID: number, currencyFormatID: currency, dateFormatID: date,
                                       durationFormatID: duration, textFormatID: text, boolFormatID: boolean)
         }
         switch value {
-        case nil:   // a formula whose result the source never cached: Numbers computes it when the document opens
-            return formulaID == nil ? nil : encode(.generic)
+        case nil:
+            // a cell whose text lives in the rich-text list, or a formula whose result the source never cached
+            if richID != nil { return encode(.automatic) }
+            return formulaID == nil && commentID == nil ? nil : encode(.generic)
         case .text(let s): return encode(.text, stringID: key(s))
         case .richText(let runs): return encode(.text, stringID: key(runs.map(\.text).joined()))
         case .integer(let i): return encode(.number, decimal: Decimal(i))

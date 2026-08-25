@@ -169,6 +169,37 @@ struct NumbersReader {
         return MultiCellRange(merged)
     }
 
+    /// The runs of a cell's text that carry formatting of their own. Numbers records where each run starts and
+    /// the character style it uses; an entry with no style is back to the cell's own formatting.
+    private func runs(in text: String, of storage: ProtoMessage, styles: NumbersStyleResolver) -> [TextRun] {
+        let entries = storage.message("table_char_style")?.messages("entries") ?? []
+        guard entries.count > 1 || (entries.count == 1 && entries[0].reference("object") != nil) else { return [] }
+        let characters = Array(text)
+        var out: [TextRun] = []
+        for (i, entry) in entries.enumerated() {
+            let start = Swift.min(entry.int("character_index") ?? 0, characters.count)
+            let end = i + 1 < entries.count ? Swift.min(entries[i + 1].int("character_index") ?? characters.count, characters.count) : characters.count
+            guard end > start else { continue }
+            // the style a link wears is Numbers' own, not formatting the author asked for
+            let object = entry.reference("object")
+            let isLinkStyle = object.map { NumbersReader.isHyperlinkStyle($0, doc: doc) } ?? false
+            let font = isLinkStyle ? nil : object.flatMap { styles.font(ofCharacterStyle: $0) }
+            out.append(TextRun(String(characters[start..<end]), font: font))
+        }
+        return out.count > 1 || out.first?.font != nil ? out : []
+    }
+
+    /// Whether a character style is the document's own hyperlink style, along its parent chain.
+    static func isHyperlinkStyle(_ id: Int, doc: NumbersDocument) -> Bool {
+        var cursor: Int? = id
+        var seen = Set<Int>()
+        while let current = cursor, seen.insert(current).inserted, let object = doc.object(current) {
+            if object.message("super")?.string("style_identifier") == "character-style-hyperlink" { return true }
+            cursor = object.message("super")?.reference("parent")
+        }
+        return false
+    }
+
     mutating func table(_ tid: Int, sheetName: String) -> Table? {
         guard let model = doc.object(tid), let store = model.message("base_data_store") else { return nil }
         var t = Table(name: model.string("table_name"))
@@ -203,27 +234,36 @@ struct NumbersReader {
         let conditionalSets = dataList(store.reference("conditionalstyletable")) { $0.reference("reference") }
         var conditionalCells: [Int: [CellRef]] = [:]
 
+        // cell formatting: the style / format lists of this table, plus the defaults its header and footer regions
+        // use. `dataOnly` is about formulas, not formatting (the XLSX and ODS readers keep styles either way).
+        var styles = NumbersStyleResolver(doc: doc, model: model, store: store)
+
         // lookup tables
         let strings = dataList(store.reference("stringTable")) { $0.string("string") }
         let formulas = dataList(store.reference("formula_table")) { $0.message("formula") }
         // rich text: the text, and the links its smart fields carry (Numbers puts a hyperlink on a run of
         // characters; the model has one link per cell, so the first one wins and the rest are reported)
-        let richTexts = dataList(store.reference("rich_text_table")) { entry -> (text: String, links: [String])? in
+        let resolver = styles
+        let richTexts = dataList(store.reference("rich_text_table")) { entry -> (text: String, links: [String], runs: [TextRun])? in
             guard let payload = entry.reference("rich_text_payload"), let storageID = doc.object(payload)?.reference("storage"),
                   let storage = doc.object(storageID) else { return nil }
             let links = storage.message("table_smartfield")?.messages("entries").compactMap { field -> String? in
                 guard let id = field.reference("object"), doc.typeName(id) == "TSWP.HyperlinkFieldArchive" else { return nil }
                 return doc.object(id)?.string("url_ref")
             } ?? []
-            return (storage.strings("text").joined(), links)
+            let text = storage.strings("text").joined()
+            return (text, links, self.runs(in: text, of: storage, styles: resolver))
+        }
+        // the notes on cells: the table's comment list, and the author each belongs to
+        let comments = dataList(store.reference("commentStorageTable")) { entry -> CellNote? in
+            guard let id = entry.reference("comment_storage"), let archive = doc.object(id), let text = archive.string("text") else { return nil }
+            let author = archive.reference("author").flatMap { doc.object($0)?.string("name") }
+            return CellNote(text, author: author ?? "")
         }
         // cells
         let tiles = store.message("tiles")
         let tileSize = tiles?.int("tile_size").flatMap { $0 > 0 ? $0 : nil } ?? 256
         var decoder = NumbersFormulaDecoder { [tableUUIDToName] hex in tableUUIDToName[hex] }
-        // cell formatting: the style / format lists of this table, plus the defaults its header and footer regions use
-        // `dataOnly` is about formulas, not formatting (the XLSX and ODS readers keep styles either way)
-        var styles = NumbersStyleResolver(doc: doc, model: model, store: store)
         var sharedStyles: [CellStyle: SharedStyle] = [:]
         for tileRef in tiles?.messages("tiles") ?? [] {
             guard let tid2 = tileRef.reference("tile"), let tile = doc.object(tid2) else { continue }
@@ -250,8 +290,10 @@ struct NumbersReader {
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
                         let rich = s.richID.flatMap { richTexts[$0] }
-                        if value != nil || style != .default {
+                        let note = s.commentID.flatMap { comments[$0] }
+                        if value != nil || style != .default || note != nil {
                             var cell = Cell(value: value)
+                            cell.comment = note
                             if let first = rich?.links.first {
                                 cell.hyperlink = Hyperlink(target: first)
                                 if rich!.links.count > 1 {
@@ -299,7 +341,7 @@ struct NumbersReader {
     }
 
     private mutating func cellValue(_ s: CellStorage, row: Int, col: Int, strings: [Int: String], formulas: [Int: ProtoMessage],
-                                    richTexts: [Int: (text: String, links: [String])],
+                                    richTexts: [Int: (text: String, links: [String], runs: [TextRun])],
                                     decoder: inout NumbersFormulaDecoder, sheetName: String) -> CellValue? {
         var value: CellValue?
         switch s.cellType {
@@ -318,7 +360,9 @@ struct NumbersReader {
         case .bool: value = .bool((s.double ?? 0) > 0)
         case .duration: value = s.double.map { .duration(.milliseconds(Int64(($0 * 1000).rounded()))) }
         case .formulaError: value = .error("#VALUE!")
-        case .automatic: value = (s.richID.flatMap { richTexts[$0]?.text } ?? s.stringID.flatMap { strings[$0] }).map { .text($0) }
+        case .automatic:
+            if let rich = s.richID.flatMap({ richTexts[$0] }), !rich.runs.isEmpty { value = .richText(rich.runs) }
+            else { value = (s.richID.flatMap { richTexts[$0]?.text } ?? s.stringID.flatMap { strings[$0] }).map { .text($0) } }
         case .formula: value = nil
         }
         if let fid = s.formulaID, !options.dataOnly, let archive = formulas[fid] {

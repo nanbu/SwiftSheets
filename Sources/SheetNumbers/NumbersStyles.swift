@@ -90,6 +90,13 @@ struct NumbersStyleResolver {
         return out.isEmpty ? nil : out
     }
 
+    /// The font one character style states, for a run of text inside a cell.
+    func font(ofCharacterStyle id: Int) -> Font? {
+        var style = CellStyle.default
+        apply(text: id, to: &style)
+        return style.font == CellStyle.default.font ? nil : style.font
+    }
+
     private func defaultTextStyle(row: Int, col: Int) -> Int? {
         if row < headerRows { return headerRowText }
         if col < headerColumns { return headerColumnText }
@@ -407,6 +414,7 @@ struct NumbersStyleWriter {
     /// Where new style archives go: the file the template's own styles live in.
     static let stylesheetFile = "Index/DocumentStylesheet.iwa"
 
+    private var runStyles: [Font: Int] = [:]
     private var textObjects: [CellStyle: Int] = [:]
     private var cellObjects: [CellStyle: Int] = [:]
     private var textKeys: [Int: Int] = [:]
@@ -433,9 +441,32 @@ struct NumbersStyleWriter {
         stylesheet = textParent.flatMap { doc.object($0)?.message("super")?.reference("stylesheet") }
     }
 
+    /// A character style for one run of text inside a cell, minted in the stylesheet beside the table's own
+    /// styles. `nil` when the run says nothing the default does not already say.
+    mutating func characterArchive(for font: Font, parent: Int) throws -> Int? {
+        var style = CellStyle.default
+        style.font = font
+        if let hit = runStyles[font] { return hit }
+        guard let properties = characterProperties(style) else { return nil }
+        var archive = ProtoMessage(typeName: "TSWP.CharacterStyleArchive")
+        var sup = ProtoMessage(typeName: "TSS.StyleArchive")
+        sup.set("parent", reference: parent)
+        sup.set("is_variation", bool: true)
+        if let stylesheet { sup.set("stylesheet", reference: stylesheet) }
+        archive.set("super", message: sup)
+        archive.set("override_count", int: properties.overrides)
+        archive.set("char_properties", message: properties.char)
+        let id = try doc.add(archive, file: NumbersStyleWriter.stylesheetFile)
+        runStyles[font] = id
+        allStyleObjects.append(id)
+        return id
+    }
+
     /// The table's own defaults. A conditional-format rule has to name **both** a cell style and a text style —
     /// the schema marks both required — so a rule that only fills still points its text style at the default,
     /// and one that only recolours text still points its cell style there. Numbers refuses a rule missing either.
+    /// The stylesheet new archives are written into, for a caller building its own.
+    var stylesheetID: Int? { stylesheet }
     var defaultCellStyle: Int? { cellParent }
     var defaultTextStyle: Int? { textParent }
 
