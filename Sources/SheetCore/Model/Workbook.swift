@@ -127,6 +127,18 @@ public struct Workbook: Equatable, Sendable {
     public var epoch: DateEpoch = .windows1900
     /// Workbook-scoped defined names: name → formula text (sheet-scoped names live on `Sheet.definedNames`).
     public var definedNames: [String: String] = [:]
+    /// How the application is asked to calculate (`table:calculation-settings`). Most of it is ODF's alone —
+    /// whether a search condition is a regular expression, where the two-digit-year window starts — and is lost
+    /// with a warning by every other codec (spec Appendix B.17).
+    public var calculationSettings = CalculationSettings()
+    /// Blocks of headings that formulas may name directly (ODF's "natural language" addressing). ODF only.
+    public var labelRanges: [LabelRange] = []
+    /// A stored "consolidate these ranges into that corner" definition. ODF only; a document holds at most one.
+    public var consolidation: Consolidation?
+    /// ODF material the file carried that the model has no word for, so that a write can say it is gone.
+    public package(set) var unmodelledODFFeatures: UnmodelledODFFeatures = []
+    /// Records what a reader met and the model has no word for.
+    public mutating func noteUnmodelledODFFeatures(_ features: UnmodelledODFFeatures) { unmodelledODFFeatures.formUnion(features) }
     /// The legacy indexed palette (`<colors><indexedColors>`), when the file overrides it. ARGB strings.
     public var indexedColors: [String] = []
     /// VBA code name of the workbook (`<workbookPr codeName>`), preserved when present.

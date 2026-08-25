@@ -14,6 +14,9 @@ struct ODSDataStyle: Hashable {
         case number(decimals: Int, minDecimals: Int, minInteger: Int, grouping: Bool)
         case scientific(decimals: Int, minInteger: Int, exponentDigits: Int)
         case text(String)
+        /// `number:currency-symbol` — the thing that makes a data style a *currency* style rather than a number
+        /// one, which is how ODF (and every application reading it) knows the cell holds money.
+        case currencySymbol(String)
         case year(long: Bool)
         case month(long: Bool, textual: Bool)
         case day(long: Bool)
@@ -67,6 +70,11 @@ struct ODSDataStyle: Hashable {
                 out += ODSDataStyle.integerPattern(minInteger: minInteger, grouping: false)
                 if decimals > 0 { out += "." + String(repeating: "0", count: decimals) }
                 out += "E+" + String(repeating: "0", count: Swift.max(1, exponentDigits))
+            case .currencySymbol(let symbol):
+                // always the `[$…]` form, so that writing the code back out makes a currency style again rather
+                // than a plain number one with a symbol in front of it. Excel's locale tag (`[$¥-411]`) has no ODF
+                // equivalent and is not carried, so a round trip normalises it away.
+                out += "[$\(symbol)]"
             case .text(let t):
                 if kind == .percentage, t == "%" { out += "%" }
                 else if t == " " || t == "-" { out += t }
@@ -130,7 +138,7 @@ struct ODSDataStyle: Hashable {
         return sections
     }
 
-    private enum Piece { case literal(String), elapsed(Character, Int), unit(Character, Int), amPm, secondsDecimals(Int), core(String), bad }
+    private enum Piece { case literal(String), currency(String), elapsed(Character, Int), unit(Character, Int), amPm, secondsDecimals(Int), core(String), bad }
 
     /// Lexes a format section into literals, date units and numeric core characters.
     private static func lex(_ s: String) -> [Piece] {
@@ -166,7 +174,7 @@ struct ODSDataStyle: Hashable {
                     // [$¥-411] — currency symbol with a locale tag
                     let body = inner.dropFirst()
                     let symbol = body.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-                    if !symbol.isEmpty { pieces.append(.literal(symbol)) }
+                    if !symbol.isEmpty { pieces.append(.currency(symbol)) }
                 }
                 // colours ([Red], [Color 3]) and conditions are dropped
             case "A", "a":
@@ -224,6 +232,7 @@ struct ODSDataStyle: Hashable {
         for p in pieces {
             switch p {
             case .literal(let t): style.items.append(.text(t))
+            case .currency: return nil                  // a date style with a currency symbol is not a date style
             case .amPm: style.items.append(.amPm)
             case .secondsDecimals(let n):
                 guard case .seconds(let long, _)? = style.items.last else { return nil }
@@ -265,6 +274,10 @@ struct ODSDataStyle: Hashable {
         for p in pieces {
             switch p {
             case .literal(let t): style.items.append(.text(t))
+            case .currency(let symbol):
+                // a currency symbol is what turns a number style into a currency one
+                style.kind = .currency
+                style.items.append(.currencySymbol(symbol))
             case .core(let core):
                 guard !sawCore else { return nil }
                 sawCore = true
@@ -309,6 +322,7 @@ struct ODSDataStyle: Hashable {
             case .scientific(let decimals, let minInteger, let exponentDigits):
                 s += "<number:scientific-number number:decimal-places=\"\(decimals)\" number:min-decimal-places=\"\(decimals)\" number:min-integer-digits=\"\(minInteger)\" number:min-exponent-digits=\"\(exponentDigits)\" number:forced-exponent-sign=\"true\"/>"
             case .text(let t): s += "<number:text>\(XML.esc(t))</number:text>"
+            case .currencySymbol(let symbol): s += "<number:currency-symbol>\(XML.esc(symbol))</number:currency-symbol>"
             case .year(let long): s += "<number:year\(long ? " number:style=\"long\"" : "")/>"
             case .month(let long, let textual): s += "<number:month\(long ? " number:style=\"long\"" : "")\(textual ? " number:textual=\"true\"" : "")/>"
             case .day(let long): s += "<number:day\(long ? " number:style=\"long\"" : "")/>"

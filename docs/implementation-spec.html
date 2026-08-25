@@ -1844,6 +1844,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
     <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
+    <tr><td>2.2 Draft</td><td>2026-08-25</td><td>逆向きの数え上げ — ODF にあって OOXML に無い機能を付録 B.17 に固定。ラベル範囲・統合の定義・探偵の矢印・計算設定（正規表現／ワイルドカード／大小文字／二桁年）・日付の原点・通貨のセル種別を実装対象とし、改訂履歴と外部データ接続は「読んで覚えて、落としたと言う」に留める。出典は OASIS ODF 1.3 の RelaxNG スキーマ</td></tr>
     <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
   </table></div>
@@ -1855,7 +1856,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
 <!-- ===================== APPENDIX B ===================== -->
 <section class="chapter" id="apxb">
-  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 2.1）</h2>
+  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 2.2）</h2>
   <p class="lead">
     P1・P2 を実装した 2026-08-22 時点で、本文と実装が異なる点・本文が決めていなかった点をここに固定する。
     本文より本付録が優先する。理由のない逸脱は無い — 逸脱は必ず理由つきで載せ、戻すべきと判断したら本文ではなくここを直す。
@@ -2484,6 +2485,77 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <code>integrityProblems()</code> が空であることを見る。
   <strong>Numbers.app だけは依然として審判に立てていない</strong> — 書式付き書き出しを開く確認は
   MAINTENANCE.md のリリース前チェックリストにある。</p>
+
+
+  <h3>B.17 ODF にあって OOXML に無いもの（Rev 2.2）</h3>
+  <p>
+    2026-08-25 の決定。B.16 は「Excel にある機能を ODS と Numbers にも通す」向きの仕事だった。逆向き —
+    <strong>ODF が持っていて OOXML が持たない機能</strong>を数え上げ、モデルに入れる。
+    出典は <strong>OASIS OpenDocument 1.3 の RelaxNG スキーマ</strong>（<code>OpenDocument-v1.3-schema.rng</code>）で、
+    要素名・属性名・値の候補はすべてそこからの引き写しである。calcext のときと違ってこちらは正式仕様が存在するので、
+    実装アプリの出力ではなく仕様が一次資料になる（LibreOffice の出力は「読めること」の確認にだけ使う）。
+  </p>
+
+  <div class="compare"><table>
+    <tr><th>ODF の機能</th><th>OOXML 側</th><th>入れ方</th></tr>
+    <tr><td><strong><code>table:label-ranges</code></strong> — 見出しの文字をそのまま数式で使う
+      （<code>=SUM(売上)</code> の「売上」が定義名ではなく<em>列見出し</em>）</td>
+      <td><strong>無い</strong>。Excel 2003 の「自然言語の数式」に当たるが、OOXML には引き継がれなかった</td>
+      <td><code>Workbook.labelRanges</code>。見出しの範囲・データの範囲・向き（column / row）の 3 点</td></tr>
+    <tr><td><strong><code>table:consolidation</code></strong> — 統合の定義（元の範囲・出力先・集計関数）を<em>文書に残す</em></td>
+      <td><strong>無い</strong>。Excel の「統合」は一度きりの操作で、定義は保存されない</td>
+      <td><code>Workbook.consolidation</code>（スキーマ上も単数・省略可）</td></tr>
+    <tr><td><strong><code>table:detective</code></strong> — 参照元／参照先の矢印と、循環参照の印をセルに残す</td>
+      <td><strong>無い</strong>。Excel のトレース矢印は画面だけのもので、ファイルに残らない</td>
+      <td><code>Table.detective</code>（<code>[CellRef: CellDetective]</code> の疎な辞書）。
+        <strong>Cell の欄にはしない</strong> — Cell は 1 個 100〜200 バイトの予算で管理している熱い型で、
+        滅多に使わない機能のために全セルを太らせない（B.10 と同じ判断）</td></tr>
+    <tr><td><strong><code>table:calculation-settings</code></strong> のうち
+      <code>use-regular-expressions</code> / <code>use-wildcards</code> / <code>case-sensitive</code> /
+      <code>search-criteria-must-apply-to-whole-cell</code> / <code>automatic-find-labels</code> / <code>null-year</code></td>
+      <td><strong>無い</strong>。これらは検索条件の<em>意味</em>を変える設定で、Excel はアプリの設定として持ち
+        ファイルには書かない</td>
+      <td><code>Workbook.calculationSettings</code>。反復計算（<code>table:iteration</code>）と
+        精度（<code>precision-as-shown</code>）は Excel の <code>&lt;calcPr&gt;</code> にもあるので同じ器に入れる</td></tr>
+    <tr><td><code>table:null-date</code> — 日付の原点</td>
+      <td>ある（<code>date1904</code>）。ただし ODF は<strong>任意の日付</strong>を原点にできる</td>
+      <td>既存の <code>Workbook.epoch</code> に写す。1899-12-30（既定・省略）と 1904-01-01 の 2 つだけを解し、
+        それ以外の原点は <code>degraded</code> 警告で 1900 系として読む。
+        <strong>LibreOffice は既定の原点を省略し、1904 のときだけ書く</strong>（実測）ので、こちらもそうする</td></tr>
+    <tr><td><code>office:currency</code> — セルが「いくらの、どの通貨か」を<em>データとして</em>持つ</td>
+      <td><strong>無い</strong>。Excel の通貨は表示形式の中にしかない</td>
+      <td><strong>モデルは増やさない</strong>。読みでは表示形式から通貨記号が復元できることを実測で確認したので
+        <code>office:currency</code> は捨ててよい。書きでは表示形式が通貨のとき
+        <code>office:value-type="currency"</code> と <code>office:currency</code> を出す（他のアプリが
+        「これは金額だ」と分かるように）</td></tr>
+    <tr><td><code>table:tracked-changes</code> / <code>table:dde-links</code> /
+      <code>table:table-source</code> / <code>table:cell-range-source</code></td>
+      <td>OOXML にも相当物がある（改訂履歴・DDE・外部データ接続）が、形がまるで違う</td>
+      <td><strong>入れない</strong>。ただし<strong>読んだら覚えておいて、書くときに落としたと言う</strong> —
+        いまは黙って捨てているので、それが「落としたものは必ず言う」に反している</td></tr>
+    <tr><td>セル内に複数のハイパーリンク</td><td>Excel はセルに 1 つ</td>
+      <td>モデルも 1 つのまま。<strong>2 つ目以降を捨てたことを言う</strong>（Numbers 側は Rev 2.1 でそうした）</td></tr>
+    <tr><td>図形・セル背景画像・チャート</td><td>—</td>
+      <td><strong>対象外</strong>。§1.3 の「読み書きの対象はデータであって描画ではない」に従う</td></tr>
+  </table></div>
+
+  <div class="callout callout-warn">
+    <span class="label">XLSX へ書いたときの非対称</span>
+    <p>
+      ここで足したものは ODF 固有なので、同じブックを XLSX に書けば当然落ちる。
+      <strong>SheetXLSX は変更しない</strong>（Rev 2.1 以降、Excel 側の読み書きは動かさない方針）ため、警告は
+      <code>Sources/SwiftSheets</code> のファサードが足す — <code>Workbook.write(to:as:)</code> /
+      <code>data(as:)</code> を通れば「ODF 固有の機能が n 件落ちた」と言う。
+      <code>XLSXCodec</code> を直接呼ぶ利用者には出ない。<strong>これは意図した割り切り</strong>で、
+      「コーデックが自分で言う」という原則からの唯一の逸脱として、ここに固定する。
+    </p>
+  </div>
+
+  <p>
+    <strong>審判</strong>。ODF 1.3 のスキーマが正であり、書いたものが妥当かはスキーマの形（必須属性・値の候補）で確かめる。
+    そのうえで <strong>LibreOffice に ODS → ODS の再保存をさせ、要素が残って出てくるか</strong>を見る —
+    残れば LibreOffice がその要素を理解したということで、B.16 で条件付き書式に用いたのと同じ基準である。
+  </p>
 
 
 </section>

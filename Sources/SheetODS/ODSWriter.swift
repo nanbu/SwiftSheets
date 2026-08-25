@@ -254,7 +254,11 @@ enum ODSWriter {
         // body first: it registers the styles. Content validations come before the tables (ODF 1.3 §9.1.2) and the
         // cells name the rule they obey, so the names are minted first.
         var validationNames: [Int: [(ranges: MultiCellRange, name: String)]] = [:]
-        var body = ODSValidation.xml(wb, names: &validationNames, sink: sink)
+        // ODF 1.3 §9.4 fixes the order of what comes before the tables: calculation settings, content validations,
+        // label ranges
+        var body = ODSFeatures.calculationSettingsXML(wb)
+        body += ODSValidation.xml(wb, names: &validationNames, sink: sink)
+        body += ODSFeatures.labelRangesXML(wb, sink: sink)
         for (i, sheet) in wb.sheets.enumerated() {
             body += tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [],
                              styles: styles, conditionalStyles: conditionalStyles, sink: sink)
@@ -262,6 +266,7 @@ enum ODSWriter {
         body += namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name)
         body += databaseRangesXML(wb, sink: sink)
         body += ODSPivot.xml(wb, sink: sink)
+        body += ODSFeatures.consolidationXML(wb, sink: sink)
 
         var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of", "calcext", "loext", "tableooo"]) + " office:version=\"1.3\">"
         content += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
@@ -294,6 +299,9 @@ enum ODSWriter {
             }
         }
 
+        for what in wb.unmodelledODFFeatures.descriptions {
+            sink.add(.dropped, subject: .other, "\(what) is dropped: it was read from the source file but the model has no word for it, and ODS is regenerated rather than patched")
+        }
         if wb.protection != WorkbookProtection() {
             sink.add(.dropped, subject: .other, "workbook protection is dropped: ODF locks a document, not its sheet list")
         }
@@ -687,7 +695,7 @@ enum ODSWriter {
                 } else if let cell = t.cells[ref] ?? (anchors[ref] != nil ? Cell() : nil) {
                     // an anchor with no cell of its own still has to be written: the span hangs on it
                     s += cellXML(cell, at: ref, merge: anchors[ref], matrix: t.arrayFormulas[ref], validation: validationName(ref),
-                                 sheet: sheet.name, styles: styles, sink: sink)
+                                 detective: t.detective[ref], sheet: sheet.name, styles: styles, sink: sink)
                     c += 1
                 } else {
                     let rule = validationName(ref)
@@ -710,7 +718,8 @@ enum ODSWriter {
     }
 
     static func cellXML(_ cell: Cell, at ref: CellRef, merge: CellRange?, matrix: CellRange?, validation: String?,
-                        sheet: String, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
+                        detective: CellDetective? = nil, sheet: String, styles: ODSStyleRegistry,
+                        sink: ODSWarningSink) -> String {
         var attrs = ""
         if let n = styles.cell(cell.style) { attrs += " table:style-name=\"\(n)\"" }
         if let v = validation { attrs += " table:content-validation-name=\"\(v)\"" }
@@ -720,6 +729,8 @@ enum ODSWriter {
         var valueAttrs = ""
         var paragraphs: [String] = []
         let percent = NumberFormat.isPercentFormat(cell.style.numberFormat)
+        // ODF marks a money cell as money and names the currency on the cell itself, which OOXML cannot
+        let currency = percent ? nil : ODSFeatures.currency(inFormat: cell.style.numberFormat)
         switch cell.value {
         case nil: break
         case .richText(let runs)?:
@@ -747,6 +758,10 @@ enum ODSWriter {
             if let cached { (valueAttrs, paragraphs) = valueXML(cached, percent: percent) }
         case let v?: (valueAttrs, paragraphs) = valueXML(v, percent: percent)
         }
+        if let currency, valueAttrs.contains("office:value-type=\"float\"") {
+            valueAttrs = valueAttrs.replacingOccurrences(of: "office:value-type=\"float\"",
+                                                         with: "office:value-type=\"currency\" office:currency=\"\(XML.esc(currency))\"")
+        }
         if let h = cell.hyperlink, !paragraphs.isEmpty {
             let href = h.isInternal ? "#" + h.target.replacingOccurrences(of: "!", with: ".") : h.target
             let first = paragraphs[0].dropFirst("<text:p>".count).dropLast("</text:p>".count)
@@ -758,6 +773,8 @@ enum ODSWriter {
             if !note.author.isEmpty { s += "<dc:creator>\(XML.esc(note.author))</dc:creator>" }
             s += paragraphsXML(note.text).joined() + "</office:annotation>"
         }
+        // ODF 1.3 §9.1.4 puts the detective's arrows after the annotation and before the text
+        if let detective { s += ODSFeatures.detectiveXML(detective, sheet: sheet) }
         s += paragraphs.joined()
         return s + "</table:table-cell>"
     }

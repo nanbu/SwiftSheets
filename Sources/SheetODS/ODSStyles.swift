@@ -82,6 +82,7 @@ final class ODSStyleCatalog {
     private var currentDataName: String?
     private var dataText = ""
     private var inDataText = false
+    private var inCurrencySymbol = false
 
     func start(_ name: String, _ a: [String: String]) {
         switch name {
@@ -119,7 +120,7 @@ final class ODSStyleCatalog {
             currentData?.items.append(.scientific(decimals: ODSAttr.int(a, "number:decimal-places") ?? 0, minInteger: ODSAttr.int(a, "number:min-integer-digits") ?? 1,
                                                   exponentDigits: ODSAttr.int(a, "number:min-exponent-digits") ?? 2))
         case "text" where currentData != nil: inDataText = true; dataText = ""
-        case "currency-symbol" where currentData != nil: inDataText = true; dataText = ""
+        case "currency-symbol" where currentData != nil: inDataText = true; dataText = ""; inCurrencySymbol = true
         case "year": currentData?.items.append(.year(long: ODSAttr.get(a, "number:style") == "long"))
         case "month": currentData?.items.append(.month(long: ODSAttr.get(a, "number:style") == "long", textual: ODSAttr.bool(a, "number:textual") ?? false))
         case "day": currentData?.items.append(.day(long: ODSAttr.get(a, "number:style") == "long"))
@@ -200,7 +201,10 @@ final class ODSStyleCatalog {
             }
             current = nil; currentName = nil
         case "text", "currency-symbol":
-            if inDataText { currentData?.items.append(.text(dataText)); inDataText = false }
+            if inDataText {
+                currentData?.items.append(inCurrencySymbol ? .currencySymbol(dataText) : .text(dataText))
+                inDataText = false; inCurrencySymbol = false
+            }
         case "number-style", "percentage-style", "currency-style", "date-style", "time-style", "boolean-style", "text-style":
             if let d = currentData, let n = currentDataName { dataStyles[n] = d }
             currentData = nil; currentDataName = nil

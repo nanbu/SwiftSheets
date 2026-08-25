@@ -44,13 +44,37 @@ extension Workbook {
 
     /// Serializes in a format. The result carries every warning about what the format could not express.
     public func write(as format: SheetFormat, options: WriteOptions = WriteOptions()) throws -> WriteResult {
+        let result: WriteResult
         switch format {
-        case .xlsx: return try XLSXCodec.write(self, options: options)
-        case .xlsm: return try XLSMCodec.write(self, options: options)
-        case .csv: return try CSVCodec.write(self, options: options)
+        case .xlsx: result = try XLSXCodec.write(self, options: options)
+        case .xlsm: result = try XLSMCodec.write(self, options: options)
+        case .csv: result = try CSVCodec.write(self, options: options)
         case .ods: return try ODSCodec.write(self, options: options)
-        case .numbers: return try NumbersCodec.write(self, options: options)
+        case .numbers: result = try NumbersCodec.write(self, options: options)
         }
+        let extra = openDocumentOnlyWarnings(for: format)
+        guard !extra.isEmpty else { return result }
+        return WriteResult(data: result.data, warnings: result.warnings + extra, suggestion: result.suggestion)
+    }
+
+    /// What only OpenDocument can hold (spec Appendix B.17) and this format therefore drops.
+    ///
+    /// The warning is raised **here** rather than inside each codec, so that the ODF-only model can grow without
+    /// touching a codec that predates it — `SheetXLSX` in particular is frozen. The cost of that choice is that
+    /// calling `XLSXCodec.write` directly does not raise it; going through `Workbook.write` / `data(as:)` does.
+    func openDocumentOnlyWarnings(for format: SheetFormat) -> [ConversionWarning] {
+        guard format != .ods else { return [] }
+        var out: [ConversionWarning] = []
+        func drop(_ what: String) {
+            out.append(ConversionWarning(.dropped, subject: .other,
+                                         message: "\(what) is dropped: only OpenDocument has it"))
+        }
+        if !calculationSettings.isDefault { drop("the calculation settings (search conditions, iteration, the two-digit-year window)") }
+        if !labelRanges.isEmpty { drop("\(labelRanges.count) label range(s) — headings usable in formulas") }
+        if consolidation != nil { drop("the stored consolidation definition") }
+        let arrows = sheets.reduce(0) { $0 + $1.tables.reduce(0) { $0 + $1.detective.count } }
+        if arrows > 0 { drop("\(arrows) cell(s) with tracing arrows") }
+        return out
     }
 
     /// The bytes only, when warnings are not of interest.

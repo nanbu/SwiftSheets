@@ -77,6 +77,10 @@ public struct Table: Equatable, Sendable {
     /// in Excel with ctrl-shift-enter). The anchor holds the formula; the other cells of the range hold its
     /// results. Without the range Excel treats the formula as an ordinary one, which changes what it computes.
     public var arrayFormulas: [CellRef: CellRange] = [:]
+    /// The tracing arrows ODF keeps on a cell (`table:detective`), by the cell they hang on. A sparse map rather
+    /// than a field of `Cell`: this is rare, and a `Cell` is the type whose size the whole library budgets for
+    /// (spec Appendix B.17). ODF only — Excel draws the same arrows but never saves them.
+    public var detective: [CellRef: CellDetective] = [:]
     /// The row `append` writes next (0-based). The reader sets it past the last row of the file.
     public var nextAppendRow = 0
 

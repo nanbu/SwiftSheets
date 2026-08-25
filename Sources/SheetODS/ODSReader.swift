@@ -65,6 +65,11 @@ enum ODSReader {
         }
 
         var wb = Workbook(sheets: sheetsRead)
+        wb.calculationSettings = content.calculationSettings
+        if let e = content.epoch { wb.epoch = e }
+        wb.labelRanges = content.labelRanges
+        wb.consolidation = content.consolidation
+        wb.noteUnmodelledODFFeatures(content.unmodelledODF)
         wb.dataOnly = options.dataOnly
         wb.definedNames = content.definedNames
         wb.preserved.sourceFormat = .ods
@@ -252,6 +257,16 @@ final class ContentParser: SAXHandler {
     private var pilotField: (name: String, orientation: String, function: String, displayName: String?)?
     var dataPilots: [ODSPivot.Parsed] = []
 
+    // ODF's own features (spec Appendix B.17)
+    var calculationSettings = CalculationSettings()
+    var epoch: DateEpoch?
+    var labelRanges: [LabelRange] = []
+    var consolidation: Consolidation?
+    var unmodelledODF: UnmodelledODFFeatures = []
+    private var detective: CellDetective?
+    private var reportedExtraLink = false
+    private var rowDetective: [(col: Int, detective: CellDetective)] = []
+
     // the table style of the sheet being read, so its master page can be applied afterwards
     var tableStyleNames: [String] = []
 
@@ -315,7 +330,7 @@ final class ContentParser: SAXHandler {
             rowStyle = ODSAttr.get(a, "table:style-name")
             rowHidden = ODSAttr.get(a, "table:visibility") == "collapse"
             rowCells = []; rowMerges = []; rowMatrices = []; rowHasContent = false; cellCursor = 0
-            rowValidations = []; rowHasValidation = false; rowStyleMaps = []; rowHasStyleMap = false
+            rowValidations = []; rowHasValidation = false; rowStyleMaps = []; rowHasStyleMap = false; rowDetective = []
             if catalog.hasBreakBefore(rowStyle, row: true), rowCursor < ODSReader.maxRows { sheet?.rowBreaks.append(rowCursor) }
         case "table-cell", "covered-table-cell":
             guard inRow else { return }
@@ -344,7 +359,16 @@ final class ContentParser: SAXHandler {
         case "tab": if inParagraph { appendLiteral("\t") }
         case "line-break": if inParagraph { appendLiteral("\n") }
         case "a":
-            guard inParagraph, !inAnnotation, hyperlink == nil, let href = ODSAttr.get(a, "xlink:href") else { return }
+            guard inParagraph, !inAnnotation, let href = ODSAttr.get(a, "xlink:href") else { return }
+            guard hyperlink == nil else {
+                // ODF hangs a link on a run of text, so a cell may hold several; the model has one, as Excel does
+                if !reportedExtraLink {
+                    reportedExtraLink = true
+                    warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheet?.name,
+                                                      message: "a cell holds more than one hyperlink; the first was kept"))
+                }
+                return
+            }
             if href.hasPrefix("#") {
                 let target = String(href.dropFirst())
                 hyperlink = Hyperlink(target: ContentParser.internalTarget(target), isInternal: true)
@@ -374,6 +398,59 @@ final class ContentParser: SAXHandler {
             guard let n = ODSAttr.get(a, "table:name"), let expr = ODSAttr.get(a, "table:expression") else { return }
             let parsed = FormulaExpr.parse(expr, dialect: .ods)
             addName(n, parsed.isUnparsed ? expr : parsed.rendered(as: .xlsx))
+        case "calculation-settings":
+            if let v = ODSAttr.bool(a, "table:case-sensitive") { calculationSettings.caseSensitive = v }
+            if let v = ODSAttr.bool(a, "table:precision-as-shown") { calculationSettings.precisionAsShown = v }
+            if let v = ODSAttr.bool(a, "table:search-criteria-must-apply-to-whole-cell") { calculationSettings.searchCriteriaMustApplyToWholeCell = v }
+            if let v = ODSAttr.bool(a, "table:automatic-find-labels") { calculationSettings.automaticFindLabels = v }
+            if let v = ODSAttr.bool(a, "table:use-regular-expressions") { calculationSettings.useRegularExpressions = v }
+            if let v = ODSAttr.bool(a, "table:use-wildcards") { calculationSettings.useWildcards = v }
+            if let v = ODSAttr.int(a, "table:null-year") { calculationSettings.nullYear = v }
+        case "null-date":
+            // ODF lets the date origin be any date; the model, like Excel, knows two
+            let value = ODSAttr.get(a, "table:date-value") ?? "1899-12-30"
+            switch value {
+            case "1904-01-01": epoch = .mac1904
+            case "1899-12-30", "1900-01-01": epoch = .windows1900
+            default:
+                epoch = .windows1900
+                warnings.append(ConversionWarning(.degraded, message: "the date origin \(value) is neither 1899-12-30 nor 1904-01-01; read as the 1900 system, so dates may be out"))
+            }
+        case "iteration":
+            calculationSettings.iterationEnabled = ODSAttr.get(a, "table:status") == "enable"
+            if let v = ODSAttr.int(a, "table:steps") { calculationSettings.iterationSteps = v }
+            if let v = ODSAttr.get(a, "table:maximum-difference").flatMap(Double.init) { calculationSettings.iterationMaximumDifference = v }
+        case "label-range":
+            guard let labels = ODSAttr.get(a, "table:label-cell-range-address").flatMap(ODSFeatures.range),
+                  let data = ODSAttr.get(a, "table:data-cell-range-address").flatMap(ODSFeatures.range) else { return }
+            let orientation = LabelRange.Orientation(rawValue: ODSAttr.get(a, "table:orientation") ?? "column") ?? .column
+            labelRanges.append(LabelRange(labels: labels, data: data, orientation: orientation))
+        case "consolidation":
+            let sources = (ODSAttr.get(a, "table:source-cell-range-addresses") ?? "")
+                .split(separator: " ").compactMap { ODSFeatures.range(String($0)) }
+            guard !sources.isEmpty,
+                  let targetText = ODSAttr.get(a, "table:target-cell-address"),
+                  let target = CellRange(ContentParser.excelAddress(targetText)), let targetSheet = target.sheet else { return }
+            var c = Consolidation(function: ODSPivot.excelFunction(ODSAttr.get(a, "table:function") ?? "sum"),
+                                  sources: sources, target: target.topLeft, targetSheet: targetSheet)
+            c.useLabels = Consolidation.Labels(rawValue: ODSAttr.get(a, "table:use-labels") ?? "none") ?? .none
+            c.linkToSourceData = ODSAttr.bool(a, "table:link-to-source-data") ?? false
+            consolidation = c
+        case "detective":
+            guard inCell else { return }
+            detective = CellDetective()
+        case "highlighted-range":
+            guard detective != nil, let direction = ODSAttr.get(a, "table:direction").flatMap(CellDetective.HighlightedRange.Direction.init) else { return }
+            detective!.highlighted.append(CellDetective.HighlightedRange(
+                range: ODSAttr.get(a, "table:cell-range-address").flatMap(ODSFeatures.range),
+                direction: direction, containsError: ODSAttr.bool(a, "table:contains-error") ?? false))
+        case "operation":
+            guard detective != nil, let name = ODSAttr.get(a, "table:name").flatMap(CellDetective.Operation.Name.init) else { return }
+            detective!.operations.append(CellDetective.Operation(name, index: ODSAttr.int(a, "table:index") ?? 0))
+        case "table-source":
+            unmodelledODF.insert(.linkedSheet)
+        case "cell-range-source":
+            unmodelledODF.insert(.linkedRange)
         case "content-validation":
             guard let n = ODSAttr.get(a, "table:name") else { return }
             currentValidation = ODSValidation.Parsed(name: n, condition: ODSAttr.get(a, "table:condition") ?? "",
@@ -470,7 +547,11 @@ final class ContentParser: SAXHandler {
                           ODSAttr.get(a, "tableooo:display-name"))
         case "source-service", "source-table", "data-pilot-groups":
             skipDepth = 1                                    // sources the model has no word for
-        case "frame", "shapes", "forms", "custom-shape", "control", "g", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
+        case "tracked-changes":
+            unmodelledODF.insert(.trackedChanges); skipDepth = 1
+        case "dde-links":
+            unmodelledODF.insert(.ddeLinks); skipDepth = 1
+        case "frame", "shapes", "forms", "custom-shape", "control", "g":
             skipDepth = 1
         case _ where ContentParser.transparent.contains(name):
             if name == "table-row-group" { groupDepth += 1 }
@@ -569,6 +650,7 @@ final class ContentParser: SAXHandler {
             }
         case "creator": inCreator = false
         case "annotation": inAnnotation = false
+        case "detective": break
         case "table-cell", "covered-table-cell":
             guard inCell else { return }
             inCell = false
@@ -688,12 +770,14 @@ final class ContentParser: SAXHandler {
             rowValidations.append((rule, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
             rowHasValidation = true
         }
+        if let d = detective, !d.isEmpty { rowDetective.append((cellCursor, d)) }
+        detective = nil
         if let styleName, styleName != "Default", !catalog.conditionalMaps(styleName).isEmpty {
             rowStyleMaps.append((styleName, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
             rowHasStyleMap = true
         }
 
-        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0
+        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0 || !rowDetective.isEmpty
         guard material || (cell.style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
         let count = Swift.min(n, ODSReader.maxColumns - cellCursor)
@@ -868,6 +952,7 @@ final class ContentParser: SAXHandler {
             }
             for v in rowValidations { validationCells[v.name, default: []].append((r, v.from, v.to)) }
             for m in rowStyleMaps { styleMapCells[m.style, default: []].append((r, m.from, m.to)) }
+            for d in rowDetective { s.table.detective[CellRef(row: r, col: d.col)] = d.detective }
         }
         if expand > 0 { s.table.nextAppendRow = Swift.max(s.table.nextAppendRow, rowCursor + expand) }
         rowCursor += rowRepeat
