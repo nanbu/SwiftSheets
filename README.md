@@ -63,7 +63,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
 | ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
-| Numbers | ✅ values, formulas (as text), cell formatting, number formats, hyperlinks, merges, sizes, several tables per sheet | ✅ values, cell formatting, number formats, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
+| Numbers | ✅ values, formulas (as text), cell formatting, number formats, hyperlinks, merges, sizes, several tables per sheet | ✅ values, **formulas**, cell formatting, number formats, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
@@ -106,9 +106,12 @@ is reported, never dropped in silence.
   `freezePanes`.
 - Write: the empty document shipped with numbers-parser is the template (spec §11.1); the first sheet / table is
   patched in place, further sheets and tables are deep-copied subgraphs with fresh ids and UUIDs. Values, **cell
-  formatting and number formats**, merges, sizes, header rows. **Formulas are written as their cached value** with a
-  `degraded` warning — Numbers' formula archives are not generated (the reference implementation cannot either, and
-  without Numbers.app on the build machine a generated archive could not be validated).
+  formatting and number formats**, merges, sizes, header rows, and **formulas as formula archives** — the tree is
+  turned into the postfix node array Numbers evaluates, so a formula written from SwiftSheets is a formula in
+  Numbers and it computes the answer (spec Appendix B.18). Five shapes have no example in the fixture corpus and
+  are not invented: a reference to **another table**, a **defined name**, a **function Numbers does not have**, a
+  range over **whole columns** (`A:C`), and the **intersection / union** operators. Each falls back to the cached
+  value with a `degraded` warning naming what stopped it.
 - **Conditional formatting is not written to Numbers**, and this is deliberate. The archive exists in the schema
   (`TST.ConditionalStyleSetArchive`), but a rule's condition is a `predicate_type` integer Apple left unnamed in the
   Protobuf. There is no Numbers.app here, numbers-parser has no API for it, and none of the eleven fixtures contains
@@ -118,8 +121,11 @@ is reported, never dropped in silence.
   scenarios, print setup, defined names, tab colours, outline grouping, notes, hyperlink *writing* — is reported as
   a warning. Nothing is dropped in silence.
 - Judges: round trip through our own reader, numbers-parser reading our output
-  (`Tests/NumbersParity/verify_with_numbers_parser.py`), and LibreOffice's Numbers importer. **Numbers.app itself
-  has not opened these files** — that check is on the release checklist in MAINTENANCE.md.
+  (`Tests/NumbersParity/verify_with_numbers_parser.py`), LibreOffice's Numbers importer — and, since 2026-08-25,
+  **Numbers.app itself** (`Tests/NumbersParity/verify_with_numbers_app.py`): it opens what we wrote, is asked what
+  it sees, and is made to save it again. It earned its place immediately by rejecting a document the other three
+  had passed — two defects in the sheet / table copy that only an application reading the package's own table of
+  contents could see (Appendix B.18).
 - Protobuf is handled by a dependency-free dynamic tree (`ProtoMessage`) driven by a machine-extracted schema;
   unknown fields round-trip byte for byte (`NumbersIWATests.fixturesRoundTripByteForByte`).
 

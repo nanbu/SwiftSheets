@@ -262,8 +262,9 @@ final class NumbersSchema: Sendable {
     /// IWA message type id → fully qualified message name.
     let registry: [Int: String]
     let registryByName: [String: Int]
-    /// Numbers function id → name.
+    /// Numbers function id → name, and the way back for the formula writer.
     let functions: [Int: String]
+    let functionIndexes: [String: Int]
     /// The integer constants Apple left unnamed in the Protobuf (number-format kinds, alignment, duration styles),
     /// recovered by numbers-parser: group name → case name → value.
     let constants: [String: [String: Int]]
@@ -310,6 +311,7 @@ final class NumbersSchema: Sendable {
         var f: [Int: String] = [:]
         for (k, v) in fn { if let i = Int(k) { f[i] = v } }
         functions = f
+        functionIndexes = Dictionary(f.map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
     }
 
     func field(_ message: String, _ name: String) -> FieldInfo? { fieldsByName[message]?[name] }

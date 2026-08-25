@@ -4,7 +4,8 @@ import Testing
 @testable import SheetNumbers
 import SwiftSheets
 
-/// Spec §11: values, merges, sizes, several sheets / tables; formulas fall back to cached values with a warning (B.8).
+/// Spec §11: values, merges, sizes, several sheets / tables; formulas as formula archives (B.18), with a fall back to
+/// the cached value and a warning for the shapes no fixture shows.
 /// Judges: our own reader, and numbers-parser through Tests/NumbersParity/verify_with_numbers_parser.py (run separately).
 @Suite struct NumbersWriterTests {
     static let outDir: URL = {
@@ -37,7 +38,7 @@ import SwiftSheets
     @Test func roundTripThroughOurReader() throws {
         let wb = Self.sampleWorkbook()
         let result = try wb.write(as: .numbers)
-        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("formula") })
+        #expect(!result.warnings.contains { $0.subject == .formulas })   // SUM(B2:B3) is written as a formula, not a value
         #expect(SheetFormat.detect(from: result.data) == .numbers)
         let url = Self.outDir.appendingPathComponent("sample.numbers")
         try result.data.write(to: url)
@@ -55,7 +56,7 @@ import SwiftSheets
         #expect(s["F2"]?.durationValue == .seconds(3661))
         #expect(s["B3"] == .number(Decimal(string: "-3.5")!))
         #expect(s["C3"] == .number(Decimal(string: "12345678901234567890.5")!))
-        #expect(s["G1"] == .number(Decimal(string: "1249996.5")!))   // the cached value, no formula
+        #expect(s["G1"] == .formula(FormulaExpr.parse("SUM(B2:B3)"), cached: .number(Decimal(string: "1249996.5")!)))
         #expect(s["H1"] == .text("quote \"q\" & <tag>\nline2"))
         #expect(s.merges == [CellRange("A5:C6")!] && s["A5"] == .text("merged") && s["B5"] == nil)
         #expect(s.columnDimension("A").width.map { abs($0 - 30) < 0.5 } == true)
@@ -208,6 +209,101 @@ import SwiftSheets
         #expect(back.sheetNames == ["Data", "Notes"])
         #expect(back.sheets[0]["A1"] == .text("Item") && back.sheets[0]["B3"] == .integer(5))
         try result.data.write(to: Self.outDir.appendingPathComponent("from-xlsx.numbers"))
+    }
+
+    /// Appendix B.18. The encoder and the decoder were written from the same fixture corpus, one field at a time;
+    /// this holds them to it by writing a workbook of formulas and reading the document back. The same workbook is
+    /// what the two outside judges read — numbers-parser, and Numbers.app itself, which also computes the answers.
+    ///
+    /// The layout is for those judges: A1:A3 and B1:B2 hold the numbers the formulas work on, column D says what was
+    /// asked for, column E holds the formula and column F the answer it should come to — so a judge can line all
+    /// three up without knowing this file, and there is one list of expected answers rather than one per judge.
+    static let formulaCases: [(formula: String, answer: String)] = [
+        ("1+2", "3"), ("A1-B2", "-19"), ("A1*2", "2"), ("A1/2", "0.5"), ("2^10", "1024"),
+        ("A1&\"x\"", "1x"), ("A1=B1", "false"), ("A1<>B1", "true"), ("A1<B1", "true"), ("A1<=B1", "true"),
+        ("A1>B1", "false"), ("A1>=B1", "false"), ("-A1", "-1"), ("A1%", "0.01"), ("1.5+0.125", "1.625"),
+        ("SUM(A1:A3)", "6"), ("ROUND(SUM(A1:A3),2)", "6"), ("IF(A1>0,\"y\",\"n\")", "y"),
+        ("$A$1+A$2+$A3", "6"), ("SUM(A1,A3)", "4"), ("MAX(1,2,3)", "3"), ("COUNTA(A:A)", "3"),
+        ("SUM({1,2;3,4})", "10"),
+    ]
+
+    static func formulaWorkbook() -> Workbook {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        for (r, v) in [1, 2, 3].enumerated() { sheet[CellRef(row: r, col: 0)] = .integer(v) }
+        for (r, v) in [10, 20].enumerated() { sheet[CellRef(row: r, col: 1)] = .integer(v) }
+        for (i, c) in formulaCases.enumerated() {
+            sheet[CellRef(row: i, col: 3)] = .text(c.formula)
+            sheet[cell: CellRef(row: i, col: 4)].value = .formula(FormulaExpr.parse(c.formula), cached: nil)
+            sheet[CellRef(row: i, col: 5)] = .text(c.answer)
+        }
+        wb.sheets[0] = sheet
+        return wb
+    }
+
+    @Test func formulasAreWrittenAsFormulas() throws {
+        let result = try Self.formulaWorkbook().write(as: .numbers)
+        #expect(!result.warnings.contains { $0.subject == .formulas }, "\(result.warnings)")
+        try result.data.write(to: Self.outDir.appendingPathComponent("formulas.numbers"))
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+        for (i, c) in Self.formulaCases.enumerated() {
+            let value = back[CellRef(row: i, col: 4)]
+            guard case .formula(let expr, _) = value else {
+                Issue.record("\(c.formula) came back as \(String(describing: value))")
+                continue
+            }
+            #expect(expr.rendered(as: .xlsx) == FormulaExpr.parse(c.formula).rendered(as: .xlsx), "\(c.formula) → \(expr.rendered(as: .xlsx))")
+        }
+    }
+
+    /// The same list of formulas, read by numbers-parser rather than by us, is in Tests/NumbersParity.
+    /// What has no shape in the corpus is never invented: it keeps the cached value and says which part stopped it.
+    @Test func unwritableFormulasKeepTheirCachedValue() throws {
+        var wb = Workbook()
+        wb.addSheet(named: "Other")
+        var sheet = wb.sheets[0]
+        sheet[cell: "A1"].value = .formula(FormulaExpr.parse("Other!A1"), cached: .integer(1))
+        sheet[cell: "A2"].value = .formula(FormulaExpr.parse("Rate*2"), cached: .integer(2))
+        sheet[cell: "A3"].value = .formula(FormulaExpr.parse("NOSUCHFUNCTION(1)"), cached: .integer(3))
+        sheet[cell: "A4"].value = .formula(FormulaExpr.parse("SUM(A1:A2 B1:B2)"), cached: .integer(4))
+        sheet[cell: "A5"].value = .formula(.unparsed("???", dialect: .xlsx), cached: .integer(5))
+        wb.sheets[0] = sheet
+        let result = try wb.write(as: .numbers)
+        let reasons = result.warnings.filter { $0.subject == .formulas }.map(\.message)
+        #expect(reasons.count == 5, "\(reasons)")
+        #expect(reasons.contains { $0.contains("another table") })
+        #expect(reasons.contains { $0.contains("defined names") })
+        #expect(reasons.contains { $0.contains("no function") })
+        #expect(reasons.contains { $0.contains("could not be parsed") })
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+        #expect(back["A1"] == .integer(1) && back["A5"] == .integer(5), "the cached value is never lost")
+    }
+
+    /// A formula the source never cached still goes in: the cell holds no value and Numbers computes one.
+    @Test func aFormulaWithNoCachedValueIsStillWritten() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 2
+        wb.sheets[0][cell: "A2"].value = .formula(FormulaExpr.parse("A1*3"), cached: nil)
+        let result = try wb.write(as: .numbers)
+        #expect(!result.warnings.contains { $0.subject == .formulas }, "\(result.warnings)")
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+        #expect(back["A2"] == .formula(FormulaExpr.parse("A1*3"), cached: nil))
+    }
+
+    /// One archive in many cells is one entry in the table's list, with a refcount to say so. Numbers stores a
+    /// relative reference as an offset from the cell holding it, so `A1+1` down a column is five *different*
+    /// archives and `$A$1+1` is one — the same rule that makes filling a formula down cheap in Numbers.
+    @Test func repeatedFormulasShareOneEntry() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        for r in 0..<5 { sheet[cell: CellRef(row: r, col: 1)].value = .formula(FormulaExpr.parse("$A$1+1"), cached: .integer(1)) }
+        wb.sheets[0] = sheet
+        let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
+        let lists = doc.identifiers(ofType: "TST.TableDataList").compactMap { doc.object($0) }
+            .filter { $0.int("listType") == NumbersSchema.shared.enums["TST.TableDataList.ListType"]?["FORMULA"] }
+        let entries = lists.flatMap { $0.messages("entries") }
+        #expect(entries.count == 1, "five identical formulas, one entry")
+        #expect(entries.first?.int("refcount") == 5)
     }
 
     // MARK: - What Numbers.app found (Appendix B.18)

@@ -29,19 +29,45 @@ exposes the warnings). A hard failure (`SheetError.unsupportedVersion` / `malfor
    with the numbers-parser version in the commit message. (numbers-parser itself re-extracts the Protobuf definitions
    from the Numbers binary with its `make bootstrap` tooling — that is where new field numbers come from.)
 
-   **The five files are not all at the same version right now.** `schema`, `registry` and `functions` came from
-   numbers-parser 4.19.0; `constants` and `fonts` from 4.16.3, which is the newest release that installs on this
-   Mac's Python 3.9. Regenerate all five together from 4.19.0 or later once a Python ≥ 3.10 is available:
+   **All five are at numbers-parser 4.19.0** (regenerated 2026-08-25 with the Python 3.11 at
+   `~/.local/bin/python3.11`; `constants` and `fonts` had lagged at 4.16.3, the newest release that installs on
+   this Mac's system Python 3.9). Regenerate all five together:
 
    ```bash
-   python3 -m venv /tmp/np && /tmp/np/bin/pip install numbers-parser && /tmp/np/bin/python scripts/extract-numbers-schema.py
+   ~/.local/bin/python3.11 -m venv /tmp/np && /tmp/np/bin/pip install numbers-parser && /tmp/np/bin/python scripts/extract-numbers-schema.py
    ```
+
 4. If the write template must change (Numbers refuses the generated file), save a fresh empty document with the new
    Numbers, replace `Sources/SheetNumbers/Resources/empty.numbers`, and re-run the self round-trip and
    numbers-parser checks.
 5. Record the verified range in this file and in Appendix B.8 of `docs/implementation-spec.html`.
 
-## Manual checklist before a release (cannot be automated without Numbers.app / Excel)
+## Numbers.app is a judge now (2026-08-25, spec Appendix B.18)
+
+Most of the checklist below used to need a person because there was no Numbers on this Mac. There is one now
+(Numbers 15.3.1), and the checks it can make are a script:
+
+```bash
+python3 Tests/NumbersParity/verify_with_numbers_app.py     # opens, reads, computes, saves again
+python3 Tests/NumbersParity/numbers_app.py open .build/numbers-judge/probes/09-two-sheets.numbers
+```
+
+It answers "cannot judge" (exit 2) rather than failing when the machine, not the file, is the problem. Three things
+about the machine matter, all of them found the hard way:
+
+- **Automation permission.** System Settings ▸ Privacy & Security ▸ Automation — the terminal must be allowed to
+  control Numbers. macOS asks once, on screen; until someone clicks, every call times out.
+- **The screen must be unlocked.** Numbers cannot put a document window on a locked Mac and then answers nothing
+  about that document — indistinguishable from a broken file, so the script names it.
+- **Numbers is sandboxed.** It cannot read `$TMPDIR`; documents are staged into `.build/numbers-judge/` and opened
+  through `open -a` (LaunchServices), which hands the sandbox the right to read them. AppleScript's own `open`
+  does not.
+
+`NumbersProbeTests` writes a corpus of thirteen documents into `.build/numbers-judge/probes`, each one thing more
+than the last, starting from the template itself. When Numbers refuses one, the first refusal names the feature
+that broke it — which is how the two copy defects in Appendix B.18 were found.
+
+## Manual checklist before a release (what still needs a person, or Excel)
 
 Build the samples first:
 
@@ -56,21 +82,23 @@ per-application checklist (`はじめにお読みください.md`).
 - Open `03-swiftsheets.xlsx` in Excel: no "we found a problem with some content" dialog; formatting, filters,
   frozen panes, formulas, Japanese text and the hidden sheet are as the checklist describes.
 - Open `04-swiftsheets.numbers` in Numbers: no "document needs repair" warning; values, merges and sizes are right;
-  editing and saving works. Formulas are expected to be absent (Appendix B.8).
+  editing and saving works, and **the formulas are formulas** (Appendix B.18 — they used to be absent). The
+  automated judge covers the same ground on its own fixtures; this one is the realistic Japanese workbook.
 - **Cell formatting in Numbers (Rev 2.1, Appendix B.16) — the check with no judge on this machine.** The write side
   now creates style archives of its own (variations of the table's defaults, in `Index/DocumentStylesheet.iwa`, with
   the cross-component reference recorded in the package metadata). numbers-parser reads them back correctly and
   LibreOffice's Numbers importer opens the file, but **Numbers.app has not.** Open `04-swiftsheets.numbers` and
   confirm: bold and coloured header cells look as the checklist describes, background fills are there, the font is
   the one asked for (not a fallback), number formats show as currency / percentage / date rather than as plain
-  numbers, and the document still saves without complaint.
+  numbers, and the document still saves without complaint. **This is the one part the script cannot judge** — it can
+  read values and formulas out of Numbers, but not what a cell looks like.
 - **The 1904 date origin** is written to the Numbers calculation engine as of Rev 2.2, and checked only by our own
   reader. If Numbers.app is to hand, open a workbook saved with `wb.epoch = .mac1904` and confirm the dates read the
   same there as in the source.
-- **Conditional formatting is deliberately not written to Numbers** (Appendix B.16). If you have Numbers.app to
-  hand, the one thing worth doing is the opposite direction: make a document *with* a conditional format, add it to
-  `Tests/SwiftSheetsTests/Fixtures/numbers/`, and the `predicate_type` values become observable — which is the only
-  thing standing between the current `dropped` warning and an implementation.
+- **Conditional formatting is still not written to Numbers** (Appendix B.16), and the way in is now open rather
+  than blocked: build a workbook with conditional formats in `.xlsx`, have Numbers import and save it as
+  `.numbers` (`numbers_app.resave`), add the result to `Tests/SwiftSheetsTests/Fixtures/numbers/`, and the
+  `predicate_type` values become observable. That is the next piece of work, not a wish.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

@@ -354,12 +354,42 @@ struct NumbersWriter {
         var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: cols), count: rows)
         var styleWriter = NumbersStyleWriter(doc: doc, model: model)
         var hyperlinkCount = 0, noteCount = 0, richTextCount = 0
+
+        // formulas → the table's own formula list, the same shape as the string list. A formula the encoder has no
+        // observed spelling for keeps the old behaviour: its cached value, and a warning saying which part stopped it.
+        var formulaEncoder = NumbersFormulaEncoder(hostTable: sheetName + "::" + name)
+        var formulaEntries: [ProtoMessage] = []
+        var formulaKeys: [Data: Int] = [:]
+        var formulaRefcounts: [Int: Int] = [:]
+        func formulaKey(for archive: ProtoMessage) -> Int {
+            let bytes = archive.encoded()
+            if let existing = formulaKeys[bytes] {
+                formulaRefcounts[existing, default: 1] += 1
+                return existing
+            }
+            let k = formulaEntries.count + 1
+            var e = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+            e.set("key", int: k); e.set("refcount", int: 1); e.set("formula", message: archive)
+            formulaEntries.append(e); formulaKeys[bytes] = k; formulaRefcounts[k] = 1
+            return k
+        }
+
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
-            guard var value = cell.value else { continue }
-            if case .formula(_, let cached) = value {
-                warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheetName, location: ref, message: "formula written as its cached value (Numbers formula archives are not generated)"))
-                guard let c = cached else { continue }
-                value = c
+            guard let stored = cell.value else { continue }
+            var value: CellValue? = stored
+            var formulaID: Int?
+            if case .formula(let expr, let cached) = stored {
+                let seen = formulaEncoder.problems.count
+                if let archive = formulaEncoder.archive(for: expr, row: ref.row, col: ref.col) {
+                    formulaID = formulaKey(for: archive)
+                    value = cached
+                } else {
+                    let why = formulaEncoder.problems.dropFirst(seen).first ?? "the formula has no Numbers spelling"
+                    warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheetName, location: ref,
+                                                      message: "formula written as its cached value: \(why)"))
+                    guard let c = cached else { continue }
+                    value = c
+                }
             }
             if cell.hyperlink != nil { hyperlinkCount += 1 }
             if cell.comment != nil { noteCount += 1 }
@@ -368,7 +398,11 @@ struct NumbersWriter {
             let keys = try styleWriter.keys(for: style)
             let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
             records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
-                                               formatKey: formatKey, code: style.numberFormat)
+                                               formatKey: formatKey, code: style.numberFormat, formulaID: formulaID)
+        }
+        for i in formulaEntries.indices {
+            let k = formulaEntries[i].int("key") ?? 0
+            formulaEntries[i].set("refcount", int: formulaRefcounts[k] ?? 1)
         }
         if hyperlinkCount > 0 {
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
@@ -411,6 +445,18 @@ struct NumbersWriter {
                 list.set("entries", messages: entries)
                 list.set("nextListID", int: entries.count + 1)
             }
+        }
+
+        // formula list
+        if let fid = store.reference("formula_table") {
+            let entries = formulaEntries
+            doc.update(fid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
+        } else if !formulaEntries.isEmpty {
+            warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheetName,
+                                              message: "\(formulaEntries.count) formula(s) written as their cached value: the template's table has no formula list"))
         }
 
         // string list
@@ -533,8 +579,8 @@ struct NumbersWriter {
 
     /// The packed record for a value (nil for kinds Numbers cannot hold, after a warning). The number format goes
     /// in the slot the *value* asks for — Numbers has one per kind, not one per cell.
-    private mutating func record(for value: CellValue, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
-                                 formatKey: Int? = nil, code: String = NumberFormat.general) -> Data? {
+    private mutating func record(for value: CellValue?, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
+                                 formatKey: Int? = nil, code: String = NumberFormat.general, formulaID: Int? = nil) -> Data? {
         let isCurrency = code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£")
         func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil,
                     stringID: Int? = nil) -> Data {
@@ -548,10 +594,12 @@ struct NumbersWriter {
             }
             return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, double: double,
                                       seconds: seconds, stringID: stringID, cellStyleID: cellStyleID, textStyleID: textStyleID,
-                                      numFormatID: number, currencyFormatID: currency, dateFormatID: date,
+                                      formulaID: formulaID, numFormatID: number, currencyFormatID: currency, dateFormatID: date,
                                       durationFormatID: duration, textFormatID: text, boolFormatID: boolean)
         }
         switch value {
+        case nil:   // a formula whose result the source never cached: Numbers computes it when the document opens
+            return formulaID == nil ? nil : encode(.generic)
         case .text(let s): return encode(.text, stringID: key(s))
         case .richText(let runs): return encode(.text, stringID: key(runs.map(\.text).joined()))
         case .integer(let i): return encode(.number, decimal: Decimal(i))

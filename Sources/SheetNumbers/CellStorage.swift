@@ -91,7 +91,15 @@ struct CellStorage {
         let magnitude = negative ? -value : value
         var exponent = Int(magnitude.exponent)
         var digits = "\(magnitude.significand)"
-        if magnitude == 0 { digits = "0"; exponent = 0 }
+        if magnitude == 0 {
+            digits = "0"; exponent = 0
+        } else if exponent > 0, exponent <= 34 - digits.count {
+            // Numbers writes a whole number with its own digits and no exponent — 100, not 1e2 — where Swift's
+            // `Decimal` normalises the other way. Both spell the same value, but the reference reader renders
+            // the exponent form as "100.0", so a formula written that way stops looking like the one asked for.
+            digits += String(repeating: "0", count: exponent)
+            exponent = 0
+        }
         // base-10 digit string → little-endian base-256 bytes
         var bytes: [UInt8] = []
         while digits != "0" {

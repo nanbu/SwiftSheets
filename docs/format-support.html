@@ -189,12 +189,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
   <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
-  <rect x="590" y="192" width="65" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="667" y="205" class="sv-t2" font-weight="700">12 / 46</text>
-  <text x="590" y="238" class="sv-t2">値・セル書式・表示形式</text>
+  <rect x="590" y="192" width="71" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="673" y="205" class="sv-t2" font-weight="700">13 / 46</text>
+  <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
   <text x="590" y="260" class="sv-t2">結合・列幅行高・ヘッダ行</text>
   <text x="590" y="282" class="sv-t2">1 シートに複数の表（ここだけ強い）</text>
-  <text x="590" y="312" class="sv-t3">通らない: 数式・条件付き書式・</text>
+  <text x="590" y="312" class="sv-t3">通らない: 条件付き書式・</text>
   <text x="590" y="332" class="sv-t3">入力規則・ピボット・印刷設定 …</text>
 </svg>
 <figcaption>青い帯が「そのまま通る範囲」。Numbers だけ帯が短いのは能力差ではなく、公開仕様が無いことの帰結です。</figcaption>
@@ -213,8 +213,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 
 <tr class="group"><td colspan="5">中身</td></tr>
 <tr><td>値（数値・文字・日付・真偽・経過時間・エラー）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers の小数は decimal128。桁が落ちません</td></tr>
-<tr><td>数式</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
-  <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。<strong>Numbers は読めるが書けない</strong> — 書くときはキャッシュ値になり、警告が出ます</td></tr>
+<tr><td>数式</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。Numbers へは<strong>数式のまま</strong>書きます（式の木 → 逆ポーランドのノード列）。
+    手元のフィクスチャに実例が無い形 — <strong>別の表への参照・定義名・Numbers に無い関数・<code>A:C</code> のような列範囲・交差と合併の演算子</strong> — だけはキャッシュ値に落ち、どこがなぜ落ちたかを警告で言います</td></tr>
 <tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は起点セルの <code>table:number-matrix-*-spanned</code></td></tr>
 <tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
   <td>ODS は <code>text:span</code>。Numbers は読み書きとも平文になります（警告あり）</td></tr>
@@ -363,9 +364,24 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </p>
 <p>
   設計図があっても足りないものがあります。<strong>審判</strong>です。Excel なら openpyxl が、
-  ODS なら LibreOffice が「それは正しいファイルか」を答えてくれますが、Numbers については
-  numbers-parser と LibreOffice の取り込みしか無く、<strong>Numbers.app そのものはこの開発機に居ません</strong>。
+  ODS なら LibreOffice が「それは正しいファイルか」を答えてくれます。Numbers については長らく
+  numbers-parser と LibreOffice の取り込みしか無く、Numbers.app そのものは開発機に居ませんでした。
+  <strong>2026-08-25 に入りました</strong>（Numbers 15.3.1）。
 </p>
+<div class="card tint">
+<h3>4 人目の審判が来て、最初にしたこと</h3>
+<p>
+  それまでの 3 人（自作リーダの往復・numbers-parser・LibreOffice）は全員「読める」と言っていました。
+  Numbers.app は同じファイルを<strong>「壊れているため開けません」</strong>と拒みました。
+  1 枚のシートに 1 つの表なら開き、<strong>2 枚目のシートか 2 つ目の表</strong>を足すと開かない。
+</p>
+<p>
+  原因は、複製した部品の<strong>目次の書き方</strong>でした。Numbers はパッケージの目次を信じて
+  <em>ファイルを</em>探しに行きますが、他の 3 人はオブジェクトを<strong>識別子</strong>で引くので、
+  目次が間違っていても平気で読めてしまう。だから 3 人とも見落としました
+  （詳細と直し方は実装仕様書の付録 B.18）。宛先のアプリに開かせる以外に、これを見つける方法はありません。
+</p>
+</div>
 
 <div class="card">
 <h3>だから「セル書式は入れた」「条件付き書式は入れなかった」</h3>
@@ -380,8 +396,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
     書いたファイルも numbers-parser が警告なしで読み、LibreOffice も開く</td></tr>
 <tr><td>ハイパーリンク（読み）</td><td class="y"><strong>入れた</strong></td>
   <td>実物のフィクスチャ（<code>test-hlinks.numbers</code>）に例がある</td></tr>
-<tr><td>数式の書き出し</td><td class="n"><strong>入れない</strong></td>
-  <td>Numbers の数式アーカイブは生成できない（参考実装も生成できない）</td></tr>
+<tr><td>数式の書き出し</td><td class="y"><strong>入れた</strong></td>
+  <td>フィクスチャの数式アーカイブを 1 フィールドずつ読んで、書く側を起こした。
+    書いたファイルの <code>SUM(B2:B3)</code> を numbers-parser が数式として読む（付録 B.18）</td></tr>
 <tr><td><strong>条件付き書式</strong></td><td class="n"><strong>入れない</strong></td>
   <td>下記</td></tr>
 </tbody>
@@ -397,7 +414,6 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   名無しの <code>int32</code> しか残っていません。
 </p>
 <ul class="plain">
-  <li>Numbers.app が無いので、書いたものを開いて確かめられない</li>
   <li>numbers-parser にも条件付き書式の API が無い</li>
   <li>手元のフィクスチャ 11 個を走査したが、<strong>実例が 1 つも無い</strong></li>
 </ul>
@@ -408,8 +424,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <strong>「書きません」と警告で言う</strong>ことにしました。
 </p>
 <p class="meta">
-  入れるための条件は具体的です — Numbers.app で条件付き書式を付けた文書を 1 つ作り、フィクスチャに加えること。
-  それだけで <code>predicate_type</code> の値が観測でき、実装できるようになります。
+  入れるための条件は具体的で、<strong>いまや塞がっていません</strong> — Excel 形式で条件付き書式を作り、
+  Numbers.app に読ませて <code>.numbers</code> で保存させ、フィクスチャに加えること。
+  それだけで <code>predicate_type</code> の値が観測でき、実装できるようになります。次の一手はこれです。
 </p>
 </div>
 </section>
@@ -505,11 +522,13 @@ for warning in result.warnings {
 <section>
 <h2>この表を自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
-<pre><code>swift test                          # 790 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
+<pre><code>swift test                          # 797 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
 swift test --filter FormatSupport   # <strong>この表そのもの</strong>。46 項目の生存と警告の数を固定している
 swift test --filter ODFOnly         # ODF にあって Excel に無い 6 件
 swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表
-swift test --filter Numbers         # Numbers のセル書式（numbers-parser の期待値と突き合わせ）</code></pre>
+swift test --filter Numbers         # Numbers のセル書式・数式（numbers-parser の期待値と突き合わせ）
+
+python3 Tests/NumbersParity/verify_with_numbers_app.py   # <strong>Numbers.app 本人</strong>に開かせ、計算させ、保存し直させる</code></pre>
 <p class="meta">
   実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B.16（Excel → ODS / Numbers）と
   B.17（ODF → Excel）に、

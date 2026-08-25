@@ -155,7 +155,7 @@ import SwiftSheets
         .xlsx: ["1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
         .ods: ["保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
         .numbers: [
-            "数式", "配列数式", "グループ化", "ハイパーリンク", "メモ", "リッチテキスト",
+            "配列数式", "グループ化", "ハイパーリンク", "メモ", "リッチテキスト",
             "条件付き書式", "CF・カラースケール", "CF・データバー", "CF・アイコンセット",
             "入力規則", "名前付きの表", "オートフィルタ", "絞り込み条件", "並べ替えの記録", "ピボット表",
             "シート保護", "保護範囲", "シナリオ",
@@ -166,7 +166,7 @@ import SwiftSheets
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 24]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 22]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {

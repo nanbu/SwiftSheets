@@ -1844,6 +1844,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
     <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
+    <tr><td>2.3 Draft</td><td>2026-08-25</td><td>Numbers.app が審判に立ち、書き出しの欠陥 2 件（複製した部品の locator が空・複製したシートが余分な表を連れてくる）が出たので直した。あわせて Numbers への<strong>数式の書き出し</strong>を実装（式の木 → <code>TSCE.ASTNodeArrayArchive</code>）。実例の無い形（別表参照・定義名・Numbers に無い関数・列範囲・交差／合併）はキャッシュ値に落として理由を言う。付録 B.18</td></tr>
     <tr><td>2.2 Draft</td><td>2026-08-25</td><td>逆向きの数え上げ — ODF にあって OOXML に無い機能を付録 B.17 に固定。ラベル範囲・統合の定義・探偵の矢印・計算設定（正規表現／ワイルドカード／大小文字／二桁年）・日付の原点・通貨のセル種別を実装対象とし、改訂履歴と外部データ接続は「読んで覚えて、落としたと言う」に留める。出典は OASIS ODF 1.3 の RelaxNG スキーマ</td></tr>
     <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
@@ -2484,7 +2485,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
   書いた文書を警告なしで読めること、LibreOffice の Numbers 取り込みが開けること、
   <code>integrityProblems()</code> が空であることを見る。
   <strong>Numbers.app だけは依然として審判に立てていない</strong> — 書式付き書き出しを開く確認は
-  MAINTENANCE.md のリリース前チェックリストにある。</p>
+  MAINTENANCE.md のリリース前チェックリストにある。
+  <span class="meta">（2026-08-25 追記: Numbers.app が手元に入り、審判に立った。結果は B.18。
+  ここで「他の審判が通していたから大丈夫だろう」としていた書き出しは、実は Numbers が開けなかった。）</span></p>
 
 
   <h3>B.17 ODF にあって OOXML に無いもの（Rev 2.2）</h3>
@@ -2570,6 +2573,140 @@ wb.sheets[<span class="nm">0</span>] = sheet
       テストが計算設定の<em>全体</em>ではなく要素の存在を見ているのはそのためである。
     </p>
   </div>
+
+
+  <h3>B.18 Numbers.app が審判に立った日（Rev 2.3）</h3>
+  <p>
+    2026-08-25。この日まで Numbers 対応の審判は 3 人だった — <strong>自作リーダの往復</strong>、
+    <strong>numbers-parser</strong>（参考実装）、<strong>LibreOffice の Numbers 取り込み</strong>。
+    3 人とも「読める」と言っていた。4 人目、すなわち<strong>ファイルの宛先である Numbers.app 本人</strong>が
+    machine に入ったので、初めて開かせた。
+  </p>
+
+  <div class="callout callout-warn">
+    <span class="label">最初の判定: 開けなかった</span>
+    <p>
+      SwiftSheets が書いた <code>sample.numbers</code> を Numbers 15.3.1 は
+      <strong>「壊れているため開けません」</strong>と拒んだ。テンプレート（<code>empty.numbers</code>）は開く。
+      1 枚のシートに 1 つの表だけの文書も開く。<strong>2 枚目のシート、または 2 つ目の表</strong>を足した瞬間から開かない。
+      3 人の審判が揃って見落としていたのは、3 人とも<strong>オブジェクトを識別子で引く</strong>実装だからで、
+      Numbers だけがパッケージの目次（<code>TSP.PackageMetadata</code>）を信じて<em>ファイルを</em>探しに行く。
+    </p>
+  </div>
+
+  <p><strong>見つかった欠陥は 2 件</strong>。どちらも複製（2 枚目以降のシート・2 つ目以降の表）の経路にある。</p>
+  <div class="compare"><table>
+    <tr><th>欠陥</th><th>何が起きていたか</th><th>直し方</th></tr>
+    <tr><td><strong>複製した部品の locator が空</strong></td>
+      <td>テンプレートには <code>locator</code> を持たない部品がある。空の <code>locator</code> は
+        「<code>preferred_locator</code> の名前のファイルにいる」という意味で、
+        <code>Index/Tables/DataList.iwa</code> がそれに当たる。複製はそれを引き継いだまま
+        <code>Index/Tables/DataList-907375.iwa</code> という<em>自分のファイル</em>に書かれていた。
+        Numbers は目次を信じて元のファイルを開き、そこに複製が居ないので文書全体を「壊れている」と判定する</td>
+      <td><code>registerComponent</code> が、複製が実際に書かれたパスから <code>locator</code> を作る。
+        推測ではなく <code>doc.locations</code> の実値を使う</td></tr>
+    <tr><td><strong>複製したシートが余分な表を連れてくる</strong></td>
+      <td>シートの複製元はテンプレートのシートそのもので、1 枚目の処理で<strong>2 つ目の表を足した後</strong>だった。
+        2 枚目のシートはその表ごと複製され、モデルには対応する表が無いので誰も手を入れない。
+        Numbers はそれを「セルを読めない表」として見せる（AppleScript で
+        <code>table 2 of sheet 2</code> の取得が失敗する）</td>
+      <td>1 枚も手を入れないうちに<strong>先に全シートを複製する</strong>。
+        テンプレートが育つ前の姿だけが複製元になる</td></tr>
+  </table></div>
+  <p class="meta">
+    どちらも回帰テストにした（<code>everyCopiedComponentNamesTheFileItIsIn</code> /
+    <code>aCopiedSheetHasOnlyTheTablesItsSheetAsksFor</code>）。Numbers.app が無い機械でも落ちる形にしてある —
+    前者はパッケージの目次と実ファイルの一致を、後者はシートごとの表の数を見るので、審判の有無に依存しない。
+  </p>
+
+  <h4>数式を数式のまま書く</h4>
+  <p>
+    B.8 以来「Numbers の数式アーカイブは生成できない（参考実装も生成できない）」としてキャッシュ値に落としていたが、
+    <strong>入れた</strong>。フィクスチャ 11 個の <code>TST.TableDataList</code>（種別 <code>FORMULA</code>）を
+    1 フィールドずつ読み、読み手（<code>NumbersFormulaDecoder</code>）の逆写像として
+    <code>NumbersFormulaEncoder</code> を書いた。式の木 → 逆ポーランドのノード列
+    （<code>TSCE.ASTNodeArrayArchive</code>）にして表の数式リストに入れ、セル記録の
+    <code>formulaID</code>（フラグ <code>0x200</code>）がそれを指す。
+  </p>
+  <div class="compare"><table>
+    <tr><th>書けるもの</th><th>キャッシュ値に落ちるもの（理由）</th></tr>
+    <tr><td>四則・べき乗・連結・比較 6 種・符号反転・パーセント、
+      関数呼び出し（345 個の関数表にある名前）、範囲（<code>A1:B2</code>）、
+      相対／絶対参照、列全体（<code>A:A</code>）、配列定数（<code>{1,2;3,4}</code>）、
+      空の引数、数値・文字列・真偽の定数</td>
+      <td><strong>別の表への参照</strong>（<code>Sheet2::Table 1</code>）— 手元の 11 個にも、
+        Numbers に作らせた文書にも実例が無い。<br>
+        <strong>定義名</strong> — Numbers に無い。<br>
+        <strong>Numbers に無い関数</strong> — 名前が関数表に無い。<br>
+        <strong><code>A:C</code> のような列範囲</strong>・<strong>交差と合併の演算子</strong> — 実例が無い。<br>
+        <strong>解析できなかった式</strong>（<code>.unparsed</code>）。<br>
+        いずれも「どこがなぜ落ちたか」を <code>degraded</code> 警告で言う</td></tr>
+  </table></div>
+  <p>
+    ついでに 1 件直した。Swift の <code>Decimal</code> は 10 を「1×10<sup>1</sup>」と正規化するが、
+    Numbers は <strong>100 を 100×10<sup>0</sup></strong> と書く（フィクスチャの実測）。
+    正規化されたまま書くと参考実装が <code>2^10.0</code> と表示する — 値は同じでも、頼んだ式に見えなくなる。
+    <code>encodeDecimal128</code> が整数のときは指数を 0 に戻すようにした。
+  </p>
+
+  <h4>Numbers.app を審判にする道具</h4>
+  <p>
+    <code>Tests/NumbersParity/numbers_app.py</code>（AppleScript 越しの薄い運転席）と
+    <code>verify_with_numbers_app.py</code>（判定そのもの）。判定は 4 つ —
+    ①「修復しますか」を出さずに開くか ②値・結合・寸法は入れたとおりか
+    ③<strong>数式が Numbers でも数式で、同じ答えを出すか</strong> ④Numbers に保存し直させても読めるか。
+    ③のために書き出す文書は、D 列に「頼んだ式」、E 列に式そのもの、F 列に「出るはずの答え」を並べてある —
+    審判の側にもう 1 本の期待値表を持たせないためで、numbers-parser 用の判定も同じ列を読む。
+  </p>
+  <div class="callout">
+    <span class="label">機械側の落とし穴（実測・Numbers 15.3.1）</span>
+    <ul class="plain">
+      <li><strong>自動操作の許可</strong>が要る（システム設定 ▸ プライバシーとセキュリティ ▸ オートメーション）。
+        許可するまで、あらゆる呼びかけが無応答のまま時間切れになる</li>
+      <li><strong>画面がロックされていると動かない</strong>。Numbers は文書ウィンドウを作れず、
+        <code>open</code> は受け取るのにその文書について何も答えなくなる。
+        壊れたファイルと区別がつかないので、<code>available()</code> が
+        <code>CGSSessionScreenIsLocked</code> を見て名指しする</li>
+      <li><strong>Numbers はサンドボックスの中にいる</strong>。他プロセスの一時ディレクトリ
+        （<code>$TMPDIR/swiftsheets-numbers-*</code>）は読めず、「その操作は許可されていません」と<em>ダイアログで</em>言う。
+        文書はいったん <code>.build/numbers-judge/</code> に写し、
+        <strong>AppleScript の <code>open</code> ではなく <code>open -a</code>（LaunchServices）</strong>で開く —
+        後者はサンドボックスに読む権利を渡すが、前者は渡さない</li>
+      <li><code>documents</code> という要素を数えたり並べたりすると<strong>永久に返ってこない</strong>。
+        <code>exists front document</code> は即答する。シートと表も <code>repeat with x in …</code> ではなく
+        添字で回さないと、別のシートの表を指したまま失敗する</li>
+      <li>拒まれた文書はモーダルを残す。人がいないので、失敗の経路では<strong>アプリを殺して</strong>次に進む</li>
+    </ul>
+  </div>
+  <p>
+    段階的に複雑さを足した<strong>検体一式</strong>（<code>NumbersProbeTests</code> が
+    <code>.build/numbers-judge/probes</code> に書く 13 個）も置いた。00 はテンプレートそのもので、
+    これが開かなければ機械の問題だと分かる。次に拒まれた検体が、壊した機能の名前になる。
+  </p>
+
+  <h4>残っているもの</h4>
+  <div class="compare"><table>
+    <tr><th>残件</th><th>いま何が足りないか</th></tr>
+    <tr><td>条件付き書式の書き出し</td>
+      <td>B.16 の判断は<strong>まだ有効</strong>。<code>predicate_type</code> の実例がまだ無い。
+        ただし塞がっていた道は開いた — Excel 形式で条件付き書式を作り、Numbers に読ませて
+        <code>.numbers</code> で保存させれば実例が採れる。次の一手はそれ</td></tr>
+    <tr><td>別の表への参照を含む数式</td>
+      <td>同じく実例が要る。Numbers に作らせれば採れる</td></tr>
+    <tr><td>ハイパーリンク・セル内書式の書き出し</td>
+      <td>形は<strong>実測済み</strong>（<code>test-hlinks.numbers</code>）。表のリスト種別
+        <code>RICH_TEXT_PAYLOAD</code>（8）の項目 → <code>TST.RichTextPayloadArchive</code>
+        → <code>TSWP.StorageArchive</code>（<code>kind: CELL</code>・<code>style_sheet</code> 参照・<code>text</code>）で、
+        リンクは <code>table_smartfield</code> の文字位置つき項目が
+        <code>TSWP.HyperlinkFieldArchive</code>（<code>url_ref</code> と UUID 文字列）を指す。
+        セル記録は種別 <code>automatic</code>(9) と <code>richID</code>（フラグ <code>0x10</code>）。
+        <strong>書いていないのは段落スタイルの参照が未確認だから</strong> —
+        テンプレートのスタイルシートのどの段落スタイルを指すべきかは実例が要る。
+        Numbers.app が審判に立つ日にまとめて確かめる</td></tr>
+    <tr><td>メモ（コメント）の書き出し</td>
+      <td>置き場所は分かる（<code>comment_storage</code>・リスト種別 10）が、
+        <strong>手元のフィクスチャ 11 個に実例が 1 つも無い</strong>。Numbers に作らせれば採れる</td></tr>
+  </table></div>
 
 
 </section>

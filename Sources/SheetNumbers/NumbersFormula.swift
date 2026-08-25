@@ -133,3 +133,177 @@ struct NumbersFormulaDecoder {
         return prefix + (absCol ? "$" : "") + CellRef.columnName(c ?? 0) + (absRow ? "$" : "") + String((r ?? 0) + 1)
     }
 }
+
+/// The way back: a `FormulaExpr` becomes the postfix node array Numbers evaluates (`TSCE.FormulaArchive`), so a
+/// formula written to a Numbers document is a formula there and not only its last computed value (spec Appendix B.18).
+///
+/// The node shapes are the ones observed in the fixture corpus — the same documents the decoder above was written
+/// against, read back field by field. What no document in the corpus shows, this refuses to invent: a reference to
+/// another table, a defined name, the intersection and union operators, a function Numbers does not have. Each of
+/// those answers `nil`, and the writer falls back to the cached value and says so. Guessing a shape here would not
+/// fail loudly — Numbers would offer to repair the document, or quietly compute something else.
+struct NumbersFormulaEncoder {
+    private let schema = NumbersSchema.shared
+    private let nodeTypes: [String: Int]
+    /// The table the formula lives in, as `Sheet::Table`; a reference naming anything else cannot be written yet.
+    let hostTable: String
+    private(set) var problems: [String] = []
+
+    init(hostTable: String) {
+        self.hostTable = hostTable
+        nodeTypes = NumbersSchema.shared.enums["TSCE.ASTNodeArrayArchive.ASTNodeType"] ?? [:]
+    }
+
+    /// The archive for one cell's formula, or nil when some part of it has no Numbers spelling we have seen.
+    /// `row` / `col` are the cell's own coordinates: Numbers stores a relative reference as the offset from them.
+    mutating func archive(for expr: FormulaExpr, row: Int, col: Int) -> ProtoMessage? {
+        var nodes: [ProtoMessage] = []
+        guard emit(expr, row: row, col: col, into: &nodes) else { return nil }
+        var array = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive")
+        array.set("AST_node", messages: nodes)
+        var formula = ProtoMessage(typeName: "TSCE.FormulaArchive")
+        formula.set("AST_node_array", message: array)
+        return formula
+    }
+
+    private mutating func node(_ type: String) -> ProtoMessage {
+        var m = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTNodeArchive")
+        m.set("AST_node_type", int: nodeTypes[type] ?? 0)
+        return m
+    }
+
+    private mutating func fail(_ why: String) -> Bool {
+        problems.append(why)
+        return false
+    }
+
+    private mutating func emit(_ expr: FormulaExpr, row: Int, col: Int, into nodes: inout [ProtoMessage]) -> Bool {
+        switch expr {
+        case .number(let d):
+            var n = node("NUMBER_NODE")
+            n.set("AST_number_node_number", double: NSDecimalNumber(decimal: d).doubleValue)
+            let bytes = CellStorage.encodeDecimal128(d)
+            n.set("AST_number_node_decimal_low", uint: NumbersFormulaEncoder.littleEndian(bytes[0..<8]))
+            n.set("AST_number_node_decimal_high", uint: NumbersFormulaEncoder.littleEndian(bytes[8..<16]))
+            nodes.append(n)
+        case .string(let s):
+            var n = node("STRING_NODE")
+            n.set("AST_string_node_string", string: s)
+            nodes.append(n)
+        case .boolean(let b):
+            var n = node("BOOLEAN_NODE")
+            n.set("AST_boolean_node_boolean", bool: b)
+            nodes.append(n)
+        case .missing:
+            nodes.append(node("EMPTY_ARGUMENT_NODE"))
+        case .ref(let ref, let sheet, let absRow, let absCol):
+            guard sameTable(sheet) else { return fail("a reference to \(sheet ?? "?") is on another table") }
+            var n = node("CELL_REFERENCE_NODE")
+            n.set("AST_row", message: rowCoordinate(ref.row, absolute: absRow, host: row))
+            n.set("AST_column", message: columnCoordinate(ref.col, absolute: absCol, host: col))
+            nodes.append(n)
+        case .column(let index, let sheet, let abs):
+            guard sameTable(sheet) else { return fail("a reference to \(sheet ?? "?") is on another table") }
+            var n = node("CELL_REFERENCE_NODE")
+            n.set("AST_column", message: columnCoordinate(index, absolute: abs, host: col))
+            nodes.append(n)
+        case .row(let index, let sheet, let abs):
+            guard sameTable(sheet) else { return fail("a reference to \(sheet ?? "?") is on another table") }
+            var n = node("CELL_REFERENCE_NODE")
+            n.set("AST_row", message: rowCoordinate(index, absolute: abs, host: row))
+            nodes.append(n)
+        case .range(let a, let b):
+            // A whole column or row is one node in Numbers, not two bound with a colon: `A:A` comes back from the
+            // corpus as a single reference carrying only its column. A range *between* two of them (`A:C`) is a
+            // colon tract, whose shape no fixture shows, so it is refused rather than guessed at.
+            if case .column(let i, let sheet, let abs) = a, case .column(let j, _, _) = b {
+                guard i == j else { return fail("a range over whole columns (A:C) has no shape we have seen in a Numbers document") }
+                return emit(.column(i, sheet: sheet, abs: abs), row: row, col: col, into: &nodes)
+            }
+            if case .row(let i, let sheet, let abs) = a, case .row(let j, _, _) = b {
+                guard i == j else { return fail("a range over whole rows (1:3) has no shape we have seen in a Numbers document") }
+                return emit(.row(i, sheet: sheet, abs: abs), row: row, col: col, into: &nodes)
+            }
+            guard emit(a, row: row, col: col, into: &nodes), emit(b, row: row, col: col, into: &nodes) else { return false }
+            nodes.append(node("COLON_NODE"))
+        case .unary(let op, let e):
+            guard emit(e, row: row, col: col, into: &nodes) else { return false }
+            switch op {
+            case .negate: nodes.append(node("NEGATION_NODE"))
+            case .plus: break                                   // Numbers drops a leading `+`, as the decoder does
+            case .percent: nodes.append(node("PERCENT_NODE"))
+            default: return fail("\(op.symbol) is not a prefix operator")
+            }
+        case .binary(let op, let a, let b):
+            guard let type = NumbersFormulaEncoder.binaryNodes[op] else {
+                return fail(op == .intersect ? "the intersection operator has no shape we have seen in a Numbers document"
+                                             : "the union operator has no shape we have seen in a Numbers document")
+            }
+            guard emit(a, row: row, col: col, into: &nodes), emit(b, row: row, col: col, into: &nodes) else { return false }
+            nodes.append(node(type))
+        case .call(let name, let args):
+            let upper = name.uppercased()
+            guard let index = schema.functionIndexes[upper] else { return fail("Numbers has no function \(upper)") }
+            for a in args {
+                guard emit(a, row: row, col: col, into: &nodes) else { return false }
+            }
+            var n = node("FUNCTION_NODE")
+            n.set("AST_function_node_index", int: index)
+            n.set("AST_function_node_numArgs", int: args.count)
+            nodes.append(n)
+        case .array(let rows):
+            let width = rows.first?.count ?? 0
+            guard rows.allSatisfy({ $0.count == width }) else { return fail("an array constant with rows of different lengths") }
+            for line in rows {
+                for element in line {
+                    guard emit(element, row: row, col: col, into: &nodes) else { return false }
+                }
+            }
+            var n = node("ARRAY_NODE")
+            n.set("AST_array_node_numRow", int: rows.count)
+            n.set("AST_array_node_numCol", int: width)
+            nodes.append(n)
+        case .name(let text, _):
+            return fail("Numbers has no defined names (\(text))")
+        case .error(let e):
+            return fail("an error literal (\(e)) has no shape we have seen in a Numbers document")
+        case .unparsed:
+            return fail("the formula could not be parsed, so it cannot be translated")
+        }
+        return true
+    }
+
+    /// A formula may name its own table (`'Sheet::Table'!A1`) — that is still a local reference.
+    private func sameTable(_ sheet: String?) -> Bool {
+        guard let sheet else { return true }
+        return sheet == hostTable || sheet == hostTable.components(separatedBy: "::").last
+    }
+
+    private func rowCoordinate(_ index: Int, absolute: Bool, host: Int) -> ProtoMessage {
+        var m = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTRowCoordinateArchive")
+        m.set("row", int: absolute ? index : index - host)
+        m.set("absolute", bool: absolute)
+        return m
+    }
+
+    private func columnCoordinate(_ index: Int, absolute: Bool, host: Int) -> ProtoMessage {
+        var m = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTColumnCoordinateArchive")
+        m.set("column", int: absolute ? index : index - host)
+        m.set("absolute", bool: absolute)
+        return m
+    }
+
+    private static let binaryNodes: [FormulaOp: String] = [
+        .add: "ADDITION_NODE", .subtract: "SUBTRACTION_NODE", .multiply: "MULTIPLICATION_NODE",
+        .divide: "DIVISION_NODE", .power: "POWER_NODE", .concat: "CONCATENATION_NODE",
+        .equal: "EQUAL_TO_NODE", .notEqual: "NOT_EQUAL_TO_NODE", .less: "LESS_THAN_NODE",
+        .lessOrEqual: "LESS_THAN_OR_EQUAL_TO_NODE", .greater: "GREATER_THAN_NODE",
+        .greaterOrEqual: "GREATER_THAN_OR_EQUAL_TO_NODE",
+    ]
+
+    private static func littleEndian(_ bytes: ArraySlice<UInt8>) -> UInt64 {
+        var v: UInt64 = 0
+        for (i, b) in bytes.enumerated() { v |= UInt64(b) << (8 * UInt64(i)) }
+        return v
+    }
+}
