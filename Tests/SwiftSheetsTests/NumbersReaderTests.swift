@@ -119,6 +119,18 @@ import SwiftSheets
         #expect(formats.contains("0%"))
     }
 
+    /// Hyperlinks: Numbers puts a link on a *run* of a cell's rich text, so a cell can hold several. The model has
+    /// one per cell, as Excel does, so the first one is kept and the rest are reported.
+    @Test func readsHyperlinks() throws {
+        let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-hlinks.numbers"))
+        let result = try NumbersCodec.read(data)
+        let table = result.workbook.sheets[0].tables[0]
+        #expect(table.cell("A1")?.hyperlink?.target == "http://news.bbc.co.uk/")
+        #expect(table.cell("A2")?.hyperlink?.target == "http://google.co.uk/")
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("2 links") },
+                "the cell that holds two links says so")
+    }
+
     @Test func sourceInfoAndFacade() throws {
         let url = Self.fixtures.appendingPathComponent("test-10.numbers")
         let wb = try Workbook(contentsOf: url)

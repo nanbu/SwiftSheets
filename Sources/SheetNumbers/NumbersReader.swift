@@ -130,9 +130,16 @@ struct NumbersReader {
         // lookup tables
         let strings = dataList(store.reference("stringTable")) { $0.string("string") }
         let formulas = dataList(store.reference("formula_table")) { $0.message("formula") }
-        let richTexts = dataList(store.reference("rich_text_table")) { entry -> String? in
-            guard let payload = entry.reference("rich_text_payload"), let storage = doc.object(payload)?.reference("storage") else { return nil }
-            return doc.object(storage)?.strings("text").joined()
+        // rich text: the text, and the links its smart fields carry (Numbers puts a hyperlink on a run of
+        // characters; the model has one link per cell, so the first one wins and the rest are reported)
+        let richTexts = dataList(store.reference("rich_text_table")) { entry -> (text: String, links: [String])? in
+            guard let payload = entry.reference("rich_text_payload"), let storageID = doc.object(payload)?.reference("storage"),
+                  let storage = doc.object(storageID) else { return nil }
+            let links = storage.message("table_smartfield")?.messages("entries").compactMap { field -> String? in
+                guard let id = field.reference("object"), doc.typeName(id) == "TSWP.HyperlinkFieldArchive" else { return nil }
+                return doc.object(id)?.string("url_ref")
+            } ?? []
+            return (storage.strings("text").joined(), links)
         }
         // cells
         let tiles = store.message("tiles")
@@ -165,8 +172,16 @@ struct NumbersReader {
                         let s = try CellStorage.decode(record)
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
+                        let rich = s.richID.flatMap { richTexts[$0] }
                         if value != nil || style != .default {
                             var cell = Cell(value: value)
+                            if let first = rich?.links.first {
+                                cell.hyperlink = Hyperlink(target: first)
+                                if rich!.links.count > 1 {
+                                    warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: CellRef(row: row, col: col),
+                                                                      message: "the cell holds \(rich!.links.count) links; a cell carries one, so the first was kept"))
+                                }
+                            }
                             if style != .default {
                                 if let shared = sharedStyles[style] { cell.sharedStyle = shared }
                                 else { let shared = SharedStyle(style); sharedStyles[style] = shared; cell.sharedStyle = shared }
@@ -205,7 +220,8 @@ struct NumbersReader {
         return out
     }
 
-    private mutating func cellValue(_ s: CellStorage, row: Int, col: Int, strings: [Int: String], formulas: [Int: ProtoMessage], richTexts: [Int: String],
+    private mutating func cellValue(_ s: CellStorage, row: Int, col: Int, strings: [Int: String], formulas: [Int: ProtoMessage],
+                                    richTexts: [Int: (text: String, links: [String])],
                                     decoder: inout NumbersFormulaDecoder, sheetName: String) -> CellValue? {
         var value: CellValue?
         switch s.cellType {
@@ -224,7 +240,7 @@ struct NumbersReader {
         case .bool: value = .bool((s.double ?? 0) > 0)
         case .duration: value = s.double.map { .duration(.milliseconds(Int64(($0 * 1000).rounded()))) }
         case .formulaError: value = .error("#VALUE!")
-        case .automatic: value = (s.richID.flatMap { richTexts[$0] } ?? s.stringID.flatMap { strings[$0] }).map { .text($0) }
+        case .automatic: value = (s.richID.flatMap { richTexts[$0]?.text } ?? s.stringID.flatMap { strings[$0] }).map { .text($0) }
         case .formula: value = nil
         }
         if let fid = s.formulaID, !options.dataOnly, let archive = formulas[fid] {

@@ -305,6 +305,7 @@ struct NumbersWriter {
         // cell records per row, with the styles and number formats they name
         var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: cols), count: rows)
         var styleWriter = NumbersStyleWriter(doc: doc, model: model)
+        var hyperlinkCount = 0, noteCount = 0
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
             guard var value = cell.value else { continue }
             if case .formula(_, let cached) = value {
@@ -312,11 +313,21 @@ struct NumbersWriter {
                 guard let c = cached else { continue }
                 value = c
             }
+            if cell.hyperlink != nil { hyperlinkCount += 1 }
+            if cell.comment != nil { noteCount += 1 }
             let style = cell.style
             let keys = try styleWriter.keys(for: style)
             let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
             records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
                                                formatKey: formatKey, code: style.numberFormat)
+        }
+        if hyperlinkCount > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
+                                              message: "\(hyperlinkCount) hyperlink(s) dropped: a Numbers link lives in a rich-text run, which this writer does not generate"))
+        }
+        if noteCount > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
+                                              message: "\(noteCount) note(s) dropped: Numbers comment storage is not written"))
         }
         for code in styleWriter.unexpressibleFormats {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
