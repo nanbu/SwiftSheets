@@ -3,7 +3,7 @@
   "license": "MIT",
   "note": "machine-extracted by scripts/extract-numbers-schema.py \u2014 do not edit by hand",
   "source": "numbers-parser",
-  "version": "4.16.3"
+  "version": "4.19.0"
  },
  "constants": {
   "CellPadding": {
