@@ -502,6 +502,10 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
                                               message: "number format \(code) has no Numbers equivalent; the cells keep their value unformatted"))
         }
+        for code in styleWriter.literalFormats {
+            warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
+                                              message: "number format \(code): Numbers does not draw the literal text beside the number, though the code survives a round trip and the value is never rescaled"))
+        }
         for code in styleWriter.partialFormats {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
                                               message: "number format \(code): Numbers describes one presentation, so its colours, conditions and negative section are dropped"))

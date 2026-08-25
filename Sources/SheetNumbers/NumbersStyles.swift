@@ -192,6 +192,8 @@ enum NumbersFormat {
     static let automaticDecimals = 253
 
     static func excelCode(_ f: ProtoMessage, currency: Bool) -> String? {
+        // a code the writer could not fully describe to Numbers rides along verbatim, so the round trip keeps it
+        if let verbatim = f.string("custom_format_string"), !verbatim.isEmpty { return verbatim }
         guard let kind = f.int("format_type") else { return nil }
         let places = f.int("decimal_places") ?? 0
         let grouping = f.bool("show_thousands_separator") ?? false
@@ -217,7 +219,6 @@ enum NumbersFormat {
         case type("BOOLEAN"): return NumberFormat.general
         case type("CUSTOM_NUMBER"), type("CUSTOM_TEXT"):
             // the description names an entry of the document's custom-format list; without it there is nothing to say
-            if let text = f.string("custom_format_string"), !text.isEmpty { return text }
             return kind == type("CUSTOM_TEXT") ? "@" : nil
         default: return nil                       // rating, checkbox, base-n, popup: Excel has no equivalent
         }
@@ -238,9 +239,12 @@ enum NumbersFormat {
             f.set("date_time_format", string: numbersDatePattern(plain))
             return f
         }
-        // a numeric code: the first section decides, and its shape gives the decimals / grouping / percentage
+        // a numeric code: the first section decides, and its shape gives the decimals / grouping / percentage.
+        // Quoted spans are **literal text**, not format characters: `0"%"` shows a per-cent sign beside a plain
+        // number, where `0%` multiplies the value by a hundred. Reading the quotes away turned one into the other
+        // and made 80 come back as 8000 (reported by a user of the library, 2026-08-26).
         let section = plain.split(separator: ";", maxSplits: 1).first.map(String.init) ?? plain
-        let body = section.replacingOccurrences(of: "\"", with: "")
+        let (body, literals) = NumbersFormat.split(section)
         let decimals = body.split(separator: ".", maxSplits: 1).dropFirst().first.map { $0.filter { $0 == "0" || $0 == "#" }.count } ?? 0
         let grouping = body.contains("#,##")
         if body.hasSuffix("%") {
@@ -261,7 +265,38 @@ enum NumbersFormat {
         }
         f.set("decimal_places", int: decimals)
         f.set("show_thousands_separator", bool: grouping)
+        // Literal text beside the number — `0"%"`, `#,##0" 円"` — has no Numbers description we can generate:
+        // a custom format needs its own archive, and a struct carrying only `custom_format_string` makes Numbers
+        // ignore the format altogether and show a bare number. So the *kind* stays one Numbers can draw, and the
+        // code rides along in `custom_format_string` for the way back. Numbers will not show the literal; the
+        // codec says so, and — the point of the bug this came from — the value is never rescaled.
+        if !literals.isEmpty { f.set("custom_format_string", string: plain) }
         return f
+    }
+
+    /// A format code split into the part that describes the number and the quoted text beside it. Escaped
+    /// characters (`\%`) count as literal too.
+    static func split(_ code: String) -> (body: String, literals: [String]) {
+        var body = "", literals: [String] = []
+        var inQuotes = false, current = ""
+        var i = code.startIndex
+        while i < code.endIndex {
+            let c = code[i]
+            if c == "\"" {
+                if inQuotes, !current.isEmpty { literals.append(current); current = "" }
+                inQuotes.toggle()
+            } else if inQuotes {
+                current.append(c)
+            } else if c == "\\" {
+                let next = code.index(after: i)
+                if next < code.endIndex { literals.append(String(code[next])); i = next }
+            } else {
+                body.append(c)
+            }
+            i = code.index(after: i)
+        }
+        if !current.isEmpty { literals.append(current) }
+        return (body, literals)
     }
 
     /// True when the code carries a `[…]` directive that is not an elapsed-time marker and not a currency —
@@ -388,6 +423,8 @@ struct NumbersStyleWriter {
     private(set) var unexpressibleFormats: [String] = []
     /// Codes Numbers can only half describe — a second section for negatives, a colour, a condition.
     private(set) var partialFormats: [String] = []
+    /// Codes with literal text beside the number (`0"%"`): kept for the round trip, not drawn by Numbers.
+    private(set) var literalFormats: [String] = []
 
     init(doc: NumbersDocument, model: ProtoMessage) {
         self.doc = doc
@@ -452,6 +489,10 @@ struct NumbersStyleWriter {
         }
         // Numbers describes one presentation, not Excel's four sections and their colours and conditions
         if code.contains(";") || NumbersFormat.hasDirective(code) { partialFormats.append(code) }
+        // literal text beside the number survives a round trip but Numbers will not draw it
+        if !NumbersFormat.split(code.split(separator: ";", maxSplits: 1).first.map(String.init) ?? code).literals.isEmpty {
+            literalFormats.append(code)
+        }
         let key = formatEntries.count + 1
         var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
         entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("format", message: archive)

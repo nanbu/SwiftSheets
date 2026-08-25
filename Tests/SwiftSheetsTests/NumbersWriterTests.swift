@@ -352,4 +352,39 @@ import SwiftSheets
         let back = try NumbersCodec.read(data).workbook
         #expect(back.sheets.map { $0.tables.count } == [2, 1, 1])
     }
+
+    /// Reported by a user of the library on 2026-08-26: a percentage that was only *decoration* came back as a
+    /// real percentage. `0"%"` means "show a per-cent sign beside the number and leave the number alone", while
+    /// `0%` means "multiply by a hundred". The writer read the quotes away before deciding, so one became the
+    /// other and 80 came home as 8000, clamped to 100 by the application that asked for it.
+    @Test func literalTextInANumberFormatIsNotAPercentage() throws {
+        var wb = Workbook()
+        var sheet = wb.sheets[0]
+        let cases = [("A1", 80, "0\"%\""), ("A2", 80, "0%"), ("A3", 1234, "#,##0\" 円\""), ("A4", 5, "0.00\"%\"")]
+        for (ref, value, code) in cases {
+            sheet[ref] = .integer(value)
+            sheet.style(ref) { $0.numberFormat = code }
+        }
+        wb.sheets[0] = sheet
+        let result = try wb.write(as: .numbers)
+        #expect(result.warnings.filter { $0.message.contains("literal text") }.count == 3,
+                "the three codes with literal text are reported, the plain percentage is not")
+
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+        for (ref, value, code) in cases {
+            #expect(back[ref] == .integer(value), "\(ref): the value is never rescaled")
+            #expect(back[cell: ref].style.numberFormat == code, "\(ref): \(back[cell: ref].style.numberFormat)")
+        }
+    }
+
+    /// The parse the fix turns on: what describes the number, and what is text beside it.
+    @Test func aFormatCodeSplitsIntoNumberAndLiteral() {
+        #expect(NumbersFormat.split("0\"%\"").body == "0")
+        #expect(NumbersFormat.split("0\"%\"").literals == ["%"])
+        #expect(NumbersFormat.split("0%").body == "0%")
+        #expect(NumbersFormat.split("0%").literals.isEmpty)
+        #expect(NumbersFormat.split("#,##0\" 円\"").body == "#,##0")
+        #expect(NumbersFormat.split("\"$\"#,##0.00").body == "#,##0.00")
+        #expect(NumbersFormat.split("0\\%").literals == ["%"], "an escaped character is literal too")
+    }
 }
