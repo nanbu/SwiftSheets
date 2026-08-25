@@ -16,7 +16,7 @@ jobs:
     # macOS 26 ships Xcode 26 by default, which is where Swift 6.2 (the package's tools version) lives.
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Printed so a failing run says which toolchain it was, without anyone having to guess.
       - name: Toolchain
