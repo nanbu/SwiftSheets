@@ -125,4 +125,31 @@ import SwiftSheets
         }
         #expect(try FileManager.default.contentsOfDirectory(atPath: Self.dir.path).count == Self.probes().count + 2)
     }
+
+    /// The other half of the sweep: the document **Numbers itself made from the Excel file**, read by our own
+    /// reader rather than by the reference one. `compare_excel_import_with_numbers.py` writes it; the test skips
+    /// when it is not there, so a plain `swift test` on a machine without Numbers still passes.
+    @Test func readsWhatNumbersMadeFromExcel() throws {
+        let url = Self.dir.deletingLastPathComponent().appending(path: "ground/kitchen-sink-by-numbers.numbers")
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let result = try NumbersCodec.read(try Data(contentsOf: url))
+        // The only warnings are about the pivot table Numbers rendered for itself: its cells hold formulas built
+        // out of category references and an unnamed spill function, which the model has no word for. The values
+        // are kept, and the warning says which cells.
+        let unexpected = result.warnings.filter { !$0.message.contains("337") && !$0.message.contains("CATEGORY_REF") && !$0.message.contains("could not be decoded") }
+        #expect(unexpected.isEmpty, "\(unexpected.map(\.message))")
+        let wb = result.workbook
+        #expect(wb.sheetNames == ["Data", "Pivot", "Hidden", "Multi"], "\(wb.sheetNames)")
+        let data = wb.sheets[0]
+        #expect(data["A1"] == .text("Region") && data["B1"] == .text("Product"))
+        #expect(data["C2"] == .integer(1) && data["D2"] == .number(Decimal(string: "0.5")!))
+        #expect(data["H1"] == .text("リンク"), "the Japanese text survives Numbers' own import")
+        if case .formula(let expr, _)? = data["F1"] {
+            #expect(expr.rendered(as: .xlsx) == "SUM(C2:C9)", "\(expr.rendered(as: .xlsx))")
+        } else {
+            Issue.record("F1 came back as \(String(describing: data["F1"]))")
+        }
+        // Numbers renders an imported pivot table as plain cells; we read them as the values they are
+        #expect(wb.sheets[1]["A1"] != nil, "the pivot sheet Numbers filled in is not empty")
+    }
 }

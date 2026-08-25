@@ -173,7 +173,10 @@ struct NumbersReader {
     /// the character style it uses; an entry with no style is back to the cell's own formatting.
     private func runs(in text: String, of storage: ProtoMessage, styles: NumbersStyleResolver) -> [TextRun] {
         let entries = storage.message("table_char_style")?.messages("entries") ?? []
-        guard entries.count > 1 || (entries.count == 1 && entries[0].reference("object") != nil) else { return [] }
+        // One style over the whole text is the cell's own formatting, not a run of something different inside it
+        // — Numbers writes it that way for any imported cell that has a font. Reading it as rich text turned
+        // plain text into a one-run `.richText`, which is a different kind of value for no reason.
+        guard entries.count > 1 else { return [] }
         let characters = Array(text)
         var out: [TextRun] = []
         for (i, entry) in entries.enumerated() {
