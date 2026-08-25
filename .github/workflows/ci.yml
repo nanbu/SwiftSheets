@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: build and test
+    # macOS 26 ships Xcode 26 by default, which is where Swift 6.2 (the package's tools version) lives.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      # Printed so a failing run says which toolchain it was, without anyone having to guess.
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build
+        run: swift build --build-tests
+
+      # The suites that need LibreOffice, Numbers.app, or a Python with openpyxl / numbers-parser
+      # skip themselves when those are absent (`.enabled(if:)`), so a bare runner is enough.
+      - name: Test
+        run: swift test --skip-build
