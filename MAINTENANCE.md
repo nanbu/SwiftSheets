@@ -25,9 +25,17 @@ exposes the warnings). A hard failure (`SheetError.unsupportedVersion` / `malfor
    `pip install numbers-parser`). Failures point at either changed field numbers or new cell-storage flags.
 3. Refresh the schema from a numbers-parser release that supports the new version:
    `scripts/extract-numbers-schema.py <path to numbers-parser checkout or site-packages>` regenerates
-   `Sources/SheetNumbers/Resources/{schema,registry,functions}.json`. Commit the regenerated files with the
-   numbers-parser version in the commit message. (numbers-parser itself re-extracts the Protobuf definitions from the
-   Numbers binary with its `make bootstrap` tooling — that is where new field numbers come from.)
+   `Sources/SheetNumbers/Resources/{schema,registry,functions,constants,fonts}.json`. Commit the regenerated files
+   with the numbers-parser version in the commit message. (numbers-parser itself re-extracts the Protobuf definitions
+   from the Numbers binary with its `make bootstrap` tooling — that is where new field numbers come from.)
+
+   **The five files are not all at the same version right now.** `schema`, `registry` and `functions` came from
+   numbers-parser 4.19.0; `constants` and `fonts` from 4.16.3, which is the newest release that installs on this
+   Mac's Python 3.9. Regenerate all five together from 4.19.0 or later once a Python ≥ 3.10 is available:
+
+   ```bash
+   python3 -m venv /tmp/np && /tmp/np/bin/pip install numbers-parser && /tmp/np/bin/python scripts/extract-numbers-schema.py
+   ```
 4. If the write template must change (Numbers refuses the generated file), save a fresh empty document with the new
    Numbers, replace `Sources/SheetNumbers/Resources/empty.numbers`, and re-run the self round-trip and
    numbers-parser checks.
@@ -48,7 +56,18 @@ per-application checklist (`はじめにお読みください.md`).
 - Open `03-swiftsheets.xlsx` in Excel: no "we found a problem with some content" dialog; formatting, filters,
   frozen panes, formulas, Japanese text and the hidden sheet are as the checklist describes.
 - Open `04-swiftsheets.numbers` in Numbers: no "document needs repair" warning; values, merges and sizes are right;
-  editing and saving works. Formatting and formulas are expected to be absent (Appendix B.8).
+  editing and saving works. Formulas are expected to be absent (Appendix B.8).
+- **Cell formatting in Numbers (Rev 2.1, Appendix B.16) — the check with no judge on this machine.** The write side
+  now creates style archives of its own (variations of the table's defaults, in `Index/DocumentStylesheet.iwa`, with
+  the cross-component reference recorded in the package metadata). numbers-parser reads them back correctly and
+  LibreOffice's Numbers importer opens the file, but **Numbers.app has not.** Open `04-swiftsheets.numbers` and
+  confirm: bold and coloured header cells look as the checklist describes, background fills are there, the font is
+  the one asked for (not a fallback), number formats show as currency / percentage / date rather than as plain
+  numbers, and the document still saves without complaint.
+- **Conditional formatting is deliberately not written to Numbers** (Appendix B.16). If you have Numbers.app to
+  hand, the one thing worth doing is the opposite direction: make a document *with* a conditional format, add it to
+  `Tests/SwiftSheetsTests/Fixtures/numbers/`, and the `predicate_type` values become observable — which is the only
+  thing standing between the current `dropped` warning and an implementation.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

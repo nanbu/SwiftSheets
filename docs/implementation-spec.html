@@ -1844,6 +1844,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
     <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
+    <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
@@ -1854,7 +1855,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
 <!-- ===================== APPENDIX B ===================== -->
 <section class="chapter" id="apxb">
-  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 2.0）</h2>
+  <h2 class="section-title"><span class="ch-num">Appendix B</span>実装決定記録（Rev 2.1）</h2>
   <p class="lead">
     P1・P2 を実装した 2026-08-22 時点で、本文と実装が異なる点・本文が決めていなかった点をここに固定する。
     本文より本付録が優先する。理由のない逸脱は無い — 逸脱は必ず理由つきで載せ、戻すべきと判断したら本文ではなくここを直す。
@@ -2367,6 +2368,123 @@ wb.sheets[<span class="nm">0</span>] = sheet
     0.x では minor が major の役目を果たす。B.11 の「1.0 前に API を確定させる」に対する
     2 度目の意図的な例外で、理由は上の表に固定した）。
   </p>
+
+  <h3>B.16 ODS と Numbers を Excel 形式と同じ土俵に載せる（Rev 2.1）</h3>
+  <p>
+    2026-08-25 の決定。それまで <code>SheetCore</code> のモデルは XLSX を基準に育っており、ODS と Numbers の
+    コーデックは「値と体裁の骨」だけを扱っていた。<strong>条件付き書式を最優先に、Excel 形式に実装済みの機能を
+    可能な限り ODS と Numbers にも通す</strong>ことにし、その結果と、通せなかったものの理由をここに固定する。
+  </p>
+
+  <div class="callout">
+    <span class="label">正解データの採り方</span>
+    <p>
+      ODF の拡張仕様（<code>calcext:</code>）と Numbers の非公開形式は、どちらも<strong>記憶で書いてはいけない</strong>領域である。
+      そこで両方とも<strong>実物から採った</strong> — ODS は SwiftSheets 自身で「全規則入りの xlsx」を書き、
+      LibreOffice 26.2 に <code>--convert-to ods</code> させて出てきた XML をそのまま仕様として使った。
+      Numbers は numbers-parser 4.16.3 を審判に立て、フィクスチャ 11 個の全セルを突き合わせた。
+      この付録に載る綴りは全て観測値であって、推測は 1 つも無い。
+    </p>
+  </div>
+
+  <p><strong>ODS に入れたもの</strong>。ODF 1.3 本体で言えるものは本体で、言えないものは
+  LibreOffice の拡張名前空間で書く。拡張を正とし、本体形式は読むときの後方互換として扱う。</p>
+  <div class="compare"><table>
+    <tr><th>件</th><th>ODF での置き場所</th><th>境目</th></tr>
+    <tr><td><strong>条件付き書式</strong>（最優先）</td>
+      <td><code>calcext:conditional-formats</code>。18 種の規則すべて — 比較・式・文字列 4 種・上位下位 4 通り・
+        平均比較・重複／一意・空白／エラー・期間・カラースケール・データバー・アイコンセット。
+        塗る書式は styles.xml の<strong>名前付き</strong>セルスタイル（<code>calcext:apply-style-name</code> が指すのは名前付きスタイルであるため）</td>
+      <td>ODF 1.3 本体の <code>style:map</code> は<strong>読むだけ</strong>で、書かない。LibreOffice は両方を書くので、
+        <code>calcext:</code> の塊が 1 つでもあったシートでは <code>style:map</code> を無視する（しないと規則が二重になる）。
+        優先順位の属性が ODF に無いため<strong>文書順が順位</strong>。データバーとアイコンセットの「数値を隠す」は ODF に無い</td></tr>
+    <tr><td>入力規則</td><td><code>table:content-validations</code> と、セル側の <code>table:content-validation-name</code>。
+        8 種すべてと入力時メッセージ・エラーメッセージ</td>
+      <td>ODF は規則を文書の先頭に 1 つずつ並べ、セルが名前で指す。そのため<strong>規則が覆う空セルも実体化</strong>する必要がある
+        （矩形が大きすぎるものは既存の結合と同じ上限で打ち切る）。<code>imeMode</code> は ODF に無い</td></tr>
+    <tr><td>印刷設定</td><td>シートごとの <code>style:page-layout</code> と <code>style:master-page</code>（styles.xml）。
+        余白・向き・用紙・拡大率・中央寄せ・印刷対象・ヘッダ／フッタ</td>
+      <td>Excel の <code>&amp;L&amp;C&amp;R</code> とフィールドコードを ODF の 3 領域と <code>text:page-number</code> 等に相互変換する。
+        フォント指定（<code>&amp;"Arial,Bold"&amp;12</code>）は落ちる。<strong>余白の対応</strong>は
+        「ODF の <code>fo:margin-top</code> = Excel のヘッダ余白、ヘッダの <code>fo:min-height</code> = その差」</td></tr>
+    <tr><td>改ページ・印刷範囲・印刷タイトル</td>
+      <td>改ページは行／列の自動スタイルの <code>fo:break-before="page"</code>。印刷範囲は表の <code>table:print-ranges</code>、
+        タイトル行／列は表内の <code>table:named-expressions</code> に <code>table:range-usable-as</code> 付きで</td>
+      <td>読み手は <code>table:range-usable-as</code> を見るが、<strong>名前は <code>_xlnm.Print_Titles</code> にする</strong> —
+        LibreOffice の ODF 取り込みは名前で判断するため（実測）。行と列の両方があるときだけ列側が別名になる</td></tr>
+    <tr><td>シート保護</td><td><code>table:protected</code> と <code>loext:table-protection</code></td>
+      <td><strong>保護範囲は書けない</strong>。ODF は表全体を守り、その中に開いた窓を持たない</td></tr>
+    <tr><td>配列数式</td><td>起点セルの <code>table:number-matrix-columns-spanned</code> / <code>-rows-spanned</code></td><td>—</td></tr>
+    <tr><td>名前付きの表・オートフィルタ</td>
+      <td><code>table:database-range</code>。名前付きは表として、無名（<code>__Anonymous_Sheet_DB__n</code>）はシートのフィルタとして。
+        列ごとの条件は <code>table:filter</code>、並べ替えは <code>table:sort</code></td>
+      <td>列同士は「かつ」で結ぶので、<strong>入れ子にせず平らに並べる</strong>（入れ子の <code>filter-and</code> を LibreOffice は読まない — 実測）。
+        色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言う。縞模様のスタイルも落ちる</td></tr>
+    <tr><td>ピボット表</td><td><code>table:data-pilot-table</code>（ODF の「データパイロット」）。集計元の範囲・
+        各列の置き場所・集計関数</td>
+      <td>ODF は列を<strong>位置ではなく見出しの文字</strong>で指す。値が 2 つ以上あるときの見出しの置き場を ODF は記録しないので、
+        読み戻すとき列側に足す。限界は XLSX と同じ — <strong>配置は書くが集計はしない</strong></td></tr>
+    <tr><td>落としたまま</td><td>—</td>
+      <td><strong>シナリオ</strong>: ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増える。
+        <strong>タブ色</strong>: ODF 1.3 に無い（LibreOffice も同じ変換で落とす）。
+        <strong>リッチテキストの run</strong>: ODF はセル内の書式差を持てない。すべて警告で言う</td></tr>
+  </table></div>
+
+  <p><strong>Numbers に入れたもの</strong>。F1（値だけ）から一段上げ、書式を読み書きできるようにした。</p>
+  <div class="compare"><table>
+    <tr><th>件</th><th>Numbers での置き場所</th><th>境目</th></tr>
+    <tr><td>セル書式（読み書き）</td>
+      <td>セルは表のスタイル一覧の 2 項目を指す — <code>TST.CellStyleArchive</code>（塗り・罫線・垂直配置・折り返し）と
+        <code>TSWP.ParagraphStyleArchive</code>（フォント・色・水平配置）。どちらも<strong>差分</strong>なので親をたどって解決する。
+        指していないセルは表の既定（<code>body_text_style</code> / <code>header_row_text_style</code> …）に従う</td>
+      <td>書くときは表の既定を親とする差分アーカイブを新たに作り、テンプレート自身のスタイルと同じ
+        <code>Index/DocumentStylesheet.iwa</code> に置く。<strong>部品をまたぐ参照は package metadata の
+        <code>external_references</code> に登録する</strong>（実物の Numbers 文書がそうしている）。
+        フォント名は<strong>ファミリ名ではなく PostScript 名</strong>で持つ</td></tr>
+    <tr><td>表示形式</td><td><code>TSK.FormatStructArchive</code> — 書式文字列ではなく「種類＋小数桁＋桁区切り＋通貨＋日付パターン」という<em>記述</em></td>
+      <td>Numbers の書式は<strong>見え方を 1 つしか記述しない</strong>。Excel の複数セクション・色・条件は落として言う。
+        評価・チェックボックス・n 進数は Excel に対応が無く General に落とす</td></tr>
+    <tr><td>ハイパーリンク（読み）</td><td>リッチテキストの<strong>範囲</strong>に付く（<code>TSWP.HyperlinkFieldArchive</code>）</td>
+      <td>モデルは Excel と同じくセルに 1 つなので先頭を採り、2 つ以上あったことを言う。書き出しは未対応</td></tr>
+    <tr><td><strong>条件付き書式（入れられなかった）</strong></td>
+      <td>スキーマには存在する — <code>TST.ConditionalStyleSetArchive</code>、
+        <code>TableDataList.CONDITIONAL_STYLE = 9</code>、セル記録のフラグ <code>0x80</code></td>
+      <td><strong>審判が無いので書かない</strong>。規則の条件は <code>FormulaPredicateArchive.predicate_type</code> という
+        <em>名前の無い int32</em> で、Apple の C 列挙のまま Protobuf に名前が残っていない。
+        この環境には Numbers.app が無く、numbers-parser にも条件付き書式の API が無く、
+        フィクスチャ 11 個のいずれにも実例が無い（走査済み）。当てずっぽうの整数を書けば、
+        Numbers が「修復しますか」と言う文書か、<em>黙って違うセルを塗る</em>文書になる。
+        数式アーカイブを生成しない B.8 の判断と同じ理由で、<code>dropped</code> 警告のまま残す。
+        <strong>入れるための条件</strong>: Numbers.app で条件付き書式を付けた文書を 1 つ作り、
+        フィクスチャに加えて <code>predicate_type</code> の値を観測すること</td></tr>
+    <tr><td>落としたまま</td><td>—</td>
+      <td>入力規則・ピボット表・名前付きの表・オートフィルタと並べ替え・シート保護・シナリオ・印刷設定・
+        定義名・タブ色・行列のグループ化・隠しシート・メモ・リンクの書き出し。
+        <strong>19 件すべてを警告で言う</strong>（黙って落とすものは無い）</td></tr>
+  </table></div>
+
+  <div class="callout callout-warn">
+    <span class="label">機械抽出した資源が 2 つ増えた</span>
+    <p>
+      §10.1 の「手写しはしない」に従い、Numbers 側で必要になった 2 つの表も
+      <code>scripts/extract-numbers-schema.py</code> で numbers-parser から抽出する。
+      <code>constants.json</code>（Apple が int32 のままにした定数 — 表示形式の種類・配置・経過時間の様式）と
+      <code>fonts.json</code>（PostScript 名 → ファミリ名、572 件）。
+      <strong>版の食い違いに注意</strong>: <code>schema.json</code> / <code>registry.json</code> / <code>functions.json</code> は
+      numbers-parser 4.19.0 で抽出されており、新しい 2 つは 4.16.3（この Mac の Python 3.9 で入る最新）。
+      Python 3.10 以上が入ったら 4.19.0 で全部を抽出し直すこと（MAINTENANCE.md）。
+    </p>
+  </div>
+
+  <p><strong>審判</strong>。ODS は LibreOffice 26.2 が正解データの供給元であり検証者でもある —
+  書いた ods を xlsx へ戻して 24 件の規則がすべて復元されること、LibreOffice 自身の ods と
+  自作の ods が同じモデルに読み戻ることを見る。Numbers は numbers-parser 4.16.3 が
+  全フィクスチャのセル書式（太字・斜体・フォント・サイズ・文字色・水平／垂直配置）で完全一致し、
+  書いた文書を警告なしで読めること、LibreOffice の Numbers 取り込みが開けること、
+  <code>integrityProblems()</code> が空であることを見る。
+  <strong>Numbers.app だけは依然として審判に立てていない</strong> — 書式付き書き出しを開く確認は
+  MAINTENANCE.md のリリース前チェックリストにある。</p>
+
 
 </section>
 

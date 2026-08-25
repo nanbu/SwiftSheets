@@ -61,24 +61,46 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSX | ✅ | ✅ | ✅ F3 — uninterpreted parts re-packed byte for byte, ids kept | P1 done |
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
-| ODS | ✅ | ✅ | F2 — values, formulas, styles, merges, sizes; pictures / objects of a source ODS are not re-linked | P3 done |
-| Numbers | ✅ values, formulas (as text), merges, sizes, several tables per sheet | ✅ values, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
+| ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes; pictures / objects of a source ODS are not re-linked | P3 done |
+| Numbers | ✅ values, formulas (as text), cell formatting, number formats, hyperlinks, merges, sizes, several tables per sheet | ✅ values, cell formatting, number formats, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
 up with new Numbers releases.
 
+### ODS: what the conditional formats ride on
+
+ODF 1.3 itself has one condition per cell style (`style:map`) and nothing at all for colour scales, data bars or
+icon sets. Everything richer lives in LibreOffice's `calcext:` extension, which is what every current application
+reads and writes. SwiftSheets **writes** `calcext:conditional-formats` only, and **reads** both — falling back to
+`style:map` for a file that carries no `calcext:` block (a producer older than the extension). All eighteen rule
+kinds survive a write and a read back, and LibreOffice rebuilds every one of them when it converts the file to
+XLSX. Alongside them: data validations, the print setup (margins, orientation, scaling, headers and footers, page
+breaks, print area and repeated title rows), sheet protection, array-formula ranges, named tables and what an
+auto-filter lets through, and pivot tables as ODF data pilots. What ODF cannot say — scenarios (an ODF scenario is
+a whole shadow sheet), unprotected windows inside a protected sheet, tab colours, formatting runs inside one cell —
+is reported, never dropped in silence.
+
 ### Numbers: what is and is not there
 
 - Read: every value kind (decimal128 numbers, text, rich text as plain text, dates, booleans, durations, errors),
   formulas rebuilt from Numbers' formula trees into XLSX-dialect text (cross-table references as `'Sheet::Table'!A1`),
+  **cell formatting** (fonts, colours, fills, borders, alignment, wrapping) and **number formats**, hyperlinks,
   merges, row heights / column widths, hidden rows / columns, table positions as `Table.anchor`, header rows as
-  `freezePanes`. Cell formatting (fonts, fills, number formats) is **not** read yet (F1 fidelity).
+  `freezePanes`.
 - Write: the empty document shipped with numbers-parser is the template (spec §11.1); the first sheet / table is
-  patched in place, further sheets and tables are deep-copied subgraphs with fresh ids and UUIDs. Values, merges,
-  sizes, header rows. **Formulas are written as their cached value** with a `degraded` warning — Numbers' formula
-  archives are not generated (the reference implementation cannot either, and without Numbers.app on the build
-  machine a generated archive could not be validated). Formatting is not written (`degraded` warning, once per table).
+  patched in place, further sheets and tables are deep-copied subgraphs with fresh ids and UUIDs. Values, **cell
+  formatting and number formats**, merges, sizes, header rows. **Formulas are written as their cached value** with a
+  `degraded` warning — Numbers' formula archives are not generated (the reference implementation cannot either, and
+  without Numbers.app on the build machine a generated archive could not be validated).
+- **Conditional formatting is not written to Numbers**, and this is deliberate. The archive exists in the schema
+  (`TST.ConditionalStyleSetArchive`), but a rule's condition is a `predicate_type` integer Apple left unnamed in the
+  Protobuf. There is no Numbers.app here, numbers-parser has no API for it, and none of the eleven fixtures contains
+  one — so a guessed value would either make Numbers offer to repair the file or, worse, quietly paint the wrong
+  cells. It stays a `dropped` warning until a fixture with a real rule exists (spec Appendix B.16).
+- Everything else Numbers has no word for — validations, pivot tables, named tables, auto-filters, sheet protection,
+  scenarios, print setup, defined names, tab colours, outline grouping, notes, hyperlink *writing* — is reported as
+  a warning. Nothing is dropped in silence.
 - Judges: round trip through our own reader, numbers-parser reading our output
   (`Tests/NumbersParity/verify_with_numbers_parser.py`), and LibreOffice's Numbers importer. **Numbers.app itself
   has not opened these files** — that check is on the release checklist in MAINTENANCE.md.
@@ -92,8 +114,8 @@ up with new Numbers releases.
 | `SheetCore` | `Workbook` → `Sheets` → `Sheet` → `[Table]` → `Cell` model, styles and differential styles, conditional formatting, named tables, pivot tables, protection and scenarios, `FormulaExpr` AST + parser / emitters (XLSX and ODS dialects), the `SpreadsheetCodec` contract, `PreservationStore`, ZIP / XML plumbing, CSV options | nothing |
 | `SheetXLSX` | `XLSXCodec` / `XLSMCodec`, `StreamingReader` / `StreamingWriter` | SheetCore |
 | `SheetCSV` | `CSVCodec` (RFC 4180 + real-world dialects; UTF-8 BOM auto-detection, explicit encodings) | SheetCore |
-| `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect) | SheetCore |
-| `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table as JSON resources) | SheetCore |
+| `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect, conditional formats and validations, master pages, data pilots) | SheetCore |
+| `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table / constants / font map as JSON resources) | SheetCore |
 | `SwiftSheets` | everything plus the facade: `Workbook(contentsOf:)`, `write(to:as:)`, `data(as:)`, `Workbook.convert` | all of the above |
 
 ## Model in one paragraph
