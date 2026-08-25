@@ -2782,7 +2782,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     参照は <code>CELL_REFERENCE_NODE</code> に <code>AST_cross_table_reference_extra_info</code> を添えた形で、
     座標は別の表を指していても<strong>数式を持つセルからの相対</strong>のまま。問題は参照先の名指しで、
     <strong>表の <code>table_id</code> 文字列</strong>（UUID の 16 バイトを 4 つの小端ワードに詰めたもの）である。
-    表の <code>haunted_owner</code> でも、依存関係の基底 ownerでもない — その 2 つを書くと
+    表の <code>haunted_owner</code> でも、依存関係の基底オーナーでもない — その 2 つを書くと
     Numbers は <code>#REF!</code> と読む（両方とも実際に外して分かった）。
     読み手にも同じ穴があり、Numbers が書いた別表参照は解決できていなかった。
   </p>
