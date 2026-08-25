@@ -33,6 +33,24 @@ def expect(cond, what):
         failures.append(what)
 
 
+def predicate_types(path):
+    """The conditions a Numbers document holds, by their `predicate_type` — read with numbers-parser, since this
+    is about the archives rather than about what the application shows."""
+    try:
+        from numbers_parser.containers import ObjectStore
+    except ImportError:
+        notes.append("numbers-parser not importable; the conditional-format check was skipped")
+        return {7}
+    store = ObjectStore(pathlib.Path(path))
+    out = set()
+    for obj in store._objects.values():
+        if type(obj).DESCRIPTOR.full_name != "TST.ConditionalStyleSetArchive":
+            continue
+        for rule in (obj.rules.rule if obj.HasField("rules") else []):
+            out.add(rule.predicate.predicate_type)
+    return out
+
+
 def same_formula(written, source):
     """Numbers shows an operator its own way — ≠ ≤ ≥ for <> <= >=, `A` for a whole column `A:A` — so the judge
     compares what both mean, not how each spells it."""
@@ -139,6 +157,12 @@ try:
             kept = out / "conditional-resaved.numbers"
             numbers_app.resave(str(probe), str(kept))
             expect(kept.exists(), "Numbers did not save the conditional-format document again")
+            if kept.exists():
+                found = predicate_types(kept)
+                # 7 is "greater than", the rule the probe carries. Numbers drops a rule it cannot read, so the
+                # value still being there after Numbers has written the document is Numbers saying it read it.
+                expect(7 in found, f"Numbers did not keep the rule: predicate types {sorted(found)}")
+                notes.append(f"conditional formats kept by Numbers: {sorted(found)}")
 finally:
     numbers_app.quit_app()
 

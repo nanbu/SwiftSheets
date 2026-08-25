@@ -2730,6 +2730,13 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <code>Tests/SwiftSheetsTests/Fixtures/numbers/conditional-formats-15.numbers</code>（Numbers 15.3.1 製）。
   </p>
   <p class="meta">
+    <strong>実例の残り方には偏りがある</strong>。14 種すべてを観測したのは 25 列の大きな実験のほうで、
+    リポジトリに入れた小さなフィクスチャには 5 種しか入っていない — 同じ手順で作ったのに、
+    Numbers が重複／一意の規則だけを落とした（理由は不明。列の値の並びによるらしい）。
+    17（重複）と 34（一意）は committed なフィクスチャには無く、上の手順を踏めば再現できる、という状態である。
+    次にフィクスチャを作り直すときは、この 2 つが入ることを確かめること。
+  </p>
+  <p class="meta">
     セルの側は Numbers 流に合わせた — 規則は<strong>範囲ではなくセル 1 つずつ</strong>に記録される
     （記録のフラグ <code>0x80</code>）。読むときは列ごとに走査して長方形に畳み直し、
     書くときは範囲内の<strong>空のセルにも</strong>記録を置く（置かないと塗りが最後の値のところで止まる）。
