@@ -190,6 +190,11 @@ final class ContentParser: SAXHandler {
     private var cellAttrs: [String: String] = [:]
     private var cellCovered = false
     private var paragraphs: [String] = []
+    /// The runs of a paragraph, when it carries `text:span` children — ODF's way of formatting part of a cell.
+    private var runs: [(text: String, style: String?)] = []
+    private var spanStyle: String?
+    private var spanDepth = 0
+    private var runStart = 0
     private var paragraph = ""
     private var inParagraph = false
     private var lastWasCollapsibleSpace = true
@@ -317,12 +322,22 @@ final class ContentParser: SAXHandler {
             inCell = true
             cellAttrs = a
             cellCovered = name == "covered-table-cell"
-            paragraphs = []; paragraph = ""; inParagraph = false; hyperlink = nil
+            paragraphs = []; runs = []; spanStyle = nil; spanDepth = 0; runStart = 0
+            paragraph = ""; inParagraph = false; hyperlink = nil
             inAnnotation = false; annotationSeen = false; noteParagraphs = []; noteAuthor = ""
         case "p":
             if validationMessage != nil { inValidationParagraph = true; paragraph = ""; return }
             guard inCell else { return }
             inParagraph = true; paragraph = ""; lastWasCollapsibleSpace = true
+            if !runs.isEmpty { runs.append(("\n", nil)) }
+            runStart = runs.count
+        case "span":
+            guard inParagraph, !inAnnotation else { return }
+            spanDepth += 1
+            if spanDepth == 1 {
+                if !paragraph.isEmpty { runs.append((paragraph, nil)); paragraph = "" }
+                spanStyle = ODSAttr.get(a, "text:style-name")
+            }
         case "s":
             guard inParagraph else { return }
             appendLiteral(String(repeating: " ", count: Swift.max(1, ODSAttr.int(a, "text:c") ?? 1)))
@@ -497,7 +512,14 @@ final class ContentParser: SAXHandler {
             if validationMessage != nil, inValidationParagraph { inValidationParagraph = false; validationMessageText.append(paragraph); return }
             guard inParagraph else { return }
             inParagraph = false
-            if inAnnotation { noteParagraphs.append(paragraph) } else { paragraphs.append(paragraph) }
+            if inAnnotation { noteParagraphs.append(paragraph); return }
+            if !runs.isEmpty {
+                if !paragraph.isEmpty { runs.append((paragraph, nil)) }
+                paragraphs.append(runs[runStart...].reduce("") { $0 + $1.text })
+                paragraph = ""
+                return
+            }
+            paragraphs.append(paragraph)
         case "help-message", "error-message":
             guard currentValidation != nil, validationMessage == name else { return }
             let text = validationMessageText.joined(separator: "\n")
@@ -539,6 +561,12 @@ final class ContentParser: SAXHandler {
                 databaseRanges.append((name, range, dbButtons, dbFilters, dbSort))
             }
             dbName = nil; dbRange = nil; dbFilters = []; dbSort = []
+        case "span":
+            guard inParagraph, spanDepth > 0 else { return }
+            spanDepth -= 1
+            if spanDepth == 0 {
+                runs.append((paragraph, spanStyle)); paragraph = ""; spanStyle = nil
+            }
         case "creator": inCreator = false
         case "annotation": inAnnotation = false
         case "table-cell", "covered-table-cell":
@@ -631,7 +659,15 @@ final class ContentParser: SAXHandler {
         } else if let d = columnDefaults.first(where: { $0.start <= cellCursor && cellCursor <= $0.end }) {
             cell.sharedStyle = catalog.sharedCellStyle(named: d.name)
         }
-        let value = decodeValue(a)
+        var value = decodeValue(a)
+        if case .text? = value, runs.contains(where: { $0.style != nil }) {
+            let textRuns = runs.map { run -> TextRun in
+                guard let name = run.style else { return TextRun(run.text) }
+                let style = catalog.cellStyle(named: name)
+                return TextRun(run.text, font: style.font)
+            }
+            value = .richText(textRuns)
+        }
         if let formula = attr(a, "table:formula"), !dataOnly {
             cell.value = .formula(FormulaExpr.parse(formula, dialect: .ods), cached: value)
         } else {

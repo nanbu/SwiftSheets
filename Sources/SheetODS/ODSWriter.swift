@@ -28,8 +28,19 @@ final class ODSStyleRegistry {
     /// Number-format codes with no ODF form (written without a data style) and codes written partially.
     private(set) var unexpressibleCodes: [String] = []
     private(set) var partialCodes: [String] = []
+    private var texts: [Font: String] = [:]
+    private(set) var textOrder: [(name: String, font: Font)] = []
     private var tables: [String: String] = [:]
     private(set) var tableOrder: [(name: String, display: Bool, masterPage: String)] = []
+
+    /// The automatic text style of one run of a rich-text cell (`style:family="text"`).
+    func text(_ font: Font) -> String {
+        if let n = texts[font] { return n }
+        let n = "T\(textOrder.count + 1)"
+        texts[font] = n; textOrder.append((n, font))
+        if let name = font.name, !fonts.contains(name) { fonts.append(name) }
+        return n
+    }
 
     /// The automatic table style naming a sheet's master page (its print setup) and whether the sheet is shown.
     func table(display: Bool, masterPage: String) -> String {
@@ -101,12 +112,15 @@ final class ODSStyleRegistry {
             s += "<style:style style:name=\"\(t.name)\" style:family=\"table\" style:master-page-name=\"\(t.masterPage)\">"
             s += "<style:table-properties table:display=\"\(t.display)\" style:writing-mode=\"lr-tb\"/></style:style>"
         }
+        for t in textOrder {
+            s += "<style:style style:name=\"\(t.name)\" style:family=\"text\"><style:text-properties\(textPropertiesXML(t.font))/></style:style>"
+        }
         for d in dataOrder { s += d.style.xml(name: d.name) }
         for c in cellOrder { s += cellStyleXML(c.name, c.style) }
         return s
     }
 
-    private func cellStyleXML(_ name: String, _ st: CellStyle) -> String {
+    func cellStyleXML(_ name: String, _ st: CellStyle) -> String {
         var s = "<style:style style:name=\"\(name)\" style:family=\"table-cell\" style:parent-style-name=\"Default\""
         if let ds = data[st.numberFormat], !ds.isEmpty { s += " style:data-style-name=\"\(ds)\"" }
         s += ">"
@@ -159,7 +173,14 @@ final class ODSStyleRegistry {
             if let v { s += "<style:paragraph-properties fo:text-align=\"\(v)\"/>" }
         }
         // text properties
-        let f = st.font, d = Font.default
+        let text = textPropertiesXML(st.font)
+        if !text.isEmpty { s += "<style:text-properties\(text)/>" }
+        return s + "</style:style>"
+    }
+
+    /// The `style:text-properties` attributes of a font — shared by a cell style and by one run of rich text.
+    func textPropertiesXML(_ f: Font) -> String {
+        let d = Font.default
         var text = ""
         if let n = f.name, n != d.name || f.scheme == nil {
             text += " style:font-name=\"\(XML.esc(n))\" style:font-name-asian=\"\(XML.esc(n))\" style:font-name-complex=\"\(XML.esc(n))\""
@@ -180,8 +201,7 @@ final class ODSStyleRegistry {
             if u == .double || u == .doubleAccounting { text += " style:text-underline-type=\"double\"" }
         }
         if f.strikethrough { text += " style:text-line-through-style=\"solid\" style:text-line-through-type=\"single\"" }
-        if !text.isEmpty { s += "<style:text-properties\(text)/>" }
-        return s + "</style:style>"
+        return text
     }
 }
 
@@ -262,9 +282,6 @@ enum ODSWriter {
             }
             if sheet.tabColor != nil {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)")
-            }
-            if sheet.tables.contains(where: { $0.cells.values.contains { if case .richText = $0.value { return true }; return false } }) {
-                sink.add(.degraded, subject: .formatting, sheet: sheet.name, "rich text is written as plain text: a run of its own formatting inside one cell is not carried")
             }
             for table in sheet.excelTables where table.styleInfo != nil {
                 sink.add(.degraded, subject: .tables, sheet: sheet.name, "named table \(table.name) written as an ODF database range: its banded-row style is not carried")
@@ -640,13 +657,21 @@ enum ODSWriter {
             emptyRun = 0
         }
         let rowBreaks = Set(sheet.rowBreaks)
+        var openGroups = 0
+        func groups(to level: Int) {
+            while openGroups > level { s += "</table:table-row-group>"; openGroups -= 1 }
+            while openGroups < level { s += "<table:table-row-group>"; openGroups += 1 }
+        }
         for r in 0..<nrows {
             let hasCells = rowsWithCells.contains(r)
             let dim = t.rowDimensions[r]
             let breaks = rowBreaks.contains(r)
             let validated = r <= validationMaxRow && validations.contains { v in v.ranges.sorted.contains { r >= $0.minRow && r <= $0.maxRow } }
             guard hasCells || dim != nil || breaks || validated || rowIsCovered(r) || anchorRows.contains(r) else { emptyRun += 1; continue }
-            flushEmpty()
+            // rows with nothing at all are outside every group, so a run of them closes what is open
+            if emptyRun > 0 { groups(to: 0); flushEmpty() }
+            // outline level: ODF nests the rows of a group inside `table:table-row-group` rather than numbering them
+            groups(to: Swift.max(0, Swift.min(7, dim?.outlineLevel ?? 0)))
             s += "<table:table-row"
             if let n = styles.row(height: dim?.height, breakBefore: breaks) { s += " table:style-name=\"\(n)\"" }
             if dim?.hidden == true { s += " table:visibility=\"collapse\"" }
@@ -677,6 +702,7 @@ enum ODSWriter {
             }
             s += "</table:table-row>"
         }
+        groups(to: 0)
         flushEmpty()
         s += namedExpressionsXML(sheet.definedNames, baseSheet: sheet.name, extra: printTitlesXML(sheet))
         s += ODSConditionalFormatWriter.xml(sheet, styles: conditionalStyles, sink: sink)
@@ -696,6 +722,20 @@ enum ODSWriter {
         let percent = NumberFormat.isPercentFormat(cell.style.numberFormat)
         switch cell.value {
         case nil: break
+        case .richText(let runs)?:
+            // ODF carries a run of its own formatting as a `text:span` naming an automatic text style
+            valueAttrs = " office:value-type=\"string\""
+            var body = ""
+            for run in runs {
+                let inner = paragraphsXML(run.text).map { $0.dropFirst("<text:p>".count).dropLast("</text:p>".count) }
+                                                  .joined(separator: "<text:line-break/>")
+                if let font = run.font, font != Font.default {
+                    body += "<text:span text:style-name=\"\(styles.text(font))\">\(inner)</text:span>"
+                } else {
+                    body += inner
+                }
+            }
+            paragraphs = ["<text:p>\(body)</text:p>"]
         case .formula(let f, let cached)?:
             if case .unparsed(_, let dialect) = f, dialect != .ods {
                 sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
@@ -726,7 +766,7 @@ enum ODSWriter {
     static func valueXML(_ v: CellValue, percent: Bool) -> (String, [String]) {
         switch v {
         case .text(let s): return (" office:value-type=\"string\"", paragraphsXML(s))
-        case .richText(let runs): return (" office:value-type=\"string\"", paragraphsXML(runs.map(\.text).joined()))
+        case .richText: return (" office:value-type=\"string\"", [])   // handled by the caller, which has the styles
         case .integer(let i): return (" office:value-type=\"\(percent ? "percentage" : "float")\" office:value=\"\(i)\"", ["<text:p>\(i)</text:p>"])
         case .number(let d): return (" office:value-type=\"\(percent ? "percentage" : "float")\" office:value=\"\(d)\"", ["<text:p>\(d)</text:p>"])
         case .bool(let b): return (" office:value-type=\"boolean\" office:boolean-value=\"\(b)\"", ["<text:p>\(b ? "TRUE" : "FALSE")</text:p>"])

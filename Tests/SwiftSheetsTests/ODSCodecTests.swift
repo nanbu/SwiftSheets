@@ -118,10 +118,7 @@ import SwiftSheets
     @Test func selfRoundTripKeepsEverything() throws {
         let original = sampleWorkbook()
         let result = try ODSCodec.write(original)
-        // the sample holds a rich-text cell, whose runs ODF keeps in a text box rather than in a cell
-        #expect(result.warnings.allSatisfy { $0.message.contains("rich text is written as plain text") },
-                Comment(rawValue: "\(result.warnings)"))
-        #expect(result.warnings.count == 1)
+        #expect(result.warnings.isEmpty, Comment(rawValue: "\(result.warnings)"))
         let reread = try ODSCodec.read(result.data)
         let (back, readWarnings) = (reread.workbook, reread.warnings)
         #expect(readWarnings.isEmpty, Comment(rawValue: "\(readWarnings)"))
@@ -132,7 +129,15 @@ import SwiftSheets
         }
         #expect(ws["J1"] == src["J1"])
         #expect(ws["N1"] == src["N1"])
-        #expect(ws["L1"] == .text("rich text"))
+        // ODF carries a run of its own formatting as a `text:span` naming a text style, so rich text stays rich
+        #expect(ws["L1"]?.textValue == "rich text")
+        if case .richText(let runs)? = ws["L1"] {
+            #expect(runs.count == 2)
+            #expect(runs[0].text == "rich" && runs[0].font?.bold == true)
+            #expect(runs[1].text == " text" && runs[1].font?.bold != true)
+        } else {
+            Issue.record("L1 should come back as rich text, not \(String(describing: ws["L1"]))")
+        }
         #expect(ws.merges == src.merges)
         #expect(ws.definedNames["Local"] == "Data!$A$2")
         #expect(ws.columnDimension("A").width == 20)
@@ -485,7 +490,7 @@ import SwiftSheets
         #expect(ws["N1"]?.formula == FormulaExpr.parse("=Hidden!A1"))
         #expect(ws["N1"]?.cachedValue == .text("secret"))
         #expect(ws["K1"]?.stringValue == "#DIV/0!")   // an error with no formula is only expressible as text in ODS
-        #expect(ws["L1"] == .text("rich text"))
+        #expect(ws["L1"]?.textValue == "rich text", "LibreOffice keeps the runs of a rich-text cell")
         #expect(ws["B2"]?.doubleValue == 1234.5)
         #expect(ws["C2"]?.doubleValue == 0.25)
         #expect(ws.merges == src.merges)
@@ -703,5 +708,20 @@ import SwiftSheets
         } when: {
             !Self.hasLibreOffice
         }
+    }
+
+    /// Grouped rows: ODF nests them inside `table:table-row-group` rather than numbering an outline level.
+    @Test func rowGroupsRoundTrip() throws {
+        var wb = Workbook()
+        for r in 0..<8 { wb.sheets[0][r, 0] = .integer(r) }
+        wb.sheets[0].groupRows(2...4, outlineLevel: 1)
+        wb.sheets[0].groupRows(3...3, outlineLevel: 2, hidden: true)
+        let ods = try ODSCodec.write(wb).data
+        #expect(try contentXML(ods).contains("<table:table-row-group>"))
+        let back = try ODSCodec.read(ods).workbook.sheets[0]
+        #expect(back.rowDimension(2).outlineLevel == 1)
+        #expect(back.rowDimension(3).outlineLevel == 2)
+        #expect(back.rowDimension(3).hidden)
+        #expect(back.rowDimension(5).outlineLevel == 0)
     }
 }
