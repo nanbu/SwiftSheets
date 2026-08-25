@@ -85,6 +85,40 @@ import SwiftSheets
         _ = formulaChecks
     }
 
+    /// Cell formatting (F1): the fonts, colours, alignment and number formats of a Numbers document.
+    ///
+    /// The values here were checked against numbers-parser cell by cell over all eleven fixtures — bold, italic,
+    /// font name and size, font colour and both alignments agree exactly. Fills differ on purpose: numbers-parser
+    /// reads `cell_fill` from the cell's own style only, so it misses the grey a table style gives its header rows,
+    /// which SwiftSheets follows up the parent chain (LibreOffice's Numbers import agrees with SwiftSheets there).
+    @Test func readsCellFormatting() throws {
+        let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-2.numbers"))
+        let sheet = try NumbersCodec.read(data).workbook.sheets[0]
+        let table = sheet.tables[0]
+        let header = table.style(at: CellRef(row: 0, col: 0))
+        #expect(header.font.bold, "a header row is bold")
+        #expect(header.font.name == "Helvetica Neue")
+        #expect(header.font.size == 10)
+        #expect(header.fill.foregroundColor != nil, "the table style paints its header row")
+
+        // the number formats of the document: sterling with and without a thousands separator, and a date
+        let formats = Set(table.cells.values.map(\.style.numberFormat))
+        #expect(formats.contains("\"£\"0.00"))
+        #expect(formats.contains("\"£\"#,##0.00"))
+        #expect(formats.contains("d mmm yyyy"))
+        #expect(formats.contains("@"))
+    }
+
+    /// A CLDR date pattern (`dd/MM/y HH:mm`) is not an Excel code: the year has to be spelled out.
+    @Test func readsDateAndDurationFormats() throws {
+        let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-10.numbers"))
+        let wb = try NumbersCodec.read(data).workbook
+        let formats = Set(wb.sheets.flatMap { $0.tables }.flatMap { $0.cells.values }.map(\.style.numberFormat))
+        #expect(formats.contains("dd/mm/yyyy hh:mm"))
+        #expect(formats.contains("[h]:mm:ss"))
+        #expect(formats.contains("0%"))
+    }
+
     @Test func sourceInfoAndFacade() throws {
         let url = Self.fixtures.appendingPathComponent("test-10.numbers")
         let wb = try Workbook(contentsOf: url)

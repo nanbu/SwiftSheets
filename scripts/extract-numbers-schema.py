@@ -3,6 +3,8 @@
 into JSON resources under Sources/SheetNumbers/Resources/ — nothing is hand-copied (spec §10.1, Appendix B.8):
 
     registry.json   IWA message type id → fully qualified message name        (numbers_parser.generated.mapping.ID_NAME_MAP)
+    constants.json  the integer constants Apple left unnamed in the Protobuf   (numbers_parser.constants: FormatType,
+                    (number-format kinds, alignment, duration styles)          HorizontalJustification, VerticalJustification, DurationStyle, DurationUnits)
     functions.json  Numbers function id → name                                (numbers_parser.generated.functionmap.FUNCTION_MAP)
     schema.json     every Protobuf message: fields with number / type / label / message type / enum values
                     (the FileDescriptorProtos embedded in numbers_parser.generated.*_pb2)
@@ -23,6 +25,8 @@ import numbers_parser.generated as generated  # noqa: E402
 from google.protobuf import descriptor_pb2  # noqa: E402
 from numbers_parser.generated.functionmap import FUNCTION_MAP  # noqa: E402
 from numbers_parser.generated.mapping import ID_NAME_MAP  # noqa: E402
+from numbers_parser import cell as np_cell  # noqa: E402
+from numbers_parser import constants as np_constants  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parents[1] / "Sources" / "SheetNumbers" / "Resources"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -73,11 +77,26 @@ for extendee, exts in extensions.items():
     if extendee in messages:
         messages[extendee]["fields"].extend(exts)
 
+# Constants Apple declared as plain int32 in the Protobuf, so the schema carries no names for them. numbers-parser
+# recovered them; SwiftSheets reads them from there rather than transcribing the numbers into Swift by hand.
+constants = {}
+for name in ["FormatType", "HorizontalJustification", "VerticalJustification", "DurationStyle", "DurationUnits",
+             "CellPadding", "CellType"]:
+    enum = getattr(np_constants, name, None) or getattr(np_cell, name, None)
+    if enum is None:
+        continue
+    try:
+        constants[name] = {member.name: int(member.value) for member in enum}
+    except TypeError:
+        continue
+
 registry = {str(k): v.DESCRIPTOR.full_name for k, v in ID_NAME_MAP.items()}
 functions = {str(k): v for k, v in FUNCTION_MAP.items()}
 meta = {"source": "numbers-parser", "version": version, "license": "MIT",
         "note": "machine-extracted by scripts/extract-numbers-schema.py — do not edit by hand"}
 (OUT / "registry.json").write_text(json.dumps({"_meta": meta, "types": registry}, indent=1, sort_keys=True) + "\n")
 (OUT / "functions.json").write_text(json.dumps({"_meta": meta, "functions": functions}, indent=1, sort_keys=True) + "\n")
+(OUT / "constants.json").write_text(json.dumps({"_meta": meta, "constants": constants}, indent=1, sort_keys=True) + "\n")
 (OUT / "schema.json").write_text(json.dumps({"_meta": meta, "messages": messages, "enums": enums}, indent=1, sort_keys=True) + "\n")
-print(f"numbers-parser {version}: {len(registry)} registry types, {len(functions)} functions, {len(messages)} messages, {len(enums)} enums → {OUT}")
+print(f"numbers-parser {version}: {len(registry)} registry types, {len(functions)} functions, {len(messages)} messages, "
+      f"{len(enums)} enums, {len(constants)} constant groups → {OUT}")

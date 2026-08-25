@@ -1,0 +1,70 @@
+{
+ "_meta": {
+  "license": "MIT",
+  "note": "machine-extracted by scripts/extract-numbers-schema.py \u2014 do not edit by hand",
+  "source": "numbers-parser",
+  "version": "4.16.3"
+ },
+ "constants": {
+  "CellPadding": {
+   "SPACE": 1,
+   "ZERO": 2
+  },
+  "CellType": {
+   "BOOL": 5,
+   "CURRENCY": 101,
+   "DATE": 4,
+   "DURATION": 6,
+   "EMPTY": 1,
+   "ERROR": 7,
+   "MERGED": 102,
+   "NUMBER": 2,
+   "RICH_TEXT": 8,
+   "TEXT": 3
+  },
+  "DurationStyle": {
+   "COMPACT": 0,
+   "LONG": 2,
+   "SHORT": 1
+  },
+  "DurationUnits": {
+   "DAY": 2,
+   "HOUR": 4,
+   "MILLISECOND": 32,
+   "MINUTE": 8,
+   "NONE": 0,
+   "SECOND": 16,
+   "WEEK": 1
+  },
+  "FormatType": {
+   "BASE": 269,
+   "BOOLEAN": 1,
+   "CHECKBOX": 263,
+   "CURRENCY": 257,
+   "CUSTOM_CURRENCY": 274,
+   "CUSTOM_DATE": 272,
+   "CUSTOM_NUMBER": 270,
+   "CUSTOM_TEXT": 271,
+   "DATE": 261,
+   "DECIMAL": 256,
+   "DURATION": 268,
+   "FRACTION": 262,
+   "PERCENT": 258,
+   "RATING": 267,
+   "SCIENTIFIC": 259,
+   "TEXT": 260
+  },
+  "HorizontalJustification": {
+   "AUTO": 4,
+   "CENTER": 2,
+   "JUSTIFIED": 3,
+   "LEFT": 0,
+   "RIGHT": 1
+  },
+  "VerticalJustification": {
+   "BOTTOM": 2,
+   "MIDDLE": 1,
+   "TOP": 0
+  }
+ }
+}

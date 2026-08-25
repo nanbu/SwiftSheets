@@ -4,6 +4,9 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
 
 1. numbers-parser (https://github.com/masaccio/numbers-parser), MIT License, Copyright 2021 Jon Connell.
    Used, unmodified or machine-derived, for Apple Numbers support (spec chapters 10–11, Appendix B.8):
+   - Sources/SheetNumbers/Resources/constants.json — the integer constants Apple declared as plain int32 in the
+     Protobuf, so the schema carries no names for them (number-format kinds, text alignment, duration styles),
+     extracted from numbers_parser.constants / numbers_parser.cell
    - Sources/SheetNumbers/Resources/registry.json — the IWA type-id → message-name registry (numbers-parser
      `generated/mapping.py`), extracted by scripts/extract-numbers-schema.py
    - Sources/SheetNumbers/Resources/functions.json — the Numbers function-id → name table (`generated/functionmap.py`)

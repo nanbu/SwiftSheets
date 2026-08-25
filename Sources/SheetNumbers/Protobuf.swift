@@ -250,7 +250,8 @@ struct ProtoMessage: Hashable {
     }
 }
 
-/// The machine-extracted schema (Sources/SheetNumbers/Resources/schema.json, registry.json, functions.json — see NOTICE).
+/// The machine-extracted schema (Sources/SheetNumbers/Resources/schema.json, registry.json, functions.json,
+/// constants.json — see NOTICE).
 final class NumbersSchema: Sendable {
     struct FieldInfo: Sendable { let name: String; let number: Int; let type: String; let typeName: String?; let repeated: Bool }
     static let shared = NumbersSchema()
@@ -263,6 +264,9 @@ final class NumbersSchema: Sendable {
     let registryByName: [String: Int]
     /// Numbers function id → name.
     let functions: [Int: String]
+    /// The integer constants Apple left unnamed in the Protobuf (number-format kinds, alignment, duration styles),
+    /// recovered by numbers-parser: group name → case name → value.
+    let constants: [String: [String: Int]]
     let sourceVersion: String
 
     private init() {
@@ -289,6 +293,7 @@ final class NumbersSchema: Sendable {
         for (k, v) in reg { if let i = Int(k) { r[i] = v } }
         registry = r
         registryByName = Dictionary(r.map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+        constants = (load("constants")["constants"] as? [String: [String: Int]]) ?? [:]
         let fn = load("functions")["functions"] as? [String: String] ?? [:]
         var f: [Int: String] = [:]
         for (k, v) in fn { if let i = Int(k) { f[i] = v } }
@@ -302,4 +307,7 @@ final class NumbersSchema: Sendable {
     func enumValue(_ enumName: String, _ caseName: String) -> Int? { enums[enumName]?[caseName] }
     func enumCase(_ enumName: String, _ value: Int) -> String? { enums[enumName]?.first { $0.value == value }?.key }
     func knows(_ message: String) -> Bool { fieldsByName[message] != nil }
+    /// A named constant of `constants.json`, e.g. `constant("FormatType", "PERCENT")`.
+    func constant(_ group: String, _ name: String) -> Int? { constants[group]?[name] }
+    func constantName(_ group: String, _ value: Int) -> String? { constants[group]?.first { $0.value == value }?.key }
 }
