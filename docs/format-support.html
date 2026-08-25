@@ -114,7 +114,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   元と比べる</strong>。○ は戻ってきたもの、× は戻らなかったもの、△ は形を変えて戻ってきたものです。
 </p>
 <p>
-  同じ計測はリポジトリのテストからも回せます。数字が古くなったら、テストが先に赤くなります。
+  この計測そのものがリポジトリのテストです（<code>FormatSupportTests</code>）。40 項目の生存と、
+  各形式が返す警告の数を固定してあるので、<strong>コーデックを直してこの表が古くなったら、テストが先に赤くなります。</strong>
 </p>
 
 <div class="grid">
@@ -215,8 +216,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>数式</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
   <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。<strong>Numbers は読めるが書けない</strong> — 書くときはキャッシュ値になり、警告が出ます</td></tr>
 <tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は起点セルの <code>table:number-matrix-*-spanned</code></td></tr>
-<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
-  <td>ODS は <code>text:span</code>。Numbers は読むときに平文へ落とします</td></tr>
+<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODS は <code>text:span</code>。Numbers は読み書きとも平文になります（警告あり）</td></tr>
 <tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
   <td><strong>Numbers は読めるが書けない</strong>。Numbers のリンクは文字列の「範囲」に付くので、1 セルに複数あり得ます（先頭を採り、その旨を警告）</td></tr>
 <tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は <code>office:annotation</code></td></tr>
@@ -401,7 +402,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 1 件・ODS 6 件・Numbers 19 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 1 件・ODS 8 件・Numbers 20 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -460,9 +461,10 @@ for warning in result.warnings {
 <section>
 <h2>この表を自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
-<pre><code>swift test                    # 782 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
-swift test --filter ODS        # ODS の条件付き書式・入力規則・印刷設定・ピボット表
-swift test --filter Numbers    # Numbers のセル書式（numbers-parser の期待値と突き合わせ）</code></pre>
+<pre><code>swift test                          # 784 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
+swift test --filter FormatSupport   # <strong>この表そのもの</strong>。40 項目の生存と警告の数を固定している
+swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表
+swift test --filter Numbers         # Numbers のセル書式（numbers-parser の期待値と突き合わせ）</code></pre>
 <p class="meta">
   実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B.16 に、
   リリース前に人が手で確かめる項目は <code>MAINTENANCE.md</code> にあります。

@@ -337,7 +337,7 @@ struct NumbersWriter {
         // cell records per row, with the styles and number formats they name
         var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: cols), count: rows)
         var styleWriter = NumbersStyleWriter(doc: doc, model: model)
-        var hyperlinkCount = 0, noteCount = 0
+        var hyperlinkCount = 0, noteCount = 0, richTextCount = 0
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
             guard var value = cell.value else { continue }
             if case .formula(_, let cached) = value {
@@ -347,6 +347,7 @@ struct NumbersWriter {
             }
             if cell.hyperlink != nil { hyperlinkCount += 1 }
             if cell.comment != nil { noteCount += 1 }
+            if case .richText = value { richTextCount += 1 }
             let style = cell.style
             let keys = try styleWriter.keys(for: style)
             let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
@@ -356,6 +357,10 @@ struct NumbersWriter {
         if hyperlinkCount > 0 {
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
                                               message: "\(hyperlinkCount) hyperlink(s) dropped: a Numbers link lives in a rich-text run, which this writer does not generate"))
+        }
+        if richTextCount > 0 {
+            warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheetName,
+                                              message: "\(richTextCount) rich-text cell(s) written as plain text: a run of its own formatting inside one cell needs a Numbers rich-text payload, which this writer does not generate"))
         }
         if noteCount > 0 {
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
