@@ -36,6 +36,8 @@ struct NumbersReader {
                 guard let model = doc.object(tid) else { continue }
                 let name = sheetName + "::" + (model.string("table_name") ?? "Table")
                 if let hex = NumbersUUID.hex(model.message("haunted_owner")?.message("owner_uid")) { tableUUIDToName[hex] = name }
+                // …and by the identifier a cross-table reference actually names it by
+                if let id = model.string("table_id"), let hex = NumbersUUID.hex(NumbersUUID.cfuuid(fromString: id)) { tableUUIDToName[hex] = name }
             }
         }
         // FormulaOwnerDependencies map formula-owner UUIDs to base-owner UUIDs; cross references use the base owner

@@ -257,12 +257,13 @@ import SwiftSheets
     }
 
     /// The same list of formulas, read by numbers-parser rather than by us, is in Tests/NumbersParity.
-    /// What has no shape in the corpus is never invented: it keeps the cached value and says which part stopped it.
+    /// What has no shape in the corpus — or no table to point at — is never invented: the cell keeps its cached
+    /// value and the warning says which part stopped it.
     @Test func unwritableFormulasKeepTheirCachedValue() throws {
         var wb = Workbook()
         wb.addSheet(named: "Other")
         var sheet = wb.sheets[0]
-        sheet[cell: "A1"].value = .formula(FormulaExpr.parse("Other!A1"), cached: .integer(1))
+        sheet[cell: "A1"].value = .formula(FormulaExpr.parse("Missing!A1"), cached: .integer(1))
         sheet[cell: "A2"].value = .formula(FormulaExpr.parse("Rate*2"), cached: .integer(2))
         sheet[cell: "A3"].value = .formula(FormulaExpr.parse("NOSUCHFUNCTION(1)"), cached: .integer(3))
         sheet[cell: "A4"].value = .formula(FormulaExpr.parse("SUM(A1:A2 B1:B2)"), cached: .integer(4))
@@ -271,7 +272,7 @@ import SwiftSheets
         let result = try wb.write(as: .numbers)
         let reasons = result.warnings.filter { $0.subject == .formulas }.map(\.message)
         #expect(reasons.count == 5, "\(reasons)")
-        #expect(reasons.contains { $0.contains("another table") })
+        #expect(reasons.contains { $0.contains("no table is named Missing") })
         #expect(reasons.contains { $0.contains("defined names") })
         #expect(reasons.contains { $0.contains("no function") })
         #expect(reasons.contains { $0.contains("could not be parsed") })

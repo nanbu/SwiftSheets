@@ -22,6 +22,8 @@ struct NumbersWriter {
     private let templateTableModel: Int
     /// Identifiers of objects cloned per table; kept so a sheet clone knows what belongs to its table.
     private var calcEngineID: Int
+    /// "Sheet::Table" → the identifier a cross-table reference names it by.
+    private var tableUUIDs: [String: ProtoMessage] = [:]
 
     init(workbook: Workbook, options: WriteOptions) throws {
         self.workbook = workbook
@@ -61,6 +63,22 @@ struct NumbersWriter {
         // and cannot make sense of (Appendix B.18).
         var sheetIDs: [Int] = [templateSheet]
         for _ in 1..<workbook.sheets.count { sheetIDs.append(try cloneSheet()) }
+        // …and every table before any cell is written, so that a formula on one table can name another: a
+        // cross-table reference carries the target's UUID, which does not exist until the table does (B.18).
+        var tableInfos: [Int: [Int]] = [:]
+        for (i, sheet) in workbook.sheets.enumerated() {
+            let sid = sheetIDs[i]
+            var infos = doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" } ?? []
+            let wanted = Swift.max(1, sheet.tables.count)
+            while infos.count < wanted { infos.append(try cloneTable(from: infos[0], intoSheet: sid)) }
+            tableInfos[sid] = infos
+            let tables = sheet.tables.isEmpty ? [Table()] : sheet.tables
+            for (t, table) in tables.enumerated() {
+                guard let model = doc.object(infos[t])?.reference("tableModel"),
+                      let uuid = tableReferenceUUID(ofTableModel: model) else { continue }
+                tableUUIDs[sheet.name + "::" + (table.name ?? "Table \(t + 1)")] = uuid
+            }
+        }
         for (i, sheet) in workbook.sheets.enumerated() {
             let sid = sheetIDs[i]
             doc.update(sid) { $0.set("name", string: sheet.name) }
@@ -105,12 +123,11 @@ struct NumbersWriter {
             if sheet.tables.contains(where: { table in table.rowDimensions.values.contains { $0.outlineLevel > 0 } || table.columnDimensions.values.contains { $0.outlineLevel > 0 } }) {
                 warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "row / column grouping is dropped: Numbers groups by category, not by outline level"))
             }
-            var infos = doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" } ?? []
+            let infos = tableInfos[sid] ?? []
             let tables = sheet.tables.isEmpty ? [Table()] : sheet.tables
             var y = 0.0
             for (t, table) in tables.enumerated() {
-                let info: Int
-                if t < infos.count { info = infos[t] } else { info = try cloneTable(from: infos[0], intoSheet: sid); infos.append(info) }
+                let info = infos[t]
                 let name = table.name ?? "Table \(t + 1)"
                 let size = try patch(tableInfo: info, with: table, name: name, sheetName: sheet.name,
                                      conditionalFormats: t == 0 ? sheet.conditionalFormatting : [])
@@ -321,6 +338,14 @@ struct NumbersWriter {
         }
     }
 
+    /// The identifier a cross-table reference names the table by — its `table_id` string, not its
+    /// `haunted_owner` and not its dependency group's base owner. Numbers reads a reference carrying either of
+    /// those as `#REF!`, which is how this was found (Appendix B.18).
+    private func tableReferenceUUID(ofTableModel model: Int) -> ProtoMessage? {
+        guard let id = doc.object(model)?.string("table_id") else { return nil }
+        return NumbersUUID.cfuuid(fromString: id)
+    }
+
     private mutating func cloneSheet() throws -> Int {
         let map = try clone(root: templateSheet)
         guard let new = map[templateSheet] else { throw SheetError.malformedPart(path: "empty.numbers", detail: "the template's sheet could not be copied") }
@@ -381,7 +406,15 @@ struct NumbersWriter {
 
         // formulas → the table's own formula list, the same shape as the string list. A formula the encoder has no
         // observed spelling for keeps the old behaviour: its cached value, and a warning saying which part stopped it.
-        var formulaEncoder = NumbersFormulaEncoder(hostTable: sheetName + "::" + name)
+        // A formula may name another table by the sheet ("Other!A1"), by the table ("'Table 2'!A1") or by both
+        // ("'Other::Table 1'!A1"). All three are tried, in that order of exactness.
+        let names = tableUUIDs
+        var formulaEncoder = NumbersFormulaEncoder(hostTable: sheetName + "::" + name) { wanted in
+            if let exact = names[wanted] { return exact }
+            if let bySheet = names.keys.filter({ $0.hasPrefix(wanted + "::") }).sorted().first { return names[bySheet] }
+            if let byTable = names.keys.filter({ $0.hasSuffix("::" + wanted) }).sorted().first { return names[byTable] }
+            return nil
+        }
         var formulaEntries: [ProtoMessage] = []
         var formulaKeys: [Data: Int] = [:]
         var formulaRefcounts: [Int: Int] = [:]

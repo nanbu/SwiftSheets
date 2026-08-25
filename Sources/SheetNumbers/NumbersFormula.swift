@@ -145,12 +145,16 @@ struct NumbersFormulaDecoder {
 struct NumbersFormulaEncoder {
     private let schema = NumbersSchema.shared
     private let nodeTypes: [String: Int]
-    /// The table the formula lives in, as `Sheet::Table`; a reference naming anything else cannot be written yet.
+    /// The table the formula lives in, as `Sheet::Table`.
     let hostTable: String
+    /// The UUID of a table a reference names, as `TSP.CFUUIDArchive`. A reference to a table this cannot find is
+    /// refused rather than written pointing nowhere.
+    let tableUUID: (String) -> ProtoMessage?
     private(set) var problems: [String] = []
 
-    init(hostTable: String) {
+    init(hostTable: String, tableUUID: @escaping (String) -> ProtoMessage? = { _ in nil }) {
         self.hostTable = hostTable
+        self.tableUUID = tableUUID
         nodeTypes = NumbersSchema.shared.enums["TSCE.ASTNodeArrayArchive.ASTNodeType"] ?? [:]
     }
 
@@ -197,20 +201,23 @@ struct NumbersFormulaEncoder {
         case .missing:
             nodes.append(node("EMPTY_ARGUMENT_NODE"))
         case .ref(let ref, let sheet, let absRow, let absCol):
-            guard sameTable(sheet) else { return fail("a reference to \(sheet ?? "?") is on another table") }
+            guard let extra = crossTable(sheet) else { return fail("no table is named \(sheet ?? "?")") }
             var n = node("CELL_REFERENCE_NODE")
             n.set("AST_row", message: rowCoordinate(ref.row, absolute: absRow, host: row))
             n.set("AST_column", message: columnCoordinate(ref.col, absolute: absCol, host: col))
+            if case .other(let info) = extra { n.set("AST_cross_table_reference_extra_info", message: info) }
             nodes.append(n)
         case .column(let index, let sheet, let abs):
-            guard sameTable(sheet) else { return fail("a reference to \(sheet ?? "?") is on another table") }
+            guard let extra = crossTable(sheet) else { return fail("no table is named \(sheet ?? "?")") }
             var n = node("CELL_REFERENCE_NODE")
             n.set("AST_column", message: columnCoordinate(index, absolute: abs, host: col))
+            if case .other(let info) = extra { n.set("AST_cross_table_reference_extra_info", message: info) }
             nodes.append(n)
         case .row(let index, let sheet, let abs):
-            guard sameTable(sheet) else { return fail("a reference to \(sheet ?? "?") is on another table") }
+            guard let extra = crossTable(sheet) else { return fail("no table is named \(sheet ?? "?")") }
             var n = node("CELL_REFERENCE_NODE")
             n.set("AST_row", message: rowCoordinate(index, absolute: abs, host: row))
+            if case .other(let info) = extra { n.set("AST_cross_table_reference_extra_info", message: info) }
             nodes.append(n)
         case .range(let a, let b):
             // A whole column or row is one node in Numbers, not two bound with a colon: `A:A` comes back from the
@@ -273,10 +280,20 @@ struct NumbersFormulaEncoder {
         return true
     }
 
-    /// A formula may name its own table (`'Sheet::Table'!A1`) — that is still a local reference.
-    private func sameTable(_ sheet: String?) -> Bool {
-        guard let sheet else { return true }
-        return sheet == hostTable || sheet == hostTable.components(separatedBy: "::").last
+    /// What a reference has to carry to name a table: nothing when it is the formula's own table, and the target's
+    /// UUID when it is another. `nil` means no such table, which is a reference that cannot be written.
+    ///
+    /// The coordinates stay **relative to the cell holding the formula** even when the reference crosses tables —
+    /// that is what Numbers writes, however odd it reads (Appendix B.18).
+    private enum Target { case ownTable, other(ProtoMessage) }
+
+    private func crossTable(_ sheet: String?) -> Target? {
+        guard let sheet else { return .ownTable }
+        if sheet == hostTable || sheet == hostTable.components(separatedBy: "::").last { return .ownTable }
+        guard let uuid = tableUUID(sheet) else { return nil }
+        var extra = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTCrossTableReferenceExtraInfoArchive")
+        extra.set("table_id", message: uuid)
+        return .other(extra)
     }
 
     private func rowCoordinate(_ index: Int, absolute: Bool, host: Int) -> ProtoMessage {

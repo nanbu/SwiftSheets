@@ -25,6 +25,22 @@ enum NumbersUUID {
         return m
     }
 
+    /// A table's `table_id` string as the `TSP.CFUUIDArchive` a cross-table reference names it by: the UUID's
+    /// sixteen bytes read as four little-endian words. This is the identifier Numbers resolves such a reference
+    /// through — neither the table's `haunted_owner` nor its dependency group's base owner (Appendix B.18).
+    static func cfuuid(fromString string: String) -> ProtoMessage? {
+        guard let u = UUID(uuidString: string) else { return nil }
+        let t = u.uuid
+        let bytes = [t.0, t.1, t.2, t.3, t.4, t.5, t.6, t.7, t.8, t.9, t.10, t.11, t.12, t.13, t.14, t.15]
+        var m = ProtoMessage(typeName: "TSP.CFUUIDArchive")
+        for (i, name) in ["uuid_w0", "uuid_w1", "uuid_w2", "uuid_w3"].enumerated() {
+            var v: UInt64 = 0
+            for k in 0..<4 { v |= UInt64(bytes[i * 4 + k]) << (8 * UInt64(k)) }
+            m.set(name, uint: v)
+        }
+        return m
+    }
+
     /// A fresh random UUID as `TSP.UUID` / `TSP.CFUUIDArchive` messages and as the `table_id` string form.
     static func random() -> (uuid: ProtoMessage, cfuuid: ProtoMessage, string: String) {
         let u = UUID().uuid
