@@ -211,6 +211,7 @@ enum ODSWriter {
         // one `style:map`, the options of a protected sheet) is written here, as every current application does.
         "calcext": "urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0",
         "loext": "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0",
+        "tableooo": "http://openoffice.org/2009/table",
     ]
     static func ns(_ prefixes: [String]) -> String { prefixes.map { " xmlns:\($0)=\"\(namespaces[$0]!)\"" }.joined() }
 
@@ -240,8 +241,9 @@ enum ODSWriter {
         }
         body += namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name)
         body += databaseRangesXML(wb, sink: sink)
+        body += ODSPivot.xml(wb, sink: sink)
 
-        var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of", "calcext", "loext"]) + " office:version=\"1.3\">"
+        var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of", "calcext", "loext", "tableooo"]) + " office:version=\"1.3\">"
         content += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
         content += "<office:automatic-styles>" + styles.xml() + "</office:automatic-styles>"
         content += "<office:body><office:spreadsheet>" + body + "</office:spreadsheet></office:body></office:document-content>"
@@ -251,9 +253,6 @@ enum ODSWriter {
         for sheet in wb.sheets {
             if sheet.hasUnmodelledFilters {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "an auto-filter the model could not read is dropped: ODS is regenerated, not patched")
-            }
-            if !sheet.pivotTables.isEmpty {
-                sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.pivotTables.count) pivot table(s) dropped: ODF data pilots are not written")
             }
             if !sheet.scenarios.isEmpty {
                 sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.scenarios.count) scenario(s) dropped: this writer does not emit ODF scenario tables")

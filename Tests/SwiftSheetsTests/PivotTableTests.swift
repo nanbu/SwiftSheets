@@ -147,12 +147,30 @@ import SwiftSheets
         #expect(try !Package.part("xl/_rels/workbook.xml.rels", of: out).contains("pivot"))
     }
 
-    /// Converting to a format without pivot tables says so.
-    @Test func odsReportsTheLoss() throws {
+    /// ODF calls a pivot table a data pilot. The layout travels; the numbers are the application's to compute,
+    /// exactly as for XLSX.
+    @Test func odsWritesADataPilot() throws {
         var wb = Self.sales()
         wb.addPivotTable(named: "集計", to: "Pivot", at: CellRef("A3")!, summarizing: CellRange("A1:D4")!, on: "Data",
-                         rows: ["Item"], values: [("Qty", .sum)])
+                         rows: ["Item"], columns: ["Region"], values: [("Qty", .sum)])
         let result = try wb.write(as: .ods)
-        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("pivot") })
+        #expect(!result.warnings.contains { $0.kind == .dropped && $0.message.contains("pivot") })
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("recomputed when the file is opened") })
+
+        let xml = try Package.part("content.xml", of: result.data)
+        #expect(xml.contains("<table:data-pilot-tables>"))
+        #expect(xml.contains(#"table:source-field-name="Item" table:orientation="row""#))
+        #expect(xml.contains(#"table:orientation="data" table:used-hierarchy="-1" table:function="sum""#))
+
+        let back = try Workbook(data: result.data)
+        let pivot = try #require(back.sheets["Pivot"]?.pivotTables.first)
+        #expect(pivot.name == "集計")
+        #expect(pivot.cache.sourceSheet == "Data")
+        #expect(pivot.cache.sourceRef == CellRange("A1:D4"))
+        #expect(pivot.cache.fields.map(\.name) == wb.sheets["Pivot"]!.pivotTables[0].cache.fields.map(\.name))
+        #expect(pivot.rowFields == wb.sheets["Pivot"]!.pivotTables[0].rowFields)
+        #expect(pivot.columnFields == wb.sheets["Pivot"]!.pivotTables[0].columnFields)
+        #expect(pivot.dataFields.map(\.function) == [.sum])
+        #expect(pivot.validationError() == nil)
     }
 }

@@ -42,6 +42,12 @@ enum ODSReader {
                   let master = catalog.masterPages[name] else { continue }
             ODSPageStyles.apply(master: master, layout: master.layout.flatMap { catalog.pageLayouts[$0] }, to: &sheetsRead[i])
         }
+        // data pilots become the pivot tables of the sheet they are drawn on
+        for parsed in content.dataPilots {
+            guard let target = parsed.target?.sheet, let i = sheetsRead.firstIndex(where: { $0.name == target }),
+                  let pivot = ODSPivot.pivotTable(parsed) else { continue }
+            sheetsRead[i].pivotTables.append(pivot)
+        }
         // database ranges: a named one is an Excel table, the anonymous one is the sheet's auto-filter
         for entry in content.databaseRanges {
             guard let target = entry.range.sheet, let i = sheetsRead.firstIndex(where: { $0.name == target }) else { continue }
@@ -235,6 +241,11 @@ final class ContentParser: SAXHandler {
     /// True once this sheet has produced a `calcext:` block. LibreOffice writes both forms, and the `style:map`
     /// copy of the same rules would double every one of them.
     private var sheetHasCalcextFormats = false
+
+    // data pilots, held until the sheets are known
+    private var pilot: ODSPivot.Parsed?
+    private var pilotField: (name: String, orientation: String, function: String, displayName: String?)?
+    var dataPilots: [ODSPivot.Parsed] = []
 
     // the table style of the sheet being read, so its master page can be applied afterwards
     var tableStyleNames: [String] = []
@@ -431,7 +442,20 @@ final class ContentParser: SAXHandler {
             let col = range.minCol + field
             dbSort.append(SortCondition(range: CellRange(minRow: range.minRow, minCol: col, maxRow: range.maxRow, maxCol: col),
                                         descending: ODSAttr.get(a, "table:order") == "descending"))
-        case "frame", "shapes", "forms", "custom-shape", "control", "g", "data-pilot-tables", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
+        case "data-pilot-table":
+            var p = ODSPivot.Parsed()
+            p.name = ODSAttr.get(a, "table:name") ?? ""
+            p.target = ODSAttr.get(a, "table:target-range-address").flatMap { CellRange(ContentParser.excelAddress($0)) }
+            pilot = p
+        case "source-cell-range":
+            pilot?.source = ODSAttr.get(a, "table:cell-range-address").flatMap { CellRange(ContentParser.excelAddress($0)) }
+        case "data-pilot-field":
+            guard pilot != nil, let n = ODSAttr.get(a, "table:source-field-name") else { return }
+            pilotField = (n, ODSAttr.get(a, "table:orientation") ?? "hidden", ODSAttr.get(a, "table:function") ?? "auto",
+                          ODSAttr.get(a, "tableooo:display-name"))
+        case "source-service", "source-table", "data-pilot-groups":
+            skipDepth = 1                                    // sources the model has no word for
+        case "frame", "shapes", "forms", "custom-shape", "control", "g", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
             skipDepth = 1
         case _ where ContentParser.transparent.contains(name):
             if name == "table-row-group" { groupDepth += 1 }
@@ -501,6 +525,12 @@ final class ContentParser: SAXHandler {
             guard !cfRules.isEmpty, !cfRanges.isEmpty else { cfRules = []; return }
             sheet?.conditionalFormatting.append(ConditionalFormatting(ranges: cfRanges, rules: cfRules))
             cfRules = []
+        case "data-pilot-field":
+            if let f = pilotField { pilot?.fields.append(f) }
+            pilotField = nil
+        case "data-pilot-table":
+            if let p = pilot { dataPilots.append(p) }
+            pilot = nil
         case "filter": dbInFilter = false
         case "filter-or": dbOr = false
         case "filter-condition": filterSetTarget = nil

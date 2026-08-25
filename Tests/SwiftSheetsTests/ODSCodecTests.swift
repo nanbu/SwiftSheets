@@ -664,4 +664,41 @@ import SwiftSheets
         #expect(rule.formulas == ["1"])
         #expect(rule.style?.font?.color == Color(hex: "FF0000"))
     }
+
+    /// A data pilot LibreOffice itself wrote reads back as the same pivot table ours does.
+    @Test func libreOfficeDataPilotRoundTrip() throws {
+        var wb = Workbook()
+        wb.sheets[0].name = "Data"
+        wb.sheets[0].append([CellValue.text("Region"), .text("Product"), .text("Qty")])
+        for (i, r) in ["East", "West", "East"].enumerated() {
+            wb.sheets[0].append([CellValue.text(r), .text(i.isMultiple(of: 2) ? "A" : "B"), .integer(i + 1)])
+        }
+        wb.addSheet(named: "Pivot")
+        let placed = wb.addPivotTable(named: "PivotTable1", to: "Pivot", at: CellRef("A3")!,
+                                      summarizing: CellRange("A1:C4")!, on: "Data",
+                                      rows: ["Region"], columns: ["Product"], values: [("Qty", .sum)])
+        #expect(placed)
+        let ods = try ODSCodec.write(wb).data
+
+        try withKnownIssue("LibreOffice is not installed", isIntermittent: false) {
+            try #require(Self.hasLibreOffice)
+            let url = Self.tmp.appendingPathComponent("pilot.ods")
+            try ods.write(to: url)
+            // LibreOffice reads our data pilot and rebuilds an Excel pivot table from it
+            let (xlsx, _) = try convert(url, to: "xlsx")
+            let viaLO = try Data(contentsOf: xlsx)
+            #expect(try ZipInspection(data: viaLO).entryNames.contains { $0.hasPrefix("xl/pivotTables/pivotTable") })
+            // …and its own ODS of the same workbook reads back the way ours does
+            let (roundTrip, _) = try convert(xlsx, to: "ods")
+            let theirs = try ODSCodec.read(try Data(contentsOf: roundTrip)).workbook
+            let ours = try ODSCodec.read(ods).workbook
+            let a = try #require(ours.sheets["Pivot"]?.pivotTables.first)
+            let b = try #require(theirs.sheets["Pivot"]?.pivotTables.first)
+            #expect(a.cache.fields.map(\.name) == b.cache.fields.map(\.name))
+            #expect(a.rowFields == b.rowFields && a.columnFields == b.columnFields)
+            #expect(a.dataFields.map(\.function) == b.dataFields.map(\.function))
+        } when: {
+            !Self.hasLibreOffice
+        }
+    }
 }
