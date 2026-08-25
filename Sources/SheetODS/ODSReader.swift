@@ -35,7 +35,30 @@ enum ODSReader {
         try content.run(try zip.read("content.xml"), part: "content.xml")
         guard !content.sheets.isEmpty else { throw SheetError.invalidWorkbook("the spreadsheet has no tables") }
 
-        var wb = Workbook(sheets: content.sheets)
+        var sheetsRead = content.sheets
+        // print setup: each sheet's table style names the master page it prints with
+        for i in sheetsRead.indices where i < content.tableStyleNames.count {
+            guard let name = catalog.masterPage(ofTableStyle: content.tableStyleNames[i]),
+                  let master = catalog.masterPages[name] else { continue }
+            ODSPageStyles.apply(master: master, layout: master.layout.flatMap { catalog.pageLayouts[$0] }, to: &sheetsRead[i])
+        }
+        // database ranges: a named one is an Excel table, the anonymous one is the sheet's auto-filter
+        for entry in content.databaseRanges {
+            guard let target = entry.range.sheet, let i = sheetsRead.firstIndex(where: { $0.name == target }) else { continue }
+            var range = entry.range; range.sheet = nil
+            if entry.name.hasPrefix("__Anonymous_Sheet_DB__") {
+                sheetsRead[i].autoFilter = range
+                sheetsRead[i].filterColumns = entry.filters
+                if !entry.sort.isEmpty { sheetsRead[i].sortState = SortState(range: range, conditions: entry.sort) }
+            } else {
+                let header = (range.topLeft.col...range.bottomRight.col).map { sheetsRead[i][range.topLeft.row, $0] }
+                var table = ExcelTable(name: entry.name, ref: range, headerRow: header, styleInfo: nil)
+                if !entry.buttons { table.autoFilter = nil }
+                sheetsRead[i].excelTables.append(table)
+            }
+        }
+
+        var wb = Workbook(sheets: sheetsRead)
         wb.dataOnly = options.dataOnly
         wb.definedNames = content.definedNames
         wb.preserved.sourceFormat = .ods
@@ -98,7 +121,7 @@ final class StylesPartParser: SAXHandler {
     let catalog: ODSStyleCatalog
     private var depth = 0
     private var sectionDepth = 0
-    static let sections: Set<String> = ["font-face-decls", "styles", "automatic-styles"]
+    static let sections: Set<String> = ["font-face-decls", "styles", "automatic-styles", "master-styles"]
     init(catalog: ODSStyleCatalog) { self.catalog = catalog }
     func start(_ name: String, _ a: [String: String]) {
         depth += 1
@@ -152,6 +175,8 @@ final class ContentParser: SAXHandler {
     private var rowCells: [(col: Int, cell: Cell)] = []
     private var rowHasContent = false
     private var rowMerges: [(col: Int, cols: Int, rows: Int)] = []
+    private var rowMatrices: [(col: Int, cols: Int, rows: Int)] = []
+    private var rowHasValidation = false
     private var cellCursor = 0
 
     // cell state
@@ -168,6 +193,42 @@ final class ContentParser: SAXHandler {
     private var noteParagraphs: [String] = []
     private var noteAuthor = ""
     private var inCreator = false
+
+    // conditional formats (calcext)
+    private var cfRanges = MultiCellRange()
+    private var cfRules: [ConditionalFormattingRule] = []
+    private var cfPriority = 0
+    private var cfValues: [ConditionalValue] = []
+    private var cfColors: [Color] = []
+    private var cfBar: [String: String] = [:]
+    private var cfIcon: String?
+
+    // content validations
+    var validations: [String: ODSValidation.Parsed] = [:]
+    private var currentValidation: ODSValidation.Parsed?
+    private var validationMessage: String?
+    private var validationMessageText: [String] = []
+    /// validation name → the cells that named it, as row runs
+    private var validationCells: [String: [(row: Int, from: Int, to: Int)]] = [:]
+    private var rowValidations: [(name: String, from: Int, to: Int)] = []
+
+    // database ranges: filters and sort, held until the sheets are known
+    private var dbName: String?
+    private var dbRange: CellRange?
+    private var dbButtons = false
+    private var dbFilters: [FilterColumn] = []
+    private var dbSort: [SortCondition] = []
+    private var dbInFilter = false
+    private var dbOr = false
+    var databaseRanges: [(name: String, range: CellRange, buttons: Bool, filters: [FilterColumn], sort: [SortCondition])] = []
+
+    private var filterSetTarget: Int?
+    private var inValidationParagraph = false
+    /// A `calcext:` rule the model has no word for; the sheet says so with `hasUnmodelledConditionalFormats`.
+    private var unreadableConditionalFormat = false
+
+    // the table style of the sheet being read, so its master page can be applied afterwards
+    var tableStyleNames: [String] = []
 
     init(catalog: ODSStyleCatalog, dataOnly: Bool, cellLimit: Int) {
         self.catalog = catalog
@@ -187,9 +248,18 @@ final class ContentParser: SAXHandler {
             if inTable { skipDepth = 1; return }   // a sub-table inside a cell
             inTable = true
             var s = Sheet(name: ODSAttr.get(a, "table:name") ?? "Sheet\(sheets.count + 1)")
-            if catalog.isTableHidden(ODSAttr.get(a, "table:style-name")) { s.state = .hidden }
+            let styleName = ODSAttr.get(a, "table:style-name")
+            if catalog.isTableHidden(styleName) { s.state = .hidden }
+            tableStyleNames.append(styleName ?? "")
+            if ODSAttr.bool(a, "table:protected") == true { s.protection.enabled = true }
+            if let ranges = ODSAttr.get(a, "table:print-ranges") {
+                s.printArea = ranges.split(separator: " ").compactMap { CellRange(ContentParser.excelAddress(String($0))) }
+                    .map { var r = $0; r.sheet = nil; return r }
+            }
             sheet = s
             columnCursor = 0; rowCursor = 0; groupDepth = 0; columnDefaults = []
+            cfRules = []; cfRanges = MultiCellRange(); cfPriority = 0
+            validationCells = [:]
         case "table-column":
             guard inTable, !inRow else { return }
             let n = Swift.max(1, ODSAttr.int(a, "table:number-columns-repeated") ?? 1)
@@ -199,6 +269,9 @@ final class ContentParser: SAXHandler {
             let defaultCell = ODSAttr.get(a, "table:default-cell-style-name")
             if let d = defaultCell, d != "Default", columnCursor < ODSReader.maxColumns {
                 columnDefaults.append((columnCursor, Swift.min(columnCursor + n, ODSReader.maxColumns) - 1, d))
+            }
+            if catalog.hasBreakBefore(styleName, row: false), n < ODSReader.paddingRepeat, columnCursor < ODSReader.maxColumns {
+                sheet?.columnBreaks.append(columnCursor)
             }
             if n < ODSReader.paddingRepeat, width != nil || hidden || (defaultCell != nil && defaultCell != "Default") {
                 let style = defaultCell.flatMap { $0 == "Default" ? nil : catalog.cellStyle(named: $0) }
@@ -213,7 +286,9 @@ final class ContentParser: SAXHandler {
             rowRepeat = Swift.max(1, ODSAttr.int(a, "table:number-rows-repeated") ?? 1)
             rowStyle = ODSAttr.get(a, "table:style-name")
             rowHidden = ODSAttr.get(a, "table:visibility") == "collapse"
-            rowCells = []; rowMerges = []; rowHasContent = false; cellCursor = 0
+            rowCells = []; rowMerges = []; rowMatrices = []; rowHasContent = false; cellCursor = 0
+            rowValidations = []; rowHasValidation = false
+            if catalog.hasBreakBefore(rowStyle, row: true), rowCursor < ODSReader.maxRows { sheet?.rowBreaks.append(rowCursor) }
         case "table-cell", "covered-table-cell":
             guard inRow else { return }
             inCell = true
@@ -222,6 +297,7 @@ final class ContentParser: SAXHandler {
             paragraphs = []; paragraph = ""; inParagraph = false; hyperlink = nil
             inAnnotation = false; annotationSeen = false; noteParagraphs = []; noteAuthor = ""
         case "p":
+            if validationMessage != nil { inValidationParagraph = true; paragraph = ""; return }
             guard inCell else { return }
             inParagraph = true; paragraph = ""; lastWasCollapsibleSpace = true
         case "s":
@@ -243,21 +319,104 @@ final class ContentParser: SAXHandler {
         case "creator": if inAnnotation { inCreator = true; noteAuthor = "" }
         case "named-range":
             guard let n = ODSAttr.get(a, "table:name"), let addr = ODSAttr.get(a, "table:cell-range-address") else { return }
+            // ODF marks the printed rows / columns and the print range on the name itself
+            let usable = (ODSAttr.get(a, "table:range-usable-as") ?? "").split(separator: " ").map(String.init)
+            if !usable.isEmpty, usable != ["none"], inTable {
+                let excel = ContentParser.excelAddress(addr)
+                let cells = CellRange.splitSheetName(excel)?.cells ?? excel
+                if usable.contains("print-range"), var r = CellRange(cells) { r.sheet = nil; sheet?.printArea.append(r) }
+                if let b = RangeBounds(cells) {
+                    if usable.contains("repeat-row"), let lo = b.minRow, let hi = b.maxRow { sheet?.printTitleRows = lo...hi }
+                    if usable.contains("repeat-column"), let lo = b.minCol, let hi = b.maxCol { sheet?.printTitleColumns = lo...hi }
+                }
+                return
+            }
             addName(n, ContentParser.excelAddress(addr))
         case "named-expression":
             guard let n = ODSAttr.get(a, "table:name"), let expr = ODSAttr.get(a, "table:expression") else { return }
             let parsed = FormulaExpr.parse(expr, dialect: .ods)
             addName(n, parsed.isUnparsed ? expr : parsed.rendered(as: .xlsx))
-        case "database-range":
-            // LibreOffice stores an auto-filter as an anonymous database range with filter buttons
-            guard ODSAttr.get(a, "table:display-filter-buttons") == "true" || (ODSAttr.get(a, "table:name") ?? "").hasPrefix("__Anonymous_Sheet_DB__"),
-                  let address = ODSAttr.get(a, "table:target-range-address"),
-                  let range = CellRange(ContentParser.excelAddress(address)), let target = range.sheet else { return }
-            if let i = sheets.firstIndex(where: { $0.name == target }) {
-                var r = range; r.sheet = nil
-                sheets[i].autoFilter = r
+        case "content-validation":
+            guard let n = ODSAttr.get(a, "table:name") else { return }
+            currentValidation = ODSValidation.Parsed(name: n, condition: ODSAttr.get(a, "table:condition") ?? "",
+                                                    allowEmpty: ODSAttr.bool(a, "table:allow-empty-cell") ?? true,
+                                                    displayList: ODSAttr.get(a, "table:display-list"),
+                                                    baseAddress: ODSAttr.get(a, "table:base-cell-address"))
+        case "help-message", "error-message":
+            guard currentValidation != nil else { return }
+            validationMessage = name; validationMessageText = []
+            if name == "help-message" {
+                currentValidation!.helpTitle = ODSAttr.get(a, "table:title")
+                currentValidation!.showHelp = ODSAttr.bool(a, "table:display") ?? true
+            } else {
+                currentValidation!.errorTitle = ODSAttr.get(a, "table:title")
+                currentValidation!.errorType = ODSAttr.get(a, "table:message-type")
+                currentValidation!.showError = ODSAttr.bool(a, "table:display") ?? true
             }
-        case "frame", "shapes", "forms", "custom-shape", "control", "g", "content-validations", "data-pilot-tables", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
+        case "conditional-format":
+            cfRanges = MultiCellRange()
+            for part in (a["calcext:target-range-address"] ?? "").split(separator: " ") {
+                guard var r = CellRange(ContentParser.excelAddress(String(part))) else { continue }
+                r.sheet = nil
+                cfRanges.add(r)
+            }
+            cfValues = []; cfColors = []; cfBar = [:]; cfIcon = nil
+        case "condition":
+            guard let value = a["calcext:value"] else { return }
+            cfPriority += 1
+            let style = catalog.differentialStyle(named: a["calcext:apply-style-name"])
+            let anchor = a["calcext:base-cell-address"].map { ContentParser.internalTarget($0) }
+                .flatMap { $0.split(separator: "!").last.map(String.init) } ?? (cfRanges.sorted.first?.topLeft.a1 ?? "A1")
+            if let rule = ODSCondition.rule(from: value, style: style, priority: cfPriority, anchor: anchor) { cfRules.append(rule) }
+            else { unreadableConditionalFormat = true }
+        case "date-is":
+            guard let period = a["calcext:date"].flatMap(ODSCondition.timePeriod) else { unreadableConditionalFormat = true; return }
+            cfPriority += 1
+            var rule = ConditionalFormattingRule(kind: .timePeriod, priority: cfPriority,
+                                                 style: catalog.differentialStyle(named: a["calcext:style"]))
+            rule.timePeriod = period
+            cfRules.append(rule)
+        case "color-scale", "data-bar", "icon-set":
+            cfValues = []; cfColors = []
+            if name == "data-bar" { cfBar = a }
+            if name == "icon-set" { cfIcon = a["calcext:icon-set-type"] }
+        case "color-scale-entry", "formatting-entry":
+            let kind = ODSCondition.valueKind(a["calcext:type"] ?? "number")
+            cfValues.append(ConditionalValue(kind, kind == .min || kind == .max ? nil : a["calcext:value"]))
+            if let c = a["calcext:color"] { cfColors.append(Color(hex: c)) }
+        case "database-range":
+            dbName = ODSAttr.get(a, "table:name")
+            dbButtons = ODSAttr.get(a, "table:display-filter-buttons") == "true"
+            dbRange = ODSAttr.get(a, "table:target-range-address").flatMap { CellRange(ContentParser.excelAddress($0)) }
+            dbFilters = []; dbSort = []; dbInFilter = false; dbOr = false
+        case "filter": dbInFilter = true
+        case "filter-or": if dbInFilter { dbOr = true }
+        case "filter-condition":
+            guard dbInFilter, let field = ODSAttr.int(a, "table:field-number") else { return }
+            let op = ODSAttr.get(a, "table:operator") ?? "="
+            let value = ODSAttr.get(a, "table:value") ?? ""
+            if let i = dbFilters.firstIndex(where: { $0.column == field }) {
+                dbFilters[i].conditions.append(FilterCondition(ContentParser.comparison(op), value))
+                dbFilters[i].matchesAllConditions = !dbOr
+            } else {
+                var column = FilterColumn(column: field)
+                if let c = ContentParser.top10(op, value) { column.top10 = c }
+                else { column.conditions = [FilterCondition(ContentParser.comparison(op), value)] }
+                dbFilters.append(column)
+            }
+            filterSetTarget = field
+        case "filter-set-item":
+            guard let field = filterSetTarget, let i = dbFilters.firstIndex(where: { $0.column == field }) else { return }
+            let v = ODSAttr.get(a, "table:value") ?? ""
+            dbFilters[i].conditions = []
+            dbFilters[i].matchesAllConditions = false
+            if v.isEmpty { dbFilters[i].includesBlanks = true } else { dbFilters[i].values.append(v) }
+        case "sort-by":
+            guard let field = ODSAttr.int(a, "table:field-number"), let range = dbRange else { return }
+            let col = range.minCol + field
+            dbSort.append(SortCondition(range: CellRange(minRow: range.minRow, minCol: col, maxRow: range.maxRow, maxCol: col),
+                                        descending: ODSAttr.get(a, "table:order") == "descending"))
+        case "frame", "shapes", "forms", "custom-shape", "control", "g", "data-pilot-tables", "calculation-settings", "tracked-changes", "label-ranges", "consolidation", "dde-links", "detective":
             skipDepth = 1
         case _ where ContentParser.transparent.contains(name):
             if name == "table-row-group" { groupDepth += 1 }
@@ -268,6 +427,7 @@ final class ContentParser: SAXHandler {
     func text(_ s: String) {
         if sectionDepth > 1 { catalog.text(s); return }
         guard skipDepth == 0 else { return }
+        if validationMessage != nil, inValidationParagraph { paragraph += s; return }
         if inCreator { noteAuthor += s; return }
         guard inParagraph, !s.isEmpty else { return }
         // ODF 6.1.2: character-data white space collapses to one space, and leading white space is ignored
@@ -295,9 +455,45 @@ final class ContentParser: SAXHandler {
         if skipDepth > 0 { skipDepth -= 1; return }
         switch name {
         case "p":
+            if validationMessage != nil, inValidationParagraph { inValidationParagraph = false; validationMessageText.append(paragraph); return }
             guard inParagraph else { return }
             inParagraph = false
             if inAnnotation { noteParagraphs.append(paragraph) } else { paragraphs.append(paragraph) }
+        case "help-message", "error-message":
+            guard currentValidation != nil, validationMessage == name else { return }
+            let text = validationMessageText.joined(separator: "\n")
+            if name == "help-message" { currentValidation!.help = text.isEmpty ? nil : text }
+            else { currentValidation!.error = text.isEmpty ? nil : text }
+            validationMessage = nil
+        case "content-validation":
+            if let v = currentValidation { validations[v.name] = v }
+            currentValidation = nil
+        case "conditional-format":
+            defer { cfValues = []; cfColors = []; cfBar = [:]; cfIcon = nil }
+            if let icon = cfIcon {
+                cfPriority += 1
+                cfRules.append(.iconSet(IconSet(name: icon, values: cfValues, percent: cfValues.allSatisfy { $0.kind == .percent }), priority: cfPriority))
+            } else if !cfBar.isEmpty, cfValues.count >= 2 {
+                cfPriority += 1
+                let colour = cfBar["calcext:positive-color"].map { Color(hex: $0) } ?? Color(hex: "638EC6")
+                cfRules.append(.dataBar(DataBar(color: colour, minimum: cfValues[0], maximum: cfValues[1],
+                                                minLength: cfBar["calcext:min-length"].flatMap { Int($0) },
+                                                maxLength: cfBar["calcext:max-length"].flatMap { Int($0) }), priority: cfPriority))
+            } else if !cfColors.isEmpty, cfColors.count == cfValues.count {
+                cfPriority += 1
+                cfRules.append(.colorScale(ColorScale(values: cfValues, colors: cfColors), priority: cfPriority))
+            }
+            guard !cfRules.isEmpty, !cfRanges.isEmpty else { cfRules = []; return }
+            sheet?.conditionalFormatting.append(ConditionalFormatting(ranges: cfRanges, rules: cfRules))
+            cfRules = []
+        case "filter": dbInFilter = false
+        case "filter-or": dbOr = false
+        case "filter-condition": filterSetTarget = nil
+        case "database-range":
+            if let name = dbName, let range = dbRange {
+                databaseRanges.append((name, range, dbButtons, dbFilters, dbSort))
+            }
+            dbName = nil; dbRange = nil; dbFilters = []; dbSort = []
         case "creator": inCreator = false
         case "annotation": inAnnotation = false
         case "table-cell", "covered-table-cell":
@@ -323,6 +519,14 @@ final class ContentParser: SAXHandler {
                 warnings.append(ConversionWarning(.degraded, sheet: sheet?.name,
                                                   message: "the repeated rows / cells of this sheet describe more than \(cellLimit) cells; reading stopped there"))
             }
+            // the rules are declared once for the document; the cells that named them are this sheet's
+            for (name, runs) in validationCells.sorted(by: { $0.key < $1.key }) {
+                guard let parsed = validations[name] else { continue }
+                sheet?.dataValidations.append(ODSValidation.validation(parsed, ranges: ContentParser.ranges(of: runs)))
+            }
+            validationCells = [:]
+            if unreadableConditionalFormat { sheet?.hasUnmodelledConditionalFormats = true }
+            unreadableConditionalFormat = false
             if let s = sheet { sheets.append(s) }
             sheet = nil
         case "table-row-group": groupDepth = Swift.max(0, groupDepth - 1)
@@ -365,8 +569,16 @@ final class ContentParser: SAXHandler {
         let colSpan = intAttr(a, "table:number-columns-spanned") ?? 1
         let rowSpan = intAttr(a, "table:number-rows-spanned") ?? 1
         if colSpan > 1 || rowSpan > 1 { rowMerges.append((cellCursor, colSpan, rowSpan)) }
+        // an array formula: ODF puts the span on the cell that holds it
+        let matrixCols = intAttr(a, "table:number-matrix-columns-spanned") ?? 0
+        let matrixRows = intAttr(a, "table:number-matrix-rows-spanned") ?? 0
+        if matrixCols > 0, matrixRows > 0 { rowMatrices.append((cellCursor, matrixCols, matrixRows)) }
+        if let rule = attr(a, "table:content-validation-name") {
+            rowValidations.append((rule, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
+            rowHasValidation = true
+        }
 
-        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil
+        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0
         guard material || (cell.style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
         let count = Swift.min(n, ODSReader.maxColumns - cellCursor)
@@ -399,6 +611,45 @@ final class ContentParser: SAXHandler {
             if paragraphs.isEmpty { return nil }
             return isErrorText ? .error(text) : .text(text)
         }
+    }
+
+    /// Row runs of cells that named the same validation, merged into as few rectangles as possible.
+    static func ranges(of runs: [(row: Int, from: Int, to: Int)]) -> MultiCellRange {
+        var out = MultiCellRange()
+        var open: [(from: Int, to: Int, first: Int, last: Int)] = []
+        for row in Set(runs.map(\.row)).sorted() {
+            let spans = runs.filter { $0.row == row }.map { (from: $0.from, to: $0.to) }.sorted { $0.from < $1.from }
+            var next: [(from: Int, to: Int, first: Int, last: Int)] = []
+            for span in spans {
+                if let i = open.firstIndex(where: { $0.from == span.from && $0.to == span.to && $0.last == row - 1 }) {
+                    var carried = open.remove(at: i); carried.last = row; next.append(carried)
+                } else {
+                    next.append((span.from, span.to, row, row))
+                }
+            }
+            for done in open { out.add(CellRange(minRow: done.first, minCol: done.from, maxRow: done.last, maxCol: done.to)) }
+            open = next
+        }
+        for done in open { out.add(CellRange(minRow: done.first, minCol: done.from, maxRow: done.last, maxCol: done.to)) }
+        return out
+    }
+
+    /// `table:operator` of a filter condition ⇄ the model's comparison.
+    static func comparison(_ op: String) -> FilterCondition.Comparison {
+        switch op {
+        case "!=", "<>": return .notEqual
+        case ">": return .greaterThan
+        case ">=": return .greaterThanOrEqual
+        case "<": return .lessThan
+        case "<=": return .lessThanOrEqual
+        default: return .equal
+        }
+    }
+
+    /// ODF's "top values" / "bottom percent" filter operators.
+    static func top10(_ op: String, _ value: String) -> Top10Filter? {
+        guard op.hasPrefix("top") || op.hasPrefix("bottom"), let n = Double(value) else { return nil }
+        return Top10Filter(count: n, top: op.hasPrefix("top"), percent: op.hasSuffix("percent"))
     }
 
     static func number(_ v: String) -> CellValue? {
@@ -480,7 +731,7 @@ final class ContentParser: SAXHandler {
         let hasDimension = height != nil || rowHidden || groupDepth > 0
         var expand: Int
         if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor) }
-        else if (!rowCells.isEmpty || hasDimension || !rowMerges.isEmpty) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
+        else if (!rowCells.isEmpty || hasDimension || !rowMerges.isEmpty || rowHasValidation) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
         else { expand = 0 }
         // a repeated row of repeated cells multiplies: clip it to what the document may still spend
         if !rowCells.isEmpty, expand > 0 {
@@ -497,6 +748,10 @@ final class ContentParser: SAXHandler {
             for m in rowMerges {
                 s.table.merges.append(CellRange(minRow: r, minCol: m.col, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxCol: Swift.min(m.col + m.cols - 1, CellRef.maxCol)))
             }
+            for m in rowMatrices {
+                s.table.arrayFormulas[CellRef(row: r, col: m.col)] = CellRange(minRow: r, minCol: m.col, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxCol: Swift.min(m.col + m.cols - 1, CellRef.maxCol))
+            }
+            for v in rowValidations { validationCells[v.name, default: []].append((r, v.from, v.to)) }
         }
         if expand > 0 { s.table.nextAppendRow = Swift.max(s.table.nextAppendRow, rowCursor + expand) }
         rowCursor += rowRepeat

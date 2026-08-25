@@ -39,6 +39,22 @@ struct ODSRawStyle {
     var column: [String: String] = [:]
     var row: [String: String] = [:]
     var table: [String: String] = [:]
+    /// `style:map` children — ODF 1.3's own conditional formats (condition, style applied, base cell).
+    var maps: [(condition: String, style: String, base: String?)] = []
+}
+
+/// A `style:page-layout` as raw property maps.
+struct ODSPageLayout {
+    var properties: [String: String] = [:]
+    var header: [String: String] = [:]
+    var footer: [String: String] = [:]
+}
+
+/// A `style:master-page`: which layout it uses, and the text of each header / footer region.
+struct ODSMasterPage {
+    var layout: String?
+    /// element name ("header", "footer-left", …) → region ("left" / "center" / "right") → Excel-style code text.
+    var regions: [String: [String: String]] = [:]
 }
 
 /// The styles of a document (styles.xml named styles + content.xml automatic styles + font faces + data styles),
@@ -47,6 +63,10 @@ final class ODSStyleCatalog {
     var fontFaces: [String: String] = [:]
     var styles: [String: ODSRawStyle] = [:]
     var dataStyles: [String: ODSDataStyle] = [:]
+    /// `style:page-layout` name → its properties, and the header / footer heights beside them.
+    var pageLayouts: [String: ODSPageLayout] = [:]
+    /// `style:master-page` name → what it says about printing.
+    var masterPages: [String: ODSMasterPage] = [:]
     /// `style:default-style style:family="table-cell"` — the document's base font.
     var defaultCellStyle = ODSRawStyle()
     /// Data styles whose Excel code could not be reconstructed (reported once each).
@@ -112,12 +132,64 @@ final class ODSStyleCatalog {
         case "text-content": currentData?.items.append(.textContent)
         case "era", "quarter", "week-of-year", "fraction", "embedded-text", "fill-character":
             currentData?.items.append(.unsupported(name))
-        case "map": if currentData != nil { currentData!.hasMap = true }
+        case "map":
+            if currentData != nil { currentData!.hasMap = true }
+            // a conditional format in ODF 1.3's own form: one condition per cell style
+            else if let condition = ODSAttr.get(a, "style:condition"), let applied = ODSAttr.get(a, "style:apply-style-name") {
+                current?.maps.append((condition, applied, ODSAttr.get(a, "style:base-cell-address")))
+            }
+        case "page-layout":
+            currentLayoutName = ODSAttr.get(a, "style:name")
+            currentLayout = ODSPageLayout()
+        case "page-layout-properties": currentLayout?.properties.merge(a) { _, new in new }
+        case "header-style": headerFooterTarget = "header"
+        case "footer-style": headerFooterTarget = "footer"
+        case "header-footer-properties":
+            if headerFooterTarget == "header" { currentLayout?.header.merge(a) { _, new in new } }
+            else if headerFooterTarget == "footer" { currentLayout?.footer.merge(a) { _, new in new } }
+        case "master-page":
+            currentMasterName = ODSAttr.get(a, "style:name")
+            currentMaster = ODSMasterPage(layout: ODSAttr.get(a, "style:page-layout-name"))
+        case "header", "header-left", "header-first", "footer", "footer-left", "footer-first":
+            guard currentMaster != nil else { break }
+            masterPart = ODSAttr.get(a, "style:display") == "false" ? nil : name
+            masterRegion = "center"; masterText = ""
+        case "region-left", "region-center", "region-right":
+            guard masterPart != nil else { break }
+            flushRegion()
+            masterRegion = String(name.dropFirst("region-".count))
+        case "page-number" where masterPart != nil: masterText += "&P"; skipFieldText = true
+        case "page-count" where masterPart != nil: masterText += "&N"; skipFieldText = true
+        case "sheet-name" where masterPart != nil: masterText += "&A"; skipFieldText = true
+        case "file-name" where masterPart != nil:
+            masterText += ODSAttr.get(a, "text:display") == "path" ? "&Z" : "&F"; skipFieldText = true
+        case "date" where masterPart != nil: masterText += "&D"; skipFieldText = true
+        case "time" where masterPart != nil: masterText += "&T"; skipFieldText = true
         default: break
         }
     }
 
-    func text(_ s: String) { if inDataText { dataText += s } }
+    // page-layout / master-page state
+    private var currentLayout: ODSPageLayout?
+    private var currentLayoutName: String?
+    private var headerFooterTarget: String?
+    private var currentMaster: ODSMasterPage?
+    private var currentMasterName: String?
+    private var masterPart: String?
+    private var masterRegion = "center"
+    private var masterText = ""
+    private var skipFieldText = false
+
+    private func flushRegion() {
+        guard !masterText.isEmpty, let part = masterPart else { masterText = ""; return }
+        currentMaster?.regions[part, default: [:]][masterRegion, default: ""] += masterText
+        masterText = ""
+    }
+
+    func text(_ s: String) {
+        if inDataText { dataText += s; return }
+        if masterPart != nil, !skipFieldText { masterText += s.replacingOccurrences(of: "&", with: "&&") }
+    }
 
     func end(_ name: String) {
         switch name {
@@ -132,6 +204,17 @@ final class ODSStyleCatalog {
         case "number-style", "percentage-style", "currency-style", "date-style", "time-style", "boolean-style", "text-style":
             if let d = currentData, let n = currentDataName { dataStyles[n] = d }
             currentData = nil; currentDataName = nil
+        case "page-layout":
+            if let l = currentLayout, let n = currentLayoutName { pageLayouts[n] = l }
+            currentLayout = nil; currentLayoutName = nil
+        case "header-style", "footer-style": headerFooterTarget = nil
+        case "master-page":
+            if let m = currentMaster, let n = currentMasterName { masterPages[n] = m }
+            currentMaster = nil; currentMasterName = nil
+        case "header", "header-left", "header-first", "footer", "footer-left", "footer-first":
+            flushRegion(); masterPart = nil
+        case "region-left", "region-center", "region-right": flushRegion()
+        case "page-number", "page-count", "sheet-name", "file-name", "date", "time": skipFieldText = false
         default: break
         }
     }
@@ -149,6 +232,85 @@ final class ODSStyleCatalog {
         guard let n = styleName, let s = styles[n], let h = ODSAttr.get(s.row, "style:row-height") else { return nil }
         if ODSAttr.bool(s.row, "style:use-optimal-row-height") == true { return nil }
         return ODSLength.points(h).map { ($0 * 100).rounded() / 100 }
+    }
+
+    /// True when the row / column style asks for a manual page break before it.
+    func hasBreakBefore(_ styleName: String?, row: Bool) -> Bool {
+        guard let n = styleName, let s = styles[n] else { return false }
+        return ODSAttr.get(row ? s.row : s.column, "fo:break-before") == "page"
+    }
+
+    /// The master page a table style names (its print setup).
+    func masterPage(ofTableStyle styleName: String?) -> String? {
+        guard let n = styleName, let s = styles[n] else { return nil }
+        return s.masterPage
+    }
+
+    /// The `style:map` conditional formats of a cell style, resolved into rules.
+    func conditionalMaps(_ styleName: String?) -> [(condition: String, style: DifferentialStyle?, base: String?)] {
+        guard let n = styleName, let s = styles[n] else { return [] }
+        return s.maps.map { ($0.condition, differentialStyle(named: $0.style), $0.base) }
+    }
+
+    /// A named style as a *difference*: only what the style itself states, which is what a conditional format paints.
+    func differentialStyle(named name: String?) -> DifferentialStyle? {
+        guard let name, let raw = styles[name] else { return nil }
+        var d = DifferentialStyle()
+        var font = DifferentialFont()
+        // walk the parent chain so an inherited property still shows up
+        var chain: [ODSRawStyle] = []
+        var cursor: String? = name
+        var seen = Set<String>()
+        while let n = cursor, n != "Default", let s = styles[n], seen.insert(n).inserted { chain.append(s); cursor = s.parent }
+        for s in chain.reversed() {
+            if let n = ODSAttr.get(s.text, "style:font-name") ?? ODSAttr.get(s.text, "fo:font-family") {
+                font.name = fontFaces[n] ?? n.trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
+            }
+            if let v = ODSAttr.get(s.text, "fo:font-size"), let pt = ODSLength.points(v) { font.size = (pt * 100).rounded() / 100 }
+            if let w = ODSAttr.get(s.text, "fo:font-weight") { font.bold = w == "bold" || (Int(w).map { $0 >= 600 } ?? false) }
+            if let st = ODSAttr.get(s.text, "fo:font-style") { font.italic = st == "italic" || st == "oblique" }
+            if let c = ODSAttr.get(s.text, "fo:color"), c.hasPrefix("#") { font.color = Color(hex: c) }
+            if let u = ODSAttr.get(s.text, "style:text-underline-style") {
+                font.underline = u == "none" ? nil : (ODSAttr.get(s.text, "style:text-underline-type") == "double" ? .double : .single)
+            }
+            if let lt = ODSAttr.get(s.text, "style:text-line-through-style") { font.strikethrough = lt != "none" }
+            if let bg = ODSAttr.get(s.cell, "fo:background-color") { d.fill = bg.hasPrefix("#") ? .solid(Color(hex: bg)) : Fill.none }
+            var border = d.border ?? Border()
+            var touched = d.border != nil
+            if let b = ODSAttr.get(s.cell, "fo:border") {
+                let side = ODSBorder.side(b)
+                border.left = side; border.right = side; border.top = side; border.bottom = side; touched = true
+            }
+            if let b = ODSAttr.get(s.cell, "fo:border-left") { border.left = ODSBorder.side(b); touched = true }
+            if let b = ODSAttr.get(s.cell, "fo:border-right") { border.right = ODSBorder.side(b); touched = true }
+            if let b = ODSAttr.get(s.cell, "fo:border-top") { border.top = ODSBorder.side(b); touched = true }
+            if let b = ODSAttr.get(s.cell, "fo:border-bottom") { border.bottom = ODSBorder.side(b); touched = true }
+            if touched { d.border = border }
+            if let ds = s.dataStyleName { d.numberFormat = numberFormat(dataStyleName: ds) }
+            var alignment = d.alignment ?? Alignment()
+            var alignmentTouched = d.alignment != nil
+            if let v = ODSAttr.get(s.cell, "style:vertical-align") {
+                switch v {
+                case "top": alignment.vertical = .top; alignmentTouched = true
+                case "middle": alignment.vertical = .center; alignmentTouched = true
+                case "bottom": alignment.vertical = .bottom; alignmentTouched = true
+                default: break
+                }
+            }
+            if let w = ODSAttr.get(s.cell, "fo:wrap-option") { alignment.wrapText = w == "wrap"; alignmentTouched = true }
+            if let t = ODSAttr.get(s.paragraph, "fo:text-align") {
+                switch t {
+                case "start", "left": alignment.horizontal = .left; alignmentTouched = true
+                case "end", "right": alignment.horizontal = .right; alignmentTouched = true
+                case "center": alignment.horizontal = .center; alignmentTouched = true
+                case "justify": alignment.horizontal = .justify; alignmentTouched = true
+                default: break
+                }
+            }
+            if alignmentTouched { d.alignment = alignment }
+        }
+        if !font.isEmpty { d.font = font }
+        return d.isEmpty ? nil : d
     }
 
     func isTableHidden(_ styleName: String?) -> Bool {

@@ -13,9 +13,9 @@ final class ODSWarningSink {
 /// The automatic styles of content.xml: column / row / table / cell / data styles, deduplicated by value.
 final class ODSStyleRegistry {
     private var columns: [String: String] = [:]
-    private(set) var columnOrder: [(name: String, width: String)] = []
-    private var rows: [Double: String] = [:]
-    private(set) var rowOrder: [(name: String, height: Double)] = []
+    private(set) var columnOrder: [(name: String, width: String?, breakBefore: Bool)] = []
+    private var rows: [String: String] = [:]
+    private(set) var rowOrder: [(name: String, height: Double?, breakBefore: Bool)] = []
     private var cells: [CellStyle: String] = [:]
     private(set) var cellOrder: [(name: String, style: CellStyle)] = []
     private var data: [String: String] = [:]
@@ -28,21 +28,35 @@ final class ODSStyleRegistry {
     /// Number-format codes with no ODF form (written without a data style) and codes written partially.
     private(set) var unexpressibleCodes: [String] = []
     private(set) var partialCodes: [String] = []
-    var usesHiddenTable = false
+    private var tables: [String: String] = [:]
+    private(set) var tableOrder: [(name: String, display: Bool, masterPage: String)] = []
 
-    func column(width: Double) -> String {
-        let key = ODSLength.cm(characters: width)
-        if let n = columns[key] { return n }
-        let n = "co\(columnOrder.count + 1)"
-        columns[key] = n; columnOrder.append((n, key))
+    /// The automatic table style naming a sheet's master page (its print setup) and whether the sheet is shown.
+    func table(display: Bool, masterPage: String) -> String {
+        let key = "\(display)|\(masterPage)"
+        if let n = tables[key] { return n }
+        let n = "ta\(tableOrder.count + 1)"
+        tables[key] = n; tableOrder.append((n, display, masterPage))
         return n
     }
 
-    func row(height: Double) -> String {
-        let key = (height * 100).rounded() / 100
+    func column(width: Double?, breakBefore: Bool = false) -> String? {
+        guard width != nil || breakBefore else { return nil }
+        let cm = width.map { ODSLength.cm(characters: $0) }
+        let key = "\(cm ?? "-")|\(breakBefore)"
+        if let n = columns[key] { return n }
+        let n = "co\(columnOrder.count + 1)"
+        columns[key] = n; columnOrder.append((n, cm, breakBefore))
+        return n
+    }
+
+    func row(height: Double?, breakBefore: Bool = false) -> String? {
+        guard height != nil || breakBefore else { return nil }
+        let rounded = height.map { ($0 * 100).rounded() / 100 }
+        let key = "\(rounded.map { String($0) } ?? "-")|\(breakBefore)"
         if let n = rows[key] { return n }
         let n = "ro\(rowOrder.count + 1)"
-        rows[key] = n; rowOrder.append((n, key))
+        rows[key] = n; rowOrder.append((n, rounded, breakBefore))
         return n
     }
 
@@ -74,14 +88,18 @@ final class ODSStyleRegistry {
     func xml() -> String {
         var s = ""
         for c in columnOrder {
-            s += "<style:style style:name=\"\(c.name)\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"\(c.width)\"/></style:style>"
+            s += "<style:style style:name=\"\(c.name)\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"\(c.breakBefore ? "page" : "auto")\""
+            if let w = c.width { s += " style:column-width=\"\(w)\"" }
+            s += "/></style:style>"
         }
         for r in rowOrder {
-            s += "<style:style style:name=\"\(r.name)\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"\(ODSLength.pt(r.height))\" fo:break-before=\"auto\" style:use-optimal-row-height=\"false\"/></style:style>"
+            s += "<style:style style:name=\"\(r.name)\" style:family=\"table-row\"><style:table-row-properties"
+            if let h = r.height { s += " style:row-height=\"\(ODSLength.pt(h))\"" }
+            s += " fo:break-before=\"\(r.breakBefore ? "page" : "auto")\" style:use-optimal-row-height=\"\(r.height == nil)\"/></style:style>"
         }
-        s += "<style:style style:name=\"ta1\" style:family=\"table\" style:master-page-name=\"Default\"><style:table-properties table:display=\"true\" style:writing-mode=\"lr-tb\"/></style:style>"
-        if usesHiddenTable {
-            s += "<style:style style:name=\"ta2\" style:family=\"table\" style:master-page-name=\"Default\"><style:table-properties table:display=\"false\" style:writing-mode=\"lr-tb\"/></style:style>"
+        for t in tableOrder {
+            s += "<style:style style:name=\"\(t.name)\" style:family=\"table\" style:master-page-name=\"\(t.masterPage)\">"
+            s += "<style:table-properties table:display=\"\(t.display)\" style:writing-mode=\"lr-tb\"/></style:style>"
         }
         for d in dataOrder { s += d.style.xml(name: d.name) }
         for c in cellOrder { s += cellStyleXML(c.name, c.style) }
@@ -189,6 +207,10 @@ enum ODSWriter {
         "config": "urn:oasis:names:tc:opendocument:xmlns:config:1.0",
         "ooo": "http://openoffice.org/2004/office",
         "manifest": "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0",
+        // LibreOffice's extension namespaces: everything ODF 1.3 has no word for (conditional formats richer than
+        // one `style:map`, the options of a protected sheet) is written here, as every current application does.
+        "calcext": "urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0",
+        "loext": "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0",
     ]
     static func ns(_ prefixes: [String]) -> String { prefixes.map { " xmlns:\($0)=\"\(namespaces[$0]!)\"" }.joined() }
 
@@ -196,15 +218,30 @@ enum ODSWriter {
         guard !wb.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
         let sink = ODSWarningSink()
         let styles = ODSStyleRegistry()
-        styles.usesHiddenTable = wb.sheets.contains { $0.state != .visible }
+        let conditionalStyles = ODSConditionalStyleRegistry()
+        // print setup: one page layout / master page per distinct setup, named before the tables that use them
+        var pageOrder: [(layout: String, master: String, page: ODSPageStyles.Page, sheet: String)] = []
+        var pageNames: [String] = []
+        for sheet in wb.sheets {
+            let page = ODSPageStyles.Page(sheet)
+            if let existing = pageOrder.first(where: { $0.page == page }) { pageNames.append(existing.master); continue }
+            let n = pageOrder.count + 1
+            pageOrder.append((layout: "pm\(n)", master: "PageStyle\(n)", page: page, sheet: sheet.name))
+            pageNames.append("PageStyle\(n)")
+        }
 
-        // body first: it registers the styles
-        var body = ""
-        for sheet in wb.sheets { body += tableXML(sheet, styles: styles, sink: sink) }
+        // body first: it registers the styles. Content validations come before the tables (ODF 1.3 §9.1.2) and the
+        // cells name the rule they obey, so the names are minted first.
+        var validationNames: [Int: [(ranges: MultiCellRange, name: String)]] = [:]
+        var body = ODSValidation.xml(wb, names: &validationNames, sink: sink)
+        for (i, sheet) in wb.sheets.enumerated() {
+            body += tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [],
+                             styles: styles, conditionalStyles: conditionalStyles, sink: sink)
+        }
         body += namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name)
-        body += databaseRangesXML(wb)
+        body += databaseRangesXML(wb, sink: sink)
 
-        var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of"]) + " office:version=\"1.3\">"
+        var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of", "calcext", "loext"]) + " office:version=\"1.3\">"
         content += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
         content += "<office:automatic-styles>" + styles.xml() + "</office:automatic-styles>"
         content += "<office:body><office:spreadsheet>" + body + "</office:spreadsheet></office:body></office:document-content>"
@@ -212,14 +249,8 @@ enum ODSWriter {
         // sheet features the ODS writer does not express (all of them read and written for XLSX; none of them
         // silently dropped)
         for sheet in wb.sheets {
-            if !sheet.headerFooter.isEmpty {
-                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "printed header / footer dropped: it lives in a master page, which this writer does not generate")
-            }
-            if !sheet.rowBreaks.isEmpty || !sheet.columnBreaks.isEmpty {
-                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "manual page breaks dropped")
-            }
-            if !sheet.filterColumns.isEmpty || sheet.sortState != nil || sheet.hasUnmodelledFilters {
-                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "auto-filter conditions and sort state dropped: the range is written, what it lets through is not")
+            if sheet.hasUnmodelledFilters {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "an auto-filter the model could not read is dropped: ODS is regenerated, not patched")
             }
             if !sheet.pivotTables.isEmpty {
                 sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.pivotTables.count) pivot table(s) dropped: ODF data pilots are not written")
@@ -230,18 +261,14 @@ enum ODSWriter {
             if !sheet.protectedRanges.isEmpty {
                 sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.protectedRanges.count) protected range(s) dropped")
             }
-            if !sheet.excelTables.isEmpty {
-                sink.add(.dropped, subject: .tables, sheet: sheet.name, "\(sheet.excelTables.count) named table(s) dropped: ODF has database ranges, which this writer does not emit")
+            for table in sheet.excelTables where table.styleInfo != nil {
+                sink.add(.degraded, subject: .tables, sheet: sheet.name, "named table \(table.name) written as an ODF database range: its banded-row style is not carried")
             }
-            if !sheet.conditionalFormatting.isEmpty || sheet.hasUnmodelledConditionalFormats {
-                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "conditional format(s) dropped: this writer does not emit ODF calculation-setting maps")
+            if sheet.hasUnmodelledConditionalFormats {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "a conditional format the model could not read is dropped: ODS is regenerated, not patched")
             }
-            if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
-                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "data validation dropped: this writer does not emit ODF content validations")
-            }
-            let arrays = sheet.tables.reduce(0) { $0 + $1.arrayFormulas.count }
-            if arrays > 0 {
-                sink.add(.degraded, subject: .formulas, sheet: sheet.name, "\(arrays) array formula(s) written as ordinary formulas: their range is not carried into ODS")
+            if sheet.hasUnmodelledValidations {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "a data validation the model could not read is dropped: ODS is regenerated, not patched")
             }
         }
 
@@ -267,7 +294,8 @@ enum ODSWriter {
         archive.add("mimetype", Data(mimeType.utf8), stored: true)
         archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides).utf8))
         archive.add("content.xml", Data(content.utf8))
-        archive.add("styles.xml", Data(stylesXML(styles.fonts).utf8))
+        archive.add("styles.xml", Data(stylesXML(styles.fonts + conditionalStyles.fonts, conditionalStyles: conditionalStyles,
+                                                 pages: pageOrder, sink: sink).utf8))
         for property in wb.customProperties where property.linkTarget != nil {
             sink.add(.substituted, subject: .other,
                      "custom property \"\(property.name)\" links to a defined name; ODF has no linked property, so the target was written as its text")
@@ -298,16 +326,25 @@ enum ODSWriter {
         return s + "</manifest:manifest>"
     }
 
-    static func stylesXML(_ fonts: [String]) -> String {
+    static func stylesXML(_ fonts: [String], conditionalStyles: ODSConditionalStyleRegistry,
+                          pages: [(layout: String, master: String, page: ODSPageStyles.Page, sheet: String)],
+                          sink: ODSWarningSink) -> String {
         let d = Font.default
-        var s = xmlHeader + "<office:document-styles" + ns(["office", "style", "text", "table", "fo", "svg", "number"]) + " office:version=\"1.3\">"
+        var s = xmlHeader + "<office:document-styles" + ns(["office", "style", "text", "table", "fo", "svg", "number", "calcext", "loext"]) + " office:version=\"1.3\">"
         s += "<office:font-face-decls>" + fontFacesXML(fonts) + "</office:font-face-decls>"
         s += "<office:styles><style:default-style style:family=\"table-cell\"><style:text-properties"
         if let n = d.name { s += " style:font-name=\"\(XML.esc(n))\" style:font-name-asian=\"\(XML.esc(n))\" style:font-name-complex=\"\(XML.esc(n))\"" }
         if let size = d.size { let pt = ODSLength.pt(size); s += " fo:font-size=\"\(pt)\" style:font-size-asian=\"\(pt)\" style:font-size-complex=\"\(pt)\"" }
-        s += "/></style:default-style><style:style style:name=\"Default\" style:family=\"table-cell\"/></office:styles>"
-        s += "<office:automatic-styles><style:page-layout style:name=\"pm1\"><style:page-layout-properties style:writing-mode=\"lr-tb\"/><style:header-style/><style:footer-style/></style:page-layout></office:automatic-styles>"
-        s += "<office:master-styles><style:master-page style:name=\"Default\" style:page-layout-name=\"pm1\"><style:header/><style:footer/></style:master-page></office:master-styles>"
+        s += "/></style:default-style><style:style style:name=\"Default\" style:family=\"table-cell\"/>"
+        // the styles a conditional format paints with: named, because that is what `calcext:apply-style-name` takes
+        s += conditionalStyles.xml()
+        s += "</office:styles>"
+        s += "<office:automatic-styles>"
+        for p in pages { s += ODSPageStyles.layoutXML(name: p.layout, p.page) }
+        s += "</office:automatic-styles>"
+        s += "<office:master-styles>"
+        for p in pages { s += ODSPageStyles.masterPageXML(name: p.master, layout: p.layout, p.page, sheet: p.sheet, sink: sink) }
+        s += "</office:master-styles>"
         return s + "</office:document-styles>"
     }
 
@@ -365,9 +402,29 @@ enum ODSWriter {
     }
 
     /// Workbook-scoped names go after the tables; sheet-scoped ones inside their `table:table`.
-    static func namedExpressionsXML(_ names: [String: String], baseSheet: String) -> String {
-        guard !names.isEmpty else { return "" }
-        var s = "<table:named-expressions>"
+    /// Rows and columns repeated on every printed page. ODF marks them with `table:range-usable-as`, and the
+    /// reader goes by that; the names are Excel's own because LibreOffice's ODF import goes by the *name*.
+    /// A sheet that repeats both rows and columns needs two entries, and only one of them can carry the name
+    /// Excel uses — the rows, which is the common case.
+    static func printTitlesXML(_ sheet: Sheet) -> String {
+        let prefix = odsSheetPrefix(sheet.name)
+        var s = ""
+        let both = sheet.printTitleRows != nil && sheet.printTitleColumns != nil
+        if let rows = sheet.printTitleRows {
+            let address = "\(prefix).$\(rows.lowerBound + 1):.$\(rows.upperBound + 1)"
+            s += "<table:named-range table:name=\"_xlnm.Print_Titles\" table:base-cell-address=\"\(XML.esc(prefix)).$A$1\" table:cell-range-address=\"\(XML.esc(address))\" table:range-usable-as=\"repeat-row\"/>"
+        }
+        if let cols = sheet.printTitleColumns {
+            let address = "\(prefix).$\(CellRef.columnName(cols.lowerBound)):.$\(CellRef.columnName(cols.upperBound))"
+            let name = both ? "_xlnm.Print_Titles_Columns" : "_xlnm.Print_Titles"
+            s += "<table:named-range table:name=\"\(name)\" table:base-cell-address=\"\(XML.esc(prefix)).$A$1\" table:cell-range-address=\"\(XML.esc(address))\" table:range-usable-as=\"repeat-column\"/>"
+        }
+        return s
+    }
+
+    static func namedExpressionsXML(_ names: [String: String], baseSheet: String, extra: String = "") -> String {
+        guard !names.isEmpty || !extra.isEmpty else { return "" }
+        var s = "<table:named-expressions>" + extra
         for name in names.keys.sorted() {
             let text = names[name]!
             let expr = FormulaExpr.parse(text, dialect: .xlsx)
@@ -383,18 +440,84 @@ enum ODSWriter {
         return s + "</table:named-expressions>"
     }
 
-    /// Auto-filters, as the anonymous database ranges LibreOffice and Excel both understand. Child of
-    /// `office:spreadsheet` after `table:named-expressions` (ODF 1.3 §9.4).
-    static func databaseRangesXML(_ wb: Workbook) -> String {
-        let filtered = wb.sheets.enumerated().compactMap { i, sheet in sheet.autoFilter.map { (i, sheet.name, $0) } }
-        guard !filtered.isEmpty else { return "" }
-        var s = "<table:database-ranges>"
-        for (i, name, range) in filtered {
-            let prefix = String(odsSheetPrefix(name).dropFirst())
-            let address = "\(prefix).\(range.topLeft.a1):\(prefix).\(range.bottomRight.a1)"
-            s += "<table:database-range table:name=\"__Anonymous_Sheet_DB__\(i)\" table:display-filter-buttons=\"true\" table:target-range-address=\"\(XML.esc(address))\"/>"
+    /// Named tables and auto-filters, as ODF database ranges (ODF 1.3 §9.4).
+    ///
+    /// An Excel "Format as Table" becomes a named database range; a sheet's auto-filter becomes the anonymous one
+    /// LibreOffice and Excel both recognise, and its per-column conditions become the `table:filter` inside it.
+    static func databaseRangesXML(_ wb: Workbook, sink: ODSWarningSink) -> String {
+        var s = ""
+        for (i, sheet) in wb.sheets.enumerated() {
+            let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
+            func address(_ range: CellRange) -> String { "\(prefix).\(range.topLeft.a1):\(prefix).\(range.bottomRight.a1)" }
+            for table in sheet.excelTables {
+                s += "<table:database-range table:name=\"\(XML.esc(table.name))\" table:target-range-address=\"\(XML.esc(address(table.ref)))\""
+                s += " table:display-filter-buttons=\"\(table.autoFilter != nil)\"/>"
+            }
+            guard let range = sheet.autoFilter else { continue }
+            s += "<table:database-range table:name=\"__Anonymous_Sheet_DB__\(i)\" table:display-filter-buttons=\"true\" table:target-range-address=\"\(XML.esc(address(range)))\">"
+            s += filterXML(sheet, sink: sink)
+            s += sortXML(sheet)
+            s += "</table:database-range>"
         }
-        return s + "</table:database-ranges>"
+        return s.isEmpty ? "" : "<table:database-ranges>\(s)</table:database-ranges>"
+    }
+
+    /// `<table:filter>` — what the auto-filter lets through. ODF nests the conditions in `filter-and` / `filter-or`
+    /// groups; the columns are always combined with "and", as Excel does.
+    static func filterXML(_ sheet: Sheet, sink: ODSWarningSink) -> String {
+        var groups: [String] = []
+        for column in sheet.filterColumns.sorted(by: { $0.column < $1.column }) {
+            var conditions: [String] = []
+            var joinWithAnd = true
+            if !column.values.isEmpty || column.includesBlanks {
+                // a tick-list: one condition carrying the whole set
+                var items = column.values.map { "<table:filter-set-item table:value=\"\(XML.esc($0))\"/>" }.joined()
+                if column.includesBlanks { items += "<table:filter-set-item table:value=\"\"/>" }
+                let first = column.values.first ?? ""
+                conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"=\" table:value=\"\(XML.esc(first))\">\(items)</table:filter-condition>")
+            } else if !column.conditions.isEmpty {
+                joinWithAnd = column.matchesAllConditions
+                for c in column.conditions {
+                    conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"\(XML.esc(filterOperator(c.comparison)))\" table:value=\"\(XML.esc(c.value))\"/>")
+                }
+            } else if let top = column.top10 {
+                let op = top.top ? (top.percent ? "top percent" : "top values") : (top.percent ? "bottom percent" : "bottom values")
+                conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"\(op)\" table:value=\"\(XML.num(top.count))\"/>")
+            } else if column.dynamicFilter != nil || column.colorFilter != nil || column.iconFilter != nil || !column.dateGroups.isEmpty {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name,
+                         "the filter on column \(CellRef.columnName(column.column)) is dropped: ODF has no colour, icon, dynamic or date-group filter")
+                continue
+            }
+            guard !conditions.isEmpty else { continue }
+            // the columns are combined with "and", so a column that is itself an "and" flattens into the same group
+            if conditions.count == 1 || joinWithAnd { groups.append(contentsOf: conditions) }
+            else { groups.append("<table:filter-or>\(conditions.joined())</table:filter-or>") }
+        }
+        guard !groups.isEmpty else { return "" }
+        let body = groups.count == 1 ? groups[0] : "<table:filter-and>\(groups.joined())</table:filter-and>"
+        return "<table:filter>\(body)</table:filter>"
+    }
+
+    static func filterOperator(_ c: FilterCondition.Comparison) -> String {
+        switch c {
+        case .equal: return "="
+        case .notEqual: return "!="
+        case .greaterThan: return ">"
+        case .greaterThanOrEqual: return ">="
+        case .lessThan: return "<"
+        case .lessThanOrEqual: return "<="
+        }
+    }
+
+    /// `<table:sort>` — the order the auto-filter last applied. The rows are already in it; ODF records it too.
+    static func sortXML(_ sheet: Sheet) -> String {
+        guard let state = sheet.sortState, !state.conditions.isEmpty, let filter = sheet.autoFilter else { return "" }
+        var s = "<table:sort table:bind-styles-to-content=\"false\">"
+        for c in state.conditions {
+            let field = (state.byColumn ? c.range.minRow - filter.minRow : c.range.minCol - filter.minCol)
+            s += "<table:sort-by table:field-number=\"\(Swift.max(0, field))\" table:order=\"\(c.descending ? "descending" : "ascending")\"/>"
+        }
+        return s + "</table:sort>"
     }
 
     /// `$Sheet1` / `$'My Sheet'` — the sheet part of an absolute ODS address.
@@ -416,7 +539,9 @@ enum ODSWriter {
 
     // MARK: - Tables
 
-    static func tableXML(_ sheet: Sheet, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
+    static func tableXML(_ sheet: Sheet, masterPage: String, validations: [(ranges: MultiCellRange, name: String)],
+                         styles: ODSStyleRegistry, conditionalStyles: ODSConditionalStyleRegistry,
+                         sink: ODSWarningSink) -> String {
         let t = sheet.table
         // one <table:table> per sheet: a canvas carrying several tables (Numbers) keeps only the first one
         if sheet.tables.count > 1 {
@@ -449,16 +574,38 @@ enum ODSWriter {
         func rowIsCovered(_ r: Int) -> Bool {
             coveredRows.contains(r) || wideMerges.contains { r >= $0.minRow && r <= $0.maxRow }
         }
-        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1)
-        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1)
-        var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(sheet.state == .visible ? "ta1" : "ta2")\">"
+        // a validation is written on the cells it covers, so its rectangle has to be materialised — but only while
+        // it is a rectangle and not a description of the whole sheet
+        var validationMaxCol = -1, validationMaxRow = -1
+        for (ranges, _) in validations {
+            for r in ranges.sorted where r.size.rows * r.size.cols <= Table.maxMaterialisedMergeCells {
+                validationMaxCol = Swift.max(validationMaxCol, r.maxCol); validationMaxRow = Swift.max(validationMaxRow, r.maxRow)
+            }
+        }
+        func validationName(_ ref: CellRef) -> String? { validations.first { $0.ranges.contains(ref) }?.name }
+
+        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1, validationMaxCol + 1)
+        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1, validationMaxRow + 1)
+        var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage))\""
+        if sheet.protection.enabled { s += " table:protected=\"true\"" }
+        if !sheet.printArea.isEmpty {
+            let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
+            s += " table:print-ranges=\"\(XML.esc(sheet.printArea.map { "\(prefix).\($0.topLeft.a1):\(prefix).\($0.bottomRight.a1)" }.joined(separator: " ")))\""
+        }
+        s += ">"
+        if sheet.protection.enabled {
+            s += "<loext:table-protection loext:select-protected-cells=\"\(sheet.protection.allowsSelectingLockedCells)\""
+            s += " loext:select-unprotected-cells=\"\(sheet.protection.allowsSelectingUnlockedCells)\"/>"
+        }
 
         // columns, adjacent equal ones merged
         struct ColumnSpec: Equatable { var style: String?; var hidden: Bool; var defaultCell: String? }
+        let columnBreaks = Set(sheet.columnBreaks)
         var runs: [(ColumnSpec, Int)] = []
         for c in 0..<ncols {
             let d = t.columnDimensions[c]
-            let spec = ColumnSpec(style: d?.width.map { styles.column(width: $0) }, hidden: d?.hidden ?? false, defaultCell: d?.style.flatMap { styles.cell($0) })
+            let spec = ColumnSpec(style: styles.column(width: d?.width, breakBefore: columnBreaks.contains(c)),
+                                  hidden: d?.hidden ?? false, defaultCell: d?.style.flatMap { styles.cell($0) })
             if let last = runs.last, last.0 == spec { runs[runs.count - 1].1 += 1 } else { runs.append((spec, 1)) }
         }
         for (spec, n) in runs {
@@ -480,13 +627,16 @@ enum ODSWriter {
             s += "<table:table-row\(emptyRun > 1 ? " table:number-rows-repeated=\"\(emptyRun)\"" : "")><table:table-cell\(ncols > 1 ? " table:number-columns-repeated=\"\(ncols)\"" : "")/></table:table-row>"
             emptyRun = 0
         }
+        let rowBreaks = Set(sheet.rowBreaks)
         for r in 0..<nrows {
             let hasCells = rowsWithCells.contains(r)
             let dim = t.rowDimensions[r]
-            guard hasCells || dim != nil || rowIsCovered(r) || anchorRows.contains(r) else { emptyRun += 1; continue }
+            let breaks = rowBreaks.contains(r)
+            let validated = r <= validationMaxRow && validations.contains { v in v.ranges.sorted.contains { r >= $0.minRow && r <= $0.maxRow } }
+            guard hasCells || dim != nil || breaks || validated || rowIsCovered(r) || anchorRows.contains(r) else { emptyRun += 1; continue }
             flushEmpty()
             s += "<table:table-row"
-            if let h = dim?.height { s += " table:style-name=\"\(styles.row(height: h))\"" }
+            if let n = styles.row(height: dim?.height, breakBefore: breaks) { s += " table:style-name=\"\(n)\"" }
             if dim?.hidden == true { s += " table:visibility=\"collapse\"" }
             s += ">"
             var c = 0
@@ -499,27 +649,36 @@ enum ODSWriter {
                     c += n
                 } else if let cell = t.cells[ref] ?? (anchors[ref] != nil ? Cell() : nil) {
                     // an anchor with no cell of its own still has to be written: the span hangs on it
-                    s += cellXML(cell, at: ref, merge: anchors[ref], sheet: sheet.name, styles: styles, sink: sink)
+                    s += cellXML(cell, at: ref, merge: anchors[ref], matrix: t.arrayFormulas[ref], validation: validationName(ref),
+                                 sheet: sheet.name, styles: styles, sink: sink)
                     c += 1
                 } else {
+                    let rule = validationName(ref)
                     var n = 1
                     while c + n < ncols, t.cells[CellRef(row: r, col: c + n)] == nil, anchors[CellRef(row: r, col: c + n)] == nil,
-                          !isCovered(CellRef(row: r, col: c + n)) { n += 1 }
-                    s += "<table:table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
+                          !isCovered(CellRef(row: r, col: c + n)), validationName(CellRef(row: r, col: c + n)) == rule { n += 1 }
+                    s += "<table:table-cell"
+                    if let rule { s += " table:content-validation-name=\"\(rule)\"" }
+                    s += n > 1 ? " table:number-columns-repeated=\"\(n)\"/>" : "/>"
                     c += n
                 }
             }
             s += "</table:table-row>"
         }
         flushEmpty()
-        s += namedExpressionsXML(sheet.definedNames, baseSheet: sheet.name)
+        s += namedExpressionsXML(sheet.definedNames, baseSheet: sheet.name, extra: printTitlesXML(sheet))
+        s += ODSConditionalFormatWriter.xml(sheet, styles: conditionalStyles, sink: sink)
         return s + "</table:table>"
     }
 
-    static func cellXML(_ cell: Cell, at ref: CellRef, merge: CellRange?, sheet: String, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
+    static func cellXML(_ cell: Cell, at ref: CellRef, merge: CellRange?, matrix: CellRange?, validation: String?,
+                        sheet: String, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
         var attrs = ""
         if let n = styles.cell(cell.style) { attrs += " table:style-name=\"\(n)\"" }
+        if let v = validation { attrs += " table:content-validation-name=\"\(v)\"" }
         if let m = merge, !m.isSingleCell { attrs += " table:number-columns-spanned=\"\(m.size.cols)\" table:number-rows-spanned=\"\(m.size.rows)\"" }
+        // an array formula: ODF puts the span on the cell that holds it (`table:number-matrix-*-spanned`)
+        if let m = matrix { attrs += " table:number-matrix-columns-spanned=\"\(m.size.cols)\" table:number-matrix-rows-spanned=\"\(m.size.rows)\"" }
         var valueAttrs = ""
         var paragraphs: [String] = []
         let percent = NumberFormat.isPercentFormat(cell.style.numberFormat)

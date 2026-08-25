@@ -27,6 +27,10 @@ enum ODSLength {
     /// "1.686cm" — three decimals in centimetres, as LibreOffice writes.
     static func cm(millimetres mm: Double) -> String { String(format: "%.3fcm", mm / 10) }
     static func cm(characters: Double) -> String { cm(millimetres: characters * millimetresPerCharacter) }
+    /// "1.686cm" from a value already in centimetres.
+    static func cmValue(_ centimetres: Double) -> String { String(format: "%.3fcm", centimetres) }
+    /// The inverse of `cmValue` / `cm(millimetres:)` in inches, for print margins.
+    static func inches(_ text: String) -> Double? { millimetres(text).map { ($0 / 25.4 * 1e6).rounded() / 1e6 } }
     static func pt(_ points: Double) -> String {
         let r = (points * 100).rounded() / 100
         return (r == r.rounded() ? String(Int(r)) : String(r)) + "pt"

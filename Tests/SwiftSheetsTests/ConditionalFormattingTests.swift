@@ -208,13 +208,59 @@ import SwiftSheets
         #expect(Set(ids).count == 2, "the two rules no longer share an entry")
     }
 
-    /// Converting to a format that has no conditional formatting says so rather than dropping it quietly.
-    @Test func odsReportsTheLoss() throws {
+    /// ODS carries conditional formats too, in LibreOffice's `calcext:` form.
+    @Test func odsCarriesTheRules() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        wb.sheets[0].addConditionalFormatting(.cellIs(.greaterThan, "0", paint: .highlight(fill: .white)), over: "A1:A9")
+        let paint = DifferentialStyle.highlight(fill: Color(hex: "FFC7CE"), text: Color(hex: "9C0006"))
+        wb.sheets[0].addConditionalFormatting(.cellIs(.greaterThan, "0", paint: paint), over: "A1:A9")
         let result = try wb.write(as: .ods)
-        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("conditional format") })
+        #expect(!result.warnings.contains { $0.message.contains("conditional format") })
+        let read = try Workbook(data: result.data).sheets[0]
+        #expect(read.conditionalFormatting.count == 1)
+        #expect(read.conditionalFormatting[0].ranges == MultiCellRange("A1:A9"))
+        let rule = try #require(read.conditionalFormatting[0].rules.first)
+        #expect(rule.kind == .cellIs)
+        #expect(rule.operator == .greaterThan)
+        #expect(rule.formulas == ["0"])
+        #expect(rule.style == paint)
+    }
+
+    /// Every rule kind the model has survives a write to ODS and a read back.
+    @Test func everyRuleKindSurvivesODS() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        for r in 0..<9 { ws[r, 0] = .integer(r) }
+        let paint = DifferentialStyle.highlight(fill: Color(hex: "C6EFCE"))
+        ws.addConditionalFormatting(.cellIs(between: "1", and: "4", paint: paint, priority: 1), over: "A1:A9")
+        ws.addConditionalFormatting(.expression("$A1>3", paint: paint, priority: 2), over: "A1:A9")
+        ws.addConditionalFormatting(.contains("x", paint: paint, anchoredAt: "A1", priority: 3), over: "A1:A9")
+        ws.addConditionalFormatting(.begins(with: "y", paint: paint, anchoredAt: "A1", priority: 4), over: "A1:A9")
+        ws.addConditionalFormatting(.ends(with: "z", paint: paint, anchoredAt: "A1", priority: 5), over: "A1:A9")
+        ws.addConditionalFormatting(.top(3, paint: paint, priority: 6), over: "A1:A9")
+        ws.addConditionalFormatting(.top(10, paint: paint, bottom: true, percent: true, priority: 7), over: "A1:A9")
+        ws.addConditionalFormatting(.aboveAverage(false, paint: paint, priority: 8), over: "A1:A9")
+        ws.addConditionalFormatting(.duplicates(paint: paint, priority: 9), over: "A1:A9")
+        ws.addConditionalFormatting(.duplicates(paint: paint, unique: true, priority: 10), over: "A1:A9")
+        ws.addConditionalFormatting(ConditionalFormattingRule(kind: .containsBlanks, priority: 11, style: paint), over: "A1:A9")
+        ws.addConditionalFormatting(ConditionalFormattingRule(kind: .containsErrors, priority: 12, style: paint), over: "A1:A9")
+        ws.addConditionalFormatting(ConditionalFormattingRule(kind: .timePeriod, priority: 13, style: paint, timePeriod: "lastWeek"), over: "A1:A9")
+        ws.addConditionalFormatting(.colorScale(.threeColor(from: .white, through: Color(hex: "FFEB84"), to: Color(hex: "63BE7B")), priority: 14), over: "A1:A9")
+        ws.addConditionalFormatting(.dataBar(DataBar(color: Color(hex: "638EC6")), priority: 15), over: "A1:A9")
+        ws.addConditionalFormatting(.iconSet(.threeBand(), priority: 16), over: "A1:A9")
+        wb.sheets[0] = ws
+
+        let read = try Workbook(data: try wb.write(as: .ods).data).sheets[0]
+        let before = ws.conditionalFormatting.flatMap(\.rules).sorted { $0.priority < $1.priority }
+        let after = read.conditionalFormatting.flatMap(\.rules).sorted { $0.priority < $1.priority }
+        #expect(before.map(\.kind) == after.map(\.kind))
+        for (a, b) in zip(before, after) {
+            #expect(a.style == b.style, "\(a.kind) keeps what it paints")
+            #expect(a.formulas == b.formulas, "\(a.kind) keeps its formulas")
+            #expect(a.colorScale == b.colorScale && a.dataBar == b.dataBar && a.iconSet == b.iconSet, "\(a.kind) keeps its scale")
+            #expect(a.rank == b.rank && a.bottom == b.bottom && a.percent == b.percent, "\(a.kind) keeps its rank")
+            #expect(a.timePeriod == b.timePeriod && a.text == b.text, "\(a.kind) keeps its period / text")
+        }
     }
 }
 

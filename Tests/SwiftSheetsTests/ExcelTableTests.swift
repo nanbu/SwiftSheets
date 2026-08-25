@@ -172,11 +172,16 @@ import SwiftSheets
         #expect(try Workbook(data: data).sheets[0].excelTables[0].filterColumns == table.filterColumns)
     }
 
-    /// Converting to a format without named tables says so.
-    @Test func odsReportsTheLoss() throws {
+    /// A named table becomes an ODF database range: the name and the cells travel, the banded-row style does not.
+    @Test func odsWritesADatabaseRange() throws {
         var wb = Self.sales()
         wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
         let result = try wb.write(as: .ods)
-        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("named table") })
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("banded-row style") })
+        let read = try Workbook(data: result.data).sheets[0]
+        #expect(read.excelTables.count == 1)
+        #expect(read.excelTables[0].name == "Sales")
+        #expect(read.excelTables[0].ref == CellRange("A1:C3"))
+        #expect(read.excelTables[0].styleInfo == nil)
     }
 }

@@ -209,15 +209,32 @@ import SwiftSheets
         #expect(out.components(separatedBy: "<autoFilter").count == 2)   // exactly one, not one generated and one kept
     }
 
-    /// ODS writes the range but not what it lets through, and says so.
-    @Test func odsSaysItDropsTheConditions() throws {
+    /// ODS carries the range *and* what it lets through, as the filter of a database range.
+    @Test func odsCarriesTheFilterConditions() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].autoFilter = CellRange("A1:B5")
+        wb.sheets[0].filterColumns = [
+            FilterColumn(column: 0, values: ["1"]),
+            FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "2")]),
+        ]
+        let result = try wb.write(as: .ods)
+        #expect(!result.warnings.contains { $0.message.contains("auto-filter") })
+        let read = try Workbook(data: result.data).sheets[0]
+        #expect(read.autoFilter == CellRange("A1:B5"))
+        #expect(read.filterColumns == wb.sheets[0].filterColumns)
+    }
+
+    /// A filter kind ODF has no word for is dropped, and the write says so.
+    @Test func odsSaysItDropsAColourFilter() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:A5")
-        wb.sheets[0].filterColumns = [FilterColumn(column: 0, values: ["1"])]
+        var column = FilterColumn(column: 0)
+        column.colorFilter = ColorFilter(differentialStyleID: 0)
+        wb.sheets[0].filterColumns = [column]
         let result = try wb.write(as: .ods)
-        #expect(result.warnings.contains { $0.message.contains("auto-filter conditions") })
-        #expect(try Workbook(data: result.data).sheets[0].autoFilter == CellRange("A1:A5"))
+        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("colour, icon, dynamic") })
     }
 }
 
