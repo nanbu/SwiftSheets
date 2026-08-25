@@ -54,6 +54,14 @@ struct NumbersReader {
                 if let t = table(tid, sheetName: sheet.name) { sheet.tables.append(t) }
             }
             if sheet.tables.isEmpty { sheet.tables = [Table()] }
+            // conditional formats belong to a Numbers *table*; the model keeps them on the sheet, so the first
+            // table's are the sheet's and any further table's are reported rather than silently merged into them
+            let ids = tableModels(inSheet: sid)
+            if let first = ids.first { for block in conditionalFormats[first] ?? [] { sheet.conditionalFormatting.append(block) } }
+            for extra in ids.dropFirst() where !(conditionalFormats[extra] ?? []).isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
+                                                  message: "conditional formats on a second table are dropped: the model keeps them per sheet"))
+            }
             // header rows / columns of the first table behave like frozen panes
             if let tid = tableModels(inSheet: sid).first, let model = doc.object(tid) {
                 let rows = model.bool("header_rows_frozen") == true ? (model.int("number_of_header_rows") ?? 0) : 0
@@ -97,6 +105,68 @@ struct NumbersReader {
 
     // MARK: - One table
 
+    /// table model id → what its conditional-style list said, read back into the model's own vocabulary.
+    private var conditionalFormats: [Int: [ConditionalFormatting]] = [:]
+
+    /// The cells that named each entry of the table's conditional-style list, as rules over ranges. Numbers keeps
+    /// one *set* of rules per cell; the model keeps rules over ranges, so cells naming the same set become one block.
+    private mutating func conditionalFormatting(sets: [Int: Int], cells: [Int: [CellRef]],
+                                                styles: NumbersStyleResolver, sheetName: String) -> [ConditionalFormatting] {
+        var out: [ConditionalFormatting] = []
+        var problems: [String] = []
+        var priority = 1
+        for (key, refs) in cells.sorted(by: { $0.key < $1.key }) {
+            guard let setID = sets[key], let archive = doc.object(setID) else { continue }
+            let rules = archive.message("rules")?.messages("rule") ?? []
+            var read: [ConditionalFormattingRule] = []
+            for rule in rules {
+                guard let r = NumbersConditional.rule(rule, priority: priority,
+                                                      style: { styles.differentialStyle(cell: $0, text: $1) },
+                                                      problems: &problems) else { continue }
+                read.append(r)
+                priority += 1
+            }
+            guard !read.isEmpty else { continue }
+            out.append(ConditionalFormatting(ranges: NumbersReader.condense(refs), rules: read))
+        }
+        for p in Set(problems).sorted().prefix(10) {
+            warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName, message: "conditional format: \(p)"))
+        }
+        return out
+    }
+
+    /// Cells → as few rectangles as a column-by-column sweep can make of them. Numbers records the rule on every
+    /// cell, so a rule over one column comes back as eight cells; the model would rather say `A1:A8`.
+    static func condense(_ refs: [CellRef]) -> MultiCellRange {
+        var byColumn: [Int: [Int]] = [:]
+        for r in refs { byColumn[r.col, default: []].append(r.row) }
+        var ranges: [CellRange] = []
+        for (col, rows) in byColumn {
+            var run: [Int] = []
+            func flush() {
+                guard let first = run.first, let last = run.last else { return }
+                ranges.append(CellRange(minRow: first, minCol: col, maxRow: last, maxCol: col))
+                run = []
+            }
+            for row in rows.sorted() {
+                if let last = run.last, row != last + 1 { flush() }
+                run.append(row)
+            }
+            flush()
+        }
+        // a rectangle spanning several columns is worth saying once
+        var merged: [CellRange] = []
+        for range in ranges.sorted(by: { ($0.minCol, $0.minRow) < ($1.minCol, $1.minRow) }) {
+            if var last = merged.last, last.minRow == range.minRow, last.maxRow == range.maxRow, last.maxCol + 1 == range.minCol {
+                last = CellRange(minRow: last.minRow, minCol: last.minCol, maxRow: range.maxRow, maxCol: range.maxCol)
+                merged[merged.count - 1] = last
+            } else {
+                merged.append(range)
+            }
+        }
+        return MultiCellRange(merged)
+    }
+
     mutating func table(_ tid: Int, sheetName: String) -> Table? {
         guard let model = doc.object(tid), let store = model.message("base_data_store") else { return nil }
         var t = Table(name: model.string("table_name"))
@@ -127,6 +197,10 @@ struct NumbersReader {
                 if !d.isDefault { t.columnDimensions[i] = d }
             }
         }
+        // conditional formats: the table's own list, and (below) the cells that name each of its entries
+        let conditionalSets = dataList(store.reference("conditionalstyletable")) { $0.reference("reference") }
+        var conditionalCells: [Int: [CellRef]] = [:]
+
         // lookup tables
         let strings = dataList(store.reference("stringTable")) { $0.string("string") }
         let formulas = dataList(store.reference("formula_table")) { $0.message("formula") }
@@ -170,6 +244,7 @@ struct NumbersReader {
                     let record = storage.subdata(in: (storage.startIndex + start)..<(storage.startIndex + end))
                     do {
                         let s = try CellStorage.decode(record)
+                        if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
                         let rich = s.richID.flatMap { richTexts[$0] }
@@ -195,6 +270,7 @@ struct NumbersReader {
             }
         }
         for p in decoder.problems.prefix(20) { warnings.append(ConversionWarning(.degraded, sheet: sheetName, message: "formula: \(p)")) }
+        conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)
         t.nextAppendRow = rows
         _ = cols

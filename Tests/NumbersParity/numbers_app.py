@@ -89,8 +89,15 @@ def _launch_open(path: str, timeout: int) -> None:
     """`open -a Numbers <file>`. LaunchServices grants the sandboxed application access to what it is asked to
     open; AppleScript's own `open` does not, and a document outside the places Numbers may read anyway comes
     back as "the operation is not permitted" — in a dialog, with nobody there to click it."""
-    p = subprocess.run(["open", "-a", "Numbers", path], capture_output=True, text=True, timeout=timeout)
-    if p.returncode != 0:
+    for attempt in range(2):
+        p = subprocess.run(["open", "-a", "Numbers", path], capture_output=True, text=True, timeout=timeout)
+        if p.returncode == 0:
+            return
+        # -600 is "no such process": LaunchServices caught the application mid-shutdown, which happens right after
+        # a document it refused was cleared away. Give it a clean slate and ask once more.
+        if "-600" in p.stderr and attempt == 0:
+            quit_app(force=True)
+            continue
         raise RuntimeError(p.stderr.strip() or f"open -a Numbers exited {p.returncode}")
 
 

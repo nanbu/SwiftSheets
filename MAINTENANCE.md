@@ -95,10 +95,11 @@ per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maint
 - **The 1904 date origin** is written to the Numbers calculation engine as of Rev 2.2, and checked only by our own
   reader. If Numbers.app is to hand, open a workbook saved with `wb.epoch = .mac1904` and confirm the dates read the
   same there as in the source.
-- **Conditional formatting is still not written to Numbers** (Appendix B.16), and the way in is now open rather
-  than blocked: build a workbook with conditional formats in `.xlsx`, have Numbers import and save it as
-  `.numbers` (`numbers_app.resave`), add the result to `Tests/SwiftSheetsTests/Fixtures/numbers/`, and the
-  `predicate_type` values become observable. That is the next piece of work, not a wish.
+- **Conditional formatting is read and written** as of Appendix B.18. The fourteen `predicate_type` values were
+  observed, not guessed — the recipe is worth keeping for the next unnamed integer: build a workbook in `.xlsx`
+  with one rule kind per column and **a parameter no other rule uses**, have Numbers import and save it with
+  `numbers_app.resave`, and match each surviving rule to its column by that parameter. Numbers keeps fourteen of
+  Excel's twenty-five kinds; the eleven it drops on import are the eleven SwiftSheets reports as dropped.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

@@ -70,6 +70,26 @@ struct NumbersStyleResolver {
         return style
     }
 
+    /// What a conditional-format rule paints, as a differential style. A rule names two style archives by
+    /// object rather than by list key, and a `DifferentialStyle`'s nil means "leave the cell as it is" — so only
+    /// what the archives actually vary from a plain cell is carried over.
+    func differentialStyle(cell: Int?, text: Int?) -> DifferentialStyle? {
+        guard cell != nil || text != nil else { return nil }
+        var style = CellStyle.default
+        if let text { apply(text: text, to: &style) }
+        if let cell { apply(cell: cell, to: &style) }
+        var out = DifferentialStyle()
+        if style.fill != CellStyle.default.fill { out.fill = style.fill }
+        var font = DifferentialFont()
+        if style.font.bold != CellStyle.default.font.bold { font.bold = style.font.bold }
+        if style.font.italic != CellStyle.default.font.italic { font.italic = style.font.italic }
+        if style.font.color != CellStyle.default.font.color { font.color = style.font.color }
+        if style.font.strikethrough != CellStyle.default.font.strikethrough { font.strikethrough = style.font.strikethrough }
+        if font != DifferentialFont() { out.font = font }
+        if style.border != CellStyle.default.border { out.border = style.border }
+        return out.isEmpty ? nil : out
+    }
+
     private func defaultTextStyle(row: Int, col: Int) -> Int? {
         if row < headerRows { return headerRowText }
         if col < headerColumns { return headerColumnText }
@@ -352,12 +372,17 @@ struct NumbersStyleWriter {
     /// Where new style archives go: the file the template's own styles live in.
     static let stylesheetFile = "Index/DocumentStylesheet.iwa"
 
-    private var textKeys: [CellStyle: Int] = [:]
-    private var cellKeys: [CellStyle: Int] = [:]
+    private var textObjects: [CellStyle: Int] = [:]
+    private var cellObjects: [CellStyle: Int] = [:]
+    private var textKeys: [Int: Int] = [:]
+    private var cellKeys: [Int: Int] = [:]
     private var formatKeys: [String: Int] = [:]
     private(set) var styleEntries: [ProtoMessage] = []
     /// The style objects the list names, so the package metadata can record the cross-component reference.
     private(set) var styleObjects: [Int] = []
+    /// Every style archive minted, including the ones only a conditional-format rule names — those are not in the
+    /// table's style list, but they still live in another component and still have to be declared there.
+    private(set) var allStyleObjects: [Int] = []
     private(set) var formatEntries: [ProtoMessage] = []
     /// Number-format codes Numbers has no description for; the writer reports them once each.
     private(set) var unexpressibleFormats: [String] = []
@@ -371,32 +396,47 @@ struct NumbersStyleWriter {
         stylesheet = textParent.flatMap { doc.object($0)?.message("super")?.reference("stylesheet") }
     }
 
+    /// The table's own defaults. A conditional-format rule has to name **both** a cell style and a text style —
+    /// the schema marks both required — so a rule that only fills still points its text style at the default,
+    /// and one that only recolours text still points its cell style there. Numbers refuses a rule missing either.
+    var defaultCellStyle: Int? { cellParent }
+    var defaultTextStyle: Int? { textParent }
+
     /// The style-list keys a cell needs, minting the archives the first time a style is met.
     mutating func keys(for style: CellStyle) throws -> (cell: Int?, text: Int?) {
+        let objects = try archives(for: style)
+        return (objects.cell.map { cellEntry(for: $0) }, objects.text.map { textEntry(for: $0) })
+    }
+
+    /// The archives themselves. A conditional-format rule names its two styles **by object**, not by a key of the
+    /// table's style list, so it takes these and never touches the list (spec Appendix B.18).
+    mutating func archives(for style: CellStyle) throws -> (cell: Int?, text: Int?) {
         guard style != .default else { return (nil, nil) }
         var text: Int?
         var cell: Int?
         if let properties = characterProperties(style), let parent = textParent {
-            if let k = textKeys[style] { text = k } else {
+            if let k = textObjects[style] { text = k } else {
                 var para = ProtoMessage(typeName: "TSWP.ParagraphStyleArchive")
                 para.set("super", message: superArchive(parent: parent))
                 para.set("override_count", int: properties.overrides)
                 para.set("char_properties", message: properties.char)
                 if let p = properties.para { para.set("para_properties", message: p) }
                 let id = try doc.add(para, file: NumbersStyleWriter.stylesheetFile)
-                text = addEntry(id)
-                textKeys[style] = text
+                text = id
+                textObjects[style] = id
+                allStyleObjects.append(id)
             }
         }
         if let properties = cellProperties(style), let parent = cellParent {
-            if let k = cellKeys[style] { cell = k } else {
+            if let k = cellObjects[style] { cell = k } else {
                 var archive = ProtoMessage(typeName: "TST.CellStyleArchive")
                 archive.set("super", message: superArchive(parent: parent))
                 archive.set("override_count", int: properties.overrides)
                 archive.set("cell_properties", message: properties.cell)
                 let id = try doc.add(archive, file: NumbersStyleWriter.stylesheetFile)
-                cell = addEntry(id)
-                cellKeys[style] = cell
+                cell = id
+                cellObjects[style] = id
+                allStyleObjects.append(id)
             }
         }
         return (cell, text)
@@ -418,6 +458,15 @@ struct NumbersStyleWriter {
         formatEntries.append(entry)
         formatKeys[code] = key
         return key
+    }
+
+    private mutating func textEntry(for objectID: Int) -> Int {
+        if let k = textKeys[objectID] { return k }
+        let k = addEntry(objectID); textKeys[objectID] = k; return k
+    }
+    private mutating func cellEntry(for objectID: Int) -> Int {
+        if let k = cellKeys[objectID] { return k }
+        let k = addEntry(objectID); cellKeys[objectID] = k; return k
     }
 
     private mutating func addEntry(_ objectID: Int) -> Int {

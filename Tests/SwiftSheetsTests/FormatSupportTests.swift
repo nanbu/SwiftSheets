@@ -115,7 +115,7 @@ import SwiftSheets
             "ハイパーリンク": s.cell("H1")?.hyperlink != nil,
             "メモ": s.cell("H2")?.comment != nil,
             "リッチテキスト": richText,
-            "条件付き書式": rules.count >= 4,
+            "条件付き書式": rules.contains { $0.kind == .cellIs },   // the plain rule; the three richer kinds have rows of their own
             "CF・カラースケール": rules.contains { $0.kind == .colorScale },
             "CF・データバー": rules.contains { $0.kind == .dataBar },
             "CF・アイコンセット": rules.contains { $0.kind == .iconSet },
@@ -156,7 +156,7 @@ import SwiftSheets
         .ods: ["保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
         .numbers: [
             "配列数式", "グループ化", "ハイパーリンク", "メモ", "リッチテキスト",
-            "条件付き書式", "CF・カラースケール", "CF・データバー", "CF・アイコンセット",
+            "CF・カラースケール", "CF・データバー", "CF・アイコンセット",
             "入力規則", "名前付きの表", "オートフィルタ", "絞り込み条件", "並べ替えの記録", "ピボット表",
             "シート保護", "保護範囲", "シナリオ",
             "印刷・ヘッダフッタ", "印刷・向き", "印刷・範囲", "印刷・タイトル行", "改ページ", "タブ色",
@@ -166,7 +166,7 @@ import SwiftSheets
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 22]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 24]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {

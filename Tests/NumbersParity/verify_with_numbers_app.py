@@ -75,7 +75,17 @@ out = pathlib.Path(outdirs[-1]) if outdirs else None
 
 try:
     if out:
-        # 1 — the repair check, on every document the writer tests produced
+        # 1 — the repair check, on every document the writer tests produced, and on the probe corpus:
+        # thirteen documents each one thing more than the last, so a refusal names the feature that broke it
+        probes = sorted((PKG / ".build" / "numbers-judge" / "probes").glob("*.numbers"))
+        for path in probes:
+            try:
+                verdict = numbers_app.opens_clean(str(path))
+                expect(verdict.startswith("clean|"), f"{path.name}: {verdict}")
+            except (numbers_app.NumbersTimeout, RuntimeError) as e:
+                failures.append(f"{path.name}: Numbers would not open it — {e}")
+        notes.append(f"{len(probes)} probes opened")
+
         for name in ["sample.numbers", "formulas.numbers", "from-xlsx.numbers"]:
             path = out / name
             if not path.exists():
@@ -121,6 +131,14 @@ try:
             again = cells(numbers_app.dump(str(resaved)))
             expect(again.get((0, 0), {}).get("value") == "部門", "the re-saved document still holds A1")
             notes.append(f"re-saved by Numbers: {resaved}")
+
+        # 5 — the conditional formats: Numbers keeps a rule it understands and drops one it does not, so a rule
+        # still there after Numbers has saved the document again is a rule Numbers read (Appendix B.18)
+        probe = PKG / ".build" / "numbers-judge" / "probes" / "12-conditional-format.numbers"
+        if probe.exists():
+            kept = out / "conditional-resaved.numbers"
+            numbers_app.resave(str(probe), str(kept))
+            expect(kept.exists(), "Numbers did not save the conditional-format document again")
 finally:
     numbers_app.quit_app()
 

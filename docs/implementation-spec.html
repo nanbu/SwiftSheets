@@ -1844,7 +1844,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
     <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
-    <tr><td>2.3 Draft</td><td>2026-08-25</td><td>Numbers.app が審判に立ち、書き出しの欠陥 2 件（複製した部品の locator が空・複製したシートが余分な表を連れてくる）が出たので直した。あわせて Numbers への<strong>数式の書き出し</strong>を実装（式の木 → <code>TSCE.ASTNodeArrayArchive</code>）。実例の無い形（別表参照・定義名・Numbers に無い関数・列範囲・交差／合併）はキャッシュ値に落として理由を言う。付録 B.18</td></tr>
+    <tr><td>2.3 Draft</td><td>2026-08-25</td><td>Numbers.app が審判に立ち、条件付き書式を読み書きするようになった（名無しの <code>predicate_type</code> 14 種を、Numbers 自身に作らせた文書から観測）。書き出しの欠陥 2 件（複製した部品の locator が空・複製したシートが余分な表を連れてくる）が出たので直した。あわせて Numbers への<strong>数式の書き出し</strong>を実装（式の木 → <code>TSCE.ASTNodeArrayArchive</code>）。実例の無い形（別表参照・定義名・Numbers に無い関数・列範囲・交差／合併）はキャッシュ値に落として理由を言う。付録 B.18</td></tr>
     <tr><td>2.2 Draft</td><td>2026-08-25</td><td>逆向きの数え上げ — ODF にあって OOXML に無い機能を付録 B.17 に固定。ラベル範囲・統合の定義・探偵の矢印・計算設定（正規表現／ワイルドカード／大小文字／二桁年）・日付の原点・通貨のセル種別を実装対象とし、改訂履歴と外部データ接続は「読んで覚えて、落としたと言う」に留める。出典は OASIS ODF 1.3 の RelaxNG スキーマ</td></tr>
     <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
@@ -2487,7 +2487,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <strong>Numbers.app だけは依然として審判に立てていない</strong> — 書式付き書き出しを開く確認は
   MAINTENANCE.md のリリース前チェックリストにある。
   <span class="meta">（2026-08-25 追記: Numbers.app が手元に入り、審判に立った。結果は B.18。
-  ここで「他の審判が通していたから大丈夫だろう」としていた書き出しは、実は Numbers が開けなかった。）</span></p>
+  ここで「他の審判が通していたから大丈夫だろう」としていた書き出しは、実は Numbers が開けなかった。
+  同じ日に、B.16 で「実例が無いから入れない」とした条件付き書式も、Numbers に実例を作らせて入れた。）</span></p>
 
 
   <h3>B.17 ODF にあって OOXML に無いもの（Rev 2.2）</h3>
@@ -2684,13 +2685,61 @@ wb.sheets[<span class="nm">0</span>] = sheet
     これが開かなければ機械の問題だと分かる。次に拒まれた検体が、壊した機能の名前になる。
   </p>
 
+  <h4>条件付き書式 — 名無しの整数を観測で埋めた</h4>
+  <p>
+    B.16 で「入れない」と決めた唯一の理由は、<code>predicate_type</code> が名前を持たない <code>int32</code> で、
+    実例が 1 つも無かったことだった。Numbers.app が来たので<strong>実例を作らせた</strong>。
+  </p>
+  <ol class="steps">
+    <li>1 列に 1 種類ずつ、Excel の条件付き書式 25 種を並べた <code>.xlsx</code> を書く。
+      <strong>どの規則も他とかぶらない値</strong>を持たせる（11・12・13〜14・15〜16・17・18・19・20・
+      "pp"・"qq"・"rr"・"ss"）。順序に頼らずに同定するためである。</li>
+    <li><code>numbers_app.resave</code> で Numbers に読ませ、<code>.numbers</code> として保存させる。</li>
+    <li>出てきた <code>TST.ConditionalStyleSetArchive</code> を<strong>パラメータで</strong>元の列に突き合わせる。</li>
+  </ol>
+  <p>
+    25 種のうち <strong>14 種</strong>が残った。残らなかった 11 種は Numbers が「その規則を持っていない」と
+    言ったということなので、書き手も同じ 11 種を <code>dropped</code> 警告にする — 対応の穴ではなく、
+    <strong>Numbers 自身の輸入時の挙動に合わせた</strong>ことになる。
+  </p>
+  <div class="compare"><table>
+    <tr><th><code>predicate_type</code></th><th>モデルの規則</th></tr>
+    <tr><td>7 / 8 / 9 / 10</td><td><code>cellIs</code> の greaterThan / greaterThanOrEqual / lessThan / lessThanOrEqual</td></tr>
+    <tr><td>5 / 6</td><td><code>cellIs</code> の equal / notEqual</td></tr>
+    <tr><td>13 / 32</td><td><code>cellIs</code> の between / notBetween</td></tr>
+    <tr><td>3 / 4 / 1 / 2</td><td><code>containsText</code> / <code>notContainsText</code> / <code>beginsWith</code> / <code>endsWith</code></td></tr>
+    <tr><td>17 / 34</td><td><code>duplicateValues</code> / <code>uniqueValues</code></td></tr>
+    <tr><td>残り 11 種</td><td>カラースケール・データバー・アイコンセット・上位下位・平均比較・空白・エラー・期間・式 —
+      Numbers が輸入時に落とすものと同じ</td></tr>
+  </table></div>
+  <p>
+    <strong>書き方で 2 つ躓いた</strong>。どちらも Numbers だけが教えてくれることで、審判が無ければ気づけない。
+  </p>
+  <ul class="plain">
+    <li><strong>規則の置き場所</strong>。Numbers は <code>TST.ConditionalStyleSetArchive</code> を
+      <em>それを指すリストと同じファイル</em>に置く。こちらはスタイルシートに置いていたので、
+      Numbers は参照を解決できず文書ごと拒んだ。リストのファイルに置いたら開いた。</li>
+    <li><strong>部品をまたぐ参照の申告</strong>。規則が塗りに使う 2 つのスタイルアーカイブは別の部品にいるので、
+      パッケージの目次にその交差を書かないといけない（セルのスタイル一覧と同じ扱い）。</li>
+  </ul>
+  <p>
+    <strong>審判の答え</strong>。書いた文書を Numbers は修復を求めずに開き、保存し直しても規則が残る。
+    しかも保存されたものには<strong>こちらが書いていない <code>formula</code> フィールドが付いている</strong> —
+    Numbers が述語から式を組み立て直したということで、条件を理解した何よりの証拠である。
+    <code>rules_prepivot</code> も同様に Numbers が補う。実例は
+    <code>Tests/SwiftSheetsTests/Fixtures/numbers/conditional-formats-15.numbers</code>（Numbers 15.3.1 製）。
+  </p>
+  <p class="meta">
+    セルの側は Numbers 流に合わせた — 規則は<strong>範囲ではなくセル 1 つずつ</strong>に記録される
+    （記録のフラグ <code>0x80</code>）。読むときは列ごとに走査して長方形に畳み直し、
+    書くときは範囲内の<strong>空のセルにも</strong>記録を置く（置かないと塗りが最後の値のところで止まる）。
+  </p>
+
   <h4>残っているもの</h4>
   <div class="compare"><table>
     <tr><th>残件</th><th>いま何が足りないか</th></tr>
-    <tr><td>条件付き書式の書き出し</td>
-      <td>B.16 の判断は<strong>まだ有効</strong>。<code>predicate_type</code> の実例がまだ無い。
-        ただし塞がっていた道は開いた — Excel 形式で条件付き書式を作り、Numbers に読ませて
-        <code>.numbers</code> で保存させれば実例が採れる。次の一手はそれ</td></tr>
+    <tr><td>別の表への参照を含む条件付き書式</td>
+      <td>規則そのものは入れた（下記）。参照が別の表に伸びる形だけは実例が要る</td></tr>
     <tr><td>別の表への参照を含む数式</td>
       <td>同じく実例が要る。Numbers に作らせれば採れる</td></tr>
     <tr><td>ハイパーリンク・セル内書式の書き出し</td>

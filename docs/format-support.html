@@ -189,12 +189,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
   <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
-  <rect x="590" y="192" width="71" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="673" y="205" class="sv-t2" font-weight="700">13 / 46</text>
+  <rect x="590" y="192" width="76" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="678" y="205" class="sv-t2" font-weight="700">14 / 46</text>
   <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
   <text x="590" y="260" class="sv-t2">結合・列幅行高・ヘッダ行</text>
-  <text x="590" y="282" class="sv-t2">1 シートに複数の表（ここだけ強い）</text>
-  <text x="590" y="312" class="sv-t3">通らない: 条件付き書式・</text>
+  <text x="590" y="282" class="sv-t2">条件付き書式・1 シートに複数の表</text>
+  <text x="590" y="312" class="sv-t3">通らない: 色の階調・データバー・</text>
   <text x="590" y="332" class="sv-t3">入力規則・ピボット・印刷設定 …</text>
 </svg>
 <figcaption>青い帯が「そのまま通る範囲」。Numbers だけ帯が短いのは能力差ではなく、公開仕様が無いことの帰結です。</figcaption>
@@ -240,7 +240,10 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 
 <tr class="group"><td colspan="5">条件付き書式（この改訂の最優先）</td></tr>
 <tr><td>比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間</td>
-  <td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は 18 種すべて</td></tr>
+  <td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
+  <td>ODS は 18 種すべて。<strong>Numbers は 14 種</strong> — 比較 8 種（&gt; ≧ &lt; ≦ = ≠ 範囲内 範囲外）・
+    文字列 4 種（含む・含まない・で始まる・で終わる）・重複・一意。残りは Numbers 自身が
+    Excel ファイルを読み込むときに捨てるものと同じで、こちらも捨てて警告します</td></tr>
 <tr><td>カラースケール（2 色・3 色）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>データバー</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は「数値を隠す」を持ちません</td></tr>
 <tr><td>アイコンセット</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
@@ -384,9 +387,10 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </div>
 
 <div class="card">
-<h3>だから「セル書式は入れた」「条件付き書式は入れなかった」</h3>
+<h3>判断の基準は、いつでも「確かめられるかどうか」</h3>
 <p>
-  同じ Numbers 向けの機能でも、扱いが分かれています。判断の基準は<strong>確かめられるかどうか</strong>です。
+  同じ Numbers 向けの機能でも、扱いが分かれます。基準は一つ — <strong>実例があるか、審判に確かめられるか</strong>。
+  Numbers.app が入るまで「入れない」としていた 2 件は、審判が来たことで両方とも入りました。
 </p>
 <div class="tablewrap"><table>
 <thead><tr><th>件</th><th>入れたか</th><th>確かめ方があったか</th></tr></thead>
@@ -399,34 +403,61 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>数式の書き出し</td><td class="y"><strong>入れた</strong></td>
   <td>フィクスチャの数式アーカイブを 1 フィールドずつ読んで、書く側を起こした。
     書いたファイルの <code>SUM(B2:B3)</code> を numbers-parser が数式として読む（付録 B.18）</td></tr>
-<tr><td><strong>条件付き書式</strong></td><td class="n"><strong>入れない</strong></td>
-  <td>下記</td></tr>
+<tr><td><strong>条件付き書式</strong></td><td class="y"><strong>入れた</strong></td>
+  <td>下記。名無しの整数 <code>predicate_type</code> の値を、Numbers 自身に作らせた文書から<strong>観測</strong>した</td></tr>
+<tr><td>ハイパーリンク（書き）・メモ</td><td class="n"><strong>入れない</strong></td>
+  <td>置き場所は分かるが、どの段落スタイルを指すべきかの実例がまだ無い（メモは実例そのものが無い）</td></tr>
 </tbody>
 </table></div>
 </div>
 
 <div class="card tint">
-<h3>Numbers の条件付き書式を入れなかった理由</h3>
+<h3>名無しの整数を、当てずっぽうではなく観測で埋めた</h3>
 <p>
-  設計図には<strong>存在します</strong>（<code>TST.ConditionalStyleSetArchive</code>、リストの種別 9、
-  セル記録のフラグ <code>0x80</code>）。書けない理由はただ一つ、<strong>条件そのものを表す整数に名前が無い</strong>ことです。
+  設計図には<strong>存在していました</strong>（<code>TST.ConditionalStyleSetArchive</code>、リストの種別 9、
+  セル記録のフラグ <code>0x80</code>）。書けなかった理由はただ一つ、<strong>条件そのものを表す整数に名前が無い</strong>ことです。
   Apple は条件の種類を C の列挙型で持っており、Protobuf には <code>predicate_type</code> という
-  名無しの <code>int32</code> しか残っていません。
+  名無しの <code>int32</code> しか残っていません。当てずっぽうの整数を書けば、良くて「修復しますか」と言われ、
+  悪くすると<strong>黙って違うセルを塗る</strong>文書ができます。
 </p>
-<ul class="plain">
-  <li>numbers-parser にも条件付き書式の API が無い</li>
-  <li>手元のフィクスチャ 11 個を走査したが、<strong>実例が 1 つも無い</strong></li>
-</ul>
 <p>
-  当てずっぽうの整数を書けば、良くて Numbers が「修復しますか」と言う文書、悪くすると
-  <strong>黙って違うセルを塗る</strong>文書ができます。後者のほうが害が大きい。
-  そこで、数式アーカイブを生成しないという既存の判断と同じ理由で、
-  <strong>「書きません」と警告で言う</strong>ことにしました。
+  Numbers.app が来たので、<strong>Numbers 自身に書かせて読み取りました</strong>。
+  1 列に 1 種類ずつ規則を置いた Excel ファイルを作り、<strong>どの規則も他とかぶらない値</strong>
+  （11・12・13〜14・15〜16・17・18・19・20・"pp"・"qq"・"rr"・"ss"）を持たせます。
+  それを Numbers に読み込ませて <code>.numbers</code> で保存させ、出てきた規則を<strong>値で</strong>元の列に突き合わせました。
+  並び順に頼っていないので、順番が入れ替わっても結論は変わりません。
 </p>
+<figure>
+<svg viewBox="0 0 860 250" role="img" aria-label="Excelファイルを作りNumbersに保存させて名無しの整数を観測する手順">
+  <rect x="20" y="40" width="190" height="96" rx="14" class="sv-card"/>
+  <text x="115" y="70" class="sv-tb" text-anchor="middle">Excel ファイルを作る</text>
+  <text x="115" y="96" class="sv-t2" text-anchor="middle">1 列 1 規則</text>
+  <text x="115" y="118" class="sv-t3" text-anchor="middle">値はすべて別々に</text>
+
+  <path d="M220 88 H272" class="sv-arrow"/><path d="M272 88 l-9 -5 v10 z" class="sv-mark"/>
+
+  <rect x="282" y="34" width="200" height="108" rx="14" class="sv-accent-soft"/>
+  <text x="382" y="66" class="sv-tb" text-anchor="middle">Numbers に読ませる</text>
+  <text x="382" y="94" class="sv-t2" text-anchor="middle">そのまま保存させる</text>
+  <text x="382" y="120" class="sv-t3" text-anchor="middle">25 種のうち 14 種が残った</text>
+
+  <path d="M492 88 H544" class="sv-arrow"/><path d="M544 88 l-9 -5 v10 z" class="sv-mark"/>
+
+  <rect x="554" y="40" width="286" height="96" rx="14" class="sv-soft"/>
+  <text x="697" y="70" class="sv-tb" text-anchor="middle">値で元の列に突き合わせる</text>
+  <text x="697" y="96" class="sv-t2" text-anchor="middle">「11 が付いた規則」＝より大きい</text>
+  <text x="697" y="118" class="sv-good" text-anchor="middle">→ predicate_type = 7</text>
+
+  <text x="20" y="186" class="sv-t2">残った 14 種: 比較 8 種・文字列 4 種・重複・一意。</text>
+  <text x="20" y="210" class="sv-t2">残らなかった 11 種（色の階調・データバー・アイコン・上位下位・平均比較・空白・エラー・期間・式）は、</text>
+  <text x="20" y="232" class="sv-t2">Numbers が「その規則を持っていない」と言ったということなので、こちらも書かずに警告します。</text>
+</svg>
+<figcaption>書いたファイルは Numbers が開き、保存し直しても規則が残ります（＝Numbers が条件を理解した証拠）。</figcaption>
+</figure>
 <p class="meta">
-  入れるための条件は具体的で、<strong>いまや塞がっていません</strong> — Excel 形式で条件付き書式を作り、
-  Numbers.app に読ませて <code>.numbers</code> で保存させ、フィクスチャに加えること。
-  それだけで <code>predicate_type</code> の値が観測でき、実装できるようになります。次の一手はこれです。
+  実例そのもの（Numbers 15.3.1 が書いた文書）は
+  <code>Tests/SwiftSheetsTests/Fixtures/numbers/conditional-formats-15.numbers</code> に置いてあり、
+  対応表はテストで固定されています。
 </p>
 </div>
 </section>

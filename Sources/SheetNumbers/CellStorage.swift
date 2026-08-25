@@ -17,6 +17,7 @@ struct CellStorage {
     var cellStyleID: Int?
     var textStyleID: Int?
     var formulaID: Int?
+    var conditionalStyleID: Int?
     var formulaErrorID: Int?
     var numFormatID: Int?
     var currencyFormatID: Int?
@@ -58,7 +59,7 @@ struct CellStorage {
         if flags & 0x10 != 0 { s.richID = try int32() }
         if flags & 0x20 != 0 { s.cellStyleID = try int32() }
         if flags & 0x40 != 0 { s.textStyleID = try int32() }
-        if flags & 0x80 != 0 { _ = try int32() }        // conditional style
+        if flags & 0x80 != 0 { s.conditionalStyleID = try int32() }
         if flags & 0x100 != 0 { _ = try int32() }       // conditional rule style
         if flags & 0x200 != 0 { s.formulaID = try int32() }
         if flags & 0x400 != 0 { _ = try int32() }       // control
@@ -128,7 +129,7 @@ struct CellStorage {
     /// `cellStyleID` / `textStyleID` its style list and the `*FormatID`s its format list. The fields go out in flag
     /// order, which is the order `decode` reads them in.
     static func encode(type: CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil, stringID: Int? = nil,
-                       cellStyleID: Int? = nil, textStyleID: Int? = nil, formulaID: Int? = nil,
+                       cellStyleID: Int? = nil, textStyleID: Int? = nil, conditionalStyleID: Int? = nil, formulaID: Int? = nil,
                        numFormatID: Int? = nil, currencyFormatID: Int? = nil, dateFormatID: Int? = nil,
                        durationFormatID: Int? = nil, textFormatID: Int? = nil, boolFormatID: Int? = nil) -> Data {
         var flags = 0
@@ -142,6 +143,7 @@ struct CellStorage {
         if let stringID { flags |= 0x8; int32(stringID); extras |= 0x80 }
         if let cellStyleID { flags |= 0x20; int32(cellStyleID) }
         if let textStyleID { flags |= 0x40; int32(textStyleID) }
+        if let conditionalStyleID { flags |= 0x80; int32(conditionalStyleID) }
         if let formulaID { flags |= 0x200; int32(formulaID) }
         if let numFormatID { flags |= 0x2000; int32(numFormatID); extras |= 1 }
         if let currencyFormatID { flags |= 0x4000; int32(currencyFormatID); extras |= 2 }

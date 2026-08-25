@@ -63,7 +63,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
 | ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
-| Numbers | ✅ values, formulas (as text), cell formatting, number formats, hyperlinks, merges, sizes, several tables per sheet | ✅ values, **formulas**, cell formatting, number formats, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
+| Numbers | ✅ values, formulas (as text), cell formatting, number formats, **conditional formats**, hyperlinks, merges, sizes, several tables per sheet | ✅ values, **formulas**, cell formatting, number formats, **conditional formats**, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
@@ -112,11 +112,14 @@ is reported, never dropped in silence.
   are not invented: a reference to **another table**, a **defined name**, a **function Numbers does not have**, a
   range over **whole columns** (`A:C`), and the **intersection / union** operators. Each falls back to the cached
   value with a `degraded` warning naming what stopped it.
-- **Conditional formatting is not written to Numbers**, and this is deliberate. The archive exists in the schema
-  (`TST.ConditionalStyleSetArchive`), but a rule's condition is a `predicate_type` integer Apple left unnamed in the
-  Protobuf. There is no Numbers.app here, numbers-parser has no API for it, and none of the eleven fixtures contains
-  one — so a guessed value would either make Numbers offer to repair the file or, worse, quietly paint the wrong
-  cells. It stays a `dropped` warning until a fixture with a real rule exists (spec Appendix B.16).
+- **Conditional formatting** is read and written (spec Appendix B.18). A rule's condition is a `predicate_type`
+  integer Apple left unnamed in the Protobuf, so the fourteen values were *observed*: a workbook with one rule kind
+  per column, each carrying a parameter no other rule uses, was written as `.xlsx`, imported by Numbers 15.3.1 and
+  saved back as `.numbers`, and each surviving rule matched to the column that produced it **by its parameter**.
+  The fourteen are the eight comparisons (`>`, `≥`, `<`, `≤`, `=`, `≠`, between, not between), the four text rules
+  (contains, does not contain, begins with, ends with), duplicate and unique. Colour scales, data bars, icon sets,
+  top-n, above-average, blanks, errors, dates and free formulas are reported as dropped — the same eleven Numbers
+  itself drops when it imports an Excel file.
 - Everything else Numbers has no word for — validations, pivot tables, named tables, auto-filters, sheet protection,
   scenarios, print setup, defined names, tab colours, outline grouping, notes, hyperlink *writing* — is reported as
   a warning. Nothing is dropped in silence.

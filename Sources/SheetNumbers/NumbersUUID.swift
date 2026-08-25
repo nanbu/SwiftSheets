@@ -15,6 +15,16 @@ enum NumbersUUID {
         }
     }
 
+    /// The same UUID in the other spelling — a `TSP.UUID` as a `TSP.CFUUIDArchive`. Numbers uses one or the
+    /// other depending on the archive, and a conditional-format rule needs both for the same table.
+    static func cfuuid(_ uuid: ProtoMessage?) -> ProtoMessage? {
+        guard let uuid, let lo = uuid.uint("lower"), let hi = uuid.uint("upper") else { return nil }
+        var m = ProtoMessage(typeName: "TSP.CFUUIDArchive")
+        m.set("uuid_w0", uint: lo & 0xFFFF_FFFF); m.set("uuid_w1", uint: lo >> 32)
+        m.set("uuid_w2", uint: hi & 0xFFFF_FFFF); m.set("uuid_w3", uint: hi >> 32)
+        return m
+    }
+
     /// A fresh random UUID as `TSP.UUID` / `TSP.CFUUIDArchive` messages and as the `table_id` string form.
     static func random() -> (uuid: ProtoMessage, cfuuid: ProtoMessage, string: String) {
         let u = UUID().uuid

@@ -68,8 +68,13 @@ struct NumbersWriter {
             if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
                 warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "data validation dropped: Numbers rules are not written"))
             }
-            if !sheet.conditionalFormatting.isEmpty || sheet.hasUnmodelledConditionalFormats {
-                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "conditional format(s) dropped: Numbers rules are not written"))
+            if sheet.hasUnmodelledConditionalFormats {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
+                                                  message: "a conditional format the model could not fully read is dropped: its own block cannot be carried into Numbers"))
+            }
+            if sheet.tables.count > 1, !sheet.conditionalFormatting.isEmpty {
+                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
+                                                  message: "the sheet's conditional formats are written onto its first table: the model keeps them per sheet, Numbers per table"))
             }
             if !sheet.pivotTables.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name, message: "\(sheet.pivotTables.count) pivot table(s) dropped: Numbers pivot tables are not written"))
@@ -107,7 +112,8 @@ struct NumbersWriter {
                 let info: Int
                 if t < infos.count { info = infos[t] } else { info = try cloneTable(from: infos[0], intoSheet: sid); infos.append(info) }
                 let name = table.name ?? "Table \(t + 1)"
-                let size = try patch(tableInfo: info, with: table, name: name, sheetName: sheet.name)
+                let size = try patch(tableInfo: info, with: table, name: name, sheetName: sheet.name,
+                                     conditionalFormats: t == 0 ? sheet.conditionalFormatting : [])
                 doc.update(info) { m in
                     var d = m.message("super") ?? ProtoMessage(typeName: "TSD.DrawableArchive")
                     var g = d.message("geometry") ?? ProtoMessage(typeName: "TSD.GeometryArchive")
@@ -242,6 +248,23 @@ struct NumbersWriter {
     /// to, whatever the original's entry said: a template component with **no** locator means "the file named by the
     /// preferred locator", and a copy that inherits that emptiness sends Numbers to the original's file — where the
     /// copy is not. Numbers then calls the whole document damaged and refuses to open it (Appendix B.18).
+    /// What a rule paints, as a whole cell style — a `DifferentialStyle` says only what it changes, and the style
+    /// writer builds archives out of complete styles.
+    static func cellStyle(for d: DifferentialStyle) -> CellStyle {
+        var style = CellStyle.default
+        if let fill = d.fill { style.fill = fill }
+        if let border = d.border { style.border = border }
+        if let f = d.font {
+            if let v = f.bold { style.font.bold = v }
+            if let v = f.italic { style.font.italic = v }
+            if let v = f.strikethrough { style.font.strikethrough = v }
+            if let v = f.color { style.font.color = v }
+            if let v = f.name { style.font.name = v; style.font.scheme = nil }
+            if let v = f.size { style.font.size = v }
+        }
+        return style
+    }
+
     private func registerComponent(_ new: Int, like old: Int) {
         let path = doc.locations[new]?.0 ?? ""
         var locator = path.hasPrefix("Index/") ? String(path.dropFirst("Index/".count)) : path
@@ -319,7 +342,8 @@ struct NumbersWriter {
 
     // MARK: - Patching one table's data
 
-    private mutating func patch(tableInfo: Int, with table: Table, name: String, sheetName: String) throws -> (width: Double, height: Double) {
+    private mutating func patch(tableInfo: Int, with table: Table, name: String, sheetName: String,
+                                conditionalFormats: [ConditionalFormatting] = []) throws -> (width: Double, height: Double) {
         guard let modelID = doc.object(tableInfo)?.reference("tableModel"), var model = doc.object(modelID), var store = model.message("base_data_store") else {
             throw SheetError.malformedPart(path: "empty.numbers", detail: "table model missing")
         }
@@ -374,6 +398,58 @@ struct NumbersWriter {
             return k
         }
 
+        // conditional formats → the table's own list, and a key on every cell the rules cover. Numbers records
+        // the rule on each cell rather than over a range, which is why the reader condenses them back (B.18).
+        let tableUUID = model.message("haunted_owner")?.message("owner_uid")
+        // Numbers keeps a rule set in the same file as the list that names it, and the two style archives a rule
+        // paints with in another component again. Follow it: a set written into some other file is a reference
+        // Numbers cannot resolve, and it refuses the whole document (Appendix B.18).
+        let conditionalList = store.reference("conditionalstyletable")
+        let conditionalFile = conditionalList.flatMap { doc.locations[$0]?.0 } ?? NumbersStyleWriter.stylesheetFile
+        var conditionalEntries: [ProtoMessage] = []
+        var conditionalKeys: [CellRef: Int] = [:]
+        var unwritableRules: [String] = []
+        for block in conditionalFormats {
+            var rules: [ProtoMessage] = []
+            for rule in block.rules.sorted(by: { $0.priority < $1.priority }) {
+                let painted = NumbersWriter.cellStyle(for: rule.style ?? DifferentialStyle())
+                let objects = try styleWriter.archives(for: painted)
+                guard let archive = NumbersConditional.archive(for: rule, tableUUID: tableUUID,
+                                                               cellStyle: objects.cell ?? styleWriter.defaultCellStyle,
+                                                               textStyle: objects.text ?? styleWriter.defaultTextStyle) else {
+                    unwritableRules.append(rule.kind.rawValue)
+                    continue
+                }
+                rules.append(archive)
+            }
+            guard !rules.isEmpty else { continue }
+            var set = ProtoMessage(typeName: "TST.ConditionalStyleSetArchive")
+            set.set("ruleCount", int: rules.count)
+            var holder = ProtoMessage(typeName: "TST.ConditionalStyleSetArchive.ConditionalStyleRules")
+            holder.set("rule", messages: rules)
+            set.set("rules", message: holder)
+            let id = try doc.add(set, file: conditionalFile)
+            let key = conditionalEntries.count + 1
+            var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+            entry.set("key", int: key); entry.set("refcount", int: 0); entry.set("reference", reference: id)
+            conditionalEntries.append(entry)
+            for range in block.ranges.ranges {
+                for r in range.minRow...range.maxRow where r < rows {
+                    for c in range.minCol...range.maxCol where c < cols {
+                        conditionalKeys[CellRef(row: r, col: c)] = key
+                    }
+                }
+            }
+        }
+        for kind in Set(unwritableRules).sorted() {
+            warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
+                                              message: "conditional format \(kind) is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)"))
+        }
+        for i in conditionalEntries.indices {
+            let key = conditionalEntries[i].int("key") ?? 0
+            conditionalEntries[i].set("refcount", int: conditionalKeys.values.filter { $0 == key }.count)
+        }
+
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
             guard let stored = cell.value else { continue }
             var value: CellValue? = stored
@@ -398,11 +474,17 @@ struct NumbersWriter {
             let keys = try styleWriter.keys(for: style)
             let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
             records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
-                                               formatKey: formatKey, code: style.numberFormat, formulaID: formulaID)
+                                               formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
+                                               conditionalStyleID: conditionalKeys[ref])
         }
         for i in formulaEntries.indices {
             let k = formulaEntries[i].int("key") ?? 0
             formulaEntries[i].set("refcount", int: formulaRefcounts[k] ?? 1)
+        }
+        // an empty cell inside a rule's range still names the rule — otherwise the rule stops at the last cell
+        // that happened to hold something
+        for (ref, key) in conditionalKeys where records[ref.row][ref.col] == nil {
+            records[ref.row][ref.col] = CellStorage.encode(type: .generic, conditionalStyleID: key)
         }
         if hyperlinkCount > 0 {
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
@@ -445,6 +527,28 @@ struct NumbersWriter {
                 list.set("entries", messages: entries)
                 list.set("nextListID", int: entries.count + 1)
             }
+        }
+
+        // conditional-style list
+        if let cid = conditionalList {
+            let entries = conditionalEntries
+            doc.update(cid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
+            if !entries.isEmpty, let listComponent = doc.componentID(forObject: cid) {
+                // every style a rule names, minted or borrowed. The table's own defaults stand in for the half a
+                // rule does not vary, and they live in the stylesheet component just as the minted ones do — an
+                // undeclared crossing is a reference Numbers cannot resolve, and it refuses the document.
+                let named = styleWriter.allStyleObjects + [styleWriter.defaultCellStyle, styleWriter.defaultTextStyle].compactMap { $0 }
+                let crossings = Set(named).compactMap { object in
+                    doc.componentID(forObject: object).map { (object: object, component: $0) }
+                }
+                doc.addExternalReferences(from: listComponent, to: crossings)
+            }
+        } else if !conditionalEntries.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
+                                              message: "conditional formats dropped: the template's table has no conditional-style list"))
         }
 
         // formula list
@@ -580,7 +684,8 @@ struct NumbersWriter {
     /// The packed record for a value (nil for kinds Numbers cannot hold, after a warning). The number format goes
     /// in the slot the *value* asks for — Numbers has one per kind, not one per cell.
     private mutating func record(for value: CellValue?, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
-                                 formatKey: Int? = nil, code: String = NumberFormat.general, formulaID: Int? = nil) -> Data? {
+                                 formatKey: Int? = nil, code: String = NumberFormat.general, formulaID: Int? = nil,
+                                 conditionalStyleID: Int? = nil) -> Data? {
         let isCurrency = code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£")
         func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil,
                     stringID: Int? = nil) -> Data {
@@ -594,7 +699,7 @@ struct NumbersWriter {
             }
             return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, double: double,
                                       seconds: seconds, stringID: stringID, cellStyleID: cellStyleID, textStyleID: textStyleID,
-                                      formulaID: formulaID, numFormatID: number, currencyFormatID: currency, dateFormatID: date,
+                                      conditionalStyleID: conditionalStyleID, formulaID: formulaID, numFormatID: number, currencyFormatID: currency, dateFormatID: date,
                                       durationFormatID: duration, textFormatID: text, boolFormatID: boolean)
         }
         switch value {
