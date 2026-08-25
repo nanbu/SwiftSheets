@@ -5,7 +5,8 @@ workbook, change what you need, save — charts, pivot caches, VBA and everythin
 as they went in. Foundation + the Compression framework only; no external dependencies. macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
 
 The design is written down in [docs/implementation-spec.html](docs/implementation-spec.html) (Japanese; the spec is
-revised first, then the code).
+revised first, then the code), and what each format carries — measured, not claimed — is in
+[docs/format-support.html](docs/format-support.html).
 
 ```swift
 import SwiftSheets

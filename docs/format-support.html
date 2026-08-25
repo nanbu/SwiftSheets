@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>形式ごとの対応表 — Excel / ODS / Numbers で何がどこまで通るか（SwiftSheets 0.6.0）</title>
+<style>
+:root{
+  --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
+  --ink:#1d1d1f; --ink-2:#515154; --ink-3:#86868b;
+  --accent:#0a84ff; --good:#248a3d; --bad:#d70015; --warn:#b25000;
+  --hairline:rgba(0,0,0,.08); --line:#d2d2d7; --soft:#f0f0f3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#161617; --surface:#1d1d1f; --card-bg:#1d1d1f;
+    --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#86868b;
+    --accent:#409cff; --good:#30d158; --bad:#ff453a; --warn:#ff9f0a;
+    --hairline:rgba(255,255,255,.12); --line:#48484a; --soft:#242426;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-size:15.5px;line-height:1.8;-webkit-font-smoothing:antialiased}
+main{max-width:980px;margin:0 auto;padding:56px 22px 100px}
+h1{font-size:31px;font-weight:800;line-height:1.35;margin:0 0 10px;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:700;margin:56px 0 10px;letter-spacing:-.01em;padding-top:6px}
+h3{font-size:17px;font-weight:700;margin:28px 0 6px}
+p{margin:10px 0}
+.lede{color:var(--ink-2);font-size:17.5px;line-height:1.75}
+.meta{color:var(--ink-3);font-size:13px;margin-top:14px}
+.rule{height:1px;background:var(--hairline);border:0;margin:26px 0}
+.card{background:var(--card-bg);border:1px solid var(--hairline);border-radius:16px;padding:18px 22px;margin:16px 0}
+.card h3{margin-top:0}
+.card.tint{background:var(--surface)}
+.card.decide{border-color:var(--accent);border-width:1.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0}
+.grid .card{margin:0}
+.score{text-align:center}
+.score .num{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.score .num small{font-size:16px;font-weight:700;color:var(--ink-3)}
+.score .lab{font-size:13.5px;color:var(--ink-2);font-weight:700;margin-top:2px}
+.score .sub{font-size:12.5px;color:var(--ink-3);margin-top:6px;line-height:1.6}
+.chip{display:inline-block;padding:2px 12px;border-radius:999px;font-size:12.5px;font-weight:600;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--hairline);margin:0 6px 6px 0}
+.chip.ok{color:var(--good)} .chip.hot{color:var(--accent)} .chip.no{color:var(--bad)}
+.kv{color:var(--ink-3);font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:2px}
+figure{margin:26px 0}
+figcaption{color:var(--ink-3);font-size:13px;margin-top:8px;text-align:center}
+svg{max-width:100%;height:auto;display:block;margin:0 auto;font-family:inherit}
+.sv-card{fill:var(--card-bg);stroke:var(--line)}
+.sv-soft{fill:var(--soft);stroke:var(--line)}
+.sv-ghost{fill:none;stroke:var(--line);stroke-dasharray:5 4}
+.sv-accent{fill:var(--accent)}
+.sv-accent-soft{fill:var(--card-bg);stroke:var(--accent);stroke-width:1.5}
+.sv-t{fill:var(--ink);font-size:13.5px}
+.sv-tb{fill:var(--ink);font-size:13.5px;font-weight:700}
+.sv-t2{fill:var(--ink-2);font-size:12.5px}
+.sv-t3{fill:var(--ink-3);font-size:11.5px}
+.sv-inv{fill:#fff;font-size:13px;font-weight:700}
+.sv-bad{fill:var(--bad);font-size:13px;font-weight:700}
+.sv-good{fill:var(--good);font-size:13px;font-weight:700}
+.sv-warn{fill:var(--warn);font-size:13px;font-weight:700}
+.sv-line{stroke:var(--line);stroke-width:1.2;fill:none}
+.sv-arrow{stroke:var(--ink-3);stroke-width:1.6;fill:none}
+.sv-mark{fill:var(--ink-3)}
+.sv-grid{stroke:var(--line);stroke-width:.8}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
+.tablewrap{overflow-x:auto;margin:16px 0;border:1px solid var(--hairline);border-radius:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--hairline);vertical-align:top}
+th{font-weight:700;font-size:13.5px;color:var(--ink-2);background:var(--surface)}
+tr:last-child td{border-bottom:0}
+td.m,th.m{text-align:center;width:74px;white-space:nowrap}
+td.m{font-weight:700}
+.y{color:var(--good)} .n{color:var(--bad)} .h{color:var(--warn)}
+tr.group td{background:var(--surface);font-weight:700;font-size:13.5px;color:var(--ink-2)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;
+  background:var(--surface);padding:1.5px 6px;border-radius:6px}
+pre{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;
+  padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.65;margin:14px 0}
+pre code{background:none;padding:0}
+ul.plain{padding-left:1.3em;margin:10px 0} ul.plain li{margin:6px 0}
+ol.steps{padding-left:1.4em} ol.steps li{margin:8px 0}
+.answer{background:var(--surface);border-radius:12px;padding:14px 18px;margin-top:14px;font-weight:700}
+.answer .q{color:var(--accent)}
+footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);color:var(--ink-3);font-size:13px}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;font-size:10.5pt}
+  main{max-width:none;padding:0}
+  section,.card,table,svg,figure,.grid{break-inside:avoid}
+  h2{break-after:avoid}
+  pre,.tablewrap{overflow:visible;white-space:normal}
+  table{min-width:0;font-size:9pt}
+  th,td{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>形式ごとの対応表</h1>
+<p class="lede">同じブックを <code>.xlsx</code>・<code>.ods</code>・<code>.numbers</code> に書いたとき、
+何がそのまま通り、何が形を変え、何が通らないのか。SwiftSheets 0.6.0 の実測です。</p>
+<p class="meta">2026-08-25 時点 / 検証環境: macOS 15・LibreOffice 26.2.3・numbers-parser 4.16.3</p>
+
+<hr class="rule">
+
+<section>
+<h2>この表の作り方</h2>
+<p>
+  「対応しています」と書いた表はすぐ嘘になります。そこでこの表は<strong>推測ではなく測定</strong>で作りました。
+  モデルが持てる 40 の項目をすべて詰め込んだブックを 1 つ用意し、各形式に<strong>書いて、読み戻して、
+  元と比べる</strong>。○ は戻ってきたもの、× は戻らなかったもの、△ は形を変えて戻ってきたものです。
+</p>
+<p>
+  同じ計測はリポジトリのテストからも回せます。数字が古くなったら、テストが先に赤くなります。
+</p>
+
+<div class="grid">
+  <div class="card score">
+    <div class="num">39<small> / 40</small></div>
+    <div class="lab">Excel（.xlsx / .xlsm）</div>
+    <div class="sub">基準の形式。通らないのは「1 枚のシートに複数の表」だけ — これは Numbers にしか無い考え方です。</div>
+  </div>
+  <div class="card score">
+    <div class="num">35<small> / 40</small></div>
+    <div class="lab">ODS（OpenDocument）</div>
+    <div class="sub">条件付き書式・入力規則・印刷設定・ピボット表まで通ります。通らない 5 件は ODF の側に言葉が無いもの。</div>
+  </div>
+  <div class="card score">
+    <div class="num">10<small> / 40</small></div>
+    <div class="lab">Numbers</div>
+    <div class="sub">値・セル書式・表示形式・結合・寸法まで。表計算の「仕掛け」は書けません（理由は後述）。</div>
+  </div>
+</div>
+</section>
+
+<section>
+<h2>一目で</h2>
+<p>
+  三つの形式は「同じものの方言」ではありません。<strong>Excel と ODS は同じ地図を別の言葉で描いており、
+  Numbers は別の地図を描いています。</strong>下の図がその関係です。
+</p>
+
+<figure>
+<svg viewBox="0 0 900 380" role="img" aria-label="モデルを中心に、Excel・ODS・Numbers それぞれが受け取れる範囲を示した図">
+  <!-- model -->
+  <rect x="330" y="20" width="240" height="72" rx="14" class="sv-accent-soft"/>
+  <text x="450" y="48" class="sv-tb" text-anchor="middle">SwiftSheets のモデル</text>
+  <text x="450" y="70" class="sv-t3" text-anchor="middle">形式に依らない 1 つの表現（40 項目）</text>
+
+  <!-- arrows -->
+  <path d="M 400 92 L 190 150" class="sv-arrow" marker-end="url(#a1)"/>
+  <path d="M 450 92 L 450 150" class="sv-arrow" marker-end="url(#a1)"/>
+  <path d="M 500 92 L 710 150" class="sv-arrow" marker-end="url(#a1)"/>
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" class="sv-mark"/>
+    </marker>
+  </defs>
+
+  <!-- xlsx -->
+  <rect x="40" y="150" width="290" height="200" rx="14" class="sv-card"/>
+  <text x="185" y="178" class="sv-tb" text-anchor="middle">Excel</text>
+  <rect x="60" y="192" width="250" height="18" rx="5" class="sv-soft"/>
+  <rect x="60" y="192" width="244" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="185" y="205" class="sv-inv" text-anchor="middle">39 / 40</text>
+  <text x="60" y="238" class="sv-t2">値・数式・書式・条件付き書式</text>
+  <text x="60" y="260" class="sv-t2">入力規則・表・フィルタ・ピボット</text>
+  <text x="60" y="282" class="sv-t2">保護・シナリオ・印刷設定・定義名</text>
+  <text x="60" y="312" class="sv-t3">通らない: 1 シートに複数の表</text>
+  <text x="60" y="332" class="sv-t3">（Excel にその考え方が無い）</text>
+
+  <!-- ods -->
+  <rect x="345" y="150" width="210" height="200" rx="14" class="sv-card"/>
+  <text x="450" y="178" class="sv-tb" text-anchor="middle">ODS</text>
+  <rect x="365" y="192" width="170" height="18" rx="5" class="sv-soft"/>
+  <rect x="365" y="192" width="149" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="450" y="205" class="sv-inv" text-anchor="middle">35 / 40</text>
+  <text x="365" y="238" class="sv-t2">Excel とほぼ同じ範囲</text>
+  <text x="365" y="260" class="sv-t2">条件付き書式は拡張名前空間</text>
+  <text x="365" y="282" class="sv-t2">ピボット表 = データパイロット</text>
+  <text x="365" y="312" class="sv-t3">通らない: 保護範囲・シナリオ</text>
+  <text x="365" y="332" class="sv-t3">タブ色・ブック保護</text>
+
+  <!-- numbers -->
+  <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
+  <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
+  <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
+  <rect x="590" y="192" width="63" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="665" y="205" class="sv-t2" font-weight="700">10 / 40</text>
+  <text x="590" y="238" class="sv-t2">値・セル書式・表示形式</text>
+  <text x="590" y="260" class="sv-t2">結合・列幅行高・ヘッダ行</text>
+  <text x="590" y="282" class="sv-t2">1 シートに複数の表（ここだけ強い）</text>
+  <text x="590" y="312" class="sv-t3">通らない: 数式・条件付き書式・</text>
+  <text x="590" y="332" class="sv-t3">入力規則・ピボット・印刷設定 …</text>
+</svg>
+<figcaption>青い帯が「そのまま通る範囲」。Numbers だけ帯が短いのは能力差ではなく、公開仕様が無いことの帰結です。</figcaption>
+</figure>
+</section>
+<section>
+<h2>対応表</h2>
+<p>
+  ○ = そのまま往復する / △ = 形を変えて通る（右の注を読んでください）/ × = 通らない。
+  <strong>× のものは黙って消えるのではなく、書き出しのたびに警告として返ってきます</strong>（後述）。
+</p>
+
+<div class="tablewrap"><table>
+<thead><tr><th>できること</th><th class="m">Excel</th><th class="m">ODS</th><th class="m">Numbers</th><th>注</th></tr></thead>
+<tbody>
+
+<tr class="group"><td colspan="5">中身</td></tr>
+<tr><td>値（数値・文字・日付・真偽・経過時間・エラー）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers の小数は decimal128。桁が落ちません</td></tr>
+<tr><td>数式</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
+  <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。<strong>Numbers は読めるが書けない</strong> — 書くときはキャッシュ値になり、警告が出ます</td></tr>
+<tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は起点セルの <code>table:number-matrix-*-spanned</code></td></tr>
+<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
+  <td>ODS は <code>text:span</code>。Numbers は読むときに平文へ落とします</td></tr>
+<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
+  <td><strong>Numbers は読めるが書けない</strong>。Numbers のリンクは文字列の「範囲」に付くので、1 セルに複数あり得ます（先頭を採り、その旨を警告）</td></tr>
+<tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は <code>office:annotation</code></td></tr>
+<tr><td>結合</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
+
+<tr class="group"><td colspan="5">見た目</td></tr>
+<tr><td>セル書式（フォント・太字・色・罫線）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>Numbers はフォントを PostScript 名で持つので相互変換します（<code>Helvetica Neue</code> ⇄ <code>HelveticaNeue</code>）</td></tr>
+<tr><td>塗り（単色・階調）</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
+  <td>階調塗りは ODF・Numbers ともセルに 1 色しか持てず、最初の色になります（警告あり）</td></tr>
+<tr><td>配置・折り返し</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
+<tr><td>表示形式（<code>#,##0.00</code> など）</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
+  <td>ODF は「データスタイル」、Numbers は「種類＋小数桁＋桁区切り」という<em>記述</em>。どちらも<strong>見え方を 1 通りしか持てない</strong>ので、Excel の複数セクション・色・条件は落ちます</td></tr>
+<tr><td>列幅・行高・非表示</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
+<tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODF は階層を <code>table:table-row-group</code> の入れ子で表します</td></tr>
+<tr><td>ウィンドウ枠の固定</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers ではヘッダ行／ヘッダ列がそれに当たります</td></tr>
+<tr><td>タブ色</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td><td>ODF 1.3 に無く、LibreOffice も同じ変換で落とします</td></tr>
+
+<tr class="group"><td colspan="5">条件付き書式（この改訂の最優先）</td></tr>
+<tr><td>比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間</td>
+  <td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は 18 種すべて</td></tr>
+<tr><td>カラースケール（2 色・3 色）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>データバー</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は「数値を隠す」を持ちません</td></tr>
+<tr><td>アイコンセット</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+
+<tr class="group"><td colspan="5">仕掛け</td></tr>
+<tr><td>入力規則（ドロップダウン・範囲チェック）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODF は規則を文書の先頭に並べ、セルが名前で指します</td></tr>
+<tr><td>名前付きの表</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
+  <td>ODF の「データベース範囲」になります。名前と範囲は通り、縞模様のスタイルは落ちます</td></tr>
+<tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>　└ 絞り込み条件・並べ替えの記録</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
+  <td>値の一覧と比較条件は通ります。色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言います</td></tr>
+<tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m n">×</td>
+  <td><strong>配置は書くが集計はしない</strong>のは Excel も ODS も同じ。開いたアプリが元データから計算します</td></tr>
+<tr><td>シート保護</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>保護範囲（保護シート内の編集可能な窓）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
+  <td>ODF は表全体を守り、その中に窓を持ちません</td></tr>
+<tr><td>シナリオ</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
+  <td>ODF のシナリオは「影のシート」であって入力値の集合ではありません。書くとシートが増えてしまいます</td></tr>
+
+<tr class="group"><td colspan="5">印刷とブック</td></tr>
+<tr><td>ヘッダ／フッタ</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>Excel の <code>&amp;L&amp;C&amp;R</code> と ODF の 3 領域を相互変換。フォント指定だけ落ちます</td></tr>
+<tr><td>向き・用紙・拡大率・余白・中央寄せ</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF はシートごとのマスターページ</td></tr>
+<tr><td>印刷範囲・タイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>改ページ</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は行・列スタイルの <code>fo:break-before</code></td></tr>
+<tr><td>定義名（ブック・シート）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>ブック保護（シート構成の固定）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>文書の自由項目（部署・案件番号など）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODF は <code>meta:user-defined</code>。定義名へのリンク型だけは文字に落とします</td></tr>
+<tr><td>隠しシート</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>Numbers にシートを隠す考え方がありません</td></tr>
+<tr><td>1 シートに複数の表</td><td class="m n">×</td><td class="m n">×</td><td class="m y">○</td>
+  <td><strong>ここだけ Numbers が強い</strong>。Excel と ODS は 1 シート＝1 グリッドなので、先頭以外を落として言います</td></tr>
+</tbody>
+</table></div>
+</section>
+<section>
+<h2>条件付き書式は、どこに書かれているのか</h2>
+<p>
+  ODS で条件付き書式が通るようになったのが、この改訂でいちばん大きな変化です。ただし
+  <strong>ODF 1.3 の本体仕様には、まともな置き場所がありません</strong>。本体が持っているのは
+  「セルのスタイルに条件を 1 つ付ける」（<code>style:map</code>）だけで、カラースケールもデータバーも
+  アイコンセットも言葉がない。実際のアプリはどうしているかというと、全員が
+  <strong>LibreOffice の拡張名前空間 <code>calcext:</code></strong> を使っています。
+</p>
+
+<figure>
+<svg viewBox="0 0 900 300" role="img" aria-label="ODS ファイルの中で条件付き書式がどこに置かれるかを示した図">
+  <rect x="30" y="30" width="380" height="240" rx="14" class="sv-soft"/>
+  <text x="50" y="58" class="sv-tb">content.xml</text>
+  <rect x="50" y="72" width="340" height="54" rx="10" class="sv-card"/>
+  <text x="66" y="94" class="sv-t2">&lt;table:table&gt; … 行と列 …</text>
+  <text x="66" y="114" class="sv-t3">セルの中身はここ</text>
+  <rect x="50" y="136" width="340" height="112" rx="10" class="sv-accent-soft"/>
+  <text x="66" y="160" class="sv-tb">&lt;calcext:conditional-formats&gt;</text>
+  <text x="66" y="182" class="sv-t2">対象範囲（CF.A1:CF.A20）</text>
+  <text x="66" y="202" class="sv-t2">条件の並び ＝ 優先順位</text>
+  <text x="66" y="222" class="sv-t2">色階調・データバー・アイコン</text>
+  <text x="66" y="240" class="sv-t3">＝ SwiftSheets が「正」とする置き場所</text>
+
+  <rect x="490" y="30" width="380" height="240" rx="14" class="sv-soft"/>
+  <text x="510" y="58" class="sv-tb">styles.xml</text>
+  <rect x="510" y="72" width="340" height="80" rx="10" class="sv-card"/>
+  <text x="526" y="96" class="sv-t2">&lt;style:style name="ConditionalStyle1"&gt;</text>
+  <text x="526" y="118" class="sv-t2">背景 #FFC7CE / 文字 #9C0006</text>
+  <text x="526" y="138" class="sv-t3">条件が「当たったときに塗る書式」</text>
+  <rect x="510" y="164" width="340" height="84" rx="10" class="sv-card"/>
+  <text x="526" y="188" class="sv-tb">&lt;style:page-layout&gt; / &lt;style:master-page&gt;</text>
+  <text x="526" y="210" class="sv-t2">余白・向き・ヘッダ／フッタ</text>
+  <text x="526" y="230" class="sv-t3">シート 1 枚につき 1 組</text>
+
+  <path d="M 395 190 C 440 190, 445 112, 505 112" class="sv-arrow" marker-end="url(#a2)"/>
+  <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 z" class="sv-mark"/></marker></defs>
+  <text x="450" y="140" class="sv-t3" text-anchor="middle">名前で参照</text>
+</svg>
+<figcaption>条件は content.xml に、塗る書式は styles.xml の<strong>名前付き</strong>スタイルに。この分かれ方は ODF の決まりです。</figcaption>
+</figure>
+
+<div class="card decide">
+<h3>決めたこと: 拡張を「正」にし、本体形式は読むだけ</h3>
+<ul class="plain">
+  <li><strong>書くのは <code>calcext:</code> だけ。</strong>LibreOffice は両方を書きますが、両方書くと同じ規則が二重になります。</li>
+  <li><strong>読むのは両方。</strong>拡張が 1 つも無いファイル（拡張より古い生成器が書いたもの）だけ、
+    本体の <code>style:map</code> に落ちて読みます。</li>
+  <li><strong>優先順位は文書の順。</strong>ODF に順位の属性が無いため、書くときに順位で並べ替えます。</li>
+</ul>
+</div>
+
+<p>
+  この綴りは記憶で書いたものではありません。SwiftSheets 自身で「18 種すべての規則が入った xlsx」を作り、
+  LibreOffice 26.2 に ODS へ変換させて、出てきた XML をそのまま仕様として使いました。
+  逆向きの確認もしています —
+  <strong>自作の ODS を LibreOffice に xlsx へ戻させると、24 個の規則がすべて復元されます。</strong>
+</p>
+</section>
+
+<section>
+<h2>Numbers だけ、なぜここまで違うのか</h2>
+<p>
+  Numbers の対応が薄いのは、機能を作らなかったからではありません。
+  <strong>Numbers のファイル形式には公開仕様が無い</strong>からです。中身は Snappy で圧縮した Protobuf の
+  オブジェクトグラフで、SwiftSheets はその設計図を
+  <a href="https://github.com/masaccio/numbers-parser">numbers-parser</a>（MIT）から<strong>機械抽出</strong>して使っています
+  （手写しは 1 行もしていません）。
+</p>
+<p>
+  設計図があっても足りないものがあります。<strong>審判</strong>です。Excel なら openpyxl が、
+  ODS なら LibreOffice が「それは正しいファイルか」を答えてくれますが、Numbers については
+  numbers-parser と LibreOffice の取り込みしか無く、<strong>Numbers.app そのものはこの開発機に居ません</strong>。
+</p>
+
+<div class="card">
+<h3>だから「セル書式は入れた」「条件付き書式は入れなかった」</h3>
+<p>
+  同じ Numbers 向けの機能でも、扱いが分かれています。判断の基準は<strong>確かめられるかどうか</strong>です。
+</p>
+<div class="tablewrap"><table>
+<thead><tr><th>件</th><th>入れたか</th><th>確かめ方があったか</th></tr></thead>
+<tbody>
+<tr><td>セル書式・表示形式</td><td class="y"><strong>入れた</strong></td>
+  <td>numbers-parser がフィクスチャ 11 個の<strong>全セル</strong>で一致（太字・斜体・フォント・サイズ・文字色・配置）。
+    書いたファイルも numbers-parser が警告なしで読み、LibreOffice も開く</td></tr>
+<tr><td>ハイパーリンク（読み）</td><td class="y"><strong>入れた</strong></td>
+  <td>実物のフィクスチャ（<code>test-hlinks.numbers</code>）に例がある</td></tr>
+<tr><td>数式の書き出し</td><td class="n"><strong>入れない</strong></td>
+  <td>Numbers の数式アーカイブは生成できない（参考実装も生成できない）</td></tr>
+<tr><td><strong>条件付き書式</strong></td><td class="n"><strong>入れない</strong></td>
+  <td>下記</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="card tint">
+<h3>Numbers の条件付き書式を入れなかった理由</h3>
+<p>
+  設計図には<strong>存在します</strong>（<code>TST.ConditionalStyleSetArchive</code>、リストの種別 9、
+  セル記録のフラグ <code>0x80</code>）。書けない理由はただ一つ、<strong>条件そのものを表す整数に名前が無い</strong>ことです。
+  Apple は条件の種類を C の列挙型で持っており、Protobuf には <code>predicate_type</code> という
+  名無しの <code>int32</code> しか残っていません。
+</p>
+<ul class="plain">
+  <li>Numbers.app が無いので、書いたものを開いて確かめられない</li>
+  <li>numbers-parser にも条件付き書式の API が無い</li>
+  <li>手元のフィクスチャ 11 個を走査したが、<strong>実例が 1 つも無い</strong></li>
+</ul>
+<p>
+  当てずっぽうの整数を書けば、良くて Numbers が「修復しますか」と言う文書、悪くすると
+  <strong>黙って違うセルを塗る</strong>文書ができます。後者のほうが害が大きい。
+  そこで、数式アーカイブを生成しないという既存の判断と同じ理由で、
+  <strong>「書きません」と警告で言う</strong>ことにしました。
+</p>
+<p class="meta">
+  入れるための条件は具体的です — Numbers.app で条件付き書式を付けた文書を 1 つ作り、フィクスチャに加えること。
+  それだけで <code>predicate_type</code> の値が観測でき、実装できるようになります。
+</p>
+</div>
+</section>
+<section>
+<h2>落としたものは、必ず言う</h2>
+<p>
+  この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 1 件・ODS 6 件・Numbers 19 件です。
+</p>
+
+<pre><code>let result = try workbook.write(to: url, as: .numbers)
+for warning in result.warnings {
+    print(warning.kind, warning.sheet ?? "-", warning.message)
+}
+// dropped  Data  conditional format(s) dropped: Numbers rules are not written
+// dropped  Data  the print setup (headers, page breaks, print area, orientation) is dropped: …
+// degraded Data  formula written as its cached value (Numbers formula archives are not generated)
+</code></pre>
+
+<div class="grid">
+  <div class="card">
+    <div class="kv">dropped</div>
+    <p>その項目は書かれなかった。形式に言葉が無いか、まだ実装していない。</p>
+  </div>
+  <div class="card">
+    <div class="kv">degraded</div>
+    <p>形を変えて書いた。意味は残るが、元どおりには戻らない（数式 → キャッシュ値など）。</p>
+  </div>
+  <div class="card">
+    <div class="kv">substituted</div>
+    <p>近いもので置き換えた。階調塗り → 1 色、表示形式の複数セクション → 1 通り。</p>
+  </div>
+</div>
+
+<p>
+  さらに <code>WriteResult.suggestion</code> が「この内容なら別の形式のほうが損が少ない」と提案します。
+  たとえば条件付き書式とピボット表の入ったブックを Numbers に書こうとすると、xlsx か ods を勧めます。
+</p>
+</section>
+
+<section>
+<h2>選び方</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Excel（.xlsx）</h3>
+    <p>迷ったらこれ。読み書きとも全機能で、読んだファイルの<strong>解釈しなかった部分はバイト単位で保全</strong>して書き戻します（グラフ・図形・VBA・テーマ）。</p>
+  </div>
+  <div class="card">
+    <h3>ODS</h3>
+    <p>LibreOffice を相手にするとき、あるいは公的な提出物として開いた形式が要るとき。<strong>Excel との差は 5 件</strong>で、そのどれも滅多に使わないものです。</p>
+  </div>
+  <div class="card">
+    <h3>Numbers</h3>
+    <p>Mac や iPad で<strong>人が読む表</strong>を渡すとき。値と見た目は通ります。数式や仕掛けを残したいなら、Numbers ではなく xlsx を渡してください。</p>
+  </div>
+</div>
+
+<div class="answer">
+  <span class="q">ひとことで:</span>
+  仕掛けごと渡すなら xlsx か ods。見た目のまま人に見せるなら numbers。
+</div>
+</section>
+
+<section>
+<h2>この表を自分で測り直す</h2>
+<p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
+<pre><code>swift test                    # 782 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
+swift test --filter ODS        # ODS の条件付き書式・入力規則・印刷設定・ピボット表
+swift test --filter Numbers    # Numbers のセル書式（numbers-parser の期待値と突き合わせ）</code></pre>
+<p class="meta">
+  実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B.16 に、
+  リリース前に人が手で確かめる項目は <code>MAINTENANCE.md</code> にあります。
+</p>
+</section>
+
+<footer>
+SwiftSheets 0.6.0 — 形式ごとの対応表。数字は 2026-08-25 の実測（全 40 項目を書いて読み戻した結果）。<br>
+実装の決定記録は docs/implementation-spec.html 付録 B.16、保守手順は MAINTENANCE.md。
+</footer>
+</main>
+</body>
+</html>
