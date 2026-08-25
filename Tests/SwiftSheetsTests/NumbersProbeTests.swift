@@ -119,8 +119,10 @@ import SwiftSheets
         for (name, wb) in Self.probes() {
             let data = try wb.write(as: .numbers).data
             try data.write(to: Self.dir.appending(path: "\(name).numbers"))
+            // the same workbook as Excel, so the sweep can ask Numbers to import it and compare the two paths
+            if name.hasSuffix("kitchen-sink") { try wb.write(as: .xlsx).data.write(to: Self.dir.appending(path: "\(name).xlsx")) }
             #expect(try NumbersCodec.read(data).workbook.sheetNames.isEmpty == false, "\(name) is not even readable by us")
         }
-        #expect(try FileManager.default.contentsOfDirectory(atPath: Self.dir.path).count == Self.probes().count + 1)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: Self.dir.path).count == Self.probes().count + 2)
     }
 }
