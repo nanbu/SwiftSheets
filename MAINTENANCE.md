@@ -44,7 +44,7 @@ exposes the warnings). A hard failure (`SheetError.unsupportedVersion` / `malfor
    Numbers, replace `Sources/SheetNumbers/Resources/empty.numbers`, and re-run the self round-trip and
    numbers-parser checks.
 
-   **Measured on 2026-08-25 and decided against** (spec Appendix B.18): a template saved by Numbers 15.3.1 passes
+   **Measured on 2026-08-25 and decided against by the owner on 2026-08-26** (spec Appendix B.18): a template saved by Numbers 15.3.1 passes
    every automated check and opens in Numbers, but **formulas stop being calculated** — a formula cell whose result
    the source never cached comes up empty. The current template was written by an older Numbers, and Numbers
    recalculates a document of an older version when it opens it; it trusts one of its own. Moving to a new template
