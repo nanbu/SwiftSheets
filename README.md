@@ -63,7 +63,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
 | ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
-| Numbers | ✅ values, formulas (as text), cell formatting, number formats, **conditional formats**, hyperlinks, merges, sizes, several tables per sheet | ✅ values, **formulas**, cell formatting, number formats, **conditional formats**, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
+| Numbers | ✅ values, formulas (as text, cross-table references included), cell formatting, number formats, conditional formats, hyperlinks, formatting runs, notes, merges, sizes, several tables per sheet | ✅ values, formulas, cell formatting, number formats, conditional formats, hyperlinks, formatting runs, notes, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
@@ -106,12 +106,12 @@ is reported, never dropped in silence.
   `freezePanes`.
 - Write: the empty document shipped with numbers-parser is the template (spec §11.1); the first sheet / table is
   patched in place, further sheets and tables are deep-copied subgraphs with fresh ids and UUIDs. Values, **cell
-  formatting and number formats**, merges, sizes, header rows, and **formulas as formula archives** — the tree is
-  turned into the postfix node array Numbers evaluates, so a formula written from SwiftSheets is a formula in
-  Numbers and it computes the answer (spec Appendix B.18). Five shapes have no example in the fixture corpus and
-  are not invented: a reference to **another table**, a **defined name**, a **function Numbers does not have**, a
-  range over **whole columns** (`A:C`), and the **intersection / union** operators. Each falls back to the cached
-  value with a `degraded` warning naming what stopped it.
+  formatting and number formats**, merges, sizes, header rows, **hyperlinks**, **formatting runs inside one cell**,
+  **notes**, and **formulas as formula archives** — the tree is turned into the postfix node array Numbers
+  evaluates, so a formula written from SwiftSheets is a formula in Numbers and it computes the answer, including
+  one that reaches into another table (spec Appendix B.18). What has no example in the corpus is not invented: a
+  **defined name**, a **function Numbers does not have**, a range over **whole columns** (`A:C`), and the
+  **intersection / union** operators fall back to the cached value with a `degraded` warning naming what stopped it.
 - **Conditional formatting** is read and written (spec Appendix B.18). A rule's condition is a `predicate_type`
   integer Apple left unnamed in the Protobuf, so the fourteen values were *observed*: a workbook with one rule kind
   per column, each carrying a parameter no other rule uses, was written as `.xlsx`, imported by Numbers 15.3.1 and
@@ -121,8 +121,8 @@ is reported, never dropped in silence.
   top-n, above-average, blanks, errors, dates and free formulas are reported as dropped — the same eleven Numbers
   itself drops when it imports an Excel file.
 - Everything else Numbers has no word for — validations, pivot tables, named tables, auto-filters, sheet protection,
-  scenarios, print setup, defined names, tab colours, outline grouping, notes, hyperlink *writing* — is reported as
-  a warning. Nothing is dropped in silence.
+  scenarios, print setup, defined names, tab colours, outline grouping — is reported as a warning. Nothing is
+  dropped in silence.
 - Judges: round trip through our own reader, numbers-parser reading our output
   (`Tests/NumbersParity/verify_with_numbers_parser.py`), LibreOffice's Numbers importer — and, since 2026-08-25,
   **Numbers.app itself** (`Tests/NumbersParity/verify_with_numbers_app.py`): it opens what we wrote, is asked what

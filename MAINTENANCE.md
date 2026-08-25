@@ -6,7 +6,10 @@ therefore a recurring maintenance item, not a one-off.
 ## Supported versions
 
 The documents in `Tests/SwiftSheetsTests/Fixtures/numbers/` are the verified corpus; their `Metadata/BuildVersionHistory.plist`
-entries name the Numbers versions they were produced by (currently Numbers 11–14 era files from numbers-parser's suite).
+entries name the Numbers versions they were produced by — Numbers 11–14 era files from numbers-parser's suite, plus
+two written by **Numbers 15.3.1** on 2026-08-25 (`conditional-formats-15`, `links-notes-15`). Theme images and
+previews are stripped from those two, which Numbers does not need to open them and which would otherwise make each
+file half a megabyte.
 `Workbook.sourceInfo.version` reports the producing version of any file read.
 
 ## Read policy: tolerant by default
@@ -40,6 +43,13 @@ exposes the warnings). A hard failure (`SheetError.unsupportedVersion` / `malfor
 4. If the write template must change (Numbers refuses the generated file), save a fresh empty document with the new
    Numbers, replace `Sources/SheetNumbers/Resources/empty.numbers`, and re-run the self round-trip and
    numbers-parser checks.
+
+   **Measured on 2026-08-25 and decided against** (spec Appendix B.18): a template saved by Numbers 15.3.1 passes
+   every automated check and opens in Numbers, but **formulas stop being calculated** — a formula cell whose result
+   the source never cached comes up empty. The current template was written by an older Numbers, and Numbers
+   recalculates a document of an older version when it opens it; it trusts one of its own. Moving to a new template
+   means generating the dependency records first. The condition in this step — Numbers refusing the generated
+   file — is not met, so the template stays.
 5. Record the verified range in this file and in Appendix B.8 of `docs/implementation-spec.html`.
 
 ## Numbers.app is a judge now (2026-08-25, spec Appendix B.18)

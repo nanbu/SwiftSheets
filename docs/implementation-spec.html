@@ -2742,6 +2742,83 @@ wb.sheets[<span class="nm">0</span>] = sheet
     書くときは範囲内の<strong>空のセルにも</strong>記録を置く（置かないと塗りが最後の値のところで止まる）。
   </p>
 
+  <h4>セルの中のもの — リンク・セル内書式・メモ</h4>
+  <p>
+    同じやり方で採った。この 3 つを持つ <code>.xlsx</code> を Numbers 15.3.1 に読ませ、
+    <code>.numbers</code> で保存させて、置き方を 1 フィールドずつ読んだ。
+  </p>
+  <ul class="plain">
+    <li><strong>セルの文字が文書エンジンに移る</strong>。リンクや書式の変わり目を持つセルは平文を持たず、
+      表の<strong>リッチテキスト一覧</strong>の項目を指す。項目は <code>TST.RichTextPayloadArchive</code>、
+      その先が <code>TSWP.StorageArchive</code>（Pages と同じ文字組みの入れ物）。セル記録は種別
+      <code>automatic</code>(9) と <code>richID</code>（フラグ <code>0x10</code>）。</li>
+    <li><strong>リンクはスマートフィールド</strong>。<code>table_smartfield</code> の文字位置つき項目が
+      <code>TSWP.HyperlinkFieldArchive</code>（<code>url_ref</code> と UUID 文字列）を指す。
+      同時に <code>table_char_style</code> がテンプレートの
+      <code>character-style-hyperlink</code> を指す — 読むときはこれを「著者が付けた書式」と数えない。</li>
+    <li><strong>書式の変わり目は文字スタイル</strong>。<code>table_char_style</code> の項目ごとに
+      <code>TSWP.CharacterStyleArchive</code>（<code>character-style-null</code> の変種）を作る。
+      オブジェクトを持たない項目は「既定に戻る」。</li>
+    <li><strong>メモは別の一覧</strong>。表の<strong>コメント一覧</strong>の項目が
+      <code>TSD.CommentStorageArchive</code>（本文・作成者・UUID）を指し、セル記録のフラグは
+      <strong><code>0x80000</code></strong>（それまで名前も付いていなかったビット）。作成者は
+      <code>TSK.AnnotationAuthorArchive</code> で、文書の <code>AnnotationAuthorStorage</code> に登録する。
+      同じ名前のメモは 1 つの作成者を共有する。</li>
+  </ul>
+  <div class="callout callout-warn">
+    <span class="label">Numbers だけが教えてくれたこと</span>
+    <p>
+      セルの文字の入れ物には、1 行しかなくても<strong>段落の表</strong>が要る —
+      <code>table_para_style</code>・<code>table_para_data</code>・<code>table_list_style</code>・
+      <code>table_para_starts</code>・<code>in_document</code>。これらを省いた文書を Numbers は開かない。
+      自作リーダも numbers-parser も平気で読むので、審判がいなければ気づけない。
+      加えて、入れ物が名指しするスタイルシート・段落スタイル・リスト・文字スタイルは別の部品にいるので、
+      パッケージの目次にその交差を申告しないと、やはり開かない（条件付き書式のときと同じ）。
+    </p>
+  </div>
+
+  <h4>別の表を参照する数式</h4>
+  <p>
+    参照は <code>CELL_REFERENCE_NODE</code> に <code>AST_cross_table_reference_extra_info</code> を添えた形で、
+    座標は別の表を指していても<strong>数式を持つセルからの相対</strong>のまま。問題は参照先の名指しで、
+    <strong>表の <code>table_id</code> 文字列</strong>（UUID の 16 バイトを 4 つの小端ワードに詰めたもの）である。
+    表の <code>haunted_owner</code> でも、依存関係の基底 ownerでもない — その 2 つを書くと
+    Numbers は <code>#REF!</code> と読む（両方とも実際に外して分かった）。
+    読み手にも同じ穴があり、Numbers が書いた別表参照は解決できていなかった。
+  </p>
+  <p class="meta">
+    書き出しの順序も変えた。全シート・全表を作ってから名前 → 識別子の対応を組み、そのあとでセルを書く。
+    表ができる前に、その表を指す数式は書けない。
+  </p>
+
+  <h4>テンプレートは替えなかった（実測にもとづく判断）</h4>
+  <p>
+    Numbers 15.3.1 に空の書類を作らせ、書き出しのテンプレートに差し替えて測った。自動テストは 810 件すべて緑、
+    Numbers も文書を開く。ところが<strong>数式が計算されない</strong> — キャッシュ値を持たない数式のセルが
+    すべて空になる。いまのテンプレートは古い版の Numbers が書いたもので、Numbers はそれを開くときに
+    <strong>全体を計算し直す</strong>。同じ版で書かれた書類にはそれをせず、保存された状態を信じる。
+    <code>refs_to_dirty</code>（新しいテンプレートだけが持つ「要再計算」の記録）を外しても変わらなかった。
+  </p>
+  <p>
+    したがって新しいテンプレートに移るには、<strong>依存関係の記録を自前で書けるようになること</strong>が先である。
+    保守手順の「テンプレートを替えるのは Numbers が生成物を拒んだとき」という条件は<strong>まだ満たされていない</strong>。
+    ここでは替えない、と決めた。
+  </p>
+
+  <h4>見本ファイルに Numbers 15 を加えた</h4>
+  <p>
+    corpus は Numbers 11〜14 の時代のものだけだった。Numbers 15.3.1 が書いた 2 つを加える —
+    <code>conditional-formats-15.numbers</code>（条件付き書式 5 種）と
+    <code>links-notes-15.numbers</code>（リンク・セル内書式・メモ・別表参照の数式）。
+    どちらもテーマの画像とプレビューを外して 110〜120 KB に収めてある（Numbers が付ける飾りで、
+    読み書きには要らない）。numbers-parser との突き合わせにも入れた。
+  </p>
+  <p class="meta">
+    そこで 1 つ分かったこと — numbers-parser は<strong>別表への範囲</strong>を
+    <code>SUM(Other::表1:表1)</code> のようにセルの番地を落として描く。参照実装の描き方の限界なので、
+    突き合わせではその 1 件だけ比較しない（読めていないのではなく、比べる相手が無い）。
+  </p>
+
   <h4>残っているもの</h4>
   <div class="compare"><table>
     <tr><th>残件</th><th>いま何が足りないか</th></tr>
@@ -2749,20 +2826,11 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>規則そのものは入れた（下記）。参照が別の表に伸びる形だけは実例が要る</td></tr>
     <tr><td>別の表への参照を含む数式</td>
       <td>同じく実例が要る。Numbers に作らせれば採れる</td></tr>
-    <tr><td>ハイパーリンク・セル内書式の書き出し</td>
-      <td>形は<strong>実測済み</strong>（<code>test-hlinks.numbers</code>）。表のリスト種別
-        <code>RICH_TEXT_PAYLOAD</code>（8）の項目 → <code>TST.RichTextPayloadArchive</code>
-        → <code>TSWP.StorageArchive</code>（<code>kind: CELL</code>・<code>style_sheet</code> 参照・<code>text</code>）で、
-        リンクは <code>table_smartfield</code> の文字位置つき項目が
-        <code>TSWP.HyperlinkFieldArchive</code>（<code>url_ref</code> と UUID 文字列）を指す。
-        セル記録は種別 <code>automatic</code>(9) と <code>richID</code>（フラグ <code>0x10</code>）。
-        <strong>書いていないのは段落スタイルの参照が未確認だから</strong> —
-        テンプレートのスタイルシートのどの段落スタイルを指すべきかは実例が要る。
-        Numbers.app が審判に立つ日にまとめて確かめる</td></tr>
-    <tr><td>メモ（コメント）の書き出し</td>
-      <td>置き場所は分かる（<code>comment_storage</code>・リスト種別 10）が、
-        <strong>手元のフィクスチャ 11 個に実例が 1 つも無い</strong>。Numbers に作らせれば採れる</td></tr>
-  </table></div>
+    <tr><td>Numbers 15 のテンプレート</td>
+      <td>差し替えると数式が計算されなくなる（上記）。依存関係の記録を書けるようになってから</td></tr>
+    <tr><td>配列数式の範囲・入力規則・ピボット表・印刷設定ほか</td>
+      <td>Numbers にそもそも無いもの、または置き場所の実例が無いもの。落としたことは警告で言う</td></tr>
+</table></div>
 
 
 </section>

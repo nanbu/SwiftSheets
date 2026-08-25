@@ -34,70 +34,80 @@ echo "done: $OUT"
 ls -la "$OUT"
 
 cat > "$OUT/READ-ME-FIRST.md" <<'MDEOF'
-# SwiftSheets 形式変換 検証サンプル
+# SwiftSheets conversion samples
 
-`scripts/make-verification-samples.sh` が生成。**LibreOffice が書いた ODF ファイルを SwiftSheets で開き、ODS / Excel /
-Numbers の 3 形式へ書き出したもの**です。Excel と Numbers の実機確認（MAINTENANCE.md のリリース前チェックリスト）に使います。
+Written by `scripts/make-verification-samples.sh`. **SwiftSheets opened the ODF file LibreOffice produced and wrote
+it out in three formats — ODS, Excel and Numbers.** These are for the checks a person still has to make in Excel
+and in Numbers (the release checklist in MAINTENANCE.md).
 
-| ファイル | 中身 |
+| file | what it is |
 |---|---|
-| `00-seed-openpyxl.xlsx` | 素材（openpyxl が生成）。SwiftSheets は関与しない |
-| `01-source-libreoffice.ods` | **入力**。LibreOffice が上を ODF へ変換したもの |
-| `02-swiftsheets.ods` | SwiftSheets が 01 を読んで書いた ODS |
-| `03-swiftsheets.xlsx` | SwiftSheets が 01 を読んで書いた Excel ブック |
-| `04-swiftsheets.numbers` | SwiftSheets が 01 を読んで書いた Numbers 書類 |
-| `conversion-report.md` | 変換時の警告一覧（何が落ちたか） |
-| `pdf/` | 各ファイルを LibreOffice で PDF 化したもの（見た目の突き合わせ用） |
+| `00-seed-openpyxl.xlsx` | the raw material, made by openpyxl. SwiftSheets had no part in it |
+| `01-source-libreoffice.ods` | **the input**: LibreOffice's ODF conversion of the above |
+| `02-swiftsheets.ods` | the ODS SwiftSheets wrote from 01 |
+| `03-swiftsheets.xlsx` | the Excel workbook SwiftSheets wrote from 01 |
+| `04-swiftsheets.numbers` | the Numbers document SwiftSheets wrote from 01 |
+| `conversion-report.md` | every warning the conversion gave (what was lost) |
+| `pdf/` | each file rendered to PDF by LibreOffice, for comparing appearance |
 
-データは 5 シート構成の日本語の業務データです（売上明細・月次サマリ・社員名簿・書式見本・補足データ〈非表示〉）。
+Five sheets — Sales, Monthly, Staff, Formats and Extra (hidden). **The cell contents are deliberately Japanese**:
+that is how the sample proves the library carries the text, the fonts and the surrogate pairs unharmed.
 
-## Excel で `03-swiftsheets.xlsx` を開く
+## Open `03-swiftsheets.xlsx` in Excel
 
-まず **「修復が必要です」ダイアログが出ないこと**。出たら不合格なので、その旨をお知らせください。
+First: **no "we found a problem with some content" dialog**. If one appears, the sample has failed — please say so.
 
-- [ ] シートが 5 枚（`補足データ` は非表示。右クリック →「再表示」で出る）
-- [ ] 売上明細: A1:I1 が結合され濃紺の背景に白の太字、行 3 の見出しに**フィルターボタン**が出る
-- [ ] 4 行目以降がスクロールしても見出しが残る（**A4 で枠固定**）
-- [ ] 単価・金額が `¥1,234,567`、粗利率が `28.4%`、日付が `2026/4/3`、B2 が `2026年10月1日`
-- [ ] 一行おきの薄い網掛け、表全体の**罫線**、合計行の上が二重線
-- [ ] 粗利率 22% 未満が赤字＋ピンク、34% 超が緑字＋薄緑
-- [ ] H 列と合計行が**数式**（数式バーに `=F4*G4` / `=SUM(H4:H21)`）。月次サマリは `SUMPRODUCT` と `IF` で再計算される
-- [ ] 社員名簿: 社員番号 `0012` が文字列のまま（先頭の 0 が消えない）、メール列がリンク、備考が折り返し表示
-- [ ] 書式見本: 表示形式・罫線 7 種・塗り 6 色・配置・フォント（游ゴシック / Menlo）・`𠮷野家`・絵文字・半角カナ
-- [ ] 名前の定義に `売上範囲` がある（数式 → 名前の管理）
+- [ ] five sheets (`Extra` is hidden; right-click ▸ Unhide to see it)
+- [ ] Sales: A1:I1 merged, dark blue behind white bold text, and **filter buttons** on the headings in row 3
+- [ ] the headings stay put when you scroll past row 4 (**frozen at A4**)
+- [ ] unit price and amount read `¥1,234,567`, margin `28.4%`, dates `2026/4/3`, and B2 a long-form Japanese date
+- [ ] alternating pale shading, **borders** over the whole table, a double rule above the total row
+- [ ] margins under 22% in red on pink, over 34% in green on pale green
+- [ ] column H and the total row are **formulas** (`=F4*G4` / `=SUM(H4:H21)` in the formula bar); Monthly
+      recalculates through `SUMPRODUCT` and `IF`
+- [ ] Staff: the id `0012` is still text (the leading zero survives), the mail column is a link, remarks wrap
+- [ ] Formats: number formats, seven border kinds, six fills, alignment, fonts (Yu Gothic / Menlo), a surrogate
+      pair, emoji and half-width kana
+- [ ] the defined name `SalesRange` is there (Formulas ▸ Name Manager)
+- [ ] the **note** on Sales!B4 is still there with its red triangle (hover to read it)
 
-- [ ] 売上明細 B4 の**セルのメモ**が赤い三角つきで残っている（ポイントすると本文が出る）
+## Open `04-swiftsheets.numbers` in Numbers
 
-## Numbers で `04-swiftsheets.numbers` を開く
+First: **it opens without offering to repair the document**, and **you can edit it and save**.
 
-まず **「書類を修復」と言われずに開くこと**、そして**開いたあと編集して保存できること**。
+- [ ] five sheets, one table each (the input is ODS, so the tables carry Numbers' default name `Table 1`)
+- [ ] the Japanese text is undamaged — kanji, kana, half-width kana, the surrogate pair, emoji
+- [ ] numbers, dates, booleans and durations are values, not text
+- [ ] the merges (A1:I1 and the rest), the column widths and the row heights are as in Excel
+- [ ] rows 1–3 of Sales and Monthly are frozen as header rows
+- [ ] **cell formatting** — bold and coloured headings, fills, the fonts asked for, currency / percentage / date
+      formats rather than bare numbers
+- [ ] **the formulas are formulas** (click a cell in column H and look at the formula bar), and Numbers computes
+      the same answers
+- [ ] the **notes** are there, and the **links** in the Staff mail column work
 
-- [ ] シートが 5 枚、各シートに表が 1 つ（入力が ODS なので表名は Numbers 既定の `Table 1`）
-- [ ] 日本語（漢字・かな・カナ・半角カナ・`𠮷`・絵文字）が化けていない
-- [ ] 数値・日付・真偽値・経過時間が値として入っている（合計 22,532,800 など計算済みの値）
-- [ ] A1:I1 などの**結合**、列幅・行高が反映されている
-- [ ] 売上明細と月次サマリの 1〜3 行目がヘッダ行として固定されている
+**Known differences, by design** (spec Appendix B.18): Numbers has no hidden sheets, so `Extra` is visible. It has
+no data validation, pivot tables, named tables, auto-filters, sheet protection, scenarios, print setup, defined
+names, tab colours or outline grouping; each of those is listed in `conversion-report.md` rather than dropped in
+silence. Of Excel's conditional-format kinds Numbers keeps fourteen and has no word for the other eleven (colour
+scales, data bars, icon sets among them) — the same ones it drops when it imports an Excel file itself.
 
-**既知の差（仕様どおり・付録 B.8）**: Numbers 書き出しは**書式（色・罫線・表示形式・フォント）を書きません**。
-**数式は計算結果の値**として入ります（Numbers の数式アーカイブは生成しない）。**非表示シートは表示されます**。
-つまり「データは合っているが見た目は素のまま」が期待値です。
+## Known LibreOffice problems (not SwiftSheets bugs)
 
-## 既知の LibreOffice 側の問題（SwiftSheets の不具合ではありません）
+- **A Numbers file opened in LibreOffice shows damaged sheet names** (`Monthly` is fine, but a Japanese name of
+  five characters or more is cut short). LibreOffice's Numbers importer (libetonyek) does it to genuine Numbers
+  documents too. The bytes in the file are correct UTF-8, and Numbers and numbers-parser read them correctly.
+- **LibreOffice's xlsx→ods conversion does not write frozen panes.** The input `01` therefore has none, and the
+  script sets them again for the sample (noted in `conversion-report.md`).
 
-- **Numbers ファイルをLibreOffice で開くとシート名が化ける**（`月次サマリ` → `月次サマ□`）。LibreOffice の Numbers
-  インポータ（libetonyek）が 5 文字以上の日本語名を途中で切るためで、numbers-parser が書いた正規の Numbers 文書でも
-  同じ化け方をします。ファイル内のバイト列は正しい UTF-8 です（Numbers と numbers-parser では正しく読めます）。
-- **LibreOffice の xlsx→ods 変換は枠固定（ウィンドウ枠）を書き出しません**。そのため入力 `01` には枠固定が入って
-  おらず、サンプルではスクリプトが再設定しています（`conversion-report.md` に記載）。
+## Open `02-swiftsheets.ods` in LibreOffice
 
-## LibreOffice で `02-swiftsheets.ods` を開く
+Already checked automatically (the ODS suite of `swift test`), but worth a look. Put
+`pdf/01-source-libreoffice.pdf` beside `pdf/02-swiftsheets.pdf` to see any difference.
 
-自動検証済み（`swift test` の ODS スイート）ですが、目視でも確認できます。`pdf/01-source-libreoffice.pdf` と
-`pdf/02-swiftsheets.pdf` を並べると差分が分かります。
+## If you find a problem
 
-## 不具合を見つけたら
-
-`conversion-report.md` と、どのファイルのどのセル／シートかを添えてください。再現用の入力は
-`01-source-libreoffice.ods` です。
+Send `conversion-report.md` and say which file, sheet and cell. The input to reproduce it with is
+`01-source-libreoffice.ods`.
 MDEOF
-echo "wrote $OUT/はじめにお読みください.md"
+echo "wrote $OUT/READ-ME-FIRST.md"

@@ -72,7 +72,7 @@ def build(path):
 
     # ---------------- Sheet 1: 売上明細 ----------------
     ws = wb.active
-    ws.title = "売上明細"
+    ws.title = "Sales"
     ws.merge_cells("A1:I1")
     ws["A1"] = "2026年度 上期 売上明細"
     ws["A1"].font = Font(name="游ゴシック", size=16, bold=True, color="FFFFFFFF")
@@ -147,7 +147,7 @@ def build(path):
     ws.auto_filter.ref = f"A3:I{last}"
 
     # ---------------- Sheet 2: 月次サマリ ----------------
-    s2 = wb.create_sheet("月次サマリ")
+    s2 = wb.create_sheet("Monthly")
     s2["A1"] = "月次サマリ（売上明細シートを集計）"
     s2["A1"].font = Font(size=14, bold=True, color=NAVY)
     s2.merge_cells("A1:E1")
@@ -162,7 +162,7 @@ def build(path):
     for i, (m, budget) in enumerate(zip(months, budgets)):
         r = 4 + i
         s2.cell(row=r, column=1, value=m).alignment = Alignment(horizontal="center")
-        s2.cell(row=r, column=2, value=f'=SUMPRODUCT((TEXT(売上明細!$A$4:$A${last},"m")="{m[:-1]}")*売上明細!$H$4:$H${last})').number_format = YEN
+        s2.cell(row=r, column=2, value=f'=SUMPRODUCT((TEXT(Sales!$A$4:$A${last},"m")="{m[:-1]}")*Sales!$H$4:$H${last})').number_format = YEN
         s2.cell(row=r, column=3, value=budget).number_format = YEN
         s2.cell(row=r, column=4, value=f"=B{r}/C{r}").number_format = "0.0%"
         s2.cell(row=r, column=5, value=f'=IF(B{r}>=C{r},"達成","未達")').alignment = Alignment(horizontal="center")
@@ -182,7 +182,7 @@ def build(path):
     s2.freeze_panes = "A4"
 
     # ---------------- Sheet 3: 社員名簿 ----------------
-    s3 = wb.create_sheet("社員名簿")
+    s3 = wb.create_sheet("Staff")
     for i, h in enumerate(["社員番号", "氏名", "フリガナ", "部署", "入社日", "連絡先", "メール", "在籍", "備考"], start=1):
         c = s3.cell(row=1, column=i, value=h)
         c.font = Font(bold=True, color="FFFFFFFF")
@@ -213,7 +213,7 @@ def build(path):
     s3.freeze_panes = "B2"
 
     # ---------------- Sheet 4: 書式見本 ----------------
-    s4 = wb.create_sheet("書式見本")
+    s4 = wb.create_sheet("Formats")
     s4["A1"] = "書式・表示形式・罫線の見本"
     s4["A1"].font = Font(size=14, bold=True)
     s4.merge_cells("A1:D1")
@@ -296,7 +296,7 @@ def build(path):
     s4["A36"].border = box
 
     # ---------------- Sheet 5: 非表示（hidden） ----------------
-    s5 = wb.create_sheet("補足データ")
+    s5 = wb.create_sheet("Extra")
     s5["A1"] = "このシートは非表示です（Excel: 右クリック→再表示／Numbers: 非表示シートは表示されます）"
     s5["A2"] = "レート"
     s5["B2"] = 152.35
@@ -304,9 +304,9 @@ def build(path):
     s5.column_dimensions["A"].width = 60
     s5.sheet_state = "hidden"
 
-    wb.defined_names["売上範囲"] = DefinedName("売上範囲", attr_text=f"売上明細!$A$3:$I${last}")
+    wb.defined_names["SalesRange"] = DefinedName("SalesRange", attr_text=f"Sales!$A$3:$I${last}")
     wb.properties.creator = "SwiftSheets 検証サンプル"
-    wb.properties.title = "SwiftSheets 形式変換 検証サンプル"
+    wb.properties.title = "SwiftSheets conversion verification sample"
     wb.active = 0
     wb.save(path)
     print(f"wrote {path}: sheets={wb.sheetnames}")

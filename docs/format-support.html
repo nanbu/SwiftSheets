@@ -189,10 +189,10 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
   <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
-  <rect x="590" y="192" width="76" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="678" y="205" class="sv-t2" font-weight="700">14 / 46</text>
+  <rect x="590" y="192" width="92" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="694" y="205" class="sv-t2" font-weight="700">17 / 46</text>
   <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
-  <text x="590" y="260" class="sv-t2">結合・列幅行高・ヘッダ行</text>
+  <text x="590" y="260" class="sv-t2">リンク・メモ・セル内書式・結合</text>
   <text x="590" y="282" class="sv-t2">条件付き書式・1 シートに複数の表</text>
   <text x="590" y="312" class="sv-t3">通らない: 色の階調・データバー・</text>
   <text x="590" y="332" class="sv-t3">入力規則・ピボット・印刷設定 …</text>
@@ -217,11 +217,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。Numbers へは<strong>数式のまま</strong>書きます（式の木 → 逆ポーランドのノード列）。
     手元のフィクスチャに実例が無い形 — <strong>別の表への参照・定義名・Numbers に無い関数・<code>A:C</code> のような列範囲・交差と合併の演算子</strong> — だけはキャッシュ値に落ち、どこがなぜ落ちたかを警告で言います</td></tr>
 <tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は起点セルの <code>table:number-matrix-*-spanned</code></td></tr>
-<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
-  <td>ODS は <code>text:span</code>。Numbers は読み書きとも平文になります（警告あり）</td></tr>
-<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
-  <td><strong>Numbers は読めるが書けない</strong>。Numbers のリンクは文字列の「範囲」に付くので、1 セルに複数あり得ます（先頭を採り、その旨を警告）</td></tr>
-<tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は <code>office:annotation</code></td></tr>
+<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>ODS は <code>text:span</code>。Numbers は文字スタイルの変わり目として持ちます</td></tr>
+<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>Numbers のリンクは文字列の「範囲」に付くので、1 セルに複数あり得ます（読むときは先頭を採り、その旨を警告）</td></tr>
+<tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>ODS は <code>office:annotation</code>。Numbers は表のコメント一覧に置き、書いた人ごとに 1 つの「作成者」を共有します</td></tr>
 <tr><td>結合</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
 
 <tr class="group"><td colspan="5">見た目</td></tr>
@@ -398,15 +399,22 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>セル書式・表示形式</td><td class="y"><strong>入れた</strong></td>
   <td>numbers-parser がフィクスチャ 11 個の<strong>全セル</strong>で一致（太字・斜体・フォント・サイズ・文字色・配置）。
     書いたファイルも numbers-parser が警告なしで読み、LibreOffice も開く</td></tr>
-<tr><td>ハイパーリンク（読み）</td><td class="y"><strong>入れた</strong></td>
-  <td>実物のフィクスチャ（<code>test-hlinks.numbers</code>）に例がある</td></tr>
+<tr><td>ハイパーリンク・セル内書式・メモ</td><td class="y"><strong>入れた</strong></td>
+  <td>Numbers 15.3.1 に Excel ファイルを読ませて保存させ、置き方を 1 フィールドずつ観測した。
+    セルの文字は「文書エンジンの入れ物」に移り、リンクはその上の <em>スマートフィールド</em>、
+    書式の変わり目は <em>文字スタイル</em>。メモは別の一覧で、作成者ごとに 1 つの記録を共有する</td></tr>
 <tr><td>数式の書き出し</td><td class="y"><strong>入れた</strong></td>
   <td>フィクスチャの数式アーカイブを 1 フィールドずつ読んで、書く側を起こした。
     書いたファイルの <code>SUM(B2:B3)</code> を numbers-parser が数式として読む（付録 B.18）</td></tr>
 <tr><td><strong>条件付き書式</strong></td><td class="y"><strong>入れた</strong></td>
   <td>下記。名無しの整数 <code>predicate_type</code> の値を、Numbers 自身に作らせた文書から<strong>観測</strong>した</td></tr>
-<tr><td>ハイパーリンク（書き）・メモ</td><td class="n"><strong>入れない</strong></td>
-  <td>置き場所は分かるが、どの段落スタイルを指すべきかの実例がまだ無い（メモは実例そのものが無い）</td></tr>
+<tr><td>別の表を参照する数式</td><td class="y"><strong>入れた</strong></td>
+  <td>参照先は表の UUID でも依存関係の基底 ownerでもなく、表の <code>table_id</code> 文字列だった。
+    前の 2 つを書くと Numbers は <code>#REF!</code> と読む — 実機に聞くまで分からない類の話</td></tr>
+<tr><td>テンプレートの入れ替え</td><td class="n"><strong>入れない</strong></td>
+  <td>Numbers 15 で作った空の書類に差し替えると、<strong>数式が計算されなくなる</strong>（実測）。
+    いまのテンプレートは古い版で作られており、Numbers はそれを開くとき全体を計算し直す。
+    新しい版に替えるなら、依存関係の記録を自前で書けるようになってから</td></tr>
 </tbody>
 </table></div>
 </div>
