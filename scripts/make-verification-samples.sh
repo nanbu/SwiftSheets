@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-OUT="${1:-$HOME/Desktop/SwiftSheets検証サンプル}"
+OUT="${1:-$HOME/Desktop/SwiftSheets-verification-samples}"
 PYTHON="${PYTHON:-python3}"
 SOFFICE="${SOFFICE:-/Applications/LibreOffice.app/Contents/MacOS/soffice}"
 mkdir -p "$OUT"
@@ -33,7 +33,7 @@ echo
 echo "done: $OUT"
 ls -la "$OUT"
 
-cat > "$OUT/はじめにお読みください.md" <<'MDEOF'
+cat > "$OUT/READ-ME-FIRST.md" <<'MDEOF'
 # SwiftSheets 形式変換 検証サンプル
 
 `scripts/make-verification-samples.sh` が生成。**LibreOffice が書いた ODF ファイルを SwiftSheets で開き、ODS / Excel /
@@ -46,7 +46,7 @@ Numbers の 3 形式へ書き出したもの**です。Excel と Numbers の実�
 | `02-swiftsheets.ods` | SwiftSheets が 01 を読んで書いた ODS |
 | `03-swiftsheets.xlsx` | SwiftSheets が 01 を読んで書いた Excel ブック |
 | `04-swiftsheets.numbers` | SwiftSheets が 01 を読んで書いた Numbers 書類 |
-| `変換レポート.md` | 変換時の警告一覧（何が落ちたか） |
+| `conversion-report.md` | 変換時の警告一覧（何が落ちたか） |
 | `pdf/` | 各ファイルを LibreOffice で PDF 化したもの（見た目の突き合わせ用） |
 
 データは 5 シート構成の日本語の業務データです（売上明細・月次サマリ・社員名簿・書式見本・補足データ〈非表示〉）。
@@ -88,7 +88,7 @@ Numbers の 3 形式へ書き出したもの**です。Excel と Numbers の実�
   インポータ（libetonyek）が 5 文字以上の日本語名を途中で切るためで、numbers-parser が書いた正規の Numbers 文書でも
   同じ化け方をします。ファイル内のバイト列は正しい UTF-8 です（Numbers と numbers-parser では正しく読めます）。
 - **LibreOffice の xlsx→ods 変換は枠固定（ウィンドウ枠）を書き出しません**。そのため入力 `01` には枠固定が入って
-  おらず、サンプルではスクリプトが再設定しています（`変換レポート.md` に記載）。
+  おらず、サンプルではスクリプトが再設定しています（`conversion-report.md` に記載）。
 
 ## LibreOffice で `02-swiftsheets.ods` を開く
 
@@ -97,7 +97,7 @@ Numbers の 3 形式へ書き出したもの**です。Excel と Numbers の実�
 
 ## 不具合を見つけたら
 
-`変換レポート.md` と、どのファイルのどのセル／シートかを添えてください。再現用の入力は
+`conversion-report.md` と、どのファイルのどのセル／シートかを添えてください。再現用の入力は
 `01-source-libreoffice.ods` です。
 MDEOF
 echo "wrote $OUT/はじめにお読みください.md"

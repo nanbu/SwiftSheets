@@ -72,12 +72,12 @@ that broke it — which is how the two copy defects in Appendix B.18 were found.
 Build the samples first:
 
 ```bash
-scripts/make-verification-samples.sh ~/Desktop/SwiftSheets検証サンプル
+scripts/make-verification-samples.sh ~/Desktop/SwiftSheets-verification-samples
 ```
 
 It seeds a realistic Japanese workbook with openpyxl, has LibreOffice write it as ODF, then reads that ODF with
 SwiftSheets and writes `.ods`, `.xlsx` and `.numbers` next to it, plus a warning report, PDF renderings and a
-per-application checklist (`はじめにお読みください.md`).
+per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maintainer who runs it).
 
 - Open `03-swiftsheets.xlsx` in Excel: no "we found a problem with some content" dialog; formatting, filters,
   frozen panes, formulas, Japanese text and the hidden sheet are as the checklist describes.

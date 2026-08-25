@@ -11,13 +11,13 @@ revised first, then the code), and what each format carries — measured, not cl
 ```swift
 import SwiftSheets
 
-var wb = try Workbook(contentsOf: URL(filePath: "月次報告.xlsx"))   // format detected from the bytes, not the extension
-var sheet = wb.sheets["集計"]!
+var wb = try Workbook(contentsOf: URL(filePath: "monthly-report.xlsx"))   // format detected from the bytes, not the extension
+var sheet = wb.sheets["Summary"]!
 sheet["B4"] = 1_380_000                       // Int / Double / Decimal / String / Bool / CivilDate literals and values
 sheet["B5"] = Formula("=B4/B3")               // parsed into an AST; follows row inserts and sheet renames
 sheet.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
-wb.sheets["集計"] = sheet                       // value types: copy out, edit, put back
-let result = try wb.write(to: URL(filePath: "月次報告.xlsx"))   // charts, comments, VBA… untouched (F3)
+wb.sheets["Summary"] = sheet                  // value types: copy out, edit, put back
+let result = try wb.write(to: URL(filePath: "monthly-report.xlsx"))   // charts, comments, VBA… untouched (F3)
 print(result.warnings)                        // whatever the format could not express — never dropped silently
 print(wb.readWarnings)                        // …and whatever the file held that the model cannot say
 ```

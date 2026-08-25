@@ -79,6 +79,6 @@ import SwiftSheets
                 #expect(back.sheets["補足データ"]?.state == .hidden, "\(name) hidden sheet")
             }
         }
-        try Data(report.utf8).write(to: dir.appendingPathComponent("変換レポート.md"))
+        try Data(report.utf8).write(to: dir.appendingPathComponent("conversion-report.md"))
     }
 }
