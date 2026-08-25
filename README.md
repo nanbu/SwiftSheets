@@ -1,12 +1,18 @@
 # SwiftSheets
 
+[![CI](https://github.com/nanbu/SwiftSheets/actions/workflows/ci.yml/badge.svg)](https://github.com/nanbu/SwiftSheets/actions/workflows/ci.yml)
+[![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-macOS%2014%2B%20%7C%20iOS%2017%2B-1d1d1f)](https://github.com/nanbu/SwiftSheets#limits)
+[![License: MIT](https://img.shields.io/badge/License-MIT-248a3d)](https://github.com/nanbu/SwiftSheets/blob/main/LICENSE)
+
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
 workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
-as they went in. Foundation + the Compression framework only; no external dependencies. macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
+as they went in. Foundation + the Compression framework only; no external dependencies. **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
 
-The design is written down in [docs/implementation-spec.html](docs/implementation-spec.html) (Japanese; the spec is
-revised first, then the code), and what each format carries — measured, not claimed — is in
-[docs/format-support.html](docs/format-support.html).
+The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
+(Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
+[the format support table](https://nanbu.github.io/SwiftSheets/format-support.html). Both are at
+**<https://nanbu.github.io/SwiftSheets/>**.
 
 ```swift
 import SwiftSheets

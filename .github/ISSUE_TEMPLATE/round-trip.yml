@@ -43,6 +43,6 @@ body:
     id: version
     attributes:
       label: SwiftSheets version and platform
-      placeholder: 0.5.0, macOS 15.3 / iOS 18.3
+      placeholder: 0.6.0, macOS 15.3 / iOS 18.3
     validations:
       required: true

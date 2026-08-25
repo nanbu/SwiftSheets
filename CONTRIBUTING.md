@@ -18,7 +18,7 @@ the message did not tell you what happened, that is a bug in the message.
 ## Before opening a pull request
 
 Open an issue first. The API is still moving before 1.0, and the design is written down before the code — the spec is
-[`docs/implementation-spec.html`](docs/implementation-spec.html) (Japanese), and Appendix B records the decisions and
+[the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html) (Japanese), and Appendix B records the decisions and
 the reasons behind them. A change that contradicts the spec needs the spec revised in the same pull request.
 
 ```bash

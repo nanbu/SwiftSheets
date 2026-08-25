@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        If the file came from an untrusted source, please read [SECURITY.md](../blob/main/SECURITY.md)
+        If the file came from an untrusted source, please read [SECURITY.md](https://github.com/nanbu/SwiftSheets/blob/main/SECURITY.md)
         first — report it privately instead of here.
   - type: textarea
     id: what-happened
@@ -33,6 +33,6 @@ body:
     id: version
     attributes:
       label: SwiftSheets version and platform
-      placeholder: 0.5.0, macOS 15.3 / iOS 18.3
+      placeholder: 0.6.0, macOS 15.3 / iOS 18.3
     validations:
       required: true
