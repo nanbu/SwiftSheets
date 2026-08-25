@@ -171,9 +171,14 @@ import SwiftSheets
                             "table:label-range", "table:consolidation", "table:detective", "office:currency"] {
                 #expect(xml.contains(element), Comment(rawValue: "LibreOffice kept \(element)"))
             }
-            // and it reads back into the same model
+            // and it reads back into the same model — for the part LibreOffice keeps. It overwrites four of the
+            // calculation settings (case-sensitive, regular expressions, wildcards, the two-digit-year window) with
+            // its own application settings on re-save, so those are checked against our own reader, not this one
+            // (spec Appendix B.17).
             let back = try ODSCodec.read(resaved).workbook
             #expect(back.epoch == .mac1904)
+            #expect(back.calculationSettings.precisionAsShown)
+            #expect(!back.calculationSettings.searchCriteriaMustApplyToWholeCell)
             #expect(back.labelRanges.count == 1)
             #expect(back.consolidation?.function == .sum)
             #expect(back.sheets[0].table.detective.count == 1)

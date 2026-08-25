@@ -777,7 +777,8 @@ final class ContentParser: SAXHandler {
             rowHasStyleMap = true
         }
 
-        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0 || !rowDetective.isEmpty
+        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0
+            || rowDetective.contains { $0.col == cellCursor }
         guard material || (cell.style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
         let count = Swift.min(n, ODSReader.maxColumns - cellCursor)

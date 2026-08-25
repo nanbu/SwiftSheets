@@ -64,6 +64,9 @@ per-application checklist (`はじめにお読みください.md`).
   confirm: bold and coloured header cells look as the checklist describes, background fills are there, the font is
   the one asked for (not a fallback), number formats show as currency / percentage / date rather than as plain
   numbers, and the document still saves without complaint.
+- **The 1904 date origin** is written to the Numbers calculation engine as of Rev 2.2, and checked only by our own
+  reader. If Numbers.app is to hand, open a workbook saved with `wb.epoch = .mac1904` and confirm the dates read the
+  same there as in the source.
 - **Conditional formatting is deliberately not written to Numbers** (Appendix B.16). If you have Numbers.app to
   hand, the one thing worth doing is the opposite direction: make a document *with* a conditional format, add it to
   `Tests/SwiftSheetsTests/Fixtures/numbers/`, and the `predicate_type` values become observable — which is the only

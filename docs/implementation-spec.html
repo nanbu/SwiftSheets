@@ -2556,6 +2556,20 @@ wb.sheets[<span class="nm">0</span>] = sheet
     そのうえで <strong>LibreOffice に ODS → ODS の再保存をさせ、要素が残って出てくるか</strong>を見る —
     残れば LibreOffice がその要素を理解したということで、B.16 で条件付き書式に用いたのと同じ基準である。
   </p>
+  <div class="callout">
+    <span class="label">この審判で分かったこと（実測・2026-08-25）</span>
+    <p>
+      6 件すべての要素は LibreOffice の再保存後も残る。ただし計算設定のうち
+      <code>table:case-sensitive</code> / <code>table:use-regular-expressions</code> /
+      <code>table:use-wildcards</code> / <code>table:null-year</code> の 4 属性は、
+      <strong>LibreOffice が再保存のときに自分のアプリ設定で上書きする</strong>（
+      <code>table:precision-as-shown</code> と <code>table:search-criteria-must-apply-to-whole-cell</code> は保たれる）。
+      つまりこの 4 つについては「LibreOffice が理解した」という証明はこのループでは取れていない —
+      ファイルにはスキーマどおりに書かれており、自作リーダでは完全に往復するが、
+      LibreOffice を経由すると失われる。これは書き手の欠陥ではなく LibreOffice の挙動であり、
+      テストが計算設定の<em>全体</em>ではなく要素の存在を見ているのはそのためである。
+    </p>
+  </div>
 
 
 </section>
