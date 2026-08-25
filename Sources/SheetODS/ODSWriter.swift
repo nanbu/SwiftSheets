@@ -255,10 +255,16 @@ enum ODSWriter {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "an auto-filter the model could not read is dropped: ODS is regenerated, not patched")
             }
             if !sheet.scenarios.isEmpty {
-                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.scenarios.count) scenario(s) dropped: this writer does not emit ODF scenario tables")
+                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.scenarios.count) scenario(s) dropped: an ODF scenario is a whole shadow sheet, not a named set of input values, so it cannot be written without changing the sheet list")
             }
             if !sheet.protectedRanges.isEmpty {
-                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.protectedRanges.count) protected range(s) dropped")
+                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.protectedRanges.count) protected range(s) dropped: ODF protects a whole table, with no windows left open in it")
+            }
+            if sheet.tabColor != nil {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)")
+            }
+            if sheet.tables.contains(where: { $0.cells.values.contains { if case .richText = $0.value { return true }; return false } }) {
+                sink.add(.degraded, subject: .formatting, sheet: sheet.name, "rich text is written as plain text: a run of its own formatting inside one cell is not carried")
             }
             for table in sheet.excelTables where table.styleInfo != nil {
                 sink.add(.degraded, subject: .tables, sheet: sheet.name, "named table \(table.name) written as an ODF database range: its banded-row style is not carried")
@@ -269,6 +275,10 @@ enum ODSWriter {
             if sheet.hasUnmodelledValidations {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "a data validation the model could not read is dropped: ODS is regenerated, not patched")
             }
+        }
+
+        if wb.protection != WorkbookProtection() {
+            sink.add(.dropped, subject: .other, "workbook protection is dropped: ODF locks a document, not its sheet list")
         }
 
         // warnings about what the styles could not say

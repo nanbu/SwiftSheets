@@ -41,6 +41,15 @@ struct NumbersWriter {
         if let src = workbook.preserved.sourceFormat, src != .numbers, !workbook.preserved.opaqueParts.isEmpty {
             warnings.append(ConversionWarning(.dropped, message: "\(workbook.preserved.opaqueParts.count) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
         }
+        if !workbook.definedNames.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .formulas, message: "\(workbook.definedNames.count) defined name(s) dropped: Numbers has no defined names"))
+        }
+        if workbook.protection != WorkbookProtection() {
+            warnings.append(ConversionWarning(.dropped, subject: .other, message: "workbook protection is dropped: Numbers locks a document with a password, which this writer does not set"))
+        }
+        if !workbook.customProperties.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .other, message: "\(workbook.customProperties.count) custom document propert(ies) dropped: Numbers has no free-form document fields"))
+        }
         var sheetIDs: [Int] = []
         for (i, sheet) in workbook.sheets.enumerated() {
             let sid = i == 0 ? templateSheet : try cloneSheet()
@@ -58,6 +67,29 @@ struct NumbersWriter {
             }
             if !sheet.excelTables.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name, message: "\(sheet.excelTables.count) named table(s) dropped: every Numbers table is named, but its own header rows are not this frame"))
+            }
+            // the rest of what a sheet can say and a Numbers table cannot. None of it is dropped in silence.
+            if sheet.autoFilter != nil || !sheet.filterColumns.isEmpty || sheet.sortState != nil {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "the auto-filter and its sort are dropped: a Numbers table filters and sorts through its own rules, which are not written"))
+            }
+            if sheet.protection.enabled || !sheet.protectedRanges.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "sheet protection is dropped: Numbers protects a whole document, not a sheet"))
+            }
+            if !sheet.scenarios.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "\(sheet.scenarios.count) scenario(s) dropped: Numbers has no scenarios"))
+            }
+            if !sheet.headerFooter.isEmpty || sheet.pageSetup != PageSetup() || !sheet.printArea.isEmpty
+                || sheet.printTitleRows != nil || sheet.printTitleColumns != nil || !sheet.rowBreaks.isEmpty || !sheet.columnBreaks.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "the print setup (headers, page breaks, print area, orientation) is dropped: Numbers prints a canvas, not a page grid"))
+            }
+            if !sheet.definedNames.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .formulas, sheet: sheet.name, message: "\(sheet.definedNames.count) sheet-scoped name(s) dropped: Numbers has no defined names"))
+            }
+            if sheet.tabColor != nil {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "the tab colour is dropped: Numbers tabs have no colour"))
+            }
+            if sheet.tables.contains(where: { table in table.rowDimensions.values.contains { $0.outlineLevel > 0 } || table.columnDimensions.values.contains { $0.outlineLevel > 0 } }) {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "row / column grouping is dropped: Numbers groups by category, not by outline level"))
             }
             var infos = doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" } ?? []
             let tables = sheet.tables.isEmpty ? [Table()] : sheet.tables
