@@ -116,9 +116,13 @@ struct CellStorage {
 
     // MARK: - Encoding (write side)
 
-    /// A version-5 record for a value. `stringID` / `richID` index the table's string / rich-text lists.
+    /// A version-5 record for a value. `stringID` / `richID` index the table's string / rich-text lists,
+    /// `cellStyleID` / `textStyleID` its style list and the `*FormatID`s its format list. The fields go out in flag
+    /// order, which is the order `decode` reads them in.
     static func encode(type: CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil, stringID: Int? = nil,
-                       formulaID: Int? = nil, numFormatID: Int? = nil, dateFormatID: Int? = nil, durationFormatID: Int? = nil) -> Data {
+                       cellStyleID: Int? = nil, textStyleID: Int? = nil, formulaID: Int? = nil,
+                       numFormatID: Int? = nil, currencyFormatID: Int? = nil, dateFormatID: Int? = nil,
+                       durationFormatID: Int? = nil, textFormatID: Int? = nil, boolFormatID: Int? = nil) -> Data {
         var flags = 0
         var body = [UInt8]()
         func int32(_ v: Int) { let u = UInt32(bitPattern: Int32(v)); for k in 0..<4 { body.append(UInt8((u >> (8 * UInt32(k))) & 0xFF)) } }
@@ -128,10 +132,15 @@ struct CellStorage {
         if let double { flags |= 0x2; dbl(double) }
         if let seconds { flags |= 0x4; dbl(seconds) }
         if let stringID { flags |= 0x8; int32(stringID); extras |= 0x80 }
+        if let cellStyleID { flags |= 0x20; int32(cellStyleID) }
+        if let textStyleID { flags |= 0x40; int32(textStyleID) }
         if let formulaID { flags |= 0x200; int32(formulaID) }
         if let numFormatID { flags |= 0x2000; int32(numFormatID); extras |= 1 }
+        if let currencyFormatID { flags |= 0x4000; int32(currencyFormatID); extras |= 2 }
         if let dateFormatID { flags |= 0x8000; int32(dateFormatID); extras |= 8 }
         if let durationFormatID { flags |= 0x10000; int32(durationFormatID); extras |= 4 }
+        if let textFormatID { flags |= 0x20000; int32(textFormatID) }
+        if let boolFormatID { flags |= 0x40000; int32(boolFormatID); extras |= 0x20 }
         var out = [UInt8](repeating: 0, count: 12)
         out[0] = 5; out[1] = UInt8(type.rawValue); out[6] = extras
         let f = UInt32(flags)

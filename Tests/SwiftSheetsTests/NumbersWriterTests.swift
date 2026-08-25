@@ -120,6 +120,70 @@ import SwiftSheets
         }
     }
 
+    /// Cell formatting on the way out: each distinct style becomes a variation of the table's own default, listed
+    /// in the table's style list and named by the cells that use it.
+    ///
+    /// A round trip is deliberately *not* the identity. The template a Numbers write starts from says its body text
+    /// is Helvetica Neue 10, wrapped and top-aligned, so a cell that states nothing comes back saying that — which
+    /// is what the document really looks like. What the cells *do* state has to survive unchanged.
+    @Test func cellFormattingRoundTrip() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws["A1"] = "head"; ws["B1"] = "amount"
+        ws["A2"] = "apple"; ws["B2"] = .number(Decimal(string: "1234.5")!)
+        ws["B3"] = .number(Decimal(string: "0.125")!)
+        ws["C2"] = .date(CivilDateTime(date: CivilDate(year: 2026, month: 8, day: 25)!))
+        ws.style("A1:C1") {
+            $0.font.bold = true
+            $0.font.size = 14
+            $0.font.color = Color(hex: "FFFFFF")
+            $0.fill = .solid(Color(hex: "1F4E79"))
+            $0.alignment.horizontal = .center
+            $0.alignment.vertical = .center
+        }
+        ws.style("B2") { $0.numberFormat = "#,##0.00"; $0.font.italic = true }
+        ws.style("B3") { $0.numberFormat = "0.0%" }
+        ws.style("C2") { $0.numberFormat = "yyyy/mm/dd" }
+        ws.style("A2") { $0.border.bottom = Side(style: .thin, color: Color(hex: "FF0000")) }
+        wb.sheets[0] = ws
+
+        let result = try wb.write(as: .numbers)
+        #expect(!result.warnings.contains { $0.message.contains("formatting is not written") })
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+
+        let head = back.style("A1")
+        #expect(head.font.bold)
+        #expect(head.font.size == 14)
+        #expect(head.font.color == Color(hex: "FFFFFFFF"))
+        #expect(head.fill.foregroundColor == Color(hex: "FF1F4E79"))
+        #expect(head.alignment.horizontal == .center)
+        #expect(head.alignment.vertical == .center)
+
+        #expect(back.style("B2").font.italic)
+        #expect(back.style("B2").numberFormat == "#,##0.00")
+        #expect(back.style("B3").numberFormat == "0.0%")
+        #expect(back.style("C2").numberFormat == "yyyy/mm/dd")
+        #expect(back.style("A2").border.bottom.style == .thin)
+        #expect(back.style("A2").border.bottom.color == Color(hex: "FFFF0000"))
+        #expect(back["B2"] == .number(Decimal(string: "1234.5")!))
+
+        let doc = try NumbersDocument(data: result.data)
+        #expect(doc.integrityProblems().isEmpty, "\(doc.integrityProblems().prefix(5))")
+    }
+
+    /// Numbers describes one presentation per format, so Excel's sections, colours and conditions are reported.
+    @Test func partialAndUnexpressibleNumberFormatsAreReported() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0]["A2"] = 2
+        wb.sheets[0].style("A1") { $0.numberFormat = "[Red][>100]0.00;[Blue]0.00" }
+        wb.sheets[0].style("A2") { $0.numberFormat = "* #,##0_);_(* (#,##0)" }
+        let result = try wb.write(as: .numbers)
+        #expect(result.warnings.contains { $0.kind == .substituted && $0.message.contains("colours, conditions") })
+        let back = try NumbersCodec.read(result.data).workbook.sheets[0]
+        #expect(back["A1"] == .integer(1) && back["A2"] == .integer(2), "the values are never lost to a format")
+    }
+
     @Test func crossFormatWarnings() throws {
         let xlsx = Bundle.module.resourceURL!.appendingPathComponent("Fixtures/preservation/charts-and-friends.xlsx")
         let wb = try Workbook(contentsOf: xlsx)

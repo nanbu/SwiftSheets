@@ -254,6 +254,19 @@ enum NumbersFormat {
         return f
     }
 
+    /// True when the code carries a `[…]` directive that is not an elapsed-time marker — a colour or a condition,
+    /// neither of which a Numbers format describes.
+    static func hasDirective(_ code: String) -> Bool {
+        var i = code.startIndex
+        while let open = code[i...].firstIndex(of: "["), let close = code[open...].firstIndex(of: "]") {
+            let body = String(code[code.index(after: open)..<close]).lowercased()
+            if !["h", "hh", "m", "mm", "s", "ss"].contains(body) { return true }
+            i = code.index(after: close)
+            if i >= code.endIndex { break }
+        }
+        return false
+    }
+
     static let symbols: [String: String] = ["USD": "$", "JPY": "¥", "EUR": "€", "GBP": "£", "CNY": "¥", "KRW": "₩"]
     static func currencySymbol(_ code: String) -> String? { symbols[code] ?? (code.isEmpty ? nil : code) }
     static func currencyCode(_ symbol: Character) -> String {
@@ -313,5 +326,197 @@ enum NumbersFormat {
             i = code.index(after: i)
         }
         return out
+    }
+}
+
+/// Builds the style and format lists of one table on the way out.
+///
+/// Numbers has no "cell format" record: a cell names an entry of its table's style list, and each entry is a style
+/// archive that *varies* one of the table's own defaults. So every distinct `CellStyle` becomes two new archives —
+/// a `TSWP.ParagraphStyleArchive` under the table's `body_text_style` and a `TST.CellStyleArchive` under its
+/// `body_cell_style` — written beside the template's own styles in `Index/DocumentStylesheet.iwa`. Number formats
+/// are the same shape again, as `TSK.FormatStructArchive` entries of the format list.
+struct NumbersStyleWriter {
+    let doc: NumbersDocument
+    private let textParent: Int?
+    private let cellParent: Int?
+    private let stylesheet: Int?
+    /// Where new style archives go: the file the template's own styles live in.
+    static let stylesheetFile = "Index/DocumentStylesheet.iwa"
+
+    private var textKeys: [CellStyle: Int] = [:]
+    private var cellKeys: [CellStyle: Int] = [:]
+    private var formatKeys: [String: Int] = [:]
+    private(set) var styleEntries: [ProtoMessage] = []
+    private(set) var formatEntries: [ProtoMessage] = []
+    /// Number-format codes Numbers has no description for; the writer reports them once each.
+    private(set) var unexpressibleFormats: [String] = []
+    /// Codes Numbers can only half describe — a second section for negatives, a colour, a condition.
+    private(set) var partialFormats: [String] = []
+
+    init(doc: NumbersDocument, model: ProtoMessage) {
+        self.doc = doc
+        textParent = model.reference("body_text_style")
+        cellParent = model.reference("body_cell_style")
+        stylesheet = textParent.flatMap { doc.object($0)?.message("super")?.reference("stylesheet") }
+    }
+
+    /// The style-list keys a cell needs, minting the archives the first time a style is met.
+    mutating func keys(for style: CellStyle) throws -> (cell: Int?, text: Int?) {
+        guard style != .default else { return (nil, nil) }
+        var text: Int?
+        var cell: Int?
+        if let properties = characterProperties(style), let parent = textParent {
+            if let k = textKeys[style] { text = k } else {
+                var para = ProtoMessage(typeName: "TSWP.ParagraphStyleArchive")
+                para.set("super", message: superArchive(parent: parent))
+                para.set("override_count", int: properties.overrides)
+                para.set("char_properties", message: properties.char)
+                if let p = properties.para { para.set("para_properties", message: p) }
+                let id = try doc.add(para, file: NumbersStyleWriter.stylesheetFile)
+                text = addEntry(id)
+                textKeys[style] = text
+            }
+        }
+        if let properties = cellProperties(style), let parent = cellParent {
+            if let k = cellKeys[style] { cell = k } else {
+                var archive = ProtoMessage(typeName: "TST.CellStyleArchive")
+                archive.set("super", message: superArchive(parent: parent))
+                archive.set("override_count", int: properties.overrides)
+                archive.set("cell_properties", message: properties.cell)
+                let id = try doc.add(archive, file: NumbersStyleWriter.stylesheetFile)
+                cell = addEntry(id)
+                cellKeys[style] = cell
+            }
+        }
+        return (cell, text)
+    }
+
+    /// The format-list key for a number-format code, or nil when Numbers cannot describe it.
+    mutating func formatKey(for code: String) -> Int? {
+        if let k = formatKeys[code] { return k >= 0 ? k : nil }
+        guard let archive = NumbersFormat.archive(for: code) else {
+            formatKeys[code] = -1
+            if code != NumberFormat.general { unexpressibleFormats.append(code) }
+            return nil
+        }
+        // Numbers describes one presentation, not Excel's four sections and their colours and conditions
+        if code.contains(";") || NumbersFormat.hasDirective(code) { partialFormats.append(code) }
+        let key = formatEntries.count + 1
+        var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+        entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("format", message: archive)
+        formatEntries.append(entry)
+        formatKeys[code] = key
+        return key
+    }
+
+    private mutating func addEntry(_ objectID: Int) -> Int {
+        let key = styleEntries.count + 1
+        var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+        entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("reference", reference: objectID)
+        styleEntries.append(entry)
+        return key
+    }
+
+    private func superArchive(parent: Int) -> ProtoMessage {
+        var s = ProtoMessage(typeName: "TSS.StyleArchive")
+        s.set("parent", reference: parent)
+        s.set("is_variation", bool: true)
+        if let stylesheet { s.set("stylesheet", reference: stylesheet) }
+        return s
+    }
+
+    /// The character / paragraph overrides of a style, or nil when it says nothing about text.
+    private func characterProperties(_ style: CellStyle) -> (char: ProtoMessage, para: ProtoMessage?, overrides: Int)? {
+        var char = ProtoMessage(typeName: "TSWP.CharacterStylePropertiesArchive")
+        var overrides = 0
+        let font = style.font, base = Font.default
+        if font.bold { char.set("bold", bool: true); overrides += 1 }
+        if font.italic { char.set("italic", bool: true); overrides += 1 }
+        if let size = font.size, size != base.size { char.set("font_size", float: Float(size)); overrides += 1 }
+        if let name = font.name, name != base.name { char.set("font_name", string: name); overrides += 1 }
+        if case .rgb(let hex)? = font.color, let colour = NumbersStyleWriter.color(hex) {
+            char.set("font_color", message: colour); overrides += 1
+        }
+        if let underline = font.underline { char.set("underline", int: underline == .double || underline == .doubleAccounting ? 2 : 1); overrides += 1 }
+        if font.strikethrough { char.set("strikethru", int: 1); overrides += 1 }
+
+        var para: ProtoMessage?
+        if let horizontal = style.alignment.horizontal {
+            let value: Int?
+            switch horizontal {
+            case .left: value = 0
+            case .right: value = 1
+            case .center, .centerContinuous: value = 2
+            case .justify, .distributed: value = 3
+            case .general, .fill: value = nil
+            }
+            if let value {
+                var p = ProtoMessage(typeName: "TSWP.ParagraphStylePropertiesArchive")
+                p.set("alignment", int: value)
+                para = p
+                overrides += 1
+            }
+        }
+        return overrides == 0 ? nil : (char, para, overrides)
+    }
+
+    /// The cell overrides of a style (fill, borders, vertical alignment, wrapping), or nil when it says none.
+    private func cellProperties(_ style: CellStyle) -> (cell: ProtoMessage, overrides: Int)? {
+        var cell = ProtoMessage(typeName: "TST.CellStylePropertiesArchive")
+        var overrides = 0
+        if style.fill.patternType != .none || style.fill.gradientFill != nil,
+           case .rgb(let hex)? = style.fill.foregroundColor ?? style.fill.backgroundColor, let colour = NumbersStyleWriter.color(hex) {
+            var fill = ProtoMessage(typeName: "TSD.FillArchive")
+            fill.set("color", message: colour)
+            cell.set("cell_fill", message: fill)
+            overrides += 1
+        }
+        if style.alignment.wrapText { cell.set("text_wrap", bool: true); overrides += 1 }
+        if let vertical = style.alignment.vertical {
+            switch vertical {
+            case .top: cell.set("vertical_alignment", int: 0)
+            case .center, .justify, .distributed: cell.set("vertical_alignment", int: 1)
+            case .bottom: cell.set("vertical_alignment", int: 2)
+            }
+            overrides += 1
+        }
+        for (name, side) in [("top_stroke", style.border.top), ("bottom_stroke", style.border.bottom),
+                             ("left_stroke", style.border.left), ("right_stroke", style.border.right)] {
+            guard let stroke = NumbersStyleWriter.stroke(side) else { continue }
+            cell.set(name, message: stroke)
+            overrides += 1
+        }
+        return overrides == 0 ? nil : (cell, overrides)
+    }
+
+    /// "AARRGGBB" → `TSP.Color` with 0…1 components, the way Numbers keeps them.
+    static func color(_ hex: String) -> ProtoMessage? {
+        let text = hex.count == 6 ? "FF" + hex : hex
+        guard text.count == 8, let value = UInt32(text, radix: 16) else { return nil }
+        var m = ProtoMessage(typeName: "TSP.Color")
+        m.set("model", int: NumbersSchema.shared.enumValue("TSP.Color.ColorModel", "rgb") ?? 1)
+        m.set("r", float: Float((value >> 16) & 0xFF) / 255)
+        m.set("g", float: Float((value >> 8) & 0xFF) / 255)
+        m.set("b", float: Float(value & 0xFF) / 255)
+        m.set("a", float: Float((value >> 24) & 0xFF) / 255)
+        return m
+    }
+
+    /// A border side as a `TSD.StrokeArchive`; nil for "no border".
+    static func stroke(_ side: Side) -> ProtoMessage? {
+        guard let style = side.style else { return nil }
+        let width: Double
+        switch style {
+        case .hair: width = 0.25
+        case .thin, .dotted, .dashed, .dashDot, .dashDotDot: width = 1
+        case .medium, .mediumDashed, .mediumDashDot, .mediumDashDotDot, .slantDashDot, .double: width = 2
+        case .thick: width = 3
+        }
+        var m = ProtoMessage(typeName: "TSD.StrokeArchive")
+        m.set("width", float: Float(width))
+        if case .rgb(let hex)? = side.color, let colour = color(hex) { m.set("color", message: colour) }
+        else if let colour = color("FF000000") { m.set("color", message: colour) }
+        return m
     }
 }

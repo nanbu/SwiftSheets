@@ -302,9 +302,9 @@ struct NumbersWriter {
             return k
         }
 
-        // cell records per row
+        // cell records per row, with the styles and number formats they name
         var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: cols), count: rows)
-        var formattedWarned = false
+        var styleWriter = NumbersStyleWriter(doc: doc, model: model)
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
             guard var value = cell.value else { continue }
             if case .formula(_, let cached) = value {
@@ -312,13 +312,35 @@ struct NumbersWriter {
                 guard let c = cached else { continue }
                 value = c
             }
-            if cell.style != .default, !formattedWarned {
-                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheetName, message: "cell formatting is not written to Numbers yet"))
-                formattedWarned = true
-            }
-            records[ref.row][ref.col] = record(for: value, key: key)
+            let style = cell.style
+            let keys = try styleWriter.keys(for: style)
+            let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
+            records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
+                                               formatKey: formatKey, code: style.numberFormat)
         }
-        for (ref, _) in table.cells where (ref.row >= rows || ref.col >= cols) && ref.row < 0 { _ = ref }
+        for code in styleWriter.unexpressibleFormats {
+            warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
+                                              message: "number format \(code) has no Numbers equivalent; the cells keep their value unformatted"))
+        }
+        for code in styleWriter.partialFormats {
+            warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
+                                              message: "number format \(code): Numbers describes one presentation, so its colours, conditions and negative section are dropped"))
+        }
+        // the style / format lists of this table
+        if let sid = store.reference("styleTable") {
+            let entries = styleWriter.styleEntries
+            doc.update(sid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
+        }
+        if let fid = store.reference("format_table") {
+            let entries = styleWriter.formatEntries
+            doc.update(fid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
+        }
 
         // string list
         if let sid = store.reference("stringTable") {
@@ -438,23 +460,41 @@ struct NumbersWriter {
         addExternalReference(toComponentNamed: "CalculationEngine", componentID: id, objectID: nil)
     }
 
-    /// The packed record for a value (nil for kinds Numbers cannot hold, after a warning).
-    private mutating func record(for value: CellValue, key: (String) -> Int) -> Data? {
+    /// The packed record for a value (nil for kinds Numbers cannot hold, after a warning). The number format goes
+    /// in the slot the *value* asks for — Numbers has one per kind, not one per cell.
+    private mutating func record(for value: CellValue, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
+                                 formatKey: Int? = nil, code: String = NumberFormat.general) -> Data? {
+        let isCurrency = code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£")
+        func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil,
+                    stringID: Int? = nil) -> Data {
+            var number: Int?, currency: Int?, date: Int?, duration: Int?, text: Int?, boolean: Int?
+            switch type {
+            case .text, .automatic: text = formatKey
+            case .date: date = formatKey
+            case .duration: duration = formatKey
+            case .bool: boolean = formatKey
+            default: if isCurrency { currency = formatKey } else { number = formatKey }
+            }
+            return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, double: double,
+                                      seconds: seconds, stringID: stringID, cellStyleID: cellStyleID, textStyleID: textStyleID,
+                                      numFormatID: number, currencyFormatID: currency, dateFormatID: date,
+                                      durationFormatID: duration, textFormatID: text, boolFormatID: boolean)
+        }
         switch value {
-        case .text(let s): return CellStorage.encode(type: .text, stringID: key(s))
-        case .richText(let runs): return CellStorage.encode(type: .text, stringID: key(runs.map(\.text).joined()))
-        case .integer(let i): return CellStorage.encode(type: .number, decimal: Decimal(i))
-        case .number(let d): return CellStorage.encode(type: .number, decimal: d)
-        case .bool(let b): return CellStorage.encode(type: .bool, double: b ? 1 : 0)
+        case .text(let s): return encode(.text, stringID: key(s))
+        case .richText(let runs): return encode(.text, stringID: key(runs.map(\.text).joined()))
+        case .integer(let i): return encode(.number, decimal: Decimal(i))
+        case .number(let d): return encode(.number, decimal: d)
+        case .bool(let b): return encode(.bool, double: b ? 1 : 0)
         case .date(let dt):
             let seconds = Double(dt.date.dayNumber - NumbersReader.epochDay) * 86400 + dt.time.dayFraction * 86400
-            return CellStorage.encode(type: .date, seconds: seconds)
+            return encode(.date, seconds: seconds)
         case .time(let t):   // a time of day is a date on the epoch day
-            return CellStorage.encode(type: .date, seconds: t.dayFraction * 86400)
+            return encode(.date, seconds: t.dayFraction * 86400)
         case .duration(let d):
             let (s, attos) = d.components
-            return CellStorage.encode(type: .duration, double: Double(s) + Double(attos) / 1e18)
-        case .error(let e): return CellStorage.encode(type: .text, stringID: key(e))
+            return encode(.duration, double: Double(s) + Double(attos) / 1e18)
+        case .error(let e): return encode(.text, stringID: key(e))
         case .formula: return nil
         }
     }
