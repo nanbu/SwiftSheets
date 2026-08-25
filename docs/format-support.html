@@ -258,7 +258,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>　└ 絞り込み条件・並べ替えの記録</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
   <td>値の一覧と比較条件は通ります。色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言います</td></tr>
 <tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m n">×</td>
-  <td><strong>配置は書くが集計はしない</strong>のは Excel も ODS も同じ。開いたアプリが元データから計算します</td></tr>
+  <td>Excel / ODS は<strong>配置だけ</strong>書き、数字は開いた側に計算させます。Numbers へは落とし、警告で言います。
+    <strong>ここだけは Numbers 自身のほうが多く残します</strong> — 同じ Excel ファイルを Numbers に直接読ませると、
+    集計後の値が並んだ表として入ります（実測・下記の掃引）。こちらを通すとその面は空のままです</td></tr>
 <tr><td>シート保護</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>保護範囲（保護シート内の編集可能な窓）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
   <td>ODF は表全体を守り、その中に窓を持ちません</td></tr>
@@ -559,6 +561,32 @@ for warning in result.warnings {
 </section>
 
 <section>
+<h2>Excel の機能は、Numbers でどこまで残るのか（実測・2026-08-26）</h2>
+<p>
+  表が答えていると称している問いに、機械で答えました。この表が測る機能を<strong>全部入れた 1 冊</strong>を用意し、
+  ① SwiftSheets が <code>.numbers</code> に書いたもの と ② 同じ冊子を <code>.xlsx</code> にして
+  <strong>Numbers 自身に読み込ませて保存させたもの</strong> を、<strong>セル 1 つずつ</strong>突き合わせます。
+</p>
+<div class="tablewrap"><table>
+  <tr><th>結果</th><th>中身</th></tr>
+  <tr><td><strong>値と数式が食い違ったセル: 0 件</strong>（67 セル中）</td>
+    <td>こちらの書き出しと Numbers 自身の輸入は、セルの中身について一致しています</td></tr>
+  <tr><td>Numbers 自身のほうが多く残したもの: <strong>ピボット表だけ</strong>（14 セル）</td>
+    <td>集計後の値が並んだ表として入る。こちらはピボット表を落とすので、その面は空のまま</td></tr>
+  <tr><td>こちらのほうが多く残したもの: 2 件</td>
+    <td><strong>結合</strong>（Numbers 自身の輸入は失う）と、<strong>1 シートに 2 つ目の表</strong></td></tr>
+  <tr><td>配列数式の展開</td>
+    <td>Numbers は配列数式を覆うセルすべてに内部の式を撒く。こちらは起点だけを書く（表のとおり ×）</td></tr>
+  <tr><td>キャッシュ値を持たない数式: 2 件</td>
+    <td>こちらの文書には値が保存されていないが、<strong>Numbers が開いたときに計算します</strong>（実機で確認）</td></tr>
+</table></div>
+<p class="meta">
+  一覧の「項目数」で比べても意味がありません — Numbers はセルごとに 1 項目持ち、こちらは同じものを 1 項目に
+  まとめるので、同じ文書で書式が 13 対 2 になります。掃引はセルの中身で比べ、項目数は参考として並べるだけです。
+</p>
+</section>
+
+<section>
 <h2>この表を自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
 <pre><code>swift test                          # 811 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
@@ -567,7 +595,8 @@ swift test --filter ODFOnly         # ODF にあって Excel に無い 6 件
 swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表
 swift test --filter Numbers         # Numbers のセル書式・数式（numbers-parser の期待値と突き合わせ）
 
-python3 Tests/NumbersParity/verify_with_numbers_app.py   # <strong>Numbers.app 本人</strong>に開かせ、計算させ、保存し直させる</code></pre>
+python3 Tests/NumbersParity/verify_with_numbers_app.py   # <strong>Numbers.app 本人</strong>に開かせ、計算させ、保存し直させる
+python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # 同じ 1 冊を「こちらの書き出し」と「Numbers 自身の輸入」で突き合わせる</code></pre>
 <p class="meta">
   実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B.16（Excel → ODS / Numbers）と
   B.17（ODF → Excel）に、
