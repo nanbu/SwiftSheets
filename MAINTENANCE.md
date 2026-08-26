@@ -20,6 +20,11 @@ an `.xlsx` with a chart and a list validation (openpyxl) and having Numbers impo
 python3 Tests/NumbersParity/numbers_app.py   # numbers_app.resave(<xlsx>, <numbers>)
 zip -d <out>.numbers 'Data/PresetImageFill*' 'preview*.jpg'   # 665 KB → 112 KB; Numbers still opens it
 ```
+
+`resave` occasionally fails with `-600` ("no such process"): `open` reaching LaunchServices while Numbers is still
+shutting down from the previous document. `_launch_open` already retries once, which absorbs it most of the time —
+if a run still fails there, run it again rather than looking for a fault in the file.
+
 `Workbook.sourceInfo.version` reports the producing version of any file read.
 
 ## Read policy: tolerant by default
