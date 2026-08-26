@@ -1850,6 +1850,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
     <tr><td>2.4 Draft</td><td>2026-08-26</td><td>Numbers 書き出しが<strong>「値は持たないが書式は持つセル」を警告なしで捨てていた</strong>件を付録 B.20 に記録。セルの取り出しが値の無いセルを書式に触れる前に飛ばしていたので、塗りだけで描いた図（ガントの帯・週末の列）が丸ごと消えていた。あわせて、<code>Font.default</code>（Calibri 11）と同じ大きさを「既定だから書かなくてよい」と省いていた件も直す — テンプレートの既定は <strong>HelveticaNeue 10</strong> で、11pt を指定したセルだけが 1pt 小さく描かれていた</td></tr>
     <tr><td>2.5 Draft</td><td>2026-08-27</td><td>B.20 で「1.0 の破壊的変更の候補」として残した<strong>書体の同種欠陥を直した</strong>（付録 B.21）。<code>font_name</code> も <code>Font.default</code>（Calibri）と比べて省いていたため、Calibri を指定したセルがテンプレートの HelveticaNeue で描かれていた。モデルが述べた書体は常に書く。あわせて、この Mac の Calibri が <strong>Microsoft Office 専用フォルダにしか無い</strong>にもかかわらず Numbers が正しく描くことを実測（Numbers の PDF に本物の Calibri が埋め込まれる）</td></tr>
+    <tr><td>2.6 Draft</td><td>2026-08-27</td><td>相互変換の全量点検を行い、付録 B.22 に記録。<strong>ピボット表を持つ Excel ファイルは 2 回目の保存で壊れていた</strong>（書き手が自分で書く属性を、読み手が「知らない属性」として覚え直し、次の保存で二重に書いていた——属性の重複は整形式ではない XML）。あわせて、Numbers への<strong>配列数式・保護範囲</strong>、ODS / Numbers への <strong>VBA</strong> が黙って落ちていた 3 件を直し、壊れた部品を黙って読み飛ばしていた読み手にも警告を出させた。方向ごとの点検（<code>CrossFormatConversionTests</code>）と世代テストを新設</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3010,6 +3011,110 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><th>審判</th><th>結果</th></tr>
     <tr><td>自作リーダの往復</td><td>Calibri・Georgia・Arial・Verdana・Helvetica Neue の 5 種が往復。全体 832 件が緑</td></tr>
     <tr><td>Numbers 15.3.1 本人（PDF の埋め込み書体）</td><td>指定した書体がそれぞれ本物として埋め込まれる（上記）</td></tr>
+  </table></div>
+
+  <h3>B.22 2 回目の保存で壊れていた（Rev 2.6）</h3>
+  <p>
+    2026-08-27。オーナーの指示で、<strong>Excel / ODS / Numbers の独自機能が相互変換でどう扱われているかを
+    全量点検した</strong>。点検の形は 2 つ。ひとつは <em>方向</em> ごとの点検——「その形式で一度保存した本物の
+    ファイル」を開いて別形式に書き、消えたものひとつひとつに<strong>それを名指しする警告があるか</strong>を突き合わせる。
+    もうひとつは <em>世代</em> の点検——同じ文書を 3 回保存し、毎回すべての部品が整形式のままか、
+    途中で何かが落ちないかを見る。前者から 3 件、後者から 1 件の欠陥が出た。
+  </p>
+
+  <h4>いちばん重かったもの — ピボット表は 2 回目の保存で壊れていた</h4>
+  <p>
+    <code>xl/pivotTables/pivotTable1.xml</code> の根要素には、書き手が自分の判断で必ず書く属性がある
+    （<code>applyNumberFormats</code>・<code>updatedVersion</code>・<code>createdVersion</code>・
+    <code>outline</code> など 15 個）。ところが読み手の「知っている属性」の一覧には
+    <code>name</code>・<code>cacheId</code>・<code>dataCaption</code>・<code>rowGrandTotals</code>・
+    <code>colGrandTotals</code> の 5 つしか無かった。<strong>残りは「モデルが言えない属性」として
+    <code>otherAttributes</code> に覚えられ、次の保存で書き手自身の分と並べて、もう一度書かれた。</strong>
+  </p>
+  <pre>&lt;pivotTableDefinition … applyNumberFormats="0" … updatedVersion="8" …
+                        applyNumberFormats="0" … updatedVersion="8" …&gt;   ← 同じ属性が 2 回</pre>
+  <p>
+    属性の重複は<strong>整形式ではない XML</strong> であって、「読みにくい XML」ではない。
+    <code>XMLParser</code> は <code>NSXMLParserAttributeRedefinedError</code>（111）で止まり、
+    Excel なら「ファイルの一部に問題が見つかりました」と言う。しかもこちらの読み手は
+    <code>try?</code> でその失敗を飲み込んでいたので、<strong>2 回目に保存した時点でピボット表は
+    警告もなく消えていた</strong>——「黙って落とさない」という約束の、いちばん見つかりにくい破れ方である。
+  </p>
+  <p>
+    <code>pivotCacheDefinition</code> も同じ構造（<code>createdVersion</code>・<code>refreshedVersion</code>・
+    <code>minRefreshableVersion</code>・<code>saveData</code>）。そして
+    <strong>Excel が書いたファイルもこれらの属性を持っている</strong>ので、この欠陥は自作ファイルの往復に限らない。
+    <em>Excel で作ったピボット表つきのブックを SwiftSheets で開いて保存すれば、1 回目で壊れていた。</em>
+  </p>
+
+  <h4>直し方 — 一覧を手で合わせるのをやめた</h4>
+  <p>
+    素直な直し方は「読み手の既知一覧に 15 個を足す」だが、それは<strong>同じ欠陥の再発を約束する</strong>——
+    書き手が属性をひとつ増やすたびに、離れた場所の一覧を人が思い出して直さねばならない。今回の欠陥そのものが、
+    その記憶違いだった。
+  </p>
+  <p>
+    そこで <code>RootAttributes</code>（<code>SheetCore/Utils/XML.swift</code>）を置き、
+    <strong>その呼び出しで実際に書いた名前を集めておいて、ファイル由来の属性はそこに無いものだけ後ろに足す</strong>
+    ようにした。<code>saveData</code> や <code>r:id</code> のように<em>条件によって書いたり書かなかったりする</em>
+    属性でも、書かなかった回はファイル側の値がそのまま残る——静的な除外リストでは落ちていたところである。
+  </p>
+  <p>
+    読み手のほうも、部品の XML が読めなかったときに <code>continue</code> するのをやめ、
+    <code>&lt;path&gt; could not be parsed; the pivot table it describes was skipped</code> と言うようにした。
+    <code>WorkbookReader.read</code> の戻り値が <code>Workbook</code> から
+    <code>(Workbook, [ConversionWarning])</code> になったのはこのため（§6 の「読み込みも損失を返す」に合わせた）。
+  </p>
+
+  <h4>黙って落ちていた 3 件</h4>
+  <div class="compare"><table>
+    <tr><th>件</th><th>それまで</th><th>これから</th></tr>
+    <tr><td><strong>配列数式 → Numbers</strong></td>
+        <td>起点セルの数式だけが書かれ、広がっていた範囲は何も言わずに消えていた</td>
+        <td><code>degraded</code>「<em>N array formula(s) written as ordinary formulas in their anchor cell</em>」。
+            値も式も残り、失われるのは<strong>範囲だけ</strong>だと言う</td></tr>
+    <tr><td><strong>保護範囲 → Numbers</strong></td>
+        <td>「シート保護を落とした」の中に紛れ、保護範囲だけを設定した文書では何も言われなかった</td>
+        <td>シート保護とは別の警告に分けた（ODS 側の言い方に合わせている）</td></tr>
+    <tr><td><strong>VBA → ODS / Numbers</strong></td>
+        <td>「9 個の部品を運べない」という <code>.objects</code> / <code>.other</code> の数え上げに埋もれていた。
+            <strong>その結果 <code>WriteResult.suggest</code> は「XLSX にすれば残る」と案内していた</strong>——
+            XLSX でもマクロは落ちる</td>
+        <td><code>PreservationStore.hasVBAProject</code> を見て <code>.macros</code> で名指しする。
+            提案は <code>.xlsm</code> になる</td></tr>
+  </table></div>
+  <p>
+    主題（<code>ConversionWarning.Subject</code>）は表示のための飾りではなく、
+    <strong>代わりにどの形式を勧めるかを決める根拠</strong>である（B.14）。だから「マクロが落ちた」を
+    「部品が落ちた」と言うのは、言葉の粗さではなく<em>案内の誤り</em>だった。
+  </p>
+
+  <h4>直さずに残したもの — 先に方針を決めるべき 2 件</h4>
+  <div class="compare"><table>
+    <tr><th>件</th><th>いま起きていること</th><th>推奨</th></tr>
+    <tr><td><code>Workbook.convert</code> が<strong>読み込みの警告を捨てる</strong></td>
+        <td>戻り値は <code>WriteResult</code> だけ。図形と 8 個のセル制御を持つ Numbers 文書を
+            <code>.xlsx</code> に変換すると、<strong>警告 0 件</strong>が返る（読み手はちゃんと言っていた）</td>
+        <td>読み込みの警告を返り値に畳み込む。ただし公開 API の意味が変わるので、入れる前に承認を取る</td></tr>
+    <tr><td>ODS → 他形式で<strong>「計算設定を落とした」が必ず出る</strong></td>
+        <td>LibreOffice はどの ODS にも <code>automatic-find-labels="false"</code>・
+            <code>null-year="1950"</code>・反復の閾値を書くので、利用者が何も設定していなくても
+            モデルの既定と食い違い、警告が立つ</td>
+        <td>「計算結果に効く設定が既定と違うときだけ言う」に絞る。ただし何を「効く」とするかは
+            判断が要るので、方針を決めてから</td></tr>
+  </table></div>
+
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>方向ごとの点検（9 方向 + CSV）</td><td>消えた項目はすべて、それを名指しする警告を持つ。
+        <code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code></td></tr>
+    <tr><td>世代テスト（3 形式 × 3 世代）</td><td>すべての部品が整形式で、世代をまたいで何も落ちない。
+        欠陥を入れ直すと 3 つのテストが同時に赤くなることを確認済み</td></tr>
+    <tr><td>Numbers.app（<code>readsWhatNumbersMadeFromExcel</code>）</td>
+        <td>Excel の入力規則を Numbers 自身が<strong>ポップアップメニューに置き換える</strong>ことを、
+            推測ではなく<em>表明</em>として固定した（それまでは許容リストの穴で落ちていた）</td></tr>
+    <tr><td>全体</td><td>837 件が緑</td></tr>
   </table></div>
 
 </section>

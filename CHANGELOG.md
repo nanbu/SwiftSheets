@@ -9,6 +9,41 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Fixed
+
+- **A workbook with a pivot table came out broken the second time it was saved — and the first time, if Excel had
+  written it.** The pivot parts carry attributes the writer always emits itself (`applyNumberFormats`,
+  `updatedVersion`, `createdVersion`, `saveData`, twelve more), but the reader's list of attributes it knows named
+  only five of them, so the rest were remembered as "attributes the model cannot say" and written **a second time**
+  on the next save. A repeated attribute is not well-formed XML: `XMLParser` stops with
+  `NSXMLParserAttributeRedefinedError`, and Excel offers to repair the file. Our own reader then skipped the
+  unreadable part with `try?`, so **the pivot table disappeared without a warning**. The writer now records the
+  attribute names it actually wrote and puts back only the ones it did not write itself, so a name added to the
+  writer later cannot drift out of step with a list kept somewhere else (spec Appendix B.22).
+- **A part whose XML will not parse is now reported instead of being passed over.** `Workbook.read` of an `.xlsx`
+  answers with a warning naming the part and what was skipped; `WorkbookReader.read` returns its warnings alongside
+  the workbook, the way every other reader already did.
+- **Three things were dropped in silence on conversion**, found by checking each direction feature by feature
+  against the warnings it returned:
+  - array formulas written to Numbers — the anchor cell's formula travels, only the range it spilled over is lost,
+    and that is now what the warning says;
+  - protected ranges written to Numbers — they were folded into the sheet-protection warning, so a document that
+    only had protected ranges was told nothing;
+  - **a VBA project written to ODS or Numbers** — counted among "parts that cannot be carried", which made
+    `WriteResult.suggest` propose `.xlsx`, a format that loses the macros just as thoroughly. Both writers now
+    report it as a `.macros` loss and the suggestion is `.xlsm`.
+
+### Added
+
+- `CrossFormatConversionTests` — the sweep behind the new interoperability document: every one of the nine
+  direction pairs must answer each lost feature with a warning that names *that* feature, and three generations of
+  the same document must stay well-formed and keep everything. Neither question had been asked before; both had
+  something to say.
+- `PreservationStore.hasVBAProject`, so a writer can name a macro loss for what it is.
+- [docs/interoperability.html](https://nanbu.github.io/SwiftSheets/interoperability.html) — what happens to each
+  format's own features when it is converted into the other two, the four possible outcomes, and the test that
+  measures each claim.
+
 ### Changed
 
 - **A font face the model states is now always written to Numbers, which changes how output looks.** The writer

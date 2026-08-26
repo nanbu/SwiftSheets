@@ -182,3 +182,41 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
         handler.end(XML.local(elementName))
     }
 }
+
+/// The attributes of an element a writer builds itself **plus** the source file's own attributes it did not model.
+///
+/// Duplicate attributes are not well-formed XML, so the two lists cannot simply be concatenated: an attribute the
+/// writer emits with its own value must win, and the source's copy of it must be left out. Collecting the names
+/// actually written — rather than checking them against a hand-kept list — is what keeps the two halves in step
+/// when the writer later learns to emit one more (spec Appendix B.22).
+package struct RootAttributes {
+    private let element: String
+    private var namespaces: [(String, String)]
+    private var written: [(name: String, value: String)] = []
+    private var names: Set<String> = []
+
+    /// `xmlns` maps a prefix ("" for the default namespace) to its URI.
+    package init(_ element: String, xmlns: [String: String] = [:]) {
+        self.element = element
+        self.namespaces = xmlns.sorted { $0.key < $1.key }.map { ($0.key.isEmpty ? "xmlns" : "xmlns:\($0.key)", $0.value) }
+    }
+
+    /// Writes an attribute. The first value set for a name is the one that is written.
+    package mutating func set(_ name: String, _ value: String?) {
+        guard let value, names.insert(name).inserted else { return }
+        written.append((name, value))
+    }
+
+    /// Adds the source file's own attributes, skipping every name this writer has already set.
+    package mutating func fill(from other: [String: String]) {
+        for name in other.keys.sorted() { set(name, other[name]) }
+    }
+
+    /// The opening tag, attributes in the order they were set.
+    package var opened: String {
+        var s = "<\(element)"
+        for (name, uri) in namespaces { s += " \(name)=\"\(XML.esc(uri))\"" }
+        for (name, value) in written { s += " \(name)=\"\(XML.esc(value))\"" }
+        return s + ">"
+    }
+}

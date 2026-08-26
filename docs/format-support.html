@@ -504,7 +504,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 24 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 23 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -589,8 +589,9 @@ for warning in result.warnings {
 <section>
 <h2>この表を自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
-<pre><code>swift test                          # 813 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
+<pre><code>swift test                          # 837 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
 swift test --filter FormatSupport   # <strong>この表そのもの</strong>。46 項目の生存と警告の数を固定している
+swift test --filter CrossFormat     # <strong>方向ごと</strong>の点検（相互運用ガイドの土台）と 3 世代テスト
 swift test --filter ODFOnly         # ODF にあって Excel に無い 6 件
 swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表
 swift test --filter Numbers         # Numbers のセル書式・数式（numbers-parser の期待値と突き合わせ）
@@ -605,8 +606,9 @@ python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # 同じ 1 �
 </section>
 
 <footer>
-SwiftSheets 0.6.0 — 形式ごとの対応表。数字は 2026-08-25 の実測（全 46 項目を書いて読み戻した結果）。<br>
-実装の決定記録は docs/implementation-spec.html 付録 B.16 と B.17、保守手順は MAINTENANCE.md。
+SwiftSheets — 形式ごとの対応表。数字は 2026-08-27 の実測（全 46 項目を書いて読み戻した結果）。<br>
+方向ごと（A → B）の挙動は <a href="interoperability.html">相互運用ガイド</a> に。<br>
+実装の決定記録は docs/implementation-spec.html 付録 B.16・B.17・B.22、保守手順は MAINTENANCE.md。
 </footer>
 </main>
 </body>

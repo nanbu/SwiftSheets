@@ -46,7 +46,11 @@ struct NumbersWriter {
     mutating func write() throws -> Data {
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
         if let src = workbook.preserved.sourceFormat, src != .numbers, !workbook.preserved.opaqueParts.isEmpty {
-            warnings.append(ConversionWarning(.dropped, message: "\(workbook.preserved.opaqueParts.count) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
+            warnings.append(ConversionWarning(.dropped, subject: .objects, message: "\(workbook.preserved.opaqueParts.count) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
+        }
+        // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
+        if workbook.preserved.hasVBAProject {
+            warnings.append(ConversionWarning(.dropped, subject: .macros, message: "VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)"))
         }
         if !workbook.definedNames.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formulas, message: "\(workbook.definedNames.count) defined name(s) dropped: Numbers has no defined names"))
@@ -109,8 +113,15 @@ struct NumbersWriter {
             if sheet.autoFilter != nil || !sheet.filterColumns.isEmpty || sheet.sortState != nil {
                 warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "the auto-filter and its sort are dropped: a Numbers table filters and sorts through its own rules, which are not written"))
             }
-            if sheet.protection.enabled || !sheet.protectedRanges.isEmpty {
+            if sheet.protection.enabled {
                 warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "sheet protection is dropped: Numbers protects a whole document, not a sheet"))
+            }
+            if !sheet.protectedRanges.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "\(sheet.protectedRanges.count) protected range(s) dropped: Numbers has no window left open inside a protected sheet"))
+            }
+            let arrays = sheet.tables.reduce(0) { $0 + $1.arrayFormulas.count }
+            if arrays > 0 {
+                warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheet.name, message: "\(arrays) array formula(s) written as ordinary formulas in their anchor cell: a Numbers formula fills one cell, and the range it spilled over is not kept"))
             }
             if !sheet.scenarios.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "\(sheet.scenarios.count) scenario(s) dropped: Numbers has no scenarios"))

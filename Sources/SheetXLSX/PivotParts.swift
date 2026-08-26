@@ -27,15 +27,23 @@ enum PivotParts {
 
     /// `xl/pivotTables/pivotTableN.xml`.
     static func tableXML(_ p: PivotTable, cacheId: Int) -> String {
-        var s = "<pivotTableDefinition xmlns=\"\(XMLWriter.nsMain)\" name=\"\(XML.esc(p.name))\" cacheId=\"\(cacheId)\""
-        s += " applyNumberFormats=\"0\" applyBorderFormats=\"0\" applyFontFormats=\"0\" applyPatternFormats=\"0\""
-        s += " applyAlignmentFormats=\"0\" applyWidthHeightFormats=\"1\""
-        s += " dataCaption=\"\(XML.esc(p.dataCaption))\" updatedVersion=\"8\" minRefreshableVersion=\"3\" createdVersion=\"8\""
-        s += " itemPrintTitles=\"1\" useAutoFormatting=\"1\" indent=\"0\" outline=\"1\" outlineData=\"1\" multipleFieldFilters=\"0\""
-        if !p.showRowGrandTotals { s += " rowGrandTotals=\"0\"" }
-        if !p.showColumnGrandTotals { s += " colGrandTotals=\"0\"" }
-        for k in p.otherAttributes.keys.sorted() { s += XML.attr(k, p.otherAttributes[k]) }
-        s += ">"
+        var root = RootAttributes("pivotTableDefinition", xmlns: ["": XMLWriter.nsMain])
+        root.set("name", p.name)
+        root.set("cacheId", String(cacheId))
+        for (k, v) in [("applyNumberFormats", "0"), ("applyBorderFormats", "0"), ("applyFontFormats", "0"),
+                       ("applyPatternFormats", "0"), ("applyAlignmentFormats", "0"), ("applyWidthHeightFormats", "1")] {
+            root.set(k, v)
+        }
+        root.set("dataCaption", p.dataCaption)
+        for (k, v) in [("updatedVersion", "8"), ("minRefreshableVersion", "3"), ("createdVersion", "8"),
+                       ("itemPrintTitles", "1"), ("useAutoFormatting", "1"), ("indent", "0"),
+                       ("outline", "1"), ("outlineData", "1"), ("multipleFieldFilters", "0")] {
+            root.set(k, v)
+        }
+        if !p.showRowGrandTotals { root.set("rowGrandTotals", "0") }
+        if !p.showColumnGrandTotals { root.set("colGrandTotals", "0") }
+        root.fill(from: p.otherAttributes)
+        var s = root.opened
 
         var generated: [(String, String)] = []
         let l = p.location
@@ -46,6 +54,7 @@ enum PivotParts {
         var fields = "<pivotFields count=\"\(p.fields.count)\">"
         for f in p.fields {
             fields += "<pivotField"
+            fields += XML.attr("name", f.name)
             fields += XML.attr("axis", f.axis?.rawValue)
             fields += XML.attr("dataField", f.isDataField)
             fields += XML.attr("showAll", f.showAll)
@@ -97,16 +106,18 @@ enum PivotParts {
 
     /// `xl/pivotCache/pivotCacheDefinitionN.xml`.
     static func cacheDefinitionXML(_ c: PivotCache, recordsRelationshipId: String?) -> String {
-        var s = "<pivotCacheDefinition xmlns=\"\(XMLWriter.nsMain)\" xmlns:r=\"\(XMLWriter.nsRel)\""
-        if let id = recordsRelationshipId { s += " r:id=\"\(id)\"" }
-        s += " refreshedBy=\"\(XML.esc(c.refreshedBy ?? SwiftSheetsInfo.name))\""
-        s += " recordCount=\"\(c.recordCount ?? 0)\""
-        s += " createdVersion=\"8\" refreshedVersion=\"8\" minRefreshableVersion=\"3\""
-        if c.refreshOnLoad { s += " refreshOnLoad=\"1\"" }
+        var root = RootAttributes("pivotCacheDefinition", xmlns: ["": XMLWriter.nsMain, "r": XMLWriter.nsRel])
+        if let id = recordsRelationshipId { root.set("r:id", id) }
+        root.set("refreshedBy", c.refreshedBy ?? SwiftSheetsInfo.name)
+        root.set("recordCount", String(c.recordCount ?? 0))
+        for (k, v) in [("createdVersion", "8"), ("refreshedVersion", "8"), ("minRefreshableVersion", "3")] {
+            root.set(k, v)
+        }
+        if c.refreshOnLoad { root.set("refreshOnLoad", "1") }
         // no record part means no saved rows; the application reads the source range when it opens the file
-        if recordsRelationshipId == nil { s += " saveData=\"0\"" }
-        for k in c.otherAttributes.keys.sorted() { s += XML.attr(k, c.otherAttributes[k]) }
-        s += ">"
+        if recordsRelationshipId == nil { root.set("saveData", "0") }
+        root.fill(from: c.otherAttributes)
+        var s = root.opened
 
         var generated: [(String, String)] = []
         var src = "<cacheSource type=\"worksheet\"><worksheetSource"

@@ -9,7 +9,8 @@ public enum XLSXCodec: SpreadsheetCodec {
     public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
 
     public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        ReadResult(workbook: try WorkbookReader.read(data, options: options))
+        let r = try WorkbookReader.read(data, options: options)
+        return ReadResult(workbook: r.workbook, warnings: r.warnings)
     }
 
     public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
@@ -25,7 +26,8 @@ public enum XLSMCodec: SpreadsheetCodec {
     public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
 
     public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        ReadResult(workbook: try WorkbookReader.read(data, options: options))
+        let r = try WorkbookReader.read(data, options: options)
+        return ReadResult(workbook: r.workbook, warnings: r.warnings)
     }
 
     public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {

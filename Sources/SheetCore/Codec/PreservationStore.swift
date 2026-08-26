@@ -32,6 +32,13 @@ public struct PreservationStore: Sendable, Hashable {
 
     public var isEmpty: Bool { opaqueParts.isEmpty && workbookFragments.isEmpty && styleFragments.isEmpty }
 
+    /// Whether a VBA project rides along among the preserved parts.
+    ///
+    /// Only a macro-enabled workbook can hold one, so every other target has to report it as `.macros` rather than
+    /// fold it into a count of "parts": the subject is what decides which format `WriteResult.suggest` names, and a
+    /// macro loss answered with "write XLSX instead" points at a format that loses them too (spec Appendix B.22).
+    public var hasVBAProject: Bool { opaqueParts.keys.contains { $0.hasSuffix("vbaProject.bin") } }
+
     /// Human-readable inventory: "VBA project: yes / charts: 2 / drawings: 1 / other parts: 3".
     public var summary: String {
         var counts: [(String, Int)] = []
@@ -39,7 +46,7 @@ public struct PreservationStore: Sendable, Hashable {
             let n = opaqueParts.keys.filter(predicate).count
             if n > 0 { counts.append((label, n)) }
         }
-        let vba = opaqueParts.keys.contains { $0.hasSuffix("vbaProject.bin") }
+        let vba = hasVBAProject
         count("charts") { $0.hasPrefix("xl/charts/") && !$0.contains("/_rels/") }
         count("drawings") { $0.hasPrefix("xl/drawings/") && !$0.contains("/_rels/") && !$0.hasSuffix(".vml") }
         count("pivot tables") { $0.hasPrefix("xl/pivotTables/") && !$0.contains("/_rels/") }

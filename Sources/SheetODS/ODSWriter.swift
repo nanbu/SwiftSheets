@@ -323,6 +323,10 @@ enum ODSWriter {
         } else if !preserved.opaqueParts.isEmpty {
             sink.add(.dropped, subject: .objects, "\(preserved.opaqueParts.count) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
         }
+        // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
+        if preserved.hasVBAProject {
+            sink.add(.dropped, subject: .macros, "VBA project dropped: an OpenDocument spreadsheet has no place for it (write .xlsm to keep the macros)")
+        }
 
         var archive = ZipWriter()
         archive.add("mimetype", Data(mimeType.utf8), stored: true)

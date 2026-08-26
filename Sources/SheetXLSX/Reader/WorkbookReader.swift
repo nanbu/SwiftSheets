@@ -19,7 +19,10 @@ enum WorkbookReader {
     static let relPivotCacheRecords = "/pivotCacheRecords"
     static let relVBA = "/vbaProject"
 
-    static func read(_ data: Data, options: ReadOptions) throws -> Workbook {
+    /// The workbook the package describes, together with what the package held that the model could not take
+    /// (spec §6): a part whose XML will not parse is reported rather than passed over in silence.
+    static func read(_ data: Data, options: ReadOptions) throws -> (workbook: Workbook, warnings: [ConversionWarning]) {
+        var warnings: [ConversionWarning] = []
         // A password-protected workbook is an OLE compound file, not a ZIP; say so instead of "corrupted container".
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         let zip = try ZipArchive(data: data)
@@ -81,7 +84,11 @@ enum WorkbookReader {
             guard let data = try? zip.read(definition) else { continue }
             consumed.insert(definition); consumed.insert(relsPath(of: definition))
             let parser = PivotCacheParser()
-            try? parser.run(data, part: definition)
+            do { try parser.run(data, part: definition) } catch {
+                warnings.append(ConversionWarning(.dropped, subject: .objects,
+                                                  message: "\(definition) could not be parsed; the pivot cache it describes was skipped"))
+                continue
+            }
             var cache = parser.cache
             cache.definitionPath = definition
             cache.relationshipId = declared.rId
@@ -139,8 +146,16 @@ enum WorkbookReader {
                 guard let data = try? zip.read(pivotPart) else { continue }
                 consumed.insert(pivotPart); consumed.insert(relsPath(of: pivotPart))
                 let pp = PivotTableParser()
-                try? pp.run(data, part: pivotPart)
-                guard var pivot = pp.table else { continue }
+                do { try pp.run(data, part: pivotPart) } catch {
+                    warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                      message: "\(pivotPart) could not be parsed; the pivot table it describes was skipped"))
+                    continue
+                }
+                guard var pivot = pp.table else {
+                    warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                      message: "\(pivotPart) holds no pivot table definition; it was skipped"))
+                    continue
+                }
                 pivot.partPath = pivotPart
                 pivot.relationshipId = rel.id
                 if let id = pp.cacheId, let cache = pivotCaches[id] { pivot.cache = cache }
@@ -205,7 +220,7 @@ enum WorkbookReader {
             }
             wb.preserved.contentTypeOverrides = ct.overrides.filter { wb.preserved.opaqueParts[$0.key] != nil }
         }
-        return wb
+        return (wb, warnings)
     }
 
     /// Sheet-scoped defined names: `_xlnm.Print_Titles` / `_xlnm.Print_Area` become the sheet's print settings;

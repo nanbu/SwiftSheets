@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>相互運用ガイド — Excel / ODS / Numbers を行き来させると何が起きるか（SwiftSheets 0.7.2）</title>
+<style>
+:root{
+  --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
+  --ink:#1d1d1f; --ink-2:#515154; --ink-3:#86868b;
+  --accent:#0a84ff; --good:#248a3d; --bad:#d70015; --warn:#b25000;
+  --hairline:rgba(0,0,0,.08); --line:#d2d2d7; --soft:#f0f0f3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#161617; --surface:#1d1d1f; --card-bg:#1d1d1f;
+    --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#86868b;
+    --accent:#409cff; --good:#30d158; --bad:#ff453a; --warn:#ff9f0a;
+    --hairline:rgba(255,255,255,.12); --line:#48484a; --soft:#242426;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-size:15.5px;line-height:1.8;-webkit-font-smoothing:antialiased}
+main{max-width:980px;margin:0 auto;padding:56px 22px 100px}
+h1{font-size:31px;font-weight:800;line-height:1.35;margin:0 0 10px;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:700;margin:56px 0 10px;letter-spacing:-.01em;padding-top:6px}
+h3{font-size:17px;font-weight:700;margin:28px 0 6px}
+p{margin:10px 0}
+.lede{color:var(--ink-2);font-size:17.5px;line-height:1.75}
+.meta{color:var(--ink-3);font-size:13px;margin-top:14px}
+.rule{height:1px;background:var(--hairline);border:0;margin:26px 0}
+.card{background:var(--card-bg);border:1px solid var(--hairline);border-radius:16px;padding:18px 22px;margin:16px 0}
+.card h3{margin-top:0}
+.card.tint{background:var(--surface)}
+.card.decide{border-color:var(--accent);border-width:1.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0}
+.grid .card{margin:0}
+.score{text-align:center}
+.score .num{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.score .num small{font-size:16px;font-weight:700;color:var(--ink-3)}
+.score .lab{font-size:13.5px;color:var(--ink-2);font-weight:700;margin-top:2px}
+.score .sub{font-size:12.5px;color:var(--ink-3);margin-top:6px;line-height:1.6}
+.chip{display:inline-block;padding:2px 12px;border-radius:999px;font-size:12.5px;font-weight:600;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--hairline);margin:0 6px 6px 0}
+.chip.ok{color:var(--good)} .chip.hot{color:var(--accent)} .chip.no{color:var(--bad)}
+.kv{color:var(--ink-3);font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:2px}
+figure{margin:26px 0}
+figcaption{color:var(--ink-3);font-size:13px;margin-top:8px;text-align:center}
+svg{max-width:100%;height:auto;display:block;margin:0 auto;font-family:inherit}
+.sv-card{fill:var(--card-bg);stroke:var(--line)}
+.sv-soft{fill:var(--soft);stroke:var(--line)}
+.sv-ghost{fill:none;stroke:var(--line);stroke-dasharray:5 4}
+.sv-accent{fill:var(--accent)}
+.sv-accent-soft{fill:var(--card-bg);stroke:var(--accent);stroke-width:1.5}
+.sv-t{fill:var(--ink);font-size:13.5px}
+.sv-tb{fill:var(--ink);font-size:13.5px;font-weight:700}
+.sv-t2{fill:var(--ink-2);font-size:12.5px}
+.sv-t3{fill:var(--ink-3);font-size:11.5px}
+.sv-inv{fill:#fff;font-size:13px;font-weight:700}
+.sv-bad{fill:var(--bad);font-size:13px;font-weight:700}
+.sv-good{fill:var(--good);font-size:13px;font-weight:700}
+.sv-warn{fill:var(--warn);font-size:13px;font-weight:700}
+.sv-line{stroke:var(--line);stroke-width:1.2;fill:none}
+.sv-arrow{stroke:var(--ink-3);stroke-width:1.6;fill:none}
+.sv-mark{fill:var(--ink-3)}
+.sv-grid{stroke:var(--line);stroke-width:.8}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
+.tablewrap{overflow-x:auto;margin:16px 0;border:1px solid var(--hairline);border-radius:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--hairline);vertical-align:top}
+th{font-weight:700;font-size:13.5px;color:var(--ink-2);background:var(--surface)}
+tr:last-child td{border-bottom:0}
+td.m,th.m{text-align:center;width:74px;white-space:nowrap}
+td.m{font-weight:700}
+.y{color:var(--good)} .n{color:var(--bad)} .h{color:var(--warn)}
+tr.group td{background:var(--surface);font-weight:700;font-size:13.5px;color:var(--ink-2)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;
+  background:var(--surface);padding:1.5px 6px;border-radius:6px}
+pre{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;
+  padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.65;margin:14px 0}
+pre code{background:none;padding:0}
+ul.plain{padding-left:1.3em;margin:10px 0} ul.plain li{margin:6px 0}
+ol.steps{padding-left:1.4em} ol.steps li{margin:8px 0}
+.answer{background:var(--surface);border-radius:12px;padding:14px 18px;margin-top:14px;font-weight:700}
+.answer .q{color:var(--accent)}
+footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);color:var(--ink-3);font-size:13px}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;font-size:10.5pt}
+  main{max-width:none;padding:0}
+  section,.card,table,svg,figure,.grid{break-inside:avoid}
+  h2{break-after:avoid}
+  pre,.tablewrap{overflow:visible;white-space:normal}
+  table{min-width:0;font-size:9pt}
+  th,td{padding:6px 8px}
+}
+</style>
+<style>
+/* この文書だけの追加トークン */
+.lede2{color:var(--ink-2);font-size:16px}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}
+.legend .card{margin:0}
+.legend .sym{font-size:26px;font-weight:800;line-height:1.1}
+.legend .name{font-weight:700;margin:6px 0 4px}
+.legend .who{color:var(--ink-3);font-size:12.5px;margin-top:8px}
+.sym-ok{color:var(--good)} .sym-keep{color:var(--accent)} .sym-sub{color:var(--warn)} .sym-drop{color:var(--bad)}
+.finding{border-left:3px solid var(--bad);padding-left:16px;margin:22px 0}
+.finding.decide{border-left-color:var(--accent)}
+.finding h3{margin-top:0}
+.badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;
+  border:1px solid var(--hairline);background:var(--surface);color:var(--ink-2);margin-left:8px;vertical-align:2px}
+.badge.fixed{color:var(--good)} .badge.open{color:var(--accent)}
+dl.qa{margin:14px 0}
+dl.qa dt{font-weight:700;margin-top:14px}
+dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
+</style></head>
+<body>
+<main>
+<h1>相互運用ガイド — Excel・ODS・Numbers を行き来させると、何が起きるのか</h1>
+<p class="lede">表計算のファイルを別の形式で保存し直すと、必ず何かが変わります。
+この文書は、<strong>その「何か」を推測ではなく実測で並べたもの</strong>です。
+9 つの方向すべてを機械にたどらせ、消えたもの一つひとつに
+<strong>それを名指しする警告があるか</strong>を突き合わせました。</p>
+<p class="meta">2026-08-27 の実測 / SwiftSheets 0.7.2+（未リリース分を含む） / 検証環境: macOS 15・Numbers 15.3.1・LibreOffice 26.2.3・numbers-parser 4.16.3</p>
+
+<hr class="rule">
+
+<section>
+<h2>3 行でいうと</h2>
+<div class="grid">
+  <div class="card score">
+    <div class="num">4<small> 通り</small></div>
+    <div class="lab">結末はこれだけ</div>
+    <div class="sub">そのまま通る／触らないから残る／近いものに置き換わる／落ちるが必ず言う。
+      5 つ目はありません（「黙って消える」が無い、という意味です）</div>
+  </div>
+  <div class="card score">
+    <div class="num">9<small> 方向</small></div>
+    <div class="lab">全部たどりました</div>
+    <div class="sub">3 形式 × 3 形式。同じ形式に保存し直す 3 方向も含みます。
+      46 の機能それぞれについて、行き先で生き残ったかを見ています</div>
+  </div>
+  <div class="card score">
+    <div class="num">4<small> 件</small></div>
+    <div class="lab">今回見つかった欠陥</div>
+    <div class="sub">うち 1 件は「<strong>2 回目の保存でファイルが壊れる</strong>」。
+      4 件とも直し、再発を捕まえるテストを足しました</div>
+  </div>
+</div>
+</section>
+
+<section>
+<h2>はじめに — なぜ「そのまま」にはならないのか</h2>
+<p>
+  Excel・ODS（LibreOffice など）・Numbers は、<strong>同じものを作る道具ではありません</strong>。
+  見た目が似ているだけで、中身の考え方がかなり違います。
+</p>
+<ul class="plain">
+  <li><strong>Excel</strong> は「格子（グリッド）」です。1 枚のシート＝1 枚の巨大な方眼紙。</li>
+  <li><strong>ODS</strong> もほぼ格子ですが、<em>OpenDocument にしか無い考え方</em>をいくつか持っています。</li>
+  <li><strong>Numbers</strong> は「画用紙（キャンバス）」です。1 枚のシートの上に、
+    表もグラフも図形も<em>並べて置く</em>。だから 1 枚に表が何枚もあり得ます。</li>
+</ul>
+<p>
+  ですから「Excel の機能を Numbers に入れる」のではなく、<strong>置き場所があるかどうか</strong>が
+  すべてを決めます。置き場所が無いものは、どんなに丁寧に変換しても入りません。
+  この文書がやっているのは、<em>どこに置き場所が無いのかを一覧にすること</em>です。
+</p>
+
+<figure>
+<svg viewBox="0 0 880 300" role="img" aria-label="A 形式のファイルを読んで一つのモデルにし、そこから B 形式に書き出す図">
+  <rect x="14" y="70" width="170" height="120" rx="14" class="sv-card"/>
+  <text x="99" y="104" text-anchor="middle" class="sv-tb">元のファイル</text>
+  <text x="99" y="128" text-anchor="middle" class="sv-t2">.xlsx / .ods / .numbers</text>
+  <text x="99" y="152" text-anchor="middle" class="sv-t3">その形式にしか無いものを</text>
+  <text x="99" y="170" text-anchor="middle" class="sv-t3">抱えている</text>
+
+  <path d="M190 130 H262" class="sv-arrow"/>
+  <polygon points="272,130 260,125 260,135" class="sv-mark"/>
+  <text x="226" y="118" text-anchor="middle" class="sv-t3">読む</text>
+
+  <rect x="278" y="46" width="212" height="168" rx="14" class="sv-accent-soft"/>
+  <text x="384" y="80" text-anchor="middle" class="sv-tb">ひとつのモデル</text>
+  <text x="384" y="104" text-anchor="middle" class="sv-t2">形式に依らない中身</text>
+  <rect x="300" y="120" width="168" height="30" rx="8" class="sv-soft"/>
+  <text x="384" y="140" text-anchor="middle" class="sv-t2">値・数式・書式・…</text>
+  <rect x="300" y="158" width="168" height="30" rx="8" class="sv-soft"/>
+  <text x="384" y="178" text-anchor="middle" class="sv-t2">読めなかった部品（そのまま保管）</text>
+
+  <path d="M496 130 H568" class="sv-arrow"/>
+  <polygon points="578,130 566,125 566,135" class="sv-mark"/>
+  <text x="532" y="118" text-anchor="middle" class="sv-t3">書く</text>
+
+  <rect x="584" y="70" width="170" height="120" rx="14" class="sv-card"/>
+  <text x="669" y="104" text-anchor="middle" class="sv-tb">新しいファイル</text>
+  <text x="669" y="128" text-anchor="middle" class="sv-t2">行き先の形式</text>
+  <text x="669" y="152" text-anchor="middle" class="sv-t3">置き場所のあるものだけ</text>
+  <text x="669" y="170" text-anchor="middle" class="sv-t3">が入る</text>
+
+  <path d="M669 196 V244" class="sv-arrow"/>
+  <polygon points="669,254 664,242 674,242" class="sv-mark"/>
+  <rect x="530" y="254" width="336" height="34" rx="10" class="sv-soft"/>
+  <text x="698" y="276" text-anchor="middle" class="sv-t2">入らなかったものの一覧（warnings）が必ず返る</text>
+</svg>
+<figcaption>変換は「A → B」ではなく「A → ひとつのモデル → B」。だから結末は 4 通りしかありません。</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>4 つの結末</h2>
+<p class="lede2">この文書の表に出てくる記号は、この 4 つだけです。</p>
+
+<div class="legend">
+  <div class="card">
+    <div class="sym sym-ok">○</div>
+    <div class="name">そのまま通る</div>
+    <div>行き先にも同じ考え方があるので、意味を変えずに書き直されます。
+      たとえば「セルの結合」はどの形式にもあります。</div>
+    <div class="who">警告は出ません</div>
+  </div>
+  <div class="card">
+    <div class="sym sym-keep">▣</div>
+    <div class="name">触らないから残る</div>
+    <div>グラフ・画像・マクロなど、<strong>こちらが中身を解釈しない部品</strong>は、
+      読んだときのバイトのまま保管され、<em>同じ形式で保存し直すとき</em>そっくり戻ります。</div>
+    <div class="who">同じ形式へのときだけ。別形式へは ✕ になります</div>
+  </div>
+  <div class="card">
+    <div class="sym sym-sub">△</div>
+    <div class="name">近いものに置き換わる</div>
+    <div>そのものは無いけれど、<strong>いちばん近い別の言い方</strong>がある場合。
+      階調（グラデーション）の塗りが単色になる、などです。</div>
+    <div class="who"><code>substituted</code> の警告で、何に置き換えたかを言います</div>
+  </div>
+  <div class="card">
+    <div class="sym sym-drop">✕</div>
+    <div class="name">落ちるが、必ず言う</div>
+    <div>置き場所がまったく無いもの。<strong>黙って消すことはしません。</strong>
+      「何が・どのシートの・どのセルで」落ちたかが一覧で返ります。</div>
+    <div class="who"><code>dropped</code>（丸ごと）または <code>degraded</code>（一部だけ）</div>
+  </div>
+</div>
+
+<div class="card tint">
+<h3>「必ず言う」を、どうやって保証しているのか</h3>
+<p>
+  約束するだけなら誰でもできます。ここでは<strong>機械に突き合わせさせて</strong>います。
+</p>
+<ol class="steps">
+  <li>46 の機能を全部入れた 1 冊を用意し、それぞれの形式で<em>本物のファイルとして一度保存</em>します。</li>
+  <li>そのファイルを開き、別の形式で保存します。</li>
+  <li>開き直して、<strong>消えた機能を数え上げます</strong>。</li>
+  <li>消えた機能それぞれについて、<strong>その機能を名指しする言葉を含む警告があるか</strong>を確かめます。
+    「表が落ちました」のような曖昧な警告で「配列数式」の消失を言い逃れできないよう、
+    照合語は機能ごとに 1 つに絞ってあります。</li>
+</ol>
+<p class="meta">テスト: <code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code>（9 方向）</p>
+</div>
+</section>
+<section>
+<h2>それぞれの形式が「自分だけ持っているもの」</h2>
+<p class="lede2">
+  相互運用でつまずくのは、たいてい<strong>どこか 1 つの形式にしか無いもの</strong>です。
+  まずそれを 3 つに分けて並べます。
+</p>
+
+<figure>
+<svg viewBox="0 0 880 330" role="img" aria-label="Excel だけ・ODF だけ・Numbers だけが持つ機能を三つに分けた図">
+  <rect x="10" y="24" width="272" height="290" rx="16" class="sv-card"/>
+  <text x="146" y="56" text-anchor="middle" class="sv-tb">Excel だけ</text>
+  <text x="146" y="78" text-anchor="middle" class="sv-t3">格子の中の、細かい取り決め</text>
+  <rect x="30" y="96" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="115" class="sv-t2">保護シート内の「編集できる窓」</text>
+  <rect x="30" y="130" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="149" class="sv-t2">シナリオ（入力値の名前つき組）</text>
+  <rect x="30" y="164" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="183" class="sv-t2">シートのタブの色</text>
+  <rect x="30" y="198" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="217" class="sv-t2">ブック保護（シート構成の固定）</text>
+  <rect x="30" y="232" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="251" class="sv-t2">VBA マクロ（.xlsm）</text>
+  <rect x="30" y="266" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="285" class="sv-t2">ピボット表・入力規則・印刷設定</text>
+
+  <rect x="304" y="24" width="272" height="290" rx="16" class="sv-card"/>
+  <text x="440" y="56" text-anchor="middle" class="sv-tb">OpenDocument だけ</text>
+  <text x="440" y="78" text-anchor="middle" class="sv-t3">「文書に書いてある」という考え方</text>
+  <rect x="324" y="96" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="115" class="sv-t2">ラベル範囲（見出しを数式で使う）</text>
+  <rect x="324" y="130" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="149" class="sv-t2">統合の定義</text>
+  <rect x="324" y="164" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="183" class="sv-t2">探偵の矢印（参照のトレース）</text>
+  <rect x="324" y="198" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="217" class="sv-t2">計算設定（正規表現・二桁年 ほか）</text>
+  <rect x="324" y="232" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="251" class="sv-t2">日付の原点を自由に決められる</text>
+  <rect x="324" y="266" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="285" class="sv-t2">セル自身が「通貨」を知っている</text>
+
+  <rect x="598" y="24" width="272" height="290" rx="16" class="sv-card"/>
+  <text x="734" y="56" text-anchor="middle" class="sv-tb">Numbers だけ</text>
+  <text x="734" y="78" text-anchor="middle" class="sv-t3">シートが格子ではなく画用紙</text>
+  <rect x="618" y="96" width="232" height="28" rx="8" class="sv-accent-soft"/><text x="634" y="115" class="sv-t2">1 枚のシートに表が何枚も</text>
+  <rect x="618" y="130" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="149" class="sv-t2">表の横に置くグラフ・図形・画像</text>
+  <rect x="618" y="164" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="183" class="sv-t2">セルの制御（ポップアップ等）</text>
+  <rect x="618" y="198" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="217" class="sv-t2">小数は decimal128（桁が落ちない）</text>
+  <rect x="618" y="232" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="251" class="sv-t2">ヘッダ行／ヘッダ列という考え方</text>
+  <rect x="618" y="266" width="232" height="28" rx="8" class="sv-ghost"/><text x="634" y="285" class="sv-t3">（定義名・シート保護などは無い）</text>
+</svg>
+<figcaption>青枠が「他の形式が絶対に持てないもの」。Numbers の「1 枚に表が何枚も」がそれです。</figcaption>
+</figure>
+
+<h3>Excel だけのもの — 他の形式に持っていくと</h3>
+<div class="tablewrap"><table>
+<thead><tr><th>機能</th><th class="m">→ ODS</th><th class="m">→ Numbers</th><th>実際に返る言葉</th></tr></thead>
+<tbody>
+<tr><td>保護シート内の編集できる窓（保護範囲）</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>ODF もシート全体しか守れず、Numbers は文書全体しか守れません。
+    <span class="badge fixed">今回修正</span> Numbers 側はこれまで「シート保護を落とした」に紛れていました</td></tr>
+<tr><td>シナリオ</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>ODF のシナリオは<strong>まるごと影のシート</strong>なので、書くとシートが増えてしまいます。そこまではしません</td></tr>
+<tr><td>タブの色</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>ODF 1.3 に無く、LibreOffice も同じ変換で落とします</td></tr>
+<tr><td>ブック保護（シート構成の固定）</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>ODF は文書に鍵をかけ、シートの一覧を守る考え方がありません</td></tr>
+<tr><td>VBA マクロ</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td><span class="badge fixed">今回修正</span> 「マクロが落ちた」と名指しし、
+    <strong>代わりに <code>.xlsm</code> を勧める</strong>ようになりました（以前は XLSX を勧めており、そちらでも落ちます）</td></tr>
+<tr><td>ピボット表</td><td class="m h">△</td><td class="m n">✕</td>
+  <td>ODS へは「データパイロット」として<strong>配置だけ</strong>が移り、数字は開いた側が計算し直します</td></tr>
+<tr><td>入力規則（ドロップダウン）</td><td class="m y">○</td><td class="m n">✕</td>
+  <td>面白いことに、<strong>Numbers 自身は</strong>これを<em>ポップアップメニュー</em>に置き換えて取り込みます（後述）</td></tr>
+<tr><td>印刷設定・改ページ・印刷範囲</td><td class="m y">○</td><td class="m n">✕</td>
+  <td>Numbers は「ページの格子」ではなく画用紙を印刷するので、置き場所がありません</td></tr>
+<tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m n">✕</td>
+  <td>Numbers のまとめ方は「カテゴリ」で、段の深さではありません</td></tr>
+<tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m h">△</td>
+  <td><span class="badge fixed">今回修正</span> <strong>式そのものは起点セルに残ります。</strong>
+    失われるのは「どこまで広がっていたか」だけ、と言うようになりました</td></tr>
+<tr><td>グラフ・画像・図形</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>同じ形式に保存し直すときは ▣（そのまま残る）。別形式へは持って行けません</td></tr>
+</tbody>
+</table></div>
+
+<h3>OpenDocument だけのもの — 他の形式に持っていくと</h3>
+<p>
+  比べ方は両側から行います。「Excel にあって ODF に無いもの」だけを数えるのは公平ではないからです。
+  OASIS ODF 1.3 のスキーマを読んで数え上げた 6 つが、これです。
+</p>
+<div class="tablewrap"><table>
+<thead><tr><th>機能</th><th>どういうものか</th><th class="m">→ Excel</th><th class="m">→ Numbers</th></tr></thead>
+<tbody>
+<tr><td>ラベル範囲</td><td><code>=SUM(売上)</code> と書くと、<em>「売上」という見出しの列</em>が見つかる。
+  Excel も 2003 まではできましたが、いまの OOXML には書けません</td><td class="m n">✕</td><td class="m n">✕</td></tr>
+<tr><td>統合の定義</td><td>複数の範囲を合算する設定が<strong>文書に残る</strong>。
+  Excel では一度きりのコマンドで、何も残りません</td><td class="m n">✕</td><td class="m n">✕</td></tr>
+<tr><td>探偵の矢印</td><td>参照元・参照先をたどった矢印。Excel は<em>描きはするが保存しません</em></td><td class="m n">✕</td><td class="m n">✕</td></tr>
+<tr><td>計算設定</td><td>検索条件を正規表現とみなすか、セル全体に一致させるか、二桁年の境目はどこか。
+  Excel ではこれは<strong>アプリの設定</strong>、ODF では<strong>ファイルの設定</strong>です</td><td class="m n">✕</td><td class="m n">✕</td></tr>
+<tr><td>日付の原点</td><td>ODF は任意の日付を原点にできます。Excel は 1900 と 1904 の 2 つだけ</td><td class="m h">△</td><td class="m h">△</td></tr>
+<tr><td>通貨のセル種別</td><td>「このセルは円である」をセル自身が知っている。
+  Excel では表示形式のコードの中にしか無い情報です</td><td class="m h">△</td><td class="m h">△</td></tr>
+</tbody>
+</table></div>
+<p class="meta">
+  △ は「近いものに置き換わる」。日付の原点は 1900／1904 のどちらか近いほうに寄せ、
+  通貨は <code>[$¥-411]#,##0.00</code> のような表示形式コードに変わります。値は動きません。
+</p>
+
+<h3>Numbers だけのもの — 他の形式に持っていくと</h3>
+<div class="tablewrap"><table>
+<thead><tr><th>機能</th><th class="m">→ Excel</th><th class="m">→ ODS</th><th>実際に起きること</th></tr></thead>
+<tbody>
+<tr><td><strong>1 枚のシートに表が何枚も</strong></td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>Excel のシートも ODS のシートも<strong>格子 1 枚</strong>です。1 枚目だけが移り、
+    残りは落ちたと言います。<em>そしてこのときだけ、代わりに勧める形式は <code>.numbers</code> になります</em></td></tr>
+<tr><td>グラフ・図形・テキストボックス</td><td class="m n">✕</td><td class="m n">✕</td>
+  <td>読んだ時点で「シートに図があります」と言います。モデルに置き場所がないので保管もされません</td></tr>
+<tr><td>セルの制御（ポップアップ・チェックボックス・★）</td><td class="m h">△</td><td class="m h">△</td>
+  <td><strong>選ばれている値は残り、仕掛けだけが落ちます。</strong>
+    「B2 から 8 個のセルが Numbers の制御を持っています」と、場所つきで言います</td></tr>
+<tr><td>小数（decimal128）</td><td class="m y">○</td><td class="m y">○</td>
+  <td>桁は落ちません。モデルが <code>Decimal</code> で持っているためです</td></tr>
+<tr><td>ヘッダ行／ヘッダ列</td><td class="m y">○</td><td class="m y">○</td>
+  <td>Excel・ODS の「ウィンドウ枠の固定」として書かれます（△ に近い ○ です）</td></tr>
+</tbody>
+</table></div>
+</section>
+<section>
+<h2>9 方向、全部の実測</h2>
+<p class="lede2">
+  46 機能を全部入れた 1 冊を、それぞれの形式で一度保存して<strong>本物のファイル</strong>にし、
+  そこから 3 形式に書き直した結果です。
+</p>
+
+<div class="tablewrap"><table>
+<thead><tr><th>方向</th><th class="m">消えた機能</th><th class="m">返った警告</th><th>代わりに勧める形式</th><th>読み方</th></tr></thead>
+<tbody>
+<tr class="group"><td colspan="5">Excel（.xlsx）のファイルから</td></tr>
+<tr><td>Excel → Excel</td><td class="m y">0</td><td class="m">0</td><td>—</td>
+  <td>何も失われません。<strong>ここが 0 でなかったのが今回の欠陥です</strong>（後述）</td></tr>
+<tr><td>Excel → ODS</td><td class="m h">4</td><td class="m">8</td><td>xlsx</td>
+  <td>保護範囲・シナリオ・タブ色・ブック保護。ピボット表は残りますが「配置だけ」という但し書きつき</td></tr>
+<tr><td>Excel → Numbers</td><td class="m n">25</td><td class="m">20</td><td>xlsx</td>
+  <td>いちばん落ちる方向。警告が損失より少ないのは、<em>1 つの警告が複数の機能をまとめて名指しする</em>ため
+    （「印刷設定」はヘッダ・向き・範囲・タイトル行・改ページの 5 つを一度に言います）</td></tr>
+<tr class="group"><td colspan="5">ODS のファイルから</td></tr>
+<tr><td>ODS → Excel</td><td class="m h">4</td><td class="m">4</td><td>—</td>
+  <td>OpenDocument にしか無い 4 つ（ラベル範囲・統合の定義・探偵の矢印・計算設定）だけ</td></tr>
+<tr><td>ODS → ODS</td><td class="m y">0</td><td class="m">1</td><td>—</td>
+  <td>警告 1 件は「ピボット表は配置だけを書き、数字は開いた側が計算し直す」という説明</td></tr>
+<tr><td>ODS → Numbers</td><td class="m n">25</td><td class="m">19</td><td>xlsx</td>
+  <td>Excel → Numbers とほぼ同じ。ODS ファイルの時点で既に落ちているもの（タブ色など）は数に入りません</td></tr>
+<tr class="group"><td colspan="5">Numbers のファイルから</td></tr>
+<tr><td>Numbers → Excel</td><td class="m h">1</td><td class="m">1</td><td><strong>numbers</strong></td>
+  <td>「1 シートに複数の表」だけ。<em>この 1 だけを見て「Numbers → Excel は安全」と読まないでください</em>（次の注意）</td></tr>
+<tr><td>Numbers → ODS</td><td class="m h">1</td><td class="m">1</td><td><strong>numbers</strong></td>
+  <td>同上</td></tr>
+<tr><td>Numbers → Numbers</td><td class="m y">0</td><td class="m">0</td><td>—</td>
+  <td>ただし Numbers への書き出しは<strong>毎回テンプレートから作り直し</strong>なので、
+    「触っていない部品がバイトのまま残る」保全はありません</td></tr>
+</tbody>
+</table></div>
+
+<div class="card decide">
+<h3>いちばん誤解されやすいところ</h3>
+<p>
+  <strong>「Numbers → Excel は 1 件しか落ちない」は、Numbers が強いという意味ではありません。</strong>
+  この表が数えているのは「<em>いま手元のファイルに入っているもの</em>が、行き先で生き残ったか」です。
+  Numbers ファイルには、そもそも入力規則もピボット表も印刷設定も入っていません。
+  <strong>落ちるものは、Numbers に<em>入る</em>ときに落ちきっているのです。</strong>
+</p>
+<div class="answer">
+  <span class="q">読み方</span> Excel のファイル（41 機能）を Numbers にして Excel に戻すと、
+  <strong>16 機能</strong>になります。実測すると帰り道の警告は <strong>0 件</strong>——
+  嘘ではなく、<em>そこにはもう失うものが無い</em>のです。
+  往復のコストは、行きの片道で決まります。
+</div>
+</div>
+
+<figure>
+<svg viewBox="0 0 880 262" role="img" aria-label="Excel から Numbers を経て Excel に戻すと、行きの片道で落ちたものは戻らないことを示す図">
+  <rect x="20" y="70" width="180" height="90" rx="14" class="sv-card"/>
+  <text x="110" y="102" text-anchor="middle" class="sv-tb">Excel のファイル</text>
+  <text x="110" y="126" text-anchor="middle" class="sv-t2">41 機能</text>
+
+  <path d="M208 115 H322" class="sv-arrow"/>
+  <polygon points="332,115 320,110 320,120" class="sv-mark"/>
+  <text x="266" y="102" text-anchor="middle" class="sv-bad">−25</text>
+  <text x="266" y="140" text-anchor="middle" class="sv-t3">警告 20 件</text>
+
+  <rect x="340" y="70" width="180" height="90" rx="14" class="sv-card"/>
+  <text x="430" y="102" text-anchor="middle" class="sv-tb">Numbers</text>
+  <text x="430" y="126" text-anchor="middle" class="sv-t2">16 機能</text>
+
+  <path d="M528 115 H642" class="sv-arrow"/>
+  <polygon points="652,115 640,110 640,120" class="sv-mark"/>
+  <text x="586" y="102" text-anchor="middle" class="sv-good">−0</text>
+  <text x="586" y="140" text-anchor="middle" class="sv-t3">警告 0 件</text>
+
+  <rect x="660" y="70" width="180" height="90" rx="14" class="sv-card"/>
+  <text x="750" y="102" text-anchor="middle" class="sv-tb">Excel に戻す</text>
+  <text x="750" y="126" text-anchor="middle" class="sv-t2">16 機能</text>
+
+  <rect x="20" y="198" width="820" height="44" rx="12" class="sv-soft"/>
+  <text x="430" y="225" text-anchor="middle" class="sv-t2">帰り道は「何も失われませんでした」と答える — 失うものが、もう残っていないからです</text>
+</svg>
+<figcaption>「片道の損失」と「往復の損失」は別物です。表の数字は常に片道のものです。</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>同じ形式に保存し直すとき（いちばん普通の使い方）</h2>
+<p>
+  実際にいちばん多いのは、変換ではなく<strong>「開いて、1 セル直して、同じ名前で保存」</strong>でしょう。
+  ここでの約束は変換より強く、<em>触っていないものはバイトのまま戻す</em>です。
+</p>
+<div class="tablewrap"><table>
+<thead><tr><th>形式</th><th>触っていない部品</th><th>モデルが読んだ部分</th><th>ひとことで</th></tr></thead>
+<tbody>
+<tr><td><strong>Excel</strong>（.xlsx / .xlsm）</td>
+  <td class="y">バイトまで同一（グラフ・テーマ・画像・VBA）</td>
+  <td>意味は同じ XML に書き直し（条件付き書式・入力規則など）</td>
+  <td>いちばん強い保全</td></tr>
+<tr><td><strong>ODS</strong></td>
+  <td class="h">再梱包はするが、<code>content.xml</code> を作り直すため<strong>画像・オブジェクトは繋ぎ直されません</strong></td>
+  <td>意味は同じ XML に書き直し</td>
+  <td>中身は残る、絵は繋がらない（警告あり）</td></tr>
+<tr><td><strong>Numbers</strong></td>
+  <td class="n">保全なし。毎回<strong>空のテンプレートから作り直します</strong></td>
+  <td>値・数式・書式・条件付き書式・リンク・メモ・結合など</td>
+  <td>作り直しなので、元の図形は戻りません</td></tr>
+</tbody>
+</table></div>
+
+<h3>「2 回目の保存」を誰も見ていなかった</h3>
+<p>
+  ここが今回いちばん大きな発見でした。テストはずっと<strong>「作って、書いて、読む」</strong>を確かめていました。
+  <em>「読んだものを、もう一度書く」</em>は、誰も確かめていませんでした。
+</p>
+
+<figure>
+<svg viewBox="0 0 880 250" role="img" aria-label="1 回目の保存では正しく、2 回目の保存で属性が二重になり壊れることを示す図">
+  <rect x="16" y="40" width="250" height="150" rx="14" class="sv-card"/>
+  <text x="141" y="70" text-anchor="middle" class="sv-tb">1 回目の保存</text>
+  <rect x="36" y="86" width="210" height="80" rx="10" class="sv-soft"/>
+  <text x="50" y="110" class="sv-t3">&lt;pivotTableDefinition</text>
+  <text x="60" y="130" class="sv-t3">updatedVersion="8"</text>
+  <text x="60" y="150" class="sv-t3">createdVersion="8" …&gt;</text>
+  <text x="141" y="182" text-anchor="middle" class="sv-good">正しい</text>
+
+  <path d="M274 115 H336" class="sv-arrow"/>
+  <polygon points="346,115 334,110 334,120" class="sv-mark"/>
+  <text x="310" y="103" text-anchor="middle" class="sv-t3">開く</text>
+
+  <rect x="354" y="40" width="238" height="150" rx="14" class="sv-card"/>
+  <text x="473" y="70" text-anchor="middle" class="sv-tb">読み手の記憶</text>
+  <rect x="374" y="86" width="198" height="80" rx="10" class="sv-soft"/>
+  <text x="388" y="110" class="sv-t3">知っている属性: 5 個</text>
+  <text x="388" y="132" class="sv-t3">「知らない」ので覚えた:</text>
+  <text x="388" y="152" class="sv-bad">updatedVersion, … 15 個</text>
+  <text x="473" y="182" text-anchor="middle" class="sv-t3">書き手が必ず書く分と重なる</text>
+
+  <path d="M600 115 H662" class="sv-arrow"/>
+  <polygon points="672,115 660,110 660,120" class="sv-mark"/>
+  <text x="636" y="103" text-anchor="middle" class="sv-t3">保存</text>
+
+  <rect x="680" y="40" width="184" height="150" rx="14" class="sv-card" style="stroke:var(--bad)"/>
+  <text x="772" y="70" text-anchor="middle" class="sv-tb">2 回目の保存</text>
+  <rect x="698" y="86" width="148" height="80" rx="10" class="sv-soft"/>
+  <text x="710" y="110" class="sv-t3">updatedVersion="8"</text>
+  <text x="710" y="132" class="sv-bad">updatedVersion="8"</text>
+  <text x="710" y="152" class="sv-t3">← 同じ属性が 2 回</text>
+  <text x="772" y="182" text-anchor="middle" class="sv-bad">整形式ではない XML</text>
+
+  <rect x="16" y="208" width="848" height="34" rx="10" class="sv-soft"/>
+  <text x="440" y="230" text-anchor="middle" class="sv-t2">Excel は「ファイルの一部に問題が見つかりました」と言い、こちらの読み手は黙ってピボット表を捨てていた</text>
+</svg>
+<figcaption>属性が 2 回書かれた XML は「読みにくい」のではなく、規格として<strong>壊れています</strong>。</figcaption>
+</figure>
+<p class="meta">
+  テスト: <code>CrossFormatConversionTests.threeGenerationsStayWellFormedAndKeepEverything</code>
+  — 同じ文書を 3 回保存し、毎回すべての部品を XML として読み直して整形式かを確かめ、
+  途中の世代で何かが落ちていないかを見ます。
+</p>
+</section>
+<section>
+<h2>今回の点検で見つかったこと</h2>
+<p class="lede2">
+  4 件の欠陥と、判断をお願いしたい 2 件です。欠陥は 4 件とも直し、再発を捕まえるテストを足しました。
+</p>
+
+<div class="finding">
+<h3>1. ピボット表つきの Excel ファイルは、保存すると壊れていた <span class="badge fixed">修正済み</span></h3>
+<p>
+  <strong>いちばん重い件です。</strong>ピボット表の部品には、書き手がいつも自分で書く属性が 15 個あります
+  （<code>updatedVersion</code>・<code>createdVersion</code> など）。ところが読み手の「知っている属性」の一覧には
+  5 個しか載っていませんでした。残り 15 個は<em>「モデルでは言えない属性」として覚え直され</em>、
+  次の保存で書き手の分と並べてもう一度書かれていました。
+</p>
+<p>
+  属性が 2 回書かれた XML は規格として壊れています。Excel なら修復を促し、
+  こちらの読み手は<strong>その部品を黙って読み飛ばしていた</strong>ので、ピボット表は警告もなく消えていました。
+</p>
+<p>
+  <strong>そして Excel が書いたファイルも、これらの属性を持っています。</strong>
+  つまり自作ファイルの往復に限らず、<em>Excel で作ったピボット表つきのブックを開いて保存すれば、1 回目で壊れていました。</em>
+</p>
+<p class="meta">直し方: 書き手が「この呼び出しで実際に書いた属性名」を集めておき、ファイル由来の属性はそこに無いものだけ足す
+  （<code>RootAttributes</code>）。手で一覧を合わせる方式をやめたのは、<strong>今回の欠陥がその記憶違いそのもの</strong>だったためです。</p>
+</div>
+
+<div class="finding">
+<h3>2. 読めなかった部品を、黙って飛ばしていた <span class="badge fixed">修正済み</span></h3>
+<p>
+  上の 1 が「気づかれない欠陥」になった理由がこれです。部品の XML が読めなかったとき、
+  読み手はただ次へ進んでいました。いまは「<em>この部品が読めなかったので、そこにあったピボット表は飛ばしました</em>」と
+  部品名つきで言います。Excel を読む処理も、他の形式と同じく<strong>警告を返すようになりました</strong>。
+</p>
+</div>
+
+<div class="finding">
+<h3>3. 黙って落ちていたもの 3 件 <span class="badge fixed">修正済み</span></h3>
+<div class="tablewrap"><table>
+<thead><tr><th>件</th><th>それまで</th><th>これから</th></tr></thead>
+<tbody>
+<tr><td>配列数式 → Numbers</td>
+  <td>起点セルの式は書かれていたが、広がっていた範囲が消えることは何も言われなかった</td>
+  <td>「<strong>式は起点セルに残る。失われるのは範囲だけ</strong>」と言います</td></tr>
+<tr><td>保護範囲 → Numbers</td>
+  <td>「シート保護を落とした」の中に紛れており、保護範囲だけを設定した文書では何も言われなかった</td>
+  <td>別の警告に分けました</td></tr>
+<tr><td>VBA → ODS / Numbers</td>
+  <td>「◯個の部品を運べない」という数え上げに埋もれ、<strong>その結果「XLSX にすれば残る」と案内していた</strong>
+    — XLSX でもマクロは落ちます</td>
+  <td>「マクロが落ちた」と名指しし、勧める形式は <code>.xlsm</code> になりました</td></tr>
+</tbody>
+</table></div>
+<p class="meta">
+  警告の「主題」は表示のための飾りではなく、<strong>代わりにどの形式を勧めるかを決める根拠</strong>です。
+  だから「マクロが落ちた」を「部品が落ちた」と言うのは、言葉の粗さではなく<em>案内の誤り</em>でした。
+</p>
+</div>
+
+<div class="finding">
+<h3>4. Numbers 自身が、入力規則をポップアップメニューに置き換えていた <span class="badge fixed">記録した</span></h3>
+<p>
+  欠陥というより<strong>観測</strong>です。同じ 1 冊を Excel 形式で書き、それを Numbers 15.3.1 に読み込ませて
+  保存し直させたところ、<strong>Excel のドロップダウン（入力規則）が Numbers のポップアップメニューになっていました</strong>。
+  4 つの結末でいえば △（近いものに置き換わる）を、Numbers 自身がやっていることになります。
+</p>
+<p>
+  こちらの読み手はそれを「セルの制御が 8 個あります（値は残し、仕掛けは落とします）」と正しく報告していたのですが、
+  テストの許容リストに入っていなかったため、この Mac でだけテストが赤くなっていました。
+  <strong>許容リストを緩めるのではなく、この振る舞いを<em>表明</em>として固定しました</strong>
+  — Numbers が何をするかの記録になるからです。
+</p>
+</div>
+
+<h3>判断をお願いしたい 2 件</h3>
+
+<div class="finding decide">
+<h3>A. <code>Workbook.convert</code> が、読み込みの警告を捨てています <span class="badge open">未着手</span></h3>
+<p>
+  いちばん手軽な変換 API である <code>Workbook.convert(source, to:output:)</code> は、
+  書き出しの結果だけを返します。読み込みのときに出た警告は<strong>返り値のどこにも入りません</strong>。
+</p>
+<p>
+  実測: グラフ 1 つと 8 個のセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換すると、
+  <strong>警告は 0 件</strong>で返ります。読み手はちゃんと「図があります」「制御があります」と言っていたのに、です。
+  「黙って落とさない」という約束が、<em>いちばん使われる入口で</em>破れていることになります。
+</p>
+<div class="answer">
+  <span class="q">推奨</span> 読み込みの警告を返り値に畳み込む（型は変わらず、件数だけが増えます）。
+  ただし公開 API の意味が変わるので、入れる前にご判断をいただきたい件です。
+</div>
+</div>
+
+<div class="finding decide">
+<h3>B. ODS から変換すると「計算設定を落とした」が必ず出ます <span class="badge open">未着手</span></h3>
+<p>
+  LibreOffice は<strong>どの ODS ファイルにも</strong>「見出しの自動検出＝しない」「二桁年の境目＝1950」
+  「反復計算の閾値＝0.0001」を書き込みます。これがモデルの既定と食い違うため、
+  <em>利用者が何も設定していなくても</em>「計算設定を落とした」という警告が立ちます。
+</p>
+<p>
+  嘘ではありません。ただ、<strong>いつも出る警告は読まれなくなります</strong>。
+  「黙って落とさない」の価値は、警告が<em>珍しいこと</em>に支えられています。
+</p>
+<div class="answer">
+  <span class="q">推奨</span> 「計算結果に効く設定が既定と違うときだけ言う」に絞る。
+  ただし何を「効く」とするかは判断が要るので、方針を決めてから直したい件です。
+</div>
+</div>
+</section>
+
+<section>
+<h2>どのテストが、どの主張を測っているか</h2>
+<p class="lede2">
+  この文書の記述はすべて、動くテストに裏打ちされています。文章が古くなったら、先にテストが赤くなります。
+</p>
+<div class="tablewrap"><table>
+<thead><tr><th>この文書の主張</th><th>それを測っているもの</th><th class="m">件数</th></tr></thead>
+<tbody>
+<tr><td>46 の機能が、各形式でどこまで残るか</td><td><code>FormatSupportTests.matchesThePublishedTable</code></td><td class="m">3</td></tr>
+<tr><td><strong>消えたものは必ず、それを名指しする警告を持つ</strong>（9 方向）</td>
+  <td><code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code></td><td class="m">9</td></tr>
+<tr><td><strong>3 回保存しても部品は整形式で、何も落ちない</strong></td>
+  <td><code>CrossFormatConversionTests.threeGenerationsStayWellFormedAndKeepEverything</code></td><td class="m">3</td></tr>
+<tr><td>ピボット表は 2 回目の保存を生き延びる</td>
+  <td><code>CrossFormatConversionTests.aPivotTableSurvivesBeingSavedTwice</code></td><td class="m">1</td></tr>
+<tr><td>マクロの損失は、どの行き先でも「マクロ」として報告される</td>
+  <td><code>CrossFormatConversionTests.aDroppedVBAProjectIsAlwaysAMacroLoss</code></td><td class="m">3</td></tr>
+<tr><td>1 セル直して保存すると、他は 1 バイトも動かない</td><td><code>PreservationTests.editOneCellKeepsEverythingElse</code></td><td class="m">1</td></tr>
+<tr><td>OpenDocument にしか無い 6 つが往復し、LibreOffice も読む</td><td><code>ODFOnlyFeatureTests</code></td><td class="m">7</td></tr>
+<tr><td>Numbers の図形・セル制御が読み取りで報告される</td><td><code>NumbersSilentLossTests</code></td><td class="m">9</td></tr>
+<tr><td>Numbers.app 本人が、書いたファイルを開いて計算し保存し直せる</td>
+  <td><code>Tests/NumbersParity/verify_with_numbers_app.py</code></td><td class="m">—</td></tr>
+<tr><td>openpyxl が、書いたファイルを同じ値として読む</td><td><code>Tests/OpenpyxlParity/verify_with_openpyxl.py</code></td><td class="m">—</td></tr>
+<tr><td>壊れた入力でも落ちず、必ず <code>SheetError</code> になる</td><td><code>FuzzTests</code></td><td class="m">8</td></tr>
+</tbody>
+</table></div>
+
+<h3>審判は「自分たち以外」であること</h3>
+<p>
+  自作の読み手が自作の書き手を読めても、それは何の証明にもなりません。
+  ここで「対応している」と言えるのは、<strong>この計画から出てこなかったものが同意したとき</strong>だけです。
+</p>
+<div class="tablewrap"><table>
+<thead><tr><th>審判</th><th>何を確かめるか</th></tr></thead>
+<tbody>
+<tr><td><strong>Numbers.app 15.3.1</strong></td><td>書いた <code>.numbers</code> を開き、何が見えるかを答えさせ、保存し直させる</td></tr>
+<tr><td><strong>LibreOffice</strong></td><td>書いた <code>.ods</code> / <code>.xlsx</code> を開き、PDF に変換できるか・要素が残るか</td></tr>
+<tr><td><strong>openpyxl</strong></td><td>書いた <code>.xlsx</code> を読み、同じ値・同じ型になるか（振る舞いの基準としても使っています）</td></tr>
+<tr><td><strong>numbers-parser</strong></td><td>書いた <code>.numbers</code> を独立した実装として読めるか</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section>
+<h2>自分で測り直す</h2>
+<p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
+<pre><code>swift test                            # 837 件（全部）
+swift test --filter CrossFormat       # <strong>この文書そのもの</strong>。9 方向の点検と 3 世代テスト
+swift test --filter FormatSupport     # 46 項目の対応表（docs/format-support.html）
+swift test --filter Preservation      # 1 セル直して保存したとき、他がバイト同一か
+swift test --filter ODFOnly           # OpenDocument にしか無い 6 件
+
+python3 Tests/NumbersParity/verify_with_numbers_app.py             # Numbers.app 本人に開かせる
+python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # 同じ 1 冊を「こちらの書き出し」と「Numbers 自身の輸入」で比べる
+python3 Tests/OpenpyxlParity/verify_with_openpyxl.py               # openpyxl に読ませる</code></pre>
+
+<dl class="qa">
+<dt>「警告」はコードでどう受け取るのですか</dt>
+<dd>読み込みも書き出しも、結果に一覧が付いてきます。捨てない限り、見落とすことはありません。</dd>
+</dl>
+<pre><code>let result = try wb.write(as: .numbers)
+for warning in result.warnings {
+    print(warning.kind, warning.sheet ?? "-", warning.message)
+    // kind は dropped（丸ごと）/ degraded（一部）/ substituted（置き換え）
+}
+if let suggestion = result.suggestion {
+    print(suggestion.message)   // 「この形式では N 件が表せません。◯◯ なら残ります」
+}
+
+print(wb.readWarnings)          // 読んだときに言われたこと</code></pre>
+</section>
+
+<footer>
+SwiftSheets — 相互運用ガイド。数字は 2026-08-27 の実測（9 方向 × 46 機能）。<br>
+形式ごとの対応表は <a href="format-support.html">format-support.html</a>、
+実装の決定記録は <a href="implementation-spec.html">implementation-spec.html</a> の付録 B.16・B.17・B.22。
+</footer>
+</main>
+</body>
+</html>

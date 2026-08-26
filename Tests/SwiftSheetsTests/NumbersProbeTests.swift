@@ -133,10 +133,19 @@ import SwiftSheets
         let url = Self.dir.deletingLastPathComponent().appending(path: "ground/kitchen-sink-by-numbers.numbers")
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let result = try NumbersCodec.read(try Data(contentsOf: url))
-        // The only warnings are about the pivot table Numbers rendered for itself: its cells hold formulas built
-        // out of category references and an unnamed spill function, which the model has no word for. The values
-        // are kept, and the warning says which cells.
-        let unexpected = result.warnings.filter { !$0.message.contains("337") && !$0.message.contains("CATEGORY_REF") && !$0.message.contains("could not be decoded") }
+        // Numbers turns the Excel list validation on B2:B9 into a pop-up menu — the substitution it makes for a
+        // rule it has no other word for. Our reader keeps the chosen value and reports the control, so the warning
+        // is expected here; asserting it is the record of what Numbers itself does with a data validation.
+        let controls = result.warnings.filter { $0.message.contains("carry a Numbers control") }
+        #expect(controls.count == 1, "\(result.warnings.map(\.message))")
+        #expect(controls.first?.sheet == "Data" && controls.first?.location == CellRef("B2"))
+        // The remaining warnings are about the pivot table Numbers rendered for itself: its cells hold formulas
+        // built out of category references and an unnamed spill function, which the model has no word for. The
+        // values are kept, and the warning says which cells.
+        let unexpected = result.warnings.filter {
+            !$0.message.contains("337") && !$0.message.contains("CATEGORY_REF") && !$0.message.contains("could not be decoded")
+                && !$0.message.contains("carry a Numbers control")
+        }
         #expect(unexpected.isEmpty, "\(unexpected.map(\.message))")
         let wb = result.workbook
         #expect(wb.sheetNames == ["Data", "Pivot", "Hidden", "Multi"], "\(wb.sheetNames)")
