@@ -11,6 +11,11 @@ struct NumbersWriter {
     static let defaultRowHeight = 20.0
     static let defaultColumnWidth = 98.0
     static let tableGap = 80.0
+    /// Whether a pivot table is written as a Numbers pivot (Appendix B.19). **Off**: the archives are built and
+    /// the summary is computed, but Numbers 15.3.1 still opens the result with the summary's cells in error, so
+    /// what a reader would get is a broken pivot rather than none. Until the judge passes it, a pivot is reported
+    /// as dropped, as it was before — this project does not let a broken document through quietly.
+    static let writesPivotTables = false
 
     let doc: NumbersDocument
     let workbook: Workbook
@@ -26,6 +31,9 @@ struct NumbersWriter {
     private var tableUUIDs: [String: ProtoMessage] = [:]
     /// Author name → its archive, so two notes by the same person share one author.
     private var authorIDs: [String: Int] = [:]
+    /// Sheet name → the table info of its first table, which is the table a pivot on that sheet's range names as
+    /// its source (Appendix B.19).
+    private var firstTableInfo: [String: Int?] = [:]
     /// Component entries waiting to go into the package metadata. Registering them one at a time meant walking
     /// the whole metadata once per object — with four sheets that was most of the time the write took.
     private var pendingComponents: [(new: Int, like: Int?, locator: String)] = []
@@ -78,9 +86,14 @@ struct NumbersWriter {
         for (i, sheet) in workbook.sheets.enumerated() {
             let sid = sheetIDs[i]
             var infos = doc.object(sid)?.references("drawable_infos").filter { doc.typeName($0) == "TST.TableInfoArchive" } ?? []
+            // …plus two per pivot table: a Numbers pivot is a summary table and a copy of the rows it summarises
+            // (Appendix B.19). They are cloned here, with the sheet's own tables, so that every copy comes from
+            // the template's untouched table rather than from one already filled in.
             let wanted = Swift.max(1, sheet.tables.count)
+                + (NumbersWriter.writesPivotTables ? 2 * sheet.pivotTables.count : 0)
             while infos.count < wanted { infos.append(try cloneTable(from: infos[0], intoSheet: sid)) }
             tableInfos[sid] = infos
+            firstTableInfo[sheet.name] = infos.first
             let tables = sheet.tables.isEmpty ? [Table()] : sheet.tables
             for (t, table) in tables.enumerated() {
                 guard let model = doc.object(infos[t])?.reference("tableModel"),
@@ -102,9 +115,6 @@ struct NumbersWriter {
             if sheet.tables.count > 1, !sheet.conditionalFormatting.isEmpty {
                 warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
                                                   message: "the sheet's conditional formats are written onto its first table: the model keeps them per sheet, Numbers per table"))
-            }
-            if !sheet.pivotTables.isEmpty {
-                warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name, message: "\(sheet.pivotTables.count) pivot table(s) dropped: Numbers pivot tables are not written"))
             }
             if !sheet.excelTables.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name, message: "\(sheet.excelTables.count) named table(s) dropped: every Numbers table is named, but its own header rows are not this frame"))
@@ -156,6 +166,18 @@ struct NumbersWriter {
                     d.set("geometry", message: g)
                     m.set("super", message: d)
                 }
+                y += size.height + NumbersWriter.tableGap
+            }
+            // the pivots, each on the pair of tables cloned for it above
+            var spare = tables.count
+            if !sheet.pivotTables.isEmpty, !NumbersWriter.writesPivotTables {
+                warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                  message: "\(sheet.pivotTables.count) pivot table(s) dropped: Numbers pivot tables are not written"))
+            }
+            for pivot in sheet.pivotTables where NumbersWriter.writesPivotTables {
+                let size = try writePivot(pivot, summaryInfo: infos[spare], sourceInfo: infos[spare + 1],
+                                          onSheet: sid, sheetName: sheet.name, at: y)
+                spare += 2
                 y += size.height + NumbersWriter.tableGap
             }
             if sheet.freezePanes != nil, tables.first?.nextAppendRow ?? 0 > 0 {
@@ -426,6 +448,298 @@ struct NumbersWriter {
         }
         doc.update(sid) { $0.append("drawable_infos", reference: new) }
         return new
+    }
+
+    // MARK: - Pivot tables (Appendix B.19)
+
+    /// One pivot table, as Numbers builds one: a **summary** table drawn on the sheet, and a **copy of the source
+    /// rows** that belongs to no sheet at all and is reached only through the summary's table info. The rules that
+    /// tie them together name the source's columns by UID, and a group tree says what groups the rows fall into.
+    ///
+    /// SwiftSheets computes the summary and writes it into the cells. Numbers rebuilds it from the rules when it
+    /// opens the document — but our own reader, numbers-parser and LibreOffice see the cells and nothing else, so
+    /// leaving them empty would be leaving the pivot empty for everyone but Numbers.
+    private mutating func writePivot(_ pivot: PivotTable, summaryInfo: Int, sourceInfo: Int, onSheet sid: Int,
+                                     sheetName: String, at y: Double) throws -> (width: Double, height: Double) {
+        guard let columns = NumbersPivot.source(of: pivot, in: workbook) else {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheetName,
+                                              message: "pivot table \(pivot.name) is dropped: its source range \(pivot.cache.sourceRef.a1) on \(pivot.cache.sourceSheet) is not in this workbook to summarise"))
+            try discard(tableInfo: summaryInfo, fromSheet: sid); try discard(tableInfo: sourceInfo, fromSheet: sid)
+            return (0, 0)
+        }
+        let rowFields = pivot.rowFields.filter { columns.indices.contains($0) }
+        let columnFields = pivot.columnFields.filter { columns.indices.contains($0) }
+        let dataFields = pivot.dataFields.filter { columns.indices.contains($0.field) }
+        guard !dataFields.isEmpty, !(rowFields.isEmpty && columnFields.isEmpty) else {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheetName,
+                                              message: "pivot table \(pivot.name) is dropped: a Numbers pivot needs at least one field to group by and one to summarise"))
+            try discard(tableInfo: summaryInfo, fromSheet: sid); try discard(tableInfo: sourceInfo, fromSheet: sid)
+            return (0, 0)
+        }
+        warnings.append(contentsOf: NumbersPivot.warnings(for: pivot, sheet: sheetName))
+
+        // the copy of the source: the range's own cells, its heading row kept as a header row
+        var sourceTable = Table(name: "\(pivot.name) Source")
+        for (c, column) in columns.enumerated() {
+            sourceTable[0, c] = .text(column.name)
+            for (r, value) in column.values.enumerated() { sourceTable[r + 1, c] = value }
+        }
+        let sourceName = "\(pivot.cache.sourceSheet) as Pivot Source Table"
+        _ = try patch(tableInfo: sourceInfo, with: sourceTable, name: sourceName, sheetName: sheetName)
+        if let model = doc.object(sourceInfo)?.reference("tableModel") {
+            doc.update(model) { $0.set("number_of_header_rows", int: 1) }   // the heading row of the range it copied
+        }
+        guard let sourceModel = doc.object(sourceInfo)?.reference("tableModel"),
+              let summaryModel = doc.object(summaryInfo)?.reference("tableModel") else {
+            throw SheetError.malformedPart(path: "empty.numbers", detail: "a pivot's table has no model")
+        }
+
+        // the summary itself
+        let laid = NumbersPivot.summaryTable(pivot, source: columns, named: pivot.name,
+                                             rowFields: rowFields, columnFields: columnFields, dataFields: dataFields)
+        let size = try patch(tableInfo: summaryInfo, with: laid.table, name: pivot.name, sheetName: sheetName)
+        // …and its own column / row UIDs. `patch` drops the template's, and a pivot's summary is the one table
+        // that cannot do without them: the order map names its rows and columns by UID (Appendix B.19).
+        let summaryUIDs = NumbersPivot.columnUIDMap(count: Swift.max(1, laid.table.columnCount),
+                                                    rowCount: Swift.max(1, laid.table.rowCount))
+        let summaryUIDsID = try doc.add(summaryUIDs.map, file: doc.locations[summaryModel]?.0 ?? "Index/Tables/Tile.iwa")
+        registerComponent(summaryUIDsID, like: summaryModel)
+        doc.update(summaryModel) { m in
+            m.set("number_of_header_rows", int: laid.headerRows)
+            m.set("number_of_header_columns", int: laid.headerColumns)
+            m.set("base_column_row_uids", reference: summaryUIDsID)
+        }
+
+        // column UIDs: the rules name a source column by one of these, so the map has to exist before they do
+        let rowCount = (columns.first?.values.count ?? 0) + 1
+        let uids = NumbersPivot.columnUIDMap(count: columns.count, rowCount: rowCount)
+        let file = doc.locations[sourceModel]?.0 ?? "Index/Tables/Tile.iwa"
+        let uidMapID = try doc.add(uids.map, file: file)
+        registerComponent(uidMapID, like: sourceModel)
+        doc.update(sourceModel) { m in
+            m.set("base_column_row_uids", reference: uidMapID)
+            m.set("pivot_value_types_by_col", ints: columns.indices.map { i in
+                dataFields.contains { $0.field == i } ? NumbersPivot.valueTypeAggregate : NumbersPivot.valueTypeGrouping
+            })
+        }
+
+        // what groups there are. With column fields there are two group-bys on the source — one that walks the
+        // column fields and then the row fields, one that walks the row fields alone — and with none, just the
+        // one (Appendix B.19). The **first** is the group-by the cloned table already carries: it is registered
+        // with the calculation engine and its table info already names its UUID, and a group-by the engine does
+        // not own is a group-by Numbers does not read.
+        let allRows = Array(1...Swift.max(1, columns.first?.values.count ?? 1))
+        // The column the group-bys cache a total for. A Numbers pivot caches one per group-by; where the model
+        // asks for several values, the first is the one the cache carries and the rest are the summary's own cells.
+        let summing = dataFields.first.map {
+            (column: columns[$0.field], uid: uids.columns[$0.field], function: $0.function)
+        }
+        func tree(_ fields: [Int]) -> [NumbersPivot.GroupNode] {
+            NumbersPivot.group(allRows, by: fields.map { columns[$0] })
+        }
+        let firstFields = columnFields.isEmpty ? rowFields : columnFields + rowFields
+        guard let sourceCategoryID = doc.object(sourceModel)?.reference("category_owner"),
+              let existing = doc.object(sourceCategoryID)?.references("group_by").first else {
+            throw SheetError.malformedPart(path: "empty.numbers", detail: "the template's table has no category owner to make a pivot from")
+        }
+        // In a document Numbers wrote, the copy of the source is not a table in its own right: its dependency
+        // owner is a **child of the pivot's own** (kind 100, based on the summary's base owner), and its group-bys
+        // hang off that. Ours arrives as an independent clone, so it is re-parented here (Appendix B.19).
+        let summaryBase = baseOwnerUUID(ofTableInfo: summaryInfo)
+        let sourceBase = NumbersUUID.random().uuid
+        try registerOwner(uid: sourceBase, kind: 100, base: summaryBase)
+
+        var firstOutermost: [ProtoMessage] = []
+        doc.update(existing) { m in
+            let built = NumbersPivot.groupBy(columns: firstFields.map { uids.columns[$0] },
+                                             nodes: tree(firstFields), allRows: allRows,
+                                             ownerIndex: 205,
+                                             uid: m.message("group_by_uid") ?? NumbersUUID.random().uuid,
+                                             aggregate: summing, rowUIDs: uids.rows)
+            m = built.archive
+            firstOutermost = built.outermost
+        }
+        var sourceGroupByIDs = [existing]
+        // the two axes the summary is ordered by: the outermost nodes of the group-by that walks the columns, and
+        // the outermost nodes of the one that walks the rows
+        let columnAxis: [ProtoMessage] = columnFields.isEmpty ? [] : firstOutermost
+        var rowAxis: [ProtoMessage] = columnFields.isEmpty ? firstOutermost : []
+        if !columnFields.isEmpty {
+            // …and a second one, which needs an owner of its own before Numbers will read it
+            let uid = NumbersUUID.random().uuid
+            let second = NumbersPivot.groupBy(columns: rowFields.map { uids.columns[$0] }, nodes: tree(rowFields),
+                                              allRows: allRows, ownerIndex: 206, uid: uid,
+                                              aggregate: summing, rowUIDs: uids.rows)
+            let id = try doc.add(second.archive, file: file)
+            registerComponent(id, like: sourceModel)
+            try registerOwner(uid: uid, kind: 206, base: sourceBase)
+            sourceGroupByIDs.append(id)
+            rowAxis = second.outermost
+        }
+        if rowFields.isEmpty { rowAxis = [] }
+        // Numbers writes each group tree **twice**: inline on the group-by, and again as one archive per node
+        // chained by `child_ref`. A document Numbers made from the same workbook carries fifteen of them for two
+        // group-bys. The same goes for the cached summing. Both are written here, the way it writes them.
+        for id in sourceGroupByIDs {
+            let file = doc.locations[id]?.0 ?? "Index/Tables/Tile.iwa"
+            if let root = doc.object(id)?.message("group_node_root") {
+                let rootID = try materialise(root, file: file, like: sourceModel)
+                doc.update(id) { $0.set("group_node_root_ref", reference: rootID) }
+            }
+            if let aggregator = doc.object(id)?.message("aggregator") {
+                let aggID = try doc.add(aggregator, file: file)
+                registerComponent(aggID, like: sourceModel)
+                doc.update(id) { $0.set("aggregator_ref", reference: aggID) }
+            }
+        }
+        doc.update(sourceCategoryID) { $0.set("group_by", references: sourceGroupByIDs) }
+        // The clone brings the template's deprecated category owner along, group-by and all. A document Numbers
+        // wrote has none on the copy of a source, and leaving a second, stale list of groups beside the real one
+        // is asking Numbers which to believe.
+        doc.update(sourceModel) { $0.remove("category_owner_deprecated") }
+        // The clone comes with the template's summary group-by, whose kind is 8. On the copy of a source the two
+        // group-bys are kinds 205 and 206 — measured off a document Numbers made from the same workbook.
+        if let firstUID = doc.object(existing)?.message("group_by_uid") { rebaseOwner(of: firstUID, onto: sourceBase, kind: 205) }
+
+        // The summary keeps the empty, disabled group-by its clone came with — which is exactly what the summary
+        // of a pivot carries in a document Numbers wrote.
+        let summaryFile = doc.locations[summaryModel]?.0 ?? file
+
+        // Both models of a pivot carry a spill owner in a document Numbers wrote — the owner a formula whose
+        // result runs past its own cell reports into. A pivot has none, but the field is not optional in
+        // practice: a model without it is one Numbers does not finish reading (Appendix B.19).
+        for model in [summaryModel, sourceModel] {
+            let uid = NumbersUUID.random().uuid
+            var spill = ProtoMessage(typeName: "TSCE.SpillOwnerArchive")
+            spill.set("owner_uid", message: uid)
+            doc.update(model) { $0.set("spill_owner", message: spill) }
+            try registerOwner(uid: uid, kind: 12, base: model == summaryModel ? summaryBase : sourceBase)
+        }
+
+        // the rules
+        let optionsID = try doc.add(ProtoMessage(typeName: "TST.PivotGroupingColumnOptionsMapArchive"), file: summaryFile)
+        registerComponent(optionsID, like: summaryModel)
+        // the pivot names the table it was made from — the one on the source sheet, not the copy it reads
+        let originalInfo = (firstTableInfo[pivot.cache.sourceSheet] ?? nil) ?? sourceInfo
+        let originalName = (doc.object(originalInfo)?.reference("tableModel")).flatMap { doc.object($0)?.string("table_name") } ?? sourceName
+        let owner = NumbersPivot.pivotOwner(pivot, uid: NumbersUUID.random().uuid,
+                                            sourceTableUID: baseOwnerUUID(ofTableInfo: originalInfo) ?? NumbersUUID.random().uuid,
+                                            sourceTableName: originalName,
+                                            rowColumns: rowFields.map { uids.columns[$0] },
+                                            columnColumns: columnFields.map { uids.columns[$0] },
+                                            aggregates: dataFields.map { (uids.columns[$0.field], $0.function) },
+                                            optionsMap: optionsID,
+                                            formulaStore: (doc.object(originalInfo)?.reference("tableModel"))
+                                                .flatMap { tableReferenceUUID(ofTableModel: $0) }
+                                                .map { NumbersPivot.formulaStore(sourceTableID: $0, columns: columns.count,
+                                                                                 rows: columns.first?.values.count ?? 0) })
+        let ownerID = try doc.add(owner, file: summaryFile)
+        registerComponent(ownerID, like: summaryModel)
+        doc.update(summaryModel) { $0.set("pivot_owner", reference: ownerID) }
+
+        // …and the table info that says the two models are one pivot
+        let orderMapID = try doc.add(NumbersPivot.orderMap(columns: columnAxis, rows: rowAxis), file: summaryFile)
+        registerComponent(orderMapID, like: summaryModel)
+        var order = ProtoMessage(typeName: "TST.PivotOrderArchive")
+        order.set("uid_map", reference: orderMapID)
+        let orderID = try doc.add(order, file: summaryFile)
+        registerComponent(orderID, like: summaryModel)
+        let viewMapID = try doc.add(NumbersPivot.orderMap(columns: columnAxis, rows: rowAxis), file: summaryFile)
+        registerComponent(viewMapID, like: summaryModel)
+        doc.update(summaryInfo) { m in
+            m.set("is_a_pivot_table", bool: true)
+            m.set("pivot_data_model", reference: sourceModel)
+            m.set("pivot_order", reference: orderID)
+            m.set("view_column_row_uids", reference: viewMapID)
+        }
+        // the copy of the source is reached through the pivot, never through the sheet
+        doc.update(sid) { m in
+            let remaining = m.references("drawable_infos").filter { $0 != sourceInfo }
+            m.set("drawable_infos", references: remaining)
+        }
+        doc.update(summaryInfo) { m in
+            var d = m.message("super") ?? ProtoMessage(typeName: "TSD.DrawableArchive")
+            var g = d.message("geometry") ?? ProtoMessage(typeName: "TSD.GeometryArchive")
+            var p = ProtoMessage(typeName: "TSP.Point"); p.set("x", float: 0); p.set("y", float: Float(y))
+            var sz = ProtoMessage(typeName: "TSP.Size"); sz.set("width", float: Float(size.width)); sz.set("height", float: Float(size.height))
+            g.set("position", message: p); g.set("size", message: sz)
+            d.set("geometry", message: g)
+            m.set("super", message: d)
+        }
+        return size
+    }
+
+    /// A table cloned for a pivot that turned out not to be writable: taken off the sheet so it is not drawn as an
+    /// empty table nobody asked for.
+    private mutating func discard(tableInfo: Int, fromSheet sid: Int) throws {
+        doc.update(sid) { m in
+            let remaining = m.references("drawable_infos").filter { $0 != tableInfo }
+            m.set("drawable_infos", references: remaining)
+        }
+    }
+
+    /// A UUID the writer invented, made known to the calculation engine. A group-by whose UUID no owner claims is
+    /// one Numbers does not read (Appendix B.19); the clone machinery mints these for the objects it copies, and
+    /// this does the same for the ones a pivot adds.
+    private mutating func registerOwner(uid: ProtoMessage, kind: Int, base: ProtoMessage?) throws {
+        guard let file = doc.locations[calcEngineID]?.0 else { return }
+        var owner = ProtoMessage(typeName: "TSCE.FormulaOwnerDependenciesArchive")
+        owner.set("formula_owner_uid", message: uid)
+        owner.set("owner_kind", int: kind)
+        if let base { owner.set("base_owner_uid", message: base) }
+        let next = (doc.object(calcEngineID)?.message("dependency_tracker")?.message("owner_id_map")?
+            .messages("map_entry").compactMap { $0.int("internal_owner_id") }.max() ?? 0) + 1
+        owner.set("internal_formula_owner_id", int: next)
+        let id = try doc.add(owner, file: file)
+        var entry = ProtoMessage(typeName: "TSCE.OwnerIDMapArchive.OwnerIDMapArchiveEntry")
+        entry.set("internal_owner_id", int: next)
+        if let cf = NumbersUUID.cfuuid(uid) { entry.set("owner_id", message: cf) }
+        doc.update(calcEngineID) { ce in
+            var tracker = ce.message("dependency_tracker") ?? ProtoMessage(typeName: "TSCE.DependencyTrackerArchive")
+            var omap = tracker.message("owner_id_map") ?? ProtoMessage(typeName: "TSCE.OwnerIDMapArchive")
+            omap.append("map_entry", message: entry)
+            tracker.set("owner_id_map", message: omap)
+            tracker.append("formula_owner_dependencies", reference: id)
+            ce.set("dependency_tracker", message: tracker)
+        }
+    }
+
+    /// Lays a group tree down as archives — one per node, children reached by `child_ref` instead of being nested
+    /// inside their parent. Returns the root's identifier (Appendix B.19).
+    private mutating func materialise(_ node: ProtoMessage, file: String, like sibling: Int) throws -> Int {
+        var copy = node
+        let children = node.messages("child")
+        copy.remove("child")
+        var childIDs: [Int] = []
+        for child in children { childIDs.append(try materialise(child, file: file, like: sibling)) }
+        if !childIDs.isEmpty { copy.set("child_ref", references: childIDs) }
+        let id = try doc.add(copy, file: file)
+        registerComponent(id, like: sibling)
+        return id
+    }
+
+    /// Moves an existing dependency owner under another base — the copy of a source belongs to the pivot that
+    /// reads it, not to a table of its own.
+    private func rebaseOwner(of uid: ProtoMessage, onto base: ProtoMessage, kind: Int? = nil) {
+        guard let hex = NumbersUUID.hex(uid) else { return }
+        for fid in doc.identifiers(ofType: "TSCE.FormulaOwnerDependenciesArchive") {
+            guard NumbersUUID.hex(doc.object(fid)?.message("formula_owner_uid")) == hex else { continue }
+            doc.update(fid) {
+                $0.set("base_owner_uid", message: base)
+                if let kind { $0.set("owner_kind", int: kind) }
+            }
+            return
+        }
+    }
+
+    /// The UUID a pivot names its source table by: the `formula_owner_uid` of the dependency owner that points at
+    /// the table's own info — not its `haunted_owner`, and not its `table_id` (Appendix B.19).
+    private func baseOwnerUUID(ofTableInfo info: Int) -> ProtoMessage? {
+        for fid in doc.identifiers(ofType: "TSCE.FormulaOwnerDependenciesArchive") {
+            guard let f = doc.object(fid), f.reference("formula_owner") == info else { continue }
+            return f.message("formula_owner_uid")
+        }
+        return nil
     }
 
     // MARK: - Patching one table's data

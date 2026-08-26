@@ -193,6 +193,8 @@ struct ProtoMessage: Hashable {
         default: replace(name, with: [.varint(UInt64(bitPattern: Int64(v)))])
         }
     }
+    /// A repeated scalar field, each value on its own — the unpacked spelling Numbers writes.
+    mutating func set(_ name: String, ints v: [Int]) { replace(name, with: v.map { .varint(UInt64(bitPattern: Int64($0))) }) }
     mutating func set(_ name: String, bool v: Bool) { replace(name, with: [.varint(v ? 1 : 0)]) }
     mutating func set(_ name: String, double v: Double) { replace(name, with: [.fixed64(v.bitPattern)]) }
     mutating func set(_ name: String, float v: Float) { replace(name, with: [.fixed32(v.bitPattern)]) }

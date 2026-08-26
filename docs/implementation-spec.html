@@ -1844,6 +1844,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>1.7 Draft</td><td>2026-08-23</td><td>B.7 の未着手項目と §12 が求める検証のうち、この Mac に審判があるものを実装し付録 B.12 に記録。未実装として残すものは理由つきで同節に固定</td></tr>
     <tr><td>1.8 Draft</td><td>2026-08-23</td><td>データ検証の書き出し API（<code>Sheet.dataValidations</code>）を付録 B.13 に固定。読み込みは F3 保全のまま（理由つきで「実装せずに残したもの」へ）</td></tr>
     <tr><td>1.9 Draft</td><td>2026-08-23</td><td>代替形式の提案が表の損失について誤った案内をしていた件を付録 B.14 に記録。主題に <code>.tables</code> を追加し、提案の選び方を 3 分岐にした</td></tr>
+    <tr><td>2.4 Draft</td><td>2026-08-26</td><td>Numbers の<strong>本物のピボット表</strong>を書けるようにし、付録 B.19 に記録。置き方は Numbers 自身に 17 通りの見本を作らせて読み取った（名無しの <code>agg_type</code> 11 種、形ごとの group-by の作られ方、元表を名指す UID の正体）。あわせて審判の欠陥を 1 件直した — <code>front document</code> は前に開いた書類でありうるので、答えた書類の名前を突き合わせる</td></tr>
     <tr><td>2.3 Draft</td><td>2026-08-25</td><td>Numbers.app が審判に立ち、条件付き書式を読み書きするようになった（名無しの <code>predicate_type</code> 14 種を、Numbers 自身に作らせた文書から観測）。書き出しの欠陥 2 件（複製した部品の locator が空・複製したシートが余分な表を連れてくる）が出たので直した。あわせて Numbers への<strong>数式の書き出し</strong>を実装（式の木 → <code>TSCE.ASTNodeArrayArchive</code>）。実例の無い形（別表参照・定義名・Numbers に無い関数・列範囲・交差／合併）はキャッシュ値に落として理由を言う。付録 B.18</td></tr>
     <tr><td>2.2 Draft</td><td>2026-08-25</td><td>逆向きの数え上げ — ODF にあって OOXML に無い機能を付録 B.17 に固定。ラベル範囲・統合の定義・探偵の矢印・計算設定（正規表現／ワイルドカード／大小文字／二桁年）・日付の原点・通貨のセル種別を実装対象とし、改訂履歴と外部データ接続は「読んで覚えて、落としたと言う」に留める。出典は OASIS ODF 1.3 の RelaxNG スキーマ</td></tr>
     <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
@@ -2835,6 +2836,126 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>配列数式の範囲・入力規則・ピボット表・印刷設定ほか</td>
       <td>Numbers にそもそも無いもの、または置き場所の実例が無いもの。落としたことは警告で言う</td></tr>
 </table></div>
+
+
+  <h3>B.19 Numbers のピボット表を書く（Rev 2.4）</h3>
+  <p>
+    2026-08-26。前夜の突き合わせ（B.18）で、Excel の機能のうち<strong>Numbers 自身のほうが多く残すものが
+    ピボット表ただ 1 つ</strong>だけ残っていた。Numbers は Excel のピボットを取り込むと
+    <strong>本物の Numbers のピボット</strong>にする（集計後の値が入るのではなく、組み替えられる生きた表になる）。
+    こちらは落としていた。その差を埋める。
+  </p>
+
+  <h4>置き方は Numbers 自身に作らせて読み取った</h4>
+  <p>
+    いつもの方法。ピボットを 17 通り仕込んだ 1 冊を <code>.xlsx</code> で書き、Numbers 15.3.1 に読み込ませて
+    <code>.numbers</code> で保存させ、生まれたアーカイブを 1 項目ずつ読んだ
+    (<code>.build/numbers-judge/ground/pivot-shapes-by-numbers.numbers</code>)。
+  </p>
+  <div class="compare"><table>
+    <tr><th>アーカイブ</th><th>役目</th></tr>
+    <tr><td><code>TST.TableInfoArchive</code></td>
+      <td>ピボットは<strong>1 つの表の情報が 2 つの表モデルを持つ</strong>形。
+        <code>is_a_pivot_table</code> が真、<code>tableModel</code> が見せる表、
+        <code>pivot_data_model</code> が<strong>元データの複製</strong>（シートには置かれない）、
+        <code>pivot_order</code>・<code>view_column_row_uids</code> が並び順</td></tr>
+    <tr><td><code>TST.PivotOwnerArchive</code></td>
+      <td>規則そのもの。<code>grouping_columns_for_rows</code> / <code>_for_columns</code> は
+        <strong>元表の列 UID</strong> で列を名指しし、<code>aggregate_columns</code> が集計、
+        <code>source_table_uid</code> は<strong>元表の TableInfo の基底 owner UID</strong>
+        （<code>haunted_owner</code> でも <code>table_id</code> でもない）</td></tr>
+    <tr><td><code>TST.GroupByArchive</code></td>
+      <td>どんな組があるか。<code>group_column</code> が段の列、<code>group_node_root</code> が
+        <strong>実際の値ごとの節</strong>（値・その値に落ちる元の行番号）。集計値はここには要らない</td></tr>
+    <tr><td><code>TST.ColumnRowUIDMapArchive</code></td>
+      <td>元データの複製の <code>base_column_row_uids</code>。列 UID はここで採番され、規則がそれを名指す</td></tr>
+  </table></div>
+
+  <h4>集計の種類 — 名無しの <code>agg_type</code> 11 種を観測した</h4>
+  <p>
+    <code>agg_type</code> は Apple が名前を付けていない <code>uint32</code>。条件付き書式の
+    <code>predicate_type</code> と同じく、<strong>1 シートに 1 種類ずつ入れた 1 冊</strong>を
+    Numbers に読ませ、生まれたアーカイブの数と、シートの対応で読んだ。11 種すべてに Numbers 側の相手がある。
+  </p>
+  <div class="compare"><table>
+    <tr><th>SwiftSheets</th><th><code>agg_type</code></th><th>SwiftSheets</th><th><code>agg_type</code></th></tr>
+    <tr><td>count</td><td>1</td><td>average</td><td>18</td></tr>
+    <tr><td>sum</td><td>2</td><td>product</td><td>21</td></tr>
+    <tr><td>min</td><td>4</td><td>stdDev</td><td>26</td></tr>
+    <tr><td>max</td><td>5</td><td>stdDevp</td><td>28</td></tr>
+    <tr><td>countNums</td><td>13</td><td>var</td><td>30</td></tr>
+    <tr><td></td><td></td><td>varp</td><td>32</td></tr>
+  </table></div>
+
+  <h4>段の作られ方 — 形ごとに観測した</h4>
+  <p>元データの複製が持つ <code>CategoryOwnerRefArchive</code> の <code>group_by</code> の数と中身は、置き方で決まる。</p>
+  <div class="compare"><table>
+    <tr><th>ピボットの形</th><th>元データ側の group-by</th></tr>
+    <tr><td>行の段のみ（1 つでも 2 つでも）</td><td>1 つ — 行の段の列を順に持つ</td></tr>
+    <tr><td>行と列の両方</td><td>2 つ — ①<strong>列の段 → 行の段</strong>を続けたもの ②行の段だけ</td></tr>
+    <tr><td>列の段のみ</td><td>2 つ — ①列の段 ②<strong>列を 1 つも持たない空のもの</strong></td></tr>
+  </table></div>
+  <p class="meta">
+    見せる表の側は、列を持たない <code>is_enabled = false</code> の group-by を 1 つだけ持つ（置き場所の器）。
+    <code>owner_index</code> は、その group-by の依存関係 owner の <code>owner_kind</code> と同じ値。
+  </p>
+
+  <h4>いまどこまで来ているか（2026-08-26 時点）</h4>
+  <div class="callout callout-warn">
+    <span class="label">書き出しはまだ審判を通っていない — 既定では落として警告する</span>
+    <p>
+      規則・元データの複製・群の木・列 UID・所有者登録まで書けるようになり、
+      <strong>自作リーダは正しい集計を読み戻す</strong>（East 8/4/12・総計 36）。整合性検査も通る。
+      しかし <strong>Numbers 15.3.1 で開くと集計表のセルがエラーになる</strong>。
+      よって <code>NumbersWriter.writesPivotTables</code> は <code>false</code> のままにし、
+      ピボットは<strong>これまでどおり落として警告する</strong>。
+      壊れた書類を黙って通すのは、落とすより悪い。
+    </p>
+  </div>
+  <div class="compare"><table>
+    <tr><th>切り分けたこと</th><th>結果</th></tr>
+    <tr><td>こちらの群の木を、動く見本に移植する</td>
+      <td>見本が壊れる → 木にも欠けがあった。節の項目を 1 つずつ突き合わせ、
+        <strong>根の <code>row_lookup_uids</code></strong> の欠落を見つけて直したところ、総計だけは出るようになった</td></tr>
+    <tr><td>足場（表の情報・2 つのモデル）を項目ごとに突き合わせる</td>
+      <td>差は 3 つ — 見せる表の <code>base_column_row_uids</code>（<code>patch</code> が消していた）、
+        元データの複製の <code>number_of_header_rows</code>、両モデルの <code>spill_owner</code>。
+        前 2 つは直した。<strong>残るのは <code>spill_owner</code> と、所有者系列の組み方</strong></td></tr>
+    <tr><td>所有者系列</td>
+      <td>見本では元データの複製が <code>owner_kind = 100</code> でピボットの基底 owner の下にぶら下がる。
+        同じ形にしたが、まだ足りない。次に見るのはここと <code>spill_owner</code></td></tr>
+  </table></div>
+
+  <h4>集計器は必要だった — 捨てた観測に頼っていた主張を 1 つ撤回する</h4>
+  <p>
+    一時は「集計値は Numbers が出し直すので、書かなくてよい」と読んでいた。<strong>これは誤り</strong>。
+    直した審判で 2 回測り直すと、<code>aggregator</code> を外した文書は
+    <strong>集計欄がすべて 0 になる</strong>。Numbers は保存されている集計を描くのであって、
+    開くたびに元データを足し直すわけではない。よって書き手は
+    <strong>累算（<code>TST.GroupByArchive.AggregatorArchive</code> の <code>accum</code>）も書く必要がある</strong>。
+  </p>
+  <p class="meta">
+    あわせて、<strong>「節のラベルを Numbers が作り直す」も未確定</strong>に戻す。
+    ラベルを故意に間違えた木が正しく表示されたのは事実だが、集計表自身のセルにも同じラベルが入っており、
+    木を根だけに刈った文書がそのセルからラベルを見せることも確かめている。区別できていない。
+  </p>
+
+  <h4>測り方の欠陥 — 1 度目の観測はすべて捨てた</h4>
+  <div class="callout callout-warn">
+    <span class="label">Numbers は前に開いた書類を答える</span>
+    <p>
+      審判の <code>waitForDocument</code> は <code>front document</code> を拾う。Numbers は書類を開いたまま持ち続け、
+      <strong><code>killall -9</code> で落とすと次の起動で前のセッションを復元する</strong>。
+      その結果、<em>アーカイブとして完全に同一の 2 つの文書が違う答えを返す</em>という観測が出た。
+      同じ文書が <code>8|4|12</code> と <code>0|0|0</code> の両方を答えたのも、ピボット 17 個の見本を頼んだのに
+      台所の流し（前の実験の文書）が保存されたのも、すべてこれ。
+    </p>
+    <p>
+      直し方は 2 つ。<strong>全書類を閉じてから穏当に終了する</strong>（強制終了が復元を呼ぶ）。そして
+      <strong>答えた書類の名前を、頼んだ名前と突き合わせる</strong>。名前が違えば測定を失敗として捨てる。
+      これを入れる前の観測は 1 つも採用していない。
+    </p>
+  </div>
 
 
   <h3>B.20 値を持たないセルが消えていた（Rev 2.4）</h3>
