@@ -10,9 +10,11 @@ importer. Only this one answers the question the manual checklist in MAINTENANCE
 
     python3 Tests/NumbersParity/verify_with_numbers_app.py         # runs `swift test --filter NumbersWriterTests` first
 
-Needs Numbers.app, an **unlocked screen** (Numbers cannot put a document window on a locked Mac, and then answers
-nothing about it), and this terminal allowed to control Numbers in System Settings ▸ Privacy & Security ▸ Automation.
-Any of the three missing is reported as "cannot judge" and exits 2 — never as a failure of the files.
+Needs Numbers.app — **Apple's**, proved by the signature on the bundle `com.apple.Numbers` resolves to, since a
+bundle identifier is only a claim a bundle makes about itself — an **unlocked screen** (Numbers cannot put a
+document window on a locked Mac, and then answers nothing about it), and this terminal allowed to control Numbers
+in System Settings ▸ Privacy & Security ▸ Automation. Any of the three missing is reported as "cannot judge" and
+exits 2 — never as a failure of the files, and the first of them names the bundle it found.
 """
 import glob
 import os

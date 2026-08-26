@@ -14,11 +14,18 @@ Every call runs under two timeouts — AppleScript's own and a hard one here —
 (“this document needs to be repaired”, an unexpected alert) answers no events at all. On a hard timeout the
 application is killed, so the next call starts from a clean slate instead of inheriting the stuck dialog.
 
-Two things on the machine, not in the file, stop this cold: macOS asks once, on screen, whether this terminal may
-control Numbers, and a **locked screen** leaves Numbers unable to open a document window — after which it answers
-no property of that document at all. `available()` names both rather than letting a suite fail as if the files
-were bad.
+Three things on the machine, not in the file, stop this cold: macOS asks once, on screen, whether this terminal may
+control Numbers; a **locked screen** leaves Numbers unable to open a document window — after which it answers no
+property of that document at all; and the application the judge reaches may not be Apple's Numbers at all, because
+a bundle identifier is a claim a bundle makes about itself and LaunchServices resolves claims. `available()` names
+all three rather than letting a suite fail as if the files were bad.
+
+    python3 Tests/NumbersParity/numbers_app.py which                          # what com.apple.Numbers resolves to
 """
+# `str | None` in an annotation is evaluated at import time before Python 3.10, and this runs on the
+# system Python 3.9. PEP 563 leaves every annotation unevaluated, which is what makes it safe here.
+from __future__ import annotations
+
 import json
 import os
 import pathlib
@@ -26,8 +33,16 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 
 BUNDLE = "com.apple.Numbers"
+# The authorities only Apple signs under: the Mac App Store's re-signing of a purchased application, and the one
+# an application shipped inside the system image carries. A leaf certificate is what proves the bundle is Apple's,
+# because the identifier in an Info.plist proves nothing — see `apple_numbers`. Deliberately *not* checked: the
+# team identifier (this Mac's genuine copy carries `JCRTNEU7GK` in its code directory and `5KR58Z2G5J` in its
+# entitlement, so neither is a stable fact), and the requirement `anchor apple` (which a Mac App Store copy of
+# Numbers does not satisfy — measured 2026-08-26 — because Apple re-signs it the way it re-signs everyone's).
+_APPLE_AUTHORITIES = ("Apple Mac OS Application Signing", "Software Signing")
 DEFAULT_TIMEOUT = 180
 # Numbers is sandboxed. It cannot read another process's private temp directory — the `$TMPDIR/swiftsheets-numbers-*`
 # the Swift tests write into — and says so with "the operation is not permitted" in a dialog nobody is there to click.
@@ -40,8 +55,18 @@ class NumbersUnavailable(RuntimeError):
     """Numbers.app is not installed, or this terminal has not been allowed to control it."""
 
 
+class NumbersNotApple(RuntimeError):
+    """`com.apple.Numbers` resolved to a bundle Apple did not sign. A verdict from it would be a verdict about
+    another program, so there is no verdict — see `apple_numbers`."""
+
+
 class NumbersTimeout(RuntimeError):
     """Numbers stopped answering — almost always a modal dialog (a repair prompt) nobody can click."""
+
+
+class NumbersAnsweredAboutAnotherDocument(RuntimeError):
+    """Numbers answered about a document other than the one it was asked about — a failed measurement, not a
+    verdict on the file. See `_clean_slate` (spec Appendix B.19)."""
 
 
 # Numbers' `open` answers `missing value`, so every script picks the document up from the application afterwards —
@@ -85,20 +110,63 @@ def _run(script: str, args: list[str], timeout: int) -> str:
     return out
 
 
+def _clean_slate(timeout: int = 120) -> None:
+    """No document open, and none waiting to be restored.
+
+    Every script here picks the document up through `front document`, so a window left over from an earlier call
+    is a document a later call will answer about instead — and a Numbers killed with `killall -9` puts its whole
+    last session **back** on the next launch. Measured on 2026-08-26: two documents that were byte-identical in
+    their archives answered differently, and a run that asked Numbers to save one document saved another
+    (spec Appendix B.19). Closing every document and quitting *gracefully* is what stops it; `_verify_answered`
+    is the second half, catching the case where it happens anyway."""
+    if subprocess.run(["pgrep", "-x", "Numbers"], capture_output=True).returncode != 0:
+        return          # not running: nothing to clear, and speaking to it would only launch it
+    subprocess.run(["osascript", "-e", f'tell application id "{BUNDLE}" to close every document saving no'],
+                   capture_output=True, timeout=timeout)
+
+
+def _wait_until_gone(seconds: float = 20.0) -> None:
+    """`killall -9` returns before the kernel has reaped the process, and LaunchServices answers -600 for a moment
+    after that. `_clean_slate` waits for the graceful quit; the retry path did not wait for the forced one, which
+    is why a second `open` could land in the same gap it was retrying because of."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if subprocess.run(["pgrep", "-x", "Numbers"], capture_output=True).returncode != 0:
+            break
+        time.sleep(0.5)
+    time.sleep(2)          # LaunchServices settles a moment after the process is gone
+
+
+def _verify_answered(staged: str, answered: str) -> None:
+    """The document Numbers answered about has to be the one it was asked about. Numbers names a document by its
+    file name, minus the extension for one it imported — so the stem is what matches. A mismatch is a failed
+    measurement, never a fact about the file."""
+    stem = os.path.splitext(os.path.basename(staged))[0]
+    first = answered.split("|")[0].strip() if "|" in answered else answered.strip()
+    if not first.startswith(stem):
+        raise NumbersAnsweredAboutAnotherDocument(
+            f"asked about {os.path.basename(staged)}, Numbers answered about {first[:60]!r}")
+
+
 def _launch_open(path: str, timeout: int) -> None:
-    """`open -a Numbers <file>`. LaunchServices grants the sandboxed application access to what it is asked to
-    open; AppleScript's own `open` does not, and a document outside the places Numbers may read anyway comes
-    back as "the operation is not permitted" — in a dialog, with nobody there to click it."""
-    for attempt in range(2):
-        p = subprocess.run(["open", "-a", "Numbers", path], capture_output=True, text=True, timeout=timeout)
+    """`open -a <the authenticated Numbers> <file>`, onto a clean slate. LaunchServices grants the sandboxed
+    application access to what it is asked to open; AppleScript's own `open` does not, and a document outside the
+    places Numbers may read anyway comes back as "the operation is not permitted" — in a dialog, with nobody there
+    to click it. The application is named by path, not by the name "Numbers", so the bundle `apple_numbers` proved
+    is the bundle that opens the document."""
+    app = _app()          # authenticated first: `_clean_slate` speaks to whatever claims the bundle id
+    _clean_slate(timeout)
+    for attempt in range(3):
+        p = subprocess.run(["open", "-a", app, path], capture_output=True, text=True, timeout=timeout)
         if p.returncode == 0:
             return
         # -600 is "no such process": LaunchServices caught the application mid-shutdown, which happens right after
-        # a document it refused was cleared away. Give it a clean slate and ask once more.
-        if "-600" in p.stderr and attempt == 0:
+        # a document it refused was cleared away. Give it a clean slate, wait for it, and ask again.
+        if "-600" in p.stderr and attempt < 2:
             quit_app(force=True)
+            _wait_until_gone()
             continue
-        raise RuntimeError(p.stderr.strip() or f"open -a Numbers exited {p.returncode}")
+        raise RuntimeError(p.stderr.strip() or f"open -a {app} exited {p.returncode}")
 
 
 def _stage(path: str) -> str:
@@ -138,15 +206,79 @@ def screen_is_locked() -> bool:
     return "CGSSessionScreenIsLocked" in p.stdout
 
 
-def installed() -> bool:
-    p = subprocess.run(["osascript", "-e", f'id of application id "{BUNDLE}"'], capture_output=True, text=True, timeout=30)
-    return p.returncode == 0
+def resolved_app() -> str | None:
+    """The path LaunchServices sends `com.apple.Numbers` to, or None. Asked before a word is said to the
+    application, because this is the question `id of application id` cannot answer: it echoes the identifier back."""
+    p = subprocess.run(["osascript", "-e", f'POSIX path of (path to application id "{BUNDLE}")'],
+                       capture_output=True, text=True, timeout=60)
+    return p.stdout.strip().rstrip("/") or None
+
+
+def _signature(path: str) -> dict:
+    """What the signature on the bundle says — the identifier Apple signed and the chain that signed it.
+    `codesign -dv` prints to stderr, and checks the signature over the code directory, so the identifier it
+    reports is the signed one rather than whatever the Info.plist on disk currently claims."""
+    p = subprocess.run(["codesign", "-dv", "--verbose=4", path], capture_output=True, text=True, timeout=120)
+    out: dict = {"authorities": []}
+    for line in p.stderr.splitlines():
+        key, _, value = line.partition("=")
+        if key == "Authority":
+            out["authorities"].append(value)
+        elif key in ("Identifier", "TeamIdentifier"):
+            out[key] = value
+    return out
+
+
+def apple_numbers() -> tuple[str | None, str]:
+    """(path, what proved it) for Apple's own Numbers, or (None, why not) — the check that has to come first.
+
+    A bundle identifier is a claim a bundle makes about itself, and LaunchServices resolves claims: any bundle
+    whose Info.plist says `com.apple.Numbers` is what `id of application id "com.apple.Numbers"` answers about
+    and what `tell application id` then drives. So the judge takes the resolved **path** and reads the signature
+    on it; an authority only Apple can sign under is the proof.
+
+    The path is not the proof, and a whitelist of paths would be wrong: on this Mac (measured 2026-08-26) Apple's
+    own Numbers 15.3.1 sits at `/Applications/Numbers Creator Studio.app` — the bundle takes its name from the
+    base `CFBundleDisplayName`, while every `.lproj` localises the name back to "Numbers"."""
+    path = resolved_app()
+    if not path:
+        return None, "no application answers to com.apple.Numbers — Numbers.app is not installed"
+    if not os.path.exists(path):
+        return None, f"com.apple.Numbers resolves to {path}, and nothing is there"
+    sig = _signature(path)
+    identifier = sig.get("Identifier", "")
+    leaf = (sig["authorities"] or ["(unsigned)"])[0]
+    if identifier != BUNDLE or leaf not in _APPLE_AUTHORITIES:
+        return None, (f"com.apple.Numbers resolves to {path}, which Apple did not sign — signed identifier "
+                      f"{identifier or '(none)'}, authority {leaf}. Whatever that is, its answers would be about "
+                      f"another program, so this judge stands down rather than report on it.")
+    seal = subprocess.run(["codesign", "--verify", path], capture_output=True, text=True, timeout=600)
+    if seal.returncode != 0:
+        return None, (f"{path} is signed by Apple but the seal is broken, so what runs is not what was signed: "
+                      f"{seal.stderr.strip() or 'codesign --verify failed'}")
+    return path, f"{path} (signed {identifier}, {leaf})"
+
+
+_APP: str | None = None
+
+
+def _app() -> str:
+    """The bundle every launch goes through, authenticated once per process, so the application that was checked
+    is the application that gets driven — `open -a Numbers` would resolve the name all over again."""
+    global _APP
+    if _APP is None:
+        path, why = apple_numbers()
+        if not path:
+            raise NumbersNotApple(why)
+        _APP = path
+    return _APP
 
 
 def available() -> tuple[bool, str]:
     """(usable, why not). Answers without opening a document, so it is safe to call from a test setup."""
-    if not installed():
-        return False, "Numbers.app is not installed"
+    app, why = apple_numbers()
+    if not app:
+        return False, why
     if screen_is_locked():
         return False, ("the screen is locked — Numbers cannot open a document window on a locked Mac and stops "
                        "answering AppleEvents; unlock it and run again")
@@ -159,7 +291,7 @@ def available() -> tuple[bool, str]:
         return False, str(e)
     except Exception as e:  # noqa: BLE001 - any failure here means "cannot judge", never "the file is bad"
         return False, str(e)
-    return True, version
+    return True, f"{version} at {why}"
 
 
 _PROLOGUE = f'''
@@ -193,7 +325,9 @@ end run
 '''
     staged = _stage(path)
     _launch_open(staged, timeout)
-    return _run(script, [staged], timeout)
+    answer = _run(script, [staged], timeout)
+    _verify_answered(staged, answer.split("|", 1)[1] if answer.startswith("clean|") else answer)
+    return answer
 
 
 def dump(path: str, timeout: int = DEFAULT_TIMEOUT, max_rows: int = 200, max_cols: int = 40) -> dict:
@@ -203,7 +337,7 @@ def dump(path: str, timeout: int = DEFAULT_TIMEOUT, max_rows: int = 200, max_col
       with timeout of 600 seconds
         try
           set d to my waitForDocument()
-          set out to "{\\"sheets\\":["
+          set out to "{\\"document\\":" & my q(name of d) & ",\\"sheets\\":["
           set sheetCount to count of sheets of d
           repeat with si from 1 to sheetCount
             set s to sheet si of d
@@ -282,7 +416,9 @@ end hex4
 '''
     staged = _stage(path)
     _launch_open(staged, timeout)
-    return json.loads(_run(script, [staged], timeout))
+    answer = json.loads(_run(script, [staged], timeout))
+    _verify_answered(staged, answer.get("document", ""))
+    return answer
 
 
 _FORMATS = {".pdf": "PDF", ".xlsx": "Microsoft Excel", ".csv": "CSV", ".numbers": "Numbers 09"}
@@ -304,8 +440,9 @@ def export(path: str, out_path: str, timeout: int = DEFAULT_TIMEOUT) -> str:
         try
           set d to my waitForDocument()
           export d to (POSIX file outPath) as {_FORMATS[ext]}
+          set n to name of d
           close d saving no
-          return "exported"
+          return "exported|" & n
         on error errMsg number errNum
           try
             close every document saving no
@@ -319,6 +456,7 @@ end run
     staged = _stage(path)
     _launch_open(staged, timeout)
     result = _run(script, [staged, str(staged_out)], timeout)
+    _verify_answered(staged, result.split("|", 1)[-1])
     # A CSV export of a multi-sheet document becomes a folder of files; Numbers decides, we only move what appeared.
     if staged_out.exists() and str(staged_out) != out_path:
         shutil.move(str(staged_out), out_path)
@@ -340,8 +478,9 @@ def resave(path: str, out_path: str, timeout: int = DEFAULT_TIMEOUT) -> str:
         try
           set d to my waitForDocument()
           save d in (POSIX file outPath)
+          set n to name of d
           close d saving no
-          return "saved"
+          return "saved|" & n
         on error errMsg number errNum
           try
             close every document saving no
@@ -355,12 +494,19 @@ end run
     staged = _stage(path)
     _launch_open(staged, timeout)
     result = _run(script, [staged, str(staged_out)], timeout)
+    _verify_answered(staged, result.split("|", 1)[-1])
     if staged_out.exists() and str(staged_out) != out_path:
         shutil.move(str(staged_out), out_path)
     return result
 
 
 def main(argv: list[str]) -> int:
+    if argv and argv[0] == "which":
+        # Answerable without launching anything, which is the point: it is the one question worth asking when a
+        # run reports something that cannot be true of the files.
+        app, why = apple_numbers()
+        print(why)
+        return 0 if app else 2
     if len(argv) < 2:
         print(__doc__)
         return 2
@@ -381,7 +527,7 @@ def main(argv: list[str]) -> int:
         else:
             print(__doc__)
             return 2
-    except (NumbersTimeout, NumbersUnavailable, RuntimeError) as e:
+    except (NumbersTimeout, NumbersUnavailable, NumbersNotApple, RuntimeError) as e:
         print(f"{type(e).__name__}: {e}", file=sys.stderr)
         return 1
     finally:

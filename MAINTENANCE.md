@@ -77,7 +77,7 @@ python3 Tests/NumbersParity/verify_with_numbers_app.py     # opens, reads, compu
 python3 Tests/NumbersParity/numbers_app.py open .build/numbers-judge/probes/09-two-sheets.numbers
 ```
 
-It answers "cannot judge" (exit 2) rather than failing when the machine, not the file, is the problem. Three things
+It answers "cannot judge" (exit 2) rather than failing when the machine, not the file, is the problem. Four things
 about the machine matter, all of them found the hard way:
 
 - **Automation permission.** System Settings ▸ Privacy & Security ▸ Automation — the terminal must be allowed to
@@ -87,6 +87,36 @@ about the machine matter, all of them found the hard way:
 - **Numbers is sandboxed.** It cannot read `$TMPDIR`; documents are staged into `.build/numbers-judge/` and opened
   through `open -a` (LaunchServices), which hands the sandbox the right to read them. AppleScript's own `open`
   does not.
+- **It has to be Apple's Numbers.** A bundle identifier is a claim a bundle makes about itself, and LaunchServices
+  resolves claims: anything whose Info.plist says `com.apple.Numbers` is what `tell application id` would drive.
+  So `available()` takes the resolved **path** and reads the signature on it — an authority only Apple can sign
+  under is the proof — and anything else is "cannot judge", named with the path it found. The identifier alone
+  would not do: an ad-hoc signature takes the identifier it is given, `com.apple.Numbers` included.
+
+  Worth knowing before that check ever reads as an alarm: **this Mac's genuine Numbers 15.3.1 is installed at
+  `/Applications/Numbers Creator Studio.app`** (Mac App Store, 2026-08-05). The bundle is named after the base
+  `CFBundleDisplayName` while every `.lproj` localises the name back to "Numbers", which is why Finder, the Dock
+  and `kMDItemDisplayName` all say "Numbers". Not a path to whitelist, and not an impostor — checked 2026-08-26
+  against the Mac App Store receipt, Apple's `com.apple.private.*` entitlements, `version.plist`
+  (`ProjectName = Numbers`) and Apple's own lookup service for its App Store id.
+
+  ```bash
+  python3 Tests/NumbersParity/numbers_app.py which   # the bundle that answers, and what proved it — launches nothing
+  ```
+
+**It has to answer about the document it was asked about.** Numbers picks a document up through `front document`,
+so a window left from an earlier call is what a later call reports on — and a Numbers ended with `killall -9` puts
+its whole last session *back* on the next launch. Measured on 2026-08-26: two documents byte-identical in their
+archives answered differently, and a run asked to save one document saved another. Every reading taken before that
+date should be read with this in mind. Two things stop it, and the second is the one that matters:
+
+- `_clean_slate` closes any open document before each one is opened — **only when Numbers is already running**, so
+  the judge does not pay for a quit and a relaunch per document. Quitting and relaunching each time was measured at
+  **2–3× the wall clock and failed one run in two** (`-43`, no document); closing alone runs in **~50 s against
+  ~67 s** for no clearing at all, over the same eighteen probes.
+- `_verify_answered` compares the name Numbers replies with against the name it was handed, and raises rather than
+  reporting. **A mismatch is a failed measurement, never a fact about the file** — which is the whole point: the
+  cheap slate can in principle miss, and this cannot.
 
 `NumbersProbeTests` writes a corpus of thirteen documents into `.build/numbers-judge/probes`, each one thing more
 than the last, starting from the template itself. When Numbers refuses one, the first refusal names the feature
