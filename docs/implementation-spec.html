@@ -1849,6 +1849,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
     <tr><td>2.4 Draft</td><td>2026-08-26</td><td>Numbers 書き出しが<strong>「値は持たないが書式は持つセル」を警告なしで捨てていた</strong>件を付録 B.20 に記録。セルの取り出しが値の無いセルを書式に触れる前に飛ばしていたので、塗りだけで描いた図（ガントの帯・週末の列）が丸ごと消えていた。あわせて、<code>Font.default</code>（Calibri 11）と同じ大きさを「既定だから書かなくてよい」と省いていた件も直す — テンプレートの既定は <strong>HelveticaNeue 10</strong> で、11pt を指定したセルだけが 1pt 小さく描かれていた</td></tr>
+    <tr><td>2.5 Draft</td><td>2026-08-27</td><td>B.20 で「1.0 の破壊的変更の候補」として残した<strong>書体の同種欠陥を直した</strong>（付録 B.21）。<code>font_name</code> も <code>Font.default</code>（Calibri）と比べて省いていたため、Calibri を指定したセルがテンプレートの HelveticaNeue で描かれていた。モデルが述べた書体は常に書く。あわせて、この Mac の Calibri が <strong>Microsoft Office 専用フォルダにしか無い</strong>にもかかわらず Numbers が正しく描くことを実測（Numbers の PDF に本物の Calibri が埋め込まれる）</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -2944,6 +2945,72 @@ wb.sheets[<span class="nm">0</span>] = sheet
       この取り違えのせいで B.18 で立った 4 人目の審判を一度は外しかけている。
     </p>
   </div>
+
+  <h3>B.21 書体にも同じ誤りが残っていた（Rev 2.5）</h3>
+  <p>
+    2026-08-27。B.20 で「同じ構造の誤りが <code>font_name</code> にも残っている。直せば全文書の書体が変わるので
+    1.0 の破壊的変更の候補として残す」と書いた件を、<strong>その破壊的変更として入れた</strong>。
+  </p>
+
+  <div class="compare"><table>
+    <tr><th>直す前</th><th>直したあと</th></tr>
+    <tr><td><code>if let name = font.name, name != base.name</code> — <code>base</code> は <code>Font.default</code>
+      すなわち <strong>Calibri</strong>。Calibri を指定したセルは「既定と同じだから書かなくてよい」と省かれ、
+      書き込み先テンプレートの既定 <strong>HelveticaNeue</strong> で描かれていた</td>
+      <td><code>if let name = font.name</code> — モデルが述べた書体は常に書く。
+      大きさ（B.20）とまったく同じ直し方で、これで <code>characterProperties</code> から
+      <code>Font.default</code> との比較が完全に消えた</td></tr>
+  </table></div>
+
+  <div class="callout callout-warn">
+    <span class="label">承知のうえで受け入れた副作用</span>
+    <p>
+      モデルには「呼び手が Calibri を指定した」と「呼び手が何も言わなかった」の区別が無い
+      （どちらも <code>style.font.name == "Calibri"</code>）。したがって<strong>書式を持つセルはすべて、
+      書体を指定していなくても Calibri を明示して書かれる</strong>ようになった。素の Numbers らしい
+      HelveticaNeue ではなく Excel らしい Calibri で出る、という<strong>全出力の見た目の変更</strong>である。
+      欠陥の修正ではなく<strong>見た目の方針変更</strong>なので、1.0 前の破壊的変更として明示して入れた
+      （2026-08-27・§14 の 1.0 前の但し書き）。CHANGELOG も Fixed ではなく <code>Changed</code> に置いてある。
+    </p>
+    <p>
+      境目は B.20 と同じ。<strong>書体だけを述べた書式は <code>CellStyle.default</code> そのもの</strong>なので、
+      そのセルは無地として書かれ、テンプレートの HelveticaNeue を継承する
+      （<code>calibriAloneIsTheDefaultStyle</code> で固定）。
+    </p>
+  </div>
+
+  <h4>この Mac の Calibri — 「Office にしか無い」が「Numbers で出ない」を意味しなかった</h4>
+  <p>
+    Calibri は macOS 標準のフォントではない。この Mac でも
+    <code>~/Library/Fonts</code>・<code>/Library/Fonts</code>・<code>/System/Library/Fonts</code> のどれにも無く、
+    <strong><code>/Applications/Microsoft Excel.app/Contents/Resources/DFonts/</code> の中だけ</strong>にある
+    （Office 同梱フォントは Office 専用になる挙動が知られている）。素の CoreText に
+    <code>Calibri</code> を尋ねると Helvetica に落ちる——存在しない書体名と同じ扱いになる。
+  </p>
+  <p>
+    そこで「書いても Numbers では別の書体で描かれるのではないか」を<strong>実測で確かめた</strong>。
+    結果は<strong>否</strong>——Numbers 15.3.1 は Calibri を正しく見つけて描く。
+    書き出させた PDF に埋め込まれた書体を数えると、Calibri・Georgia・Verdana・HelveticaNeue が
+    それぞれ本物として入っている:
+  </p>
+  <pre>/AAAAAD+Calibri   ← 「Calibri」と指定したセル
+/AAAAAE+Georgia
+/AAAAAF+Verdana
+/AAAAAB+HelveticaNeue</pre>
+  <p>
+    書体を述べなかった（が書式は持つ）セルだけを 1 つ書いた文書でも、埋め込まれるのは
+    <code>Calibri</code>（＋表題の <code>HelveticaNeue</code>）で、上の副作用が実際に起きていることが
+    そのまま確認できる。<strong>手元で描けるかどうかは読み手の事情であって、
+    書き手の仕事はモデルが述べた名前をそのまま書くこと</strong>——という線引きは変えていない。
+    Office の入っていない Mac では Calibri は代替される（どの読み手でも起きる普通のこと）。
+  </p>
+
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>自作リーダの往復</td><td>Calibri・Georgia・Arial・Verdana・Helvetica Neue の 5 種が往復。全体 832 件が緑</td></tr>
+    <tr><td>Numbers 15.3.1 本人（PDF の埋め込み書体）</td><td>指定した書体がそれぞれ本物として埋め込まれる（上記）</td></tr>
+  </table></div>
 
 </section>
 

@@ -220,3 +220,75 @@ import SwiftSheets
         #expect(back.style("A1").font.size == 10, "an unstyled cell inherits the Numbers template")
     }
 }
+
+/// The third of the same family (Appendix B.21). The writer compared the *face* against `Font.default.name` —
+/// Calibri, Excel's default — and skipped it when equal, exactly as it did with the size. The Numbers template's
+/// own default face is **HelveticaNeue**, so a cell that asked for Calibri was drawn in HelveticaNeue and said
+/// nothing about it. What the model states about the face is now always written.
+///
+/// Note what this does *not* claim: that the reader's machine has the face. Calibri is not installed on the Mac
+/// this was measured on, and Numbers substitutes when a face is missing — as any reader does. Writing the name the
+/// model gave is the library's whole job here; choosing a substitute is the reader's.
+@Suite struct NumbersFontNameTests {
+
+    /// Every face the model states survives the round trip — Calibri included, which is the one that used to go.
+    /// The fill is what makes the style a style; see `calibriAloneIsTheDefaultStyle` for why it has to be there.
+    @Test(arguments: ["Calibri", "Georgia", "Arial", "Verdana", "Helvetica Neue"])
+    func aStatedFontNameIsWritten(_ name: String) throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws["A1"] = "faced"
+        ws.style("A1") { $0.font.name = name; $0.fill = .solid(Color(hex: "EEEEEE")) }
+        wb.sheets[0] = ws
+
+        let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
+        #expect(back.style("A1").font.name == name,
+                Comment(rawValue: "\(name) came back as \(String(describing: back.style("A1").font.name))"))
+    }
+
+    /// The regression in the shape it was found: Calibri beside a face that was never affected, in one document.
+    @Test func calibriIsNotSwallowedByItsNeighbours() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        for (i, name) in ["Calibri", "Georgia"].enumerated() {
+            let ref = CellRef(row: i, col: 0)
+            ws[cell: ref].value = .text(name)
+            ws.style(at: ref) { $0.font.name = name; $0.font.bold = true }
+        }
+        wb.sheets[0] = ws
+
+        let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
+        #expect(back.style("A1").font.name == "Calibri")   // used to come back nil, drawn as HelveticaNeue
+        #expect(back.style("A2").font.name == "Georgia")
+    }
+
+    /// Where this fix stops, for the same reason the size one does: a style whose only content is "Calibri" **is**
+    /// `CellStyle.default`, so the cell is written unstyled and takes the template's own face. The model cannot
+    /// tell "the caller asked for Calibri" from "the caller said nothing", and stamping every plain cell of every
+    /// document with an explicit Calibri is a change of look, not a bug fix. Pinned so it stays a decision.
+    @Test func calibriAloneIsTheDefaultStyle() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws["A1"] = "plain"
+        ws.style("A1") { $0.font.name = "Calibri" }
+        wb.sheets[0] = ws
+        #expect(ws.style("A1") == .default, "a style saying only Calibri is the model's default style")
+
+        let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
+        #expect(back.style("A1").font.name == "Helvetica Neue", "an unstyled cell inherits the Numbers template")
+    }
+
+    /// A face and a size together, which is what a real heading says. Both used to be dropped when they matched
+    /// Excel's defaults; both must survive now.
+    @Test func calibriElevenTogetherSurvive() throws {
+        var wb = Workbook()
+        var ws = wb.sheets[0]
+        ws["A1"] = "heading"
+        ws.style("A1") { $0.font.name = "Calibri"; $0.font.size = 11; $0.fill = .solid(Color(hex: "DDDDDD")) }
+        wb.sheets[0] = ws
+
+        let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
+        #expect(back.style("A1").font.name == "Calibri")
+        #expect(back.style("A1").font.size == 11)
+    }
+}

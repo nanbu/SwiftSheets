@@ -7,6 +7,20 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **A font face the model states is now always written to Numbers, which changes how output looks.** The writer
+  skipped any face equal to `Font.default.name` (Calibri, Excel's default) as "already the default", the same wrong
+  baseline that made 11pt come out small in 0.7.2: the Numbers template defaults to HelveticaNeue, so a cell asking
+  for Calibri was drawn in HelveticaNeue and said nothing about it. The model cannot tell "the caller asked for
+  Calibri" from "the caller said nothing", so **every cell that carries a style is now written with an explicit
+  Calibri** unless it names another face — Numbers documents this library writes will look like Excel's default
+  rather than Numbers' own. A cell with no style at all is untouched and still inherits the template. This is a
+  deliberate change of look — a pre-1.0 breaking change, listed under Changed rather than Fixed so it is not
+  mistaken for a quiet bug fix.
+
 ## [0.7.2] — 2026-08-27
 
 ### Fixed
