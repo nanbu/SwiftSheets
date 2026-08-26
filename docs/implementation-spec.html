@@ -1848,6 +1848,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.2 Draft</td><td>2026-08-25</td><td>逆向きの数え上げ — ODF にあって OOXML に無い機能を付録 B.17 に固定。ラベル範囲・統合の定義・探偵の矢印・計算設定（正規表現／ワイルドカード／大小文字／二桁年）・日付の原点・通貨のセル種別を実装対象とし、改訂履歴と外部データ接続は「読んで覚えて、落としたと言う」に留める。出典は OASIS ODF 1.3 の RelaxNG スキーマ</td></tr>
     <tr><td>2.1 Draft</td><td>2026-08-25</td><td>ODS と Numbers を Excel 形式と同じ土俵に載せた記録を付録 B.16 に固定。ODS は条件付き書式・入力規則・印刷設定・改ページ・印刷範囲/タイトル・シート保護・配列数式・名前付きの表とフィルタ条件・ピボット表を読み書きするようになり、Numbers はセル書式と表示形式とリンク（読み）を扱えるようになった。Numbers の条件付き書式は審判が無いため入れないと決め、その理由と「入れるための条件」も同節に固定</td></tr>
     <tr><td>2.0 Draft</td><td>2026-08-24</td><td>openpyxl との差のうち 9 件（ピボット表・文書の自由項目・絞り込みの応用・逐次読み書き・条件付き書式・名前付きの表・階調塗り／差分書式・保護／シナリオ・データ検証の読み取り）を実装し、付録 B.15 に記録。F3 の意味が「バイト保全」から「モデル化した部分は意味保全」へ変わった箇所も同節に固定</td></tr>
+    <tr><td>2.4 Draft</td><td>2026-08-26</td><td>Numbers 書き出しが<strong>「値は持たないが書式は持つセル」を警告なしで捨てていた</strong>件を付録 B.20 に記録。セルの取り出しが値の無いセルを書式に触れる前に飛ばしていたので、塗りだけで描いた図（ガントの帯・週末の列）が丸ごと消えていた。あわせて、<code>Font.default</code>（Calibri 11）と同じ大きさを「既定だから書かなくてよい」と省いていた件も直す — テンプレートの既定は <strong>HelveticaNeue 10</strong> で、11pt を指定したセルだけが 1pt 小さく描かれていた</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -2832,6 +2833,117 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>Numbers にそもそも無いもの、または置き場所の実例が無いもの。落としたことは警告で言う</td></tr>
 </table></div>
 
+
+  <h3>B.20 値を持たないセルが消えていた（Rev 2.4）</h3>
+  <p>
+    2026-08-26。<a href="https://github.com/nanbu/Stream">Stream</a>（WBS＋ガントの編集アプリ）が
+    SwiftSheets 0.7.0 で <code>.numbers</code> を書き出したところ、<strong>ガントの帯が 1 本も入っていなかった</strong>。
+    70 行の見本で 66 セルが消え、警告は 1 件も出ていない。<code>.xlsx</code> と <code>.ods</code> では起きない。
+  </p>
+
+  <div class="callout callout-warn">
+    <span class="label">何が消えていたか: 「値は持たないが色は持つセル」</span>
+    <p>
+      シートは値だけで出来ているのではない。<strong>ガントの帯・週末の列・凡例の見本・縞の背景</strong>は、
+      どれも<em>色だけがあって値の無いセル</em>で描く。モデルはこの種のセルをちゃんと保つ
+      （<code>Cell.isBlank</code> は書式が既定でなくなった時点で false になる）し、読み込み側も昔から復元していた。
+      落としていたのは<strong>書き出しだけ</strong>で、しかも <code>ConversionWarning</code> を出さなかった。
+      「黙って捨てない」という本ライブラリの中心の約束（§10.3・README）に正面から反する。
+    </p>
+  </div>
+
+  <h4>原因は 2 か所</h4>
+  <div class="compare"><table>
+    <tr><th>場所</th><th>何をしていたか</th><th>直し方</th></tr>
+    <tr><td><code>NumbersWriter.patch(tableInfo:with:…)</code> のセル走査</td>
+      <td><code>guard let stored = cell.value else { continue }</code> — 値の無いセルを、
+        書式・リンク・メモに触れる前に飛ばしていた</td>
+      <td>値を <code>CellValue?</code> のまま持ち回り、走査を続ける。
+        モデルは本当に空のセルを保持しないので、ここに残っているセルには必ず理由がある</td></tr>
+    <tr><td><code>NumbersWriter.record(for:…)</code> の <code>case nil</code></td>
+      <td>値が無いとき、数式かメモが無ければ記録そのものを作らなかった。
+        つまり上を通しただけでは、まだ塗りは出ない</td>
+      <td>スタイル（セル／文字／表示形式／条件付き）を名指しているなら
+        <code>.generic</code> の記録を作る。<strong>何も言っていないセルだけ</strong> nil のまま——
+        さもないと表の長方形が丸ごと記録になり、内容ではなく寸法がファイルの大きさを決めてしまう</td></tr>
+  </table></div>
+  <p>
+    書式が <code>.generic</code> の記録で表せることは、この文書自身が既に証明していた——
+    条件付き書式の規則は、値の無いセルにも <code>CellStorage.encode(type: .generic, conditionalStyleID:)</code> を
+    置いている。だから<strong>警告を足すのではなく、書けるようにするのが正しい直し方</strong>だった。
+    書けている以上、落ちるものは無く、警告は出ない。
+  </p>
+
+  <h4>同じ日に見つかった 2 件目: 11pt だけが 1pt 小さかった</h4>
+  <p>
+    <code>NumbersStyles.characterProperties</code> は
+    <code>if let size = font.size, size != base.size</code> として
+    「モデルの既定と同じ大きさは書かなくてよい」としていた。ところが <code>base = Font.default</code> は
+    <strong>Calibri 11</strong>（Excel の既定）で、書き込み先である Numbers テンプレートの
+    <code>body_text_style</code> の既定は <strong>HelveticaNeue 10</strong>（実測）。
+    省いた 11 は継承で戻ってこず、<strong>ちょうど 11pt を指定したセルだけが 10pt で描かれていた</strong>
+    （8・12・14 は素通りするので気づきにくい）。モデルが大きさを述べているなら、そのまま書く。
+  </p>
+
+  <div class="callout">
+    <span class="label">ここで意図的に止めた線</span>
+    <p>
+      <strong>(1) 大きさだけを述べた書式は、書式ではない。</strong>
+      <code>$0.font.size = 11</code> しか指定していない <code>CellStyle</code> は
+      <code>CellStyle.default</code> そのもので、モデルには「11 を指定した」と「何も言っていない」の区別が無い。
+      よってそのセルは無地として書かれ、テンプレートの HelveticaNeue 10 を継承する——
+      素のセルすべてに Calibri 11 を明示的に焼き込むのは<em>全出力の見た目の変更</em>であって
+      欠陥の修正ではない。よって現状の挙動のまま残し、<code>elevenPointAloneIsTheDefaultStyle</code> で固定した——
+      変えるとすれば 1.0 の破壊的変更として扱う。
+    </p>
+    <p>
+      <strong>(2) <code>font_name</code> にも同じ誤りが残っている。</strong>
+      すぐ下の行の <code>name != base.name</code> は base が Calibri、テンプレートの既定は HelveticaNeue なので、
+      <strong>Calibri を指定したセルは黙って HelveticaNeue になる</strong>（実測で確認）。
+      構造は大きさの件と同一だが、直せばこのライブラリが書く全文書の書体が変わる。
+      同じ理由で現状のまま残し、コード内に注記だけ置いた——これも 1.0 の破壊的変更の候補。
+    </p>
+  </div>
+
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>直す前</th><th>直した後</th></tr>
+    <tr><td>自作リーダの往復（<code>NumbersValuelessCellTests</code>）</td>
+      <td>塗った 80 セルが 80 とも消える</td><td>全数復元。全体で 827 件が緑</td></tr>
+    <tr><td>numbers-parser 4.19.0（<code>verify_valueless_cells.py</code>）</td>
+      <td>帯 9 セルが 0 セル。C1 は 11pt を頼んで 10.0</td>
+      <td>帯 9 セルが 9 セル。C1 は 11.0</td></tr>
+    <tr><td><strong>Numbers.app 15.3.1 本人</strong>（PDF 書き出し）</td>
+      <td><strong>帯が 1 本も無い空の格子</strong>——Stream の報告そのもの</td>
+      <td>階段状の帯が全 3 本・全 7 列そろって描かれる。文書は <code>clean</code> で開く</td></tr>
+    <tr><td>LibreOffice の Numbers 取り込み（PDF 化）</td>
+      <td>帯が白紙（Stream が最初に気づいた道）</td>
+      <td>帯が出る。<strong>ただし審判としては弱い</strong> — 値だけの 4×7 の表でも
+        <strong>4 列目までしか描かない</strong>ことを実測した。列の端を見るのには使えない</td></tr>
+  </table></div>
+
+  <div class="callout">
+    <span class="label">審判を 1 人取り逃がしかけた: アプリの同一性を名前で判断しない</span>
+    <p>
+      作業中、<code>/Applications</code> に <strong>Numbers Creator Studio.app</strong> という見慣れない名前があり、
+      <code>mdfind kMDItemCFBundleIdentifier == 'com.apple.iWork.Numbers'</code> が何も返さなかったため、
+      「この Mac に Numbers は無く、別アプリが名乗っている」と<strong>誤って結論した</strong>。
+      誤りは 2 つ。macOS の Numbers の識別子は <code>com.apple.Numbers</code> であって
+      <code>com.apple.iWork.Numbers</code> ではないこと、そして入れ物の名前は素の
+      <code>CFBundleDisplayName</code> から来ていて、各 <code>.lproj</code> が "Numbers" に訳し戻すため
+      Finder も Dock も「Numbers」と表示すること——<code>ls</code> したときだけ入れ物の名前が見える。
+    </p>
+    <p>
+      実体は <strong>Apple 純正 Numbers 15.3.1</strong>。
+      <code>spctl -a -vvv</code> が <code>source=Mac App Store</code> /
+      <code>origin=Apple Mac OS Application Signing</code>、<code>_MASReceipt/receipt</code> あり、
+      <code>codesign</code> の <code>Identifier=com.apple.Numbers</code>・Authority は Apple Root CA まで通り、
+      <code>version.plist</code> は <code>ProjectName = Numbers</code>、著作権表記は Apple Inc.、
+      App Store id 361304891。<strong>正しい問いは「名前」でも「置き場」でもなく、
+      LaunchServices が解決した先の<em>署名</em>が Apple か</strong>だった。
+      この取り違えのせいで B.18 で立った 4 人目の審判を一度は外しかけている。
+    </p>
+  </div>
 
 </section>
 

@@ -571,8 +571,14 @@ struct NumbersStyleWriter {
         let font = style.font, base = Font.default
         if font.bold { char.set("bold", bool: true); overrides += 1 }
         if font.italic { char.set("italic", bool: true); overrides += 1 }
-        if let size = font.size, size != base.size { char.set("font_size", float: Float(size)); overrides += 1 }
-        // Numbers names a font by its PostScript name, not by its family
+        // A size the model states is written, whatever it is. Skipping the ones equal to `Font.default.size` — 11,
+        // Excel's default — meant leaving them to the template's own default, which is **10**; a cell asking for
+        // exactly 11pt was the one that came out a point small, while 10 and 12 were fine (Appendix B.20).
+        if let size = font.size { char.set("font_size", float: Float(size)); overrides += 1 }
+        // Numbers names a font by its PostScript name, not by its family.
+        // NOTE: `name != base.name` has the same wrong baseline — the template's default face is HelveticaNeue, not
+        // Calibri, so a cell asking for Calibri silently gets HelveticaNeue. Left as it is on purpose: unlike the
+        // size, changing it restyles every document this library writes, which is the owner's call to make.
         if let name = font.name, name != base.name { char.set("font_name", string: NumbersSchema.shared.fontPostScriptName(name)); overrides += 1 }
         if case .rgb(let hex)? = font.color, let colour = NumbersStyleWriter.color(hex) {
             char.set("font_color", message: colour); overrides += 1

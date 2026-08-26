@@ -585,11 +585,14 @@ struct NumbersWriter {
             return key
         }
 
+        // A cell with no value is not an empty cell. The model drops a truly blank one, so everything still here
+        // has a reason: a fill, a border, a note, a link. A sheet draws with exactly these — a Gantt bar, a
+        // weekend column, a legend swatch are colour and nothing else — and skipping them here sent the drawing
+        // out blank and unreported (Appendix B.20).
         for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
-            guard let stored = cell.value else { continue }
-            var value: CellValue? = stored
+            var value: CellValue? = cell.value
             var formulaID: Int?
-            if case .formula(let expr, let cached) = stored {
+            if case .formula(let expr, let cached)? = cell.value {
                 let seen = formulaEncoder.problems.count
                 if let archive = formulaEncoder.archive(for: expr, row: ref.row, col: ref.col) {
                     formulaID = formulaKey(for: archive)
@@ -873,7 +876,12 @@ struct NumbersWriter {
         case nil:
             // a cell whose text lives in the rich-text list, or a formula whose result the source never cached
             if richID != nil { return encode(.automatic) }
-            return formulaID == nil && commentID == nil ? nil : encode(.generic)
+            // …or one that holds no value and is still worth a record: a style is a thing a cell says. The same
+            // generic record already carries a conditional style below, so the format expresses it; what it may
+            // not carry is nothing at all, which is what an untouched cell is (Appendix B.20).
+            let saysSomething = formulaID != nil || commentID != nil || cellStyleID != nil || textStyleID != nil
+                || conditionalStyleID != nil || formatKey != nil
+            return saysSomething ? encode(.generic) : nil
         case .text(let s): return encode(.text, stringID: key(s))
         case .richText(let runs): return encode(.text, stringID: key(runs.map(\.text).joined()))
         case .integer(let i): return encode(.number, decimal: Decimal(i))

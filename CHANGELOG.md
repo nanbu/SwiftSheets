@@ -7,6 +7,21 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Fixed
+
+- **A cell that carried a style and no value was dropped from a Numbers document without a word.** A sheet draws
+  with exactly those cells — a Gantt bar, a weekend column, a legend swatch are colour and nothing else — and the
+  writer skipped them before it ever reached the fill, so the drawing arrived blank and nothing was reported. It is
+  the one thing this library promises never to do. Found from Stream, whose Gantt lost 66 of a 70-row sample's
+  cells; Numbers 15.3.1 rendered the result as an empty grid and now draws the whole staircase. `.xlsx` and `.ods`
+  were never affected.
+- **A font size of exactly 11pt was drawn a point small in Numbers.** The writer skipped any size equal to
+  `Font.default.size` (Calibri 11, Excel's default) as "already the default", but the Numbers template it writes
+  into defaults to HelveticaNeue 10, so the omitted 11 was not inherited back. A size the model states is now
+  always written. 10pt and 12pt were never affected, which is why this hid for so long.
+
 ## [0.7.1] — 2026-08-26
 
 ### Fixed
