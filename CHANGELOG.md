@@ -7,7 +7,7 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.7.2] — 2026-08-27
 
 ### Fixed
 
@@ -21,6 +21,16 @@ writes, so the constant, the README's status line and the tag always name the sa
   `Font.default.size` (Calibri 11, Excel's default) as "already the default", but the Numbers template it writes
   into defaults to HelveticaNeue 10, so the omitted 11 was not inherited back. A size the model states is now
   always written. 10pt and 12pt were never affected, which is why this hid for so long.
+
+### Changed
+
+- **The Numbers.app judge could answer about the wrong document.** It picks a document up through `front document`,
+  so a window left from an earlier call was what a later call reported on. Two documents byte-identical in their
+  archives answered differently, and a run asked to save one saved another. The judge now clears the previous
+  document and, more importantly, refuses to report at all when the name it gets back is not the one it asked
+  about. Readings taken before 2026-08-26 should be read in that light. It also checks that the application
+  answering really is Apple's Numbers, by signature rather than by the bundle identifier it claims. Test tooling
+  only — nothing in the library changed (see MAINTENANCE.md).
 
 ## [0.7.1] — 2026-08-26
 
@@ -119,6 +129,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.7.2]: https://github.com/nanbu/SwiftSheets/compare/0.7.1...0.7.2
 [0.7.1]: https://github.com/nanbu/SwiftSheets/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/nanbu/SwiftSheets/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/nanbu/SwiftSheets/compare/0.3.0...0.6.0
