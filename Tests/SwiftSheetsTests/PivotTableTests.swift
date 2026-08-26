@@ -76,6 +76,18 @@ import SwiftSheets
         #expect(part.contains("<dataFields count=\"1\">") && part.contains("fld=\"2\""))
     }
 
+    /// A pivot field's name is read; it has to be written too. It was not, so it came home as nothing on every
+    /// round trip — found by the cross-format sweep of 2026-08-27 (spec Appendix B.22).
+    @Test func aPivotFieldKeepsItsName() throws {
+        var wb = Self.sales()
+        wb.addPivotTable(named: "P", to: "Pivot", at: CellRef("A1")!, summarizing: CellRange("A1:D4")!, on: "Data",
+                         rows: ["Item"], values: [("Qty", .sum)])
+        let written = wb.sheets[1].pivotTables[0].fields.map(\.name)
+        #expect(written.contains("Item") && written.contains("Qty"), "\(written)")
+        let back = try Workbook(data: try wb.data(as: .xlsx)).sheets[1].pivotTables[0].fields.map(\.name)
+        #expect(back == written, "the field names did not survive: \(back) vs \(written)")
+    }
+
     /// Everything the layout says survives a round trip, cache and all.
     @Test func theLayoutAndItsCacheReadBack() throws {
         var wb = Self.sales()

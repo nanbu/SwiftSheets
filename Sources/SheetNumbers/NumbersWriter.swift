@@ -498,17 +498,13 @@ struct NumbersWriter {
         let laid = NumbersPivot.summaryTable(pivot, source: columns, named: pivot.name,
                                              rowFields: rowFields, columnFields: columnFields, dataFields: dataFields)
         let size = try patch(tableInfo: summaryInfo, with: laid.table, name: pivot.name, sheetName: sheetName)
-        // …and its own column / row UIDs. `patch` drops the template's, and a pivot's summary is the one table
-        // that cannot do without them: the order map names its rows and columns by UID (Appendix B.19).
-        let summaryUIDs = NumbersPivot.columnUIDMap(count: Swift.max(1, laid.table.columnCount),
-                                                    rowCount: Swift.max(1, laid.table.rowCount))
-        let summaryUIDsID = try doc.add(summaryUIDs.map, file: doc.locations[summaryModel]?.0 ?? "Index/Tables/Tile.iwa")
-        registerComponent(summaryUIDsID, like: summaryModel)
         doc.update(summaryModel) { m in
             m.set("number_of_header_rows", int: laid.headerRows)
             m.set("number_of_header_columns", int: laid.headerColumns)
-            m.set("base_column_row_uids", reference: summaryUIDsID)
         }
+        // Its own column / row UIDs are written further down, once the group trees exist: a summary cell that
+        // draws a group has to carry that group's UUID, so the grid cannot be minted before the groups are
+        // (Appendix B.19).
 
         // column UIDs: the rules name a source column by one of these, so the map has to exist before they do
         let rowCount = (columns.first?.values.count ?? 0) + 1
@@ -605,6 +601,20 @@ struct NumbersWriter {
         // of a pivot carries in a document Numbers wrote.
         let summaryFile = doc.locations[summaryModel]?.0 ?? file
 
+        // The clone brings a table's ordinary furniture with it, and a pivot's two models carry none of it in a
+        // document Numbers wrote: no frozen or repeating headers, no style preset, and — the one that matters —
+        // no `row_filter_set_pre_pivot`, which is where a table remembers the filtering it had *before* it became
+        // a pivot. A pivot that inherits one shows the rows that survive it, and the template's shows none.
+        for model in [summaryModel, sourceModel] {
+            doc.update(model) { m in
+                for field in ["row_filter_set_pre_pivot", "header_rows_frozen", "header_columns_frozen",
+                              "repeating_header_rows_enabled", "repeating_header_columns_enabled",
+                              "table_style_preset"] {
+                    m.remove(field)
+                }
+            }
+        }
+
         // Both models of a pivot carry a spill owner in a document Numbers wrote — the owner a formula whose
         // result runs past its own cell reports into. A pivot has none, but the field is not optional in
         // practice: a model without it is one Numbers does not finish reading (Appendix B.19).
@@ -638,6 +648,15 @@ struct NumbersWriter {
         doc.update(summaryModel) { $0.set("pivot_owner", reference: ownerID) }
 
         // …and the table info that says the two models are one pivot
+        // the summary's grid, carrying the group UUIDs where it draws groups
+        let summaryUIDs = NumbersPivot.summaryUIDMap(columnCount: Swift.max(1, laid.table.columnCount),
+                                                     rowCount: Swift.max(1, laid.table.rowCount),
+                                                     headerRows: laid.headerRows, headerColumns: laid.headerColumns,
+                                                     columnAxis: columnAxis, rowAxis: rowAxis)
+        let summaryUIDsID = try doc.add(summaryUIDs.map, file: doc.locations[summaryModel]?.0 ?? "Index/Tables/Tile.iwa")
+        registerComponent(summaryUIDsID, like: summaryModel)
+        doc.update(summaryModel) { $0.set("base_column_row_uids", reference: summaryUIDsID) }
+
         let orderMapID = try doc.add(NumbersPivot.orderMap(columns: columnAxis, rows: rowAxis), file: summaryFile)
         registerComponent(orderMapID, like: summaryModel)
         var order = ProtoMessage(typeName: "TST.PivotOrderArchive")

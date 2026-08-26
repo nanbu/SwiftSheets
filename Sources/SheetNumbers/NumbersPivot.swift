@@ -228,16 +228,45 @@ enum NumbersPivot {
 
     /// The map a pivot orders itself by: the outermost group node of each axis, in the order the summary draws
     /// them, and the sentinel `(1, 0)` Numbers keeps at the end of both lists (Appendix B.19).
+    /// The UUID that stands for a pivot's label lane — the column of row headings and the row of column headings,
+    /// which belong to no group. Numbers writes it **first** in each axis, not last.
+    static var axisSentinel: ProtoMessage {
+        var s = ProtoMessage(typeName: "TSP.UUID"); s.set("lower", int: 1); s.set("upper", int: 0)
+        return s
+    }
+
     static func orderMap(columns: [ProtoMessage], rows: [ProtoMessage]) -> ProtoMessage {
         var m = ProtoMessage(typeName: "TST.ColumnRowUIDMapArchive")
-        var sentinel = ProtoMessage(typeName: "TSP.UUID"); sentinel.set("lower", int: 1); sentinel.set("upper", int: 0)
-        m.set("sorted_column_uids", messages: columns + [sentinel])
+        m.set("sorted_column_uids", messages: [axisSentinel] + columns)
         m.set("column_index_for_uid", ints: Array(0...columns.count))
         m.set("column_uid_for_index", ints: Array(0...columns.count))
-        m.set("sorted_row_uids", messages: rows + [sentinel])
+        m.set("sorted_row_uids", messages: [axisSentinel] + rows)
         m.set("row_index_for_uid", ints: Array(0...rows.count))
         m.set("row_uid_for_index", ints: Array(0...rows.count))
         return m
+    }
+
+    /// The summary's own grid UIDs — and this is the join Numbers reads the pivot through.
+    ///
+    /// A summary column that draws a group carries **that group's own UUID**, and so does a summary row. Give the
+    /// grid fresh UUIDs of its own and every link between the tree and the table it is drawn into is broken:
+    /// Numbers shows the two field headings and nothing under them, which is what a pivot written with an
+    /// unrelated grid looks like (Appendix B.19). Only the label lanes and the grand totals get UUIDs of their own.
+    static func summaryUIDMap(columnCount: Int, rowCount: Int, headerRows: Int, headerColumns: Int,
+                              columnAxis: [ProtoMessage], rowAxis: [ProtoMessage])
+        -> (map: ProtoMessage, columns: [ProtoMessage], rows: [ProtoMessage]) {
+        var columns = (0..<columnCount).map { _ in NumbersUUID.random().uuid }
+        var rows = (0..<rowCount).map { _ in NumbersUUID.random().uuid }
+        for (i, uid) in columnAxis.enumerated() where headerColumns + i < columns.count { columns[headerColumns + i] = uid }
+        for (i, uid) in rowAxis.enumerated() where headerRows + i < rows.count { rows[headerRows + i] = uid }
+        var m = ProtoMessage(typeName: "TST.ColumnRowUIDMapArchive")
+        m.set("sorted_column_uids", messages: columns)
+        m.set("column_index_for_uid", ints: Array(0..<columnCount))
+        m.set("column_uid_for_index", ints: Array(0..<columnCount))
+        m.set("sorted_row_uids", messages: rows)
+        m.set("row_index_for_uid", ints: Array(0..<rowCount))
+        m.set("row_uid_for_index", ints: Array(0..<rowCount))
+        return (m, columns, rows)
     }
 
     /// A `TSP.UUID` per source column, and the map the source copy carries so the rules can name a column by it.

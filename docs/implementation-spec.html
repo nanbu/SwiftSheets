@@ -2958,6 +2958,79 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </div>
 
 
+  <h4>2026-08-27 の続き — 構造は一致した。組は、まだ描かれない</h4>
+  <p>
+    B.19 が「あと 1〜2 山」と書いた残りを、同じ方法で詰めた。今回の見本は
+    <strong>同じ 1 冊から作った 1 対 1 の対照</strong>である——こちらが書いた
+    <code>.xlsx</code> を Numbers 15.3.1 に読み込ませ、<code>.numbers</code> で保存させたもの。
+    同じ入力・同じピボットなので、差はすべてこちらの落ち度になる。
+  </p>
+  <p>
+    見本にあってこちらに無いフィールド経路は <strong>72 件から 0 件</strong>になった。埋めたもの:
+  </p>
+  <div class="compare"><table>
+    <tr><th>件</th><th>それまで</th></tr>
+    <tr><td><strong>集計の累算</strong>（<code>aggregator</code> / <code>TST.AccumulatorArchive</code>）</td>
+      <td>書いていなかった。件数・最小・最大・合計・積を、組の木と同じ順に歩いて同じ座標に置く</td></tr>
+    <tr><td><strong>組の木の根が、行を 1 行しか名乗っていなかった</strong></td>
+      <td>見本は <code>1…8</code> と名乗る。あわせて行番号の集合を<em>連続する run</em> で書くようにした
+        （<code>range_begin</code> + <code>range_end</code>）——見本と同じ形</td></tr>
+    <tr><td><strong>要約表のマス目が、組の UUID を持っていなかった</strong></td>
+      <td>見本では、組を描く列と行が<strong>その組自身の UUID</strong> を持つ。これが木と表を繋ぐ結び目で、
+        こちらは表に無関係な UUID を振っていた。順序の並びも、番兵 <code>(1, 0)</code> は
+        <em>末尾ではなく先頭</em>だった（B.19 の記述は誤り）</td></tr>
+    <tr><td>元データの写しに残っていた <code>category_owner_deprecated</code></td>
+      <td>テンプレート由来。組の一覧が二重にあることになる</td></tr>
+    <tr><td>所有者の種別</td>
+      <td>はみ出し領域の持ち主は <strong>12</strong>、写しの group-by は <strong>205 と 206</strong>
+        （こちらは 8 と 205 を書いていた）</td></tr>
+    <tr><td>参照版の木と累算</td>
+      <td>見本は木を<strong>二重に</strong>書く——group-by に埋め込み、さらに節ごとに 1 アーカイブとして
+        <code>child_ref</code> で繋ぐ。2 つの group-by に対して 15 個</td></tr>
+    <tr><td><code>formula_store</code>（ピボットが「この表を読む」と告げる参照 3 本）</td>
+      <td>先頭セル・見出しの下の範囲・見出し行。いずれも関数 168 が 1 引数で受ける</td></tr>
+    <tr><td><code>column_agg_type</code>・<code>row_uid_lookup</code>・<code>refresh_timestamp</code></td>
+      <td>書いていなかった</td></tr>
+  </table></div>
+
+  <h4>それでも組は描かれない — 残った穴の場所</h4>
+  <p>
+    ここまでで Numbers は<strong>書類を修復なしに開く</strong>。<code>numbers-parser</code> とこちらの読み手は
+    東 8/4/12・北 3/6/9・西 5/10/15・総計 36 を読み戻す。<strong>元データの写しも Numbers 自身が
+    9 行 3 列すべて正しく読む</strong>（シートに戻して確かめた）。規則も読めている——
+    Numbers は行の見出し <em>Region</em> と列の見出し <em>Product</em> を描く。
+    <strong>にもかかわらず、その下に組が 1 つも現れない。</strong>
+  </p>
+  <p>
+    確かめて<em>除外</em>できたこと: フィールドの欠落（0 件）、UUID の解決（規則・group-by・累算・
+    順序の並び・要約表のマス目——すべて解決する）、版の記録（新しい版に差し替えても変わらない）、
+    <code>row_filter_set_pre_pivot</code> 等のテンプレート由来の余分な項目（外しても変わらない）、
+    エンジンの <code>group_node_map</code>（外しても変わらない）。
+  </p>
+  <p>
+    残るのは<strong>計算エンジン側の帳簿</strong>である。同じ 1 冊で数えると:
+  </p>
+  <div class="compare"><table>
+    <tr><th></th><th>Numbers 自身</th><th>こちら</th></tr>
+    <tr><td><code>TSCE.CellRecordTileArchive</code></td><td>14</td><td class="bad">3</td></tr>
+    <tr><td><code>TSCE.RangePrecedentsTileArchive</code></td><td>1</td><td class="bad">0</td></tr>
+    <tr><td><code>FormulaOwnerDependenciesArchive</code></td><td>36（全部が依存を持つ）</td><td class="bad">22（うち 4 つは空）</td></tr>
+    <tr><td>エンジンの <code>refs_to_dirty</code></td><td>あり</td><td class="bad">なし</td></tr>
+  </table></div>
+  <p>
+    group-by が持つ 8 つの「帳簿の座標」（<code>grouping_columns_formula</code> ほか）は、
+    <strong>この帳簿の中の式を指している</strong>。座標は書いたが、指された先の式を書いていない。
+    <em>次に見るのはここ</em>——見本の <code>CellRecordTile</code> を 1 件ずつ読み、
+    group-by の所有者ごとにどの記録が要るのかを数える。
+    <code>refs_to_dirty</code> を見本から移植する実験は、他文書の所有者 id を名指すため書類ごと壊れた
+    （移植ではなく<em>生成</em>が要る、ということでもある）。
+  </p>
+  <p class="meta">
+    書き出しの既定は <code>writesPivotTables = false</code> のまま。
+    <strong>Numbers が受け付けない書類を渡すのは、渡さないより悪い</strong>——
+    いまの文書は開きこそすれ、ピボットが空である。この線引きは変えていない。
+  </p>
+
   <h3>B.20 値を持たないセルが消えていた（Rev 2.4）</h3>
   <p>
     2026-08-26。<a href="https://github.com/nanbu/Stream">Stream</a>（WBS＋ガントの編集アプリ）が
