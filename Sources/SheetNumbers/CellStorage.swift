@@ -26,6 +26,9 @@ struct CellStorage {
     var durationFormatID: Int?
     var textFormatID: Int?
     var boolFormatID: Int?
+    /// The cell's interactive control (a pop-up menu, checkbox, stepper, slider or star rating). The model has
+    /// no word for one, so this is kept only to be able to say the cell had it — see `NumbersReader.table`.
+    var controlID: Int?
     var extras: UInt16 = 0
 
     static func decode(_ buffer: Data) throws -> CellStorage {
@@ -63,7 +66,7 @@ struct CellStorage {
         if flags & 0x80 != 0 { s.conditionalStyleID = try int32() }
         if flags & 0x100 != 0 { _ = try int32() }       // conditional rule style
         if flags & 0x200 != 0 { s.formulaID = try int32() }
-        if flags & 0x400 != 0 { _ = try int32() }       // control
+        if flags & 0x400 != 0 { s.controlID = try int32() }
         if flags & 0x800 != 0 { s.formulaErrorID = try int32() }
         if flags & 0x1000 != 0 { _ = try int32() }      // suggest
         if flags & 0x2000 != 0 { s.numFormatID = try int32() }

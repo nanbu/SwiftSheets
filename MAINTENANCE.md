@@ -7,9 +7,19 @@ therefore a recurring maintenance item, not a one-off.
 
 The documents in `Tests/SwiftSheetsTests/Fixtures/numbers/` are the verified corpus; their `Metadata/BuildVersionHistory.plist`
 entries name the Numbers versions they were produced by — Numbers 11–14 era files from numbers-parser's suite, plus
-two written by **Numbers 15.3.1** on 2026-08-25 (`conditional-formats-15`, `links-notes-15`). Theme images and
-previews are stripped from those two, which Numbers does not need to open them and which would otherwise make each
-file half a megabyte.
+three written by **Numbers 15.3.1** (`conditional-formats-15`, `links-notes-15` on 2026-08-25;
+`chart-and-control-15` on 2026-08-26). Theme images and previews are stripped from those three, which Numbers does
+not need to open them and which would otherwise make each file half a megabyte.
+
+**Keep at least one document in the corpus that is not all tables.** Until `chart-and-control-15` was added, every
+fixture held tables and nothing else, so the reader had never been shown a chart or a cell control — and the fact
+that it discarded both without a word went unnoticed through four external judges. That fixture was made by writing
+an `.xlsx` with a chart and a list validation (openpyxl) and having Numbers import and re-save it:
+
+```bash
+python3 Tests/NumbersParity/numbers_app.py   # numbers_app.resave(<xlsx>, <numbers>)
+zip -d <out>.numbers 'Data/PresetImageFill*' 'preview*.jpg'   # 665 KB → 112 KB; Numbers still opens it
+```
 `Workbook.sourceInfo.version` reports the producing version of any file read.
 
 ## Read policy: tolerant by default

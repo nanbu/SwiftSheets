@@ -127,6 +127,9 @@ is reported, never dropped in silence.
   (contains, does not contain, begins with, ends with), duplicate and unique. Colour scales, data bars, icon sets,
   top-n, above-average, blanks, errors, dates and free formulas are reported as dropped — the same eleven Numbers
   itself drops when it imports an Excel file.
+- **A Numbers sheet is a canvas, not a grid.** Charts, images, shapes and text boxes stand on it beside the tables,
+  and a cell can carry an interactive control (a pop-up menu, checkbox, stepper, slider or star rating). None of
+  them fits the model: the value under a control is read, the control and the objects are reported as `dropped`.
 - Everything else Numbers has no word for — validations, pivot tables, named tables, auto-filters, sheet protection,
   scenarios, print setup, defined names, tab colours, outline grouping — is reported as a warning. Nothing is
   dropped in silence.

@@ -70,6 +70,13 @@ struct NumbersReader {
                 let cols = model.bool("header_columns_frozen") == true ? (model.int("number_of_header_columns") ?? 0) : 0
                 if rows > 0 || cols > 0 { sheet.freezePanes = CellRef(row: rows, col: cols) }
             }
+            // A Numbers sheet is a canvas. Whatever else is standing on it cannot come into the model, and until
+            // this was added it went without a word — the one thing the library promises never to do.
+            for (kind, count) in nonTableDrawables(inSheet: sid) {
+                warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                  message: count == 1 ? "the sheet holds \(kind), which the model has no place for"
+                                                                      : "the sheet holds \(count) × \(kind), which the model has no place for"))
+            }
             sheets.append(sheet)
         }
         guard !sheets.isEmpty else { throw SheetError.invalidWorkbook("the Numbers document has no sheets") }
@@ -94,6 +101,30 @@ struct NumbersReader {
             info.version = last
         }
         return info
+    }
+
+    /// What a Numbers sheet may hold besides a table. A Numbers sheet is a canvas, not a grid: tables, charts,
+    /// images, shapes and text boxes all sit on it side by side. The model has a word for the table only, so the
+    /// rest is reported — `.objects`, the subject that names charts and drawings everywhere else in the library.
+    /// Anything not named here is reported by its archive name rather than guessed at.
+    static let drawableNames: [String: String] = [
+        "TSCH.ChartDrawableArchive": "a chart",
+        "TSD.ImageArchive": "an image",
+        "TSD.ShapeArchive": "a shape",              // a text box is a shape carrying text
+        "TSD.MovieArchive": "a movie",
+        "TSD.GroupArchive": "a group of objects",
+        "TSD.ConnectionLineArchive": "a connection line",
+        "TSD.DrawableArchive": "a drawing"
+    ]
+
+    /// Everything on a sheet's canvas that is not a table, counted by kind.
+    func nonTableDrawables(inSheet sid: Int) -> [(kind: String, count: Int)] {
+        guard let sheet = doc.object(sid) else { return [] }
+        var counts: [String: Int] = [:]
+        for did in sheet.references("drawable_infos") where doc.typeName(did) != "TST.TableInfoArchive" {
+            counts[doc.typeName(did) ?? "an object of an unknown kind", default: 0] += 1
+        }
+        return counts.sorted { $0.key < $1.key }.map { (NumbersReader.drawableNames[$0.key] ?? $0.key, $0.value) }
     }
 
     /// TableModelArchive ids of the tables drawn on a sheet, in canvas order.
@@ -206,6 +237,9 @@ struct NumbersReader {
     mutating func table(_ tid: Int, sheetName: String) -> Table? {
         guard let model = doc.object(tid), let store = model.message("base_data_store") else { return nil }
         var t = Table(name: model.string("table_name"))
+        /// Cells carrying an interactive control (pop-up menu, checkbox, stepper, slider, star rating). The value is
+        /// read; the control itself has no place in the model, so it is reported rather than passed over in silence.
+        var controlledCells: [CellRef] = []
         let rows = model.int("number_of_rows") ?? 0, cols = model.int("number_of_columns") ?? 0
         if let info = doc.identifiers(ofType: "TST.TableInfoArchive").first(where: { doc.object($0)?.reference("tableModel") == tid }),
            let geometry = doc.object(info)?.message("super")?.message("geometry"), let pos = geometry.message("position") {
@@ -290,6 +324,7 @@ struct NumbersReader {
                     do {
                         let s = try CellStorage.decode(record)
                         if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                        if s.controlID != nil { controlledCells.append(CellRef(row: row, col: col)) }
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
                         let rich = s.richID.flatMap { richTexts[$0] }
@@ -317,6 +352,12 @@ struct NumbersReader {
             }
         }
         for p in decoder.problems.prefix(20) { warnings.append(ConversionWarning(.degraded, sheet: sheetName, message: "formula: \(p)")) }
+        if let first = controlledCells.first {
+            let n = controlledCells.count
+            let subject = n == 1 ? "the cell at \(first.a1) carries" : "\(n) cells starting at \(first.a1) carry"
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName, location: first,
+                                              message: "\(subject) a Numbers control (pop-up menu, checkbox, stepper, slider or rating); the value is kept, the control is not"))
+        }
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)
         t.nextAppendRow = rows

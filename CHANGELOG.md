@@ -7,6 +7,16 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Fixed
+
+- **A Numbers sheet's charts, images and shapes, and a cell's interactive controls, were dropped without a word.**
+  A Numbers sheet is a canvas: the reader took the tables off it and discarded everything else silently, which is
+  the one thing this library promises never to do. They are now reported as `dropped` warnings on `.objects` —
+  reading them is a separate, larger question. The corpus gained its first fixture that is not all tables
+  (`chart-and-control-15.numbers`, Numbers 15.3.1), which is how this was found and how it stays fixed.
+
 ## [0.7.0] — 2026-08-26
 
 The release the README has been describing. Everything below landed after the `0.6.0` tag was cut and had never
