@@ -48,7 +48,7 @@ import SwiftSheets
         "ラベル範囲": "label range",
         "統合の定義": "consolidation",
         "探偵の矢印": "tracing arrow",
-        "計算設定": "calculation settings",
+        "計算設定": "a calculation setting is dropped",
     ]
 
     /// A real file of each format, made from the one workbook that carries everything the model can say.
@@ -144,6 +144,32 @@ import SwiftSheets
         let macros = written.warnings.filter { $0.subject == .macros }
         #expect(macros.count == 1, Comment(rawValue: "\(target.rawValue): \(written.warnings.map(\.message))"))
         #expect(written.suggestion?.format == .xlsm, "the way out of a macro loss is .xlsm, not \(written.suggestion?.format.rawValue ?? "nothing")")
+    }
+
+    /// `Workbook.convert` is the one call that never hands back the workbook, so the warnings the *read* made have
+    /// nowhere else to surface. It used to answer with the write's warnings alone: a Numbers document whose chart
+    /// and cell controls the reader had named came back saying nothing at all (spec Appendix B.23).
+    @Test func convertAnswersWithBothHalvesOfTheTrip() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "SwiftSheetsConvert-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let source = directory.appending(path: "canvas.numbers")
+        try Data(contentsOf: Bundle.module.resourceURL!.appending(path: "Fixtures/numbers/chart-and-control-15.numbers"))
+            .write(to: source)
+        let read = try Workbook.read(contentsOf: source)
+        #expect(read.warnings.count == 2, Comment(rawValue: "\(read.warnings.map(\.message))"))
+
+        let converted = try Workbook.convert(source, to: .xlsx, output: directory.appending(path: "canvas.xlsx"))
+        for warning in read.warnings {
+            #expect(converted.warnings.contains(warning), Comment(rawValue: """
+                convert() lost the read's warning "\(warning.message)" — it is the only place a caller could have seen it.
+                convert() said: \(converted.warnings.map(\.message))
+                """))
+        }
+        #expect(converted.warnings.prefix(read.warnings.count).elementsEqual(read.warnings),
+                "the trip is reported in the order it was made: reading first")
     }
 
     /// Keeping the macros needs no conversion at all.

@@ -1851,6 +1851,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.4 Draft</td><td>2026-08-26</td><td>Numbers 書き出しが<strong>「値は持たないが書式は持つセル」を警告なしで捨てていた</strong>件を付録 B.20 に記録。セルの取り出しが値の無いセルを書式に触れる前に飛ばしていたので、塗りだけで描いた図（ガントの帯・週末の列）が丸ごと消えていた。あわせて、<code>Font.default</code>（Calibri 11）と同じ大きさを「既定だから書かなくてよい」と省いていた件も直す — テンプレートの既定は <strong>HelveticaNeue 10</strong> で、11pt を指定したセルだけが 1pt 小さく描かれていた</td></tr>
     <tr><td>2.5 Draft</td><td>2026-08-27</td><td>B.20 で「1.0 の破壊的変更の候補」として残した<strong>書体の同種欠陥を直した</strong>（付録 B.21）。<code>font_name</code> も <code>Font.default</code>（Calibri）と比べて省いていたため、Calibri を指定したセルがテンプレートの HelveticaNeue で描かれていた。モデルが述べた書体は常に書く。あわせて、この Mac の Calibri が <strong>Microsoft Office 専用フォルダにしか無い</strong>にもかかわらず Numbers が正しく描くことを実測（Numbers の PDF に本物の Calibri が埋め込まれる）</td></tr>
     <tr><td>2.6 Draft</td><td>2026-08-27</td><td>相互変換の全量点検を行い、付録 B.22 に記録。<strong>ピボット表を持つ Excel ファイルは 2 回目の保存で壊れていた</strong>（書き手が自分で書く属性を、読み手が「知らない属性」として覚え直し、次の保存で二重に書いていた——属性の重複は整形式ではない XML）。あわせて、Numbers への<strong>配列数式・保護範囲</strong>、ODS / Numbers への <strong>VBA</strong> が黙って落ちていた 3 件を直し、壊れた部品を黙って読み飛ばしていた読み手にも警告を出させた。方向ごとの点検（<code>CrossFormatConversionTests</code>）と世代テストを新設</td></tr>
+    <tr><td>2.7 Draft</td><td>2026-08-27</td><td>B.22 で「先に方針を決めるべき」として残した 2 件を、方針を決めたうえで直した（付録 B.23）。<strong><code>Workbook.convert</code> が読み込みの警告を捨てていた</strong>——図とセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換して警告 0 件が返っていた。往路と復路の両方を返す。<strong>計算設定の警告が、ODS から変換するたびに必ず出ていた</strong>——モデルの既定と比べていたためで、LibreOffice が全ファイルに書く既定値がそれと食い違っていた。「<em>行き先が違う振る舞いをするか</em>」に基準を変え、効いていない設定は数えない</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3015,7 +3016,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
   <h3>B.22 2 回目の保存で壊れていた（Rev 2.6）</h3>
   <p>
-    2026-08-27。オーナーの指示で、<strong>Excel / ODS / Numbers の独自機能が相互変換でどう扱われているかを
+    2026-08-27。<strong>Excel / ODS / Numbers の独自機能が相互変換でどう扱われているかを
     全量点検した</strong>。点検の形は 2 つ。ひとつは <em>方向</em> ごとの点検——「その形式で一度保存した本物の
     ファイル」を開いて別形式に書き、消えたものひとつひとつに<strong>それを名指しする警告があるか</strong>を突き合わせる。
     もうひとつは <em>世代</em> の点検——同じ文書を 3 回保存し、毎回すべての部品が整形式のままか、
@@ -3089,6 +3090,13 @@ wb.sheets[<span class="nm">0</span>] = sheet
     「部品が落ちた」と言うのは、言葉の粗さではなく<em>案内の誤り</em>だった。
   </p>
 
+  <p>
+    同じ形の 4 件目がもうひとつあった。<strong>ピボットの列の名前</strong>（<code>pivotField/@name</code>）は、
+    読み手が「モデルに置き場所がある」として <code>otherAttributes</code> から除いていたにもかかわらず、
+    書き手がそれを書いていなかった。往復のたびに黙って消えていたことになる（属性の担当表が
+    <em>両方向に</em>食い違っていた、ということである）。書き手が書くようにした。
+  </p>
+
   <h4>直さずに残したもの — 先に方針を決めるべき 2 件</h4>
   <div class="compare"><table>
     <tr><th>件</th><th>いま起きていること</th><th>推奨</th></tr>
@@ -3115,6 +3123,103 @@ wb.sheets[<span class="nm">0</span>] = sheet
         <td>Excel の入力規則を Numbers 自身が<strong>ポップアップメニューに置き換える</strong>ことを、
             推測ではなく<em>表明</em>として固定した（それまでは許容リストの穴で落ちていた）</td></tr>
     <tr><td>全体</td><td>837 件が緑</td></tr>
+  </table></div>
+
+  <h3>B.23 先に方針を決めた 2 件 — 警告は「返す」ものであり、「毎回出す」ものではない（Rev 2.7）</h3>
+  <p>
+    2026-08-27。B.22 の点検で見つかりながら、公開 API の意味と警告の線引きに判断が要るため直さずに残した 2 件を、
+    方針を決めたうえで入れた。<strong>どちらも同じことを別の側から言っている</strong>——
+    「黙って落とさない」という約束は、<em>言うべきときに言う</em>ことと
+    <em>言わなくてよいときに黙る</em>ことの両方で成り立つ。
+  </p>
+
+  <h4>1. <code>Workbook.convert</code> が、旅の半分しか報告していなかった</h4>
+  <p>
+    <code>convert</code> は「開いて、別の形式で書く」を 1 行で行う唯一の入口で、
+    <strong>ワークブックを呼び手に返さない唯一の入口</strong>でもある。にもかかわらず戻り値は
+    書き出しの <code>WriteResult</code> だけで、読み込みの警告は <code>readWarnings</code> ごと捨てられていた。
+  </p>
+  <p>
+    実測。図 1 つとセル制御 8 個を持つ <code>chart-and-control-15.numbers</code> を <code>.xlsx</code> に変換する:
+  </p>
+  <pre>読み込みが言ったこと  Data!C2: 8 cells starting at C2 carry a Numbers control …
+                     Data: the sheet holds a chart, which the model has no place for
+convert() の戻り値    警告 0 件</pre>
+  <p>
+    読み手はきちんと言っていた。捨てていたのは入口である。しかも Numbers の図とセル制御は
+    <strong>読み込みでしか報告されない</strong>——モデルに入らないので、書き出しには報告する材料が残らない。
+    つまりこの入口を通った利用者は、それを知る方法が<em>ひとつも無かった</em>。
+  </p>
+  <p>
+    往路の警告を先に、復路の警告を後に連結して返すようにした。<code>suggestion</code> は変えていない——
+    「どの形式なら残ったか」は書き出しについての問いだからである。型は変わらないので、
+    公開 API の互換は保たれる（件数だけが増える）。
+  </p>
+
+  <h4>2. 計算設定の警告が、ODS を変換するたびに必ず出ていた</h4>
+  <p>
+    こちらは逆向きの誤りである。判定が <code>!calculationSettings.isDefault</code>——
+    <strong>モデルが決めた既定値と一致するか</strong>——だった。ところが LibreOffice は、
+    保存するすべての ODS に自分の既定値を書き込む。そしてそれはこちらの既定と食い違う:
+  </p>
+  <div class="compare"><table>
+    <tr><th>設定</th><th>モデルの既定</th><th>LibreOffice が書く値</th><th>実際に効くか</th></tr>
+    <tr><td><code>table:automatic-find-labels</code></td><td>true（ODF の既定）</td><td>false</td>
+        <td><strong>効かない。</strong>これは「数式が宣言していない見出しを名乗ってよい」という<em>許可</em>であって、
+            使う数式があって初めて意味を持つ。使う数式はラベル範囲として別に報告される</td></tr>
+    <tr><td><code>table:null-year</code></td><td>なし</td><td>1950</td>
+        <td>効く。ただし既存の内容ではなく、<em>これから打ち込む</em>二桁年の読み方を変える</td></tr>
+    <tr><td><code>table:maximum-difference</code></td><td>なし</td><td>0.0001</td>
+        <td><strong>効かない。</strong>反復計算が off なので、どの計算エンジンもこの閾値に到達しない</td></tr>
+  </table></div>
+  <p>
+    結果、<strong>利用者が何ひとつ設定していない LibreOffice のファイルでも、変換のたびに警告が立っていた</strong>。
+    嘘ではない。だが<em>毎回出る警告は読まれなくなる</em>——「黙って落とさない」の価値は、
+    警告が珍しいことに支えられている。この警告は、他の警告の信用を削っていた。
+  </p>
+  <p>
+    問いを変えた。「<strong>モデルの既定と違うか</strong>」ではなく
+    「<strong>行き先がこの文書を違うように読むか</strong>」である。
+    <code>CalculationSettings.asAssumedOutsideODF</code> に、ODF 以外を読むアプリケーションが
+    ファイルの記述にかかわらず必ずそうする振る舞いを書いた——Excel はファイル単位の計算設定を持たず、
+    常に大小文字を無視し、常に検索条件をワイルドカードとして読み、常にセル全体と照合し、
+    循環参照を反復せず、二桁年の 30–99 を 1900 年代に置く。
+    <code>differences(from:)</code> が、<strong>いま効いている</strong>設定のうち行き先と食い違うものだけを、
+    人が読める節にして返す。
+  </p>
+  <pre>a calculation setting is dropped — a two-digit year starts its hundred years at 1950 here,
+and at 1930 there; only OpenDocument keeps it in the file</pre>
+  <p>
+    「いま効いている」が、反復計算が off のあいだ歩数と閾値を数えない理由である。
+    <strong>どの計算エンジンも到達しない歩数は、一文を割く損失ではない。</strong>
+  </p>
+  <div class="compare"><table>
+    <tr><th>文書</th><th>これまで</th><th>これから</th></tr>
+    <tr><td>まっさらなブック</td><td>0 件</td><td>0 件</td></tr>
+    <tr><td>LibreOffice が保存した ODS（利用者は何も設定していない）</td>
+        <td><strong>1 件</strong>「計算設定（検索条件・反復・二桁年の窓）を落とした」</td>
+        <td><strong>1 件</strong>「二桁年の窓がここでは 1950 から、あちらでは 1930 から」——
+            <em>件数は同じだが、言っていることが違う。</em>漠然とした 5 項目の束ではなく、
+            実際に食い違う 1 項目を名指しする</td></tr>
+    <tr><td>反復計算の歩数だけを持つブック（反復は off）</td><td>1 件</td><td>0 件</td></tr>
+    <tr><td>正規表現を有効にしたブック</td><td>1 件（束）</td><td>1 件（名指し）</td></tr>
+  </table></div>
+  <p class="meta">
+    正直に書いておく。<strong>LibreOffice のファイルで警告が 1 件消えたわけではない</strong>——
+    二桁年の窓は本当に食い違っており、「1/1/50」の読みが変わる。減らしたのは<em>件数ではなく曖昧さ</em>で、
+    残った 1 件は利用者が実際に判断できる内容になった。他の 4 項目は、行き先が同じ振る舞いをするので黙る。
+  </p>
+
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td><code>convertAnswersWithBothHalvesOfTheTrip</code></td>
+        <td>読み込みの警告 2 件が <code>convert</code> の戻り値に、読んだ順で入っている。
+            直す前の実装に戻すと 3 つの表明が同時に赤くなることを確認</td></tr>
+    <tr><td><code>aCalculationSettingIsReportedOnlyWhenItWouldChangeSomething</code></td>
+        <td>まっさらなブックと LibreOffice の既定値は 0 件、二桁年の窓・正規表現・反復の切り替えは名指し。
+            同じく、直す前の実装で 4 つの表明が赤くなる</td></tr>
+    <tr><td>全体</td><td>839 件が緑</td></tr>
   </table></div>
 
 </section>

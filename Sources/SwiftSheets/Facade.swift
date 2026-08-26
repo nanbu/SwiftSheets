@@ -69,7 +69,13 @@ extension Workbook {
             out.append(ConversionWarning(.dropped, subject: .other,
                                          message: "\(what) is dropped: only OpenDocument has it"))
         }
-        if !calculationSettings.isDefault { drop("the calculation settings (search conditions, iteration, the two-digit-year window)") }
+        // Not "these settings differ from ours" but "the destination will read this document differently" — the
+        // question a warning is worth. LibreOffice writes its own defaults into every ODS, so the older test
+        // reported a loss on every ODS conversion ever made (spec Appendix B.23).
+        for difference in calculationSettings.differences(from: .asAssumedOutsideODF) {
+            out.append(ConversionWarning(.dropped, subject: .other,
+                                         message: "a calculation setting is dropped — \(difference); only OpenDocument keeps it in the file"))
+        }
         if !labelRanges.isEmpty { drop("\(labelRanges.count) label range(s) — headings usable in formulas") }
         if consolidation != nil { drop("the stored consolidation definition") }
         let arrows = sheets.reduce(0) { $0 + $1.tables.reduce(0) { $0 + $1.detective.count } }
@@ -96,8 +102,20 @@ extension Workbook {
     }
 
     /// Read → write in one step.
+    ///
+    /// The result carries **both** halves of the trip: what the source file held that the model cannot say, and
+    /// what the model holds that the destination cannot say. Reading is as much a place to lose something as
+    /// writing — a Numbers document's charts and cell controls are reported by the read and by nothing else — and
+    /// this is the one call that never hands back the workbook, so a caller has nowhere else to find them
+    /// (spec Appendix B.23). The read's warnings come first, in the order the trip made them.
+    ///
+    /// `suggestion` is unchanged: which format would have kept more is a question about the write.
     @discardableResult
     public static func convert(_ source: URL, to format: SheetFormat, output: URL, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) throws -> WriteResult {
-        try Workbook(contentsOf: source, options: readOptions).write(to: output, as: format, options: writeOptions)
+        let opened = try Workbook.read(contentsOf: source, options: readOptions)
+        let written = try opened.workbook.write(to: output, as: format, options: writeOptions)
+        guard !opened.warnings.isEmpty else { return written }
+        return WriteResult(data: written.data, warnings: opened.warnings + written.warnings,
+                           suggestion: written.suggestion)
     }
 }

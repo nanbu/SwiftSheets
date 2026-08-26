@@ -23,6 +23,9 @@ writes, so the constant, the README's status line and the tag always name the sa
 - **A part whose XML will not parse is now reported instead of being passed over.** `Workbook.read` of an `.xlsx`
   answers with a warning naming the part and what was skipped; `WorkbookReader.read` returns its warnings alongside
   the workbook, the way every other reader already did.
+- **A pivot field's name was read and never written back**, so it came home as nothing on every XLSX round trip.
+  The reader excluded `name` from the attributes it keeps verbatim (it has a home in the model) but the writer
+  never emitted it.
 - **Three things were dropped in silence on conversion**, found by checking each direction feature by feature
   against the warnings it returned:
   - array formulas written to Numbers — the anchor cell's formula travels, only the range it spilled over is lost,
@@ -33,6 +36,22 @@ writes, so the constant, the README's status line and the tag always name the sa
     `WriteResult.suggest` propose `.xlsx`, a format that loses the macros just as thoroughly. Both writers now
     report it as a `.macros` loss and the suggestion is `.xlsm`.
 
+- **`Workbook.convert` answered with half the trip.** It is the one call that never hands the workbook back, so
+  the warnings the *read* made had nowhere else to surface — and a Numbers document's charts and cell controls are
+  reported by the read and by nothing else, because they never reach the model for the write to report. Converting
+  a document with a chart and eight cell controls to `.xlsx` came back saying **nothing at all**. The result now
+  carries both halves, reading's first. `suggestion` is unchanged: which format would have kept more is a question
+  about the write (spec Appendix B.23).
+- **Every ODS conversion reported a calculation-setting loss, whether or not anything would behave differently.**
+  The test was "do these settings differ from the model's own defaults", and LibreOffice writes its own defaults
+  into every file it saves — `automatic-find-labels="false"`, `null-year="1950"`, an iteration threshold while
+  iteration is off — none of which match ours. So a user who had set nothing was told something was lost, every
+  time. The question is now **"will the destination read this document differently"**
+  (`CalculationSettings.asAssumedOutsideODF` / `differences(from:)`), and a setting that is not in force — the
+  iteration detail while iteration is off — is not counted. Each remaining difference gets its own sentence naming
+  both ends (`a two-digit year starts its hundred years at 1950 here, and at 1930 there`) instead of one vague
+  lump. A brand-new workbook and a LibreOffice file with nothing set both report nothing.
+
 ### Added
 
 - `CrossFormatConversionTests` — the sweep behind the new interoperability document: every one of the nine
@@ -40,6 +59,8 @@ writes, so the constant, the README's status line and the tag always name the sa
   the same document must stay well-formed and keep everything. Neither question had been asked before; both had
   something to say.
 - `PreservationStore.hasVBAProject`, so a writer can name a macro loss for what it is.
+- `CalculationSettings.asAssumedOutsideODF` and `differences(from:)` — what an application outside ODF does
+  whatever the file says, and the settings that are in force here and would be read differently there.
 - [docs/interoperability.html](https://nanbu.github.io/SwiftSheets/interoperability.html) — what happens to each
   format's own features when it is converted into the other two, the four possible outcomes, and the test that
   measures each claim.

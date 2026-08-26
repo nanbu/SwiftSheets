@@ -116,10 +116,61 @@ import SwiftSheets
                     "\(format.rawValue) says the label ranges are gone")
             #expect(warnings.contains { $0.message.contains("consolidation") })
             #expect(warnings.contains { $0.message.contains("tracing arrows") })
-            #expect(warnings.contains { $0.message.contains("calculation settings") })
+            // one sentence per setting that is in force and would be read differently there (Appendix B.23) —
+            // this workbook sets case sensitivity, regular expressions, wildcards, precision-as-shown and iteration
+            let calc = warnings.filter { $0.message.contains("a calculation setting is dropped") }
+            #expect(calc.count >= 4, Comment(rawValue: "\(format.rawValue): \(calc.map(\.message))"))
+            #expect(calc.contains { $0.message.contains("regular expression") })
+            #expect(calc.contains { $0.message.contains("circular reference") })
         }
         // …and ODS says nothing, because ODS keeps them
         #expect(try !wb.write(as: .ods).warnings.contains { $0.message.contains("only OpenDocument has it") })
+    }
+
+    /// A calculation setting earns a warning when the destination would **behave differently**, not when it merely
+    /// differs from the model's own defaults (spec Appendix B.23).
+    ///
+    /// LibreOffice writes its own defaults into every ODS it saves, so the older test — "is this the default
+    /// workbook's settings?" — reported a loss on every ODS conversion anyone ever made, whether or not a single
+    /// formula would evaluate differently. A warning everybody sees every time is a warning nobody reads.
+    @Test func aCalculationSettingIsReportedOnlyWhenItWouldChangeSomething() throws {
+        func warnings(_ settings: CalculationSettings) throws -> [String] {
+            var wb = Workbook()
+            wb.sheets[0]["A1"] = "x"
+            wb.calculationSettings = settings
+            return try wb.write(as: .xlsx).warnings.map(\.message).filter { $0.contains("calculation setting") }
+        }
+
+        #expect(try warnings(CalculationSettings()).isEmpty, "a brand-new workbook has nothing to report")
+
+        // exactly what LibreOffice 26.2 writes into every file it saves
+        var libreOffice = CalculationSettings()
+        libreOffice.automaticFindLabels = false
+        libreOffice.searchCriteriaMustApplyToWholeCell = true
+        libreOffice.useWildcards = true
+        libreOffice.iterationEnabled = false
+        libreOffice.iterationMaximumDifference = 0.0001
+        let noise = try warnings(libreOffice)
+        #expect(noise.count == 0, Comment(rawValue: "LibreOffice's own defaults are not a loss: \(noise)"))
+
+        // …but a two-digit-year window that really is elsewhere is one sentence, naming both ends
+        var window = libreOffice
+        window.nullYear = 1950
+        let reported = try warnings(window)
+        #expect(reported.count == 1, Comment(rawValue: "\(reported)"))
+        #expect(reported[0].contains("1950") && reported[0].contains("1930"), Comment(rawValue: reported[0]))
+
+        // a setting that changes how this document's own formulas evaluate is always reported
+        var regex = CalculationSettings()
+        regex.useRegularExpressions = true
+        #expect(try warnings(regex).count == 1)
+
+        // the iteration detail stays quiet while iteration is off, and speaks once it is on
+        var iterating = CalculationSettings()
+        iterating.iterationSteps = 42
+        #expect(try warnings(iterating).isEmpty, "a step count no engine will reach is not a loss")
+        iterating.iterationEnabled = true
+        #expect(try warnings(iterating).count == 2, "the switch and the step count")
     }
 
     /// A date origin ODF allows and the model cannot hold is read as the 1900 system, and says so.

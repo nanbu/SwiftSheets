@@ -54,6 +54,58 @@ public struct CalculationSettings: Hashable, Sendable {
     }
 
     public var isDefault: Bool { self == CalculationSettings() }
+
+    /// What an application reading a format other than ODF does anyway, whatever the file says.
+    ///
+    /// Excel has no file-level calculation settings: it always compares text case-insensitively, always reads a
+    /// search condition as a wildcard pattern rather than a regular expression, always matches against the whole
+    /// cell, never hunts for a heading in a formula, does not iterate over circular references, and puts a
+    /// two-digit year 30–99 in the 1900s. LibreOffice writes all of these into *every* ODS it saves, so comparing
+    /// a file against the model's own defaults reported a loss on every conversion, whether or not anything would
+    /// actually behave differently. Comparing against this answers the question that matters instead: **will the
+    /// destination do something else with this document than the source did** (spec Appendix B.23).
+    public static let asAssumedOutsideODF = CalculationSettings(
+        caseSensitive: false, precisionAsShown: false, searchCriteriaMustApplyToWholeCell: true,
+        automaticFindLabels: true, useRegularExpressions: false, useWildcards: true, nullYear: 1930,
+        iterationEnabled: false, iterationSteps: nil, iterationMaximumDifference: nil)
+
+    /// The settings that are **in force** here and would be read differently there, each as a clause a person can
+    /// act on: what this file asks for, and what the destination will do instead. Empty means the destination
+    /// behaves exactly as this file asks, so there is nothing to report.
+    ///
+    /// "In force" is why the iteration detail is skipped while iteration is off: a step count no engine will ever
+    /// reach is not a loss worth a sentence.
+    public func differences(from other: CalculationSettings) -> [String] {
+        var out: [String] = []
+        func flag(_ mine: Bool, _ theirs: Bool, _ subject: String, _ whenTrue: String, _ whenFalse: String) {
+            guard mine != theirs else { return }
+            out.append("\(subject) \(mine ? whenTrue : whenFalse) here, and \(mine ? whenFalse : whenTrue) there")
+        }
+        flag(caseSensitive, other.caseSensitive, "a text comparison",
+             "tells upper from lower case", "ignores case")
+        flag(precisionAsShown, other.precisionAsShown, "arithmetic",
+             "uses the number as displayed", "uses the number as stored")
+        flag(searchCriteriaMustApplyToWholeCell, other.searchCriteriaMustApplyToWholeCell, "a search condition",
+             "has to match the whole cell", "may match part of a cell")
+        flag(useRegularExpressions, other.useRegularExpressions, "a search condition",
+             "is a regular expression", "is not a regular expression")
+        flag(useWildcards, other.useWildcards, "a search condition",
+             "uses * and ? as wildcards", "takes * and ? literally")
+        if let mine = nullYear, mine != (other.nullYear ?? 1930) {
+            out.append("a two-digit year starts its hundred years at \(mine) here, and at \(other.nullYear ?? 1930) there")
+        }
+        flag(iterationEnabled, other.iterationEnabled, "a circular reference",
+             "is iterated", "is reported as an error")
+        if iterationEnabled || other.iterationEnabled {
+            if iterationSteps != other.iterationSteps, let mine = iterationSteps {
+                out.append("the iteration stops after \(mine) step(s) here")
+            }
+            if iterationMaximumDifference != other.iterationMaximumDifference, let mine = iterationMaximumDifference {
+                out.append("the iteration stops when a step moves every value less than \(mine) here")
+            }
+        }
+        return out
+    }
 }
 
 // MARK: - Label ranges

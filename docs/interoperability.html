@@ -142,10 +142,10 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
       46 の機能それぞれについて、行き先で生き残ったかを見ています</div>
   </div>
   <div class="card score">
-    <div class="num">4<small> 件</small></div>
-    <div class="lab">今回見つかった欠陥</div>
+    <div class="num">7<small> 件</small></div>
+    <div class="lab">直したこと</div>
     <div class="sub">うち 1 件は「<strong>2 回目の保存でファイルが壊れる</strong>」。
-      4 件とも直し、再発を捕まえるテストを足しました</div>
+      7 件とも直し、再発を捕まえるテストを足しました（入れ直すと赤くなることも確認済み）</div>
   </div>
 </div>
 </section>
@@ -537,7 +537,8 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 <section>
 <h2>今回の点検で見つかったこと</h2>
 <p class="lede2">
-  4 件の欠陥と、判断をお願いしたい 2 件です。欠陥は 4 件とも直し、再発を捕まえるテストを足しました。
+  欠陥 5 件と、線引きに判断が要った 2 件です。<strong>7 件とも直し</strong>、
+  再発を捕まえるテストを足しました。
 </p>
 
 <div class="finding">
@@ -570,7 +571,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 </div>
 
 <div class="finding">
-<h3>3. 黙って落ちていたもの 3 件 <span class="badge fixed">修正済み</span></h3>
+<h3>3. 黙って落ちていたもの 4 件 <span class="badge fixed">修正済み</span></h3>
 <div class="tablewrap"><table>
 <thead><tr><th>件</th><th>それまで</th><th>これから</th></tr></thead>
 <tbody>
@@ -580,6 +581,10 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 <tr><td>保護範囲 → Numbers</td>
   <td>「シート保護を落とした」の中に紛れており、保護範囲だけを設定した文書では何も言われなかった</td>
   <td>別の警告に分けました</td></tr>
+<tr><td>集計表の列の名前（Excel → Excel）</td>
+  <td>読み込む処理は名前を受け取っていたのに、<strong>保存する処理が書いていなかった</strong>。
+    往復のたびに黙って消えていた</td>
+  <td>書くようにしました。担当表が<em>両方向に</em>食い違っていた形です</td></tr>
 <tr><td>VBA → ODS / Numbers</td>
   <td>「◯個の部品を運べない」という数え上げに埋もれ、<strong>その結果「XLSX にすれば残る」と案内していた</strong>
     — XLSX でもマクロは落ちます</td>
@@ -607,40 +612,76 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 </p>
 </div>
 
-<h3>判断をお願いしたい 2 件</h3>
+<h3>先に方針を決めてから直した 2 件</h3>
 
-<div class="finding decide">
-<h3>A. <code>Workbook.convert</code> が、読み込みの警告を捨てています <span class="badge open">未着手</span></h3>
+<div class="finding">
+<h3>A. <code>Workbook.convert</code> が、読み込みの知らせを捨てていました <span class="badge fixed">修正済み</span></h3>
 <p>
-  いちばん手軽な変換 API である <code>Workbook.convert(source, to:output:)</code> は、
-  書き出しの結果だけを返します。読み込みのときに出た警告は<strong>返り値のどこにも入りません</strong>。
+  いちばん手軽な変換の入口である <code>Workbook.convert</code> は、書き出しの結果だけを返していました。
+  読み込みのときに出た知らせは、返り値のどこにも入りません。
 </p>
 <p>
-  実測: グラフ 1 つと 8 個のセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換すると、
-  <strong>警告は 0 件</strong>で返ります。読み手はちゃんと「図があります」「制御があります」と言っていたのに、です。
-  「黙って落とさない」という約束が、<em>いちばん使われる入口で</em>破れていることになります。
+  <strong>実測。</strong>グラフ 1 つと 8 個のセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換すると、
+  <strong>知らせは 0 件</strong>でした。読み手はちゃんと言っていたのに、です。
+  しかも Numbers の図とセル制御は<strong>読み込みでしか報告できません</strong>——
+  モデルに入らないので、書き出しには報告する材料が残らないからです。
+  つまりこの入口を通った人には、それを知る方法が<em>ひとつもありませんでした</em>。
+</p>
+<p>
+  いまは<strong>往路と復路の両方</strong>を、旅をした順（読み込みが先）で返します。
+  「代わりに勧める形式」は変えていません——それは書き出しについての問いだからです。
 </p>
 <div class="answer">
-  <span class="q">推奨</span> 読み込みの警告を返り値に畳み込む（型は変わらず、件数だけが増えます）。
-  ただし公開 API の意味が変わるので、入れる前にご判断をいただきたい件です。
+  <span class="q">直したあと</span> 同じ変換で、知らせは <strong>2 件</strong>（グラフ 1・セル制御 1）返ります。
 </div>
 </div>
 
-<div class="finding decide">
-<h3>B. ODS から変換すると「計算設定を落とした」が必ず出ます <span class="badge open">未着手</span></h3>
+<div class="finding">
+<h3>B. ODS から変換すると、毎回「計算設定を落とした」と言われていました <span class="badge fixed">修正済み</span></h3>
 <p>
-  LibreOffice は<strong>どの ODS ファイルにも</strong>「見出しの自動検出＝しない」「二桁年の境目＝1950」
-  「反復計算の閾値＝0.0001」を書き込みます。これがモデルの既定と食い違うため、
-  <em>利用者が何も設定していなくても</em>「計算設定を落とした」という警告が立ちます。
+  こちらは逆向きの誤りでした。判定が「<strong>この設定は、こちらが決めた既定値と同じか</strong>」だったのです。
+  ところが LibreOffice は、保存するすべての ODS に自分の既定値を書き込みます。そしてそれはこちらの既定と違います。
+</p>
+<div class="tablewrap"><table>
+<thead><tr><th>設定</th><th>LibreOffice が必ず書く値</th><th>それは実際に効くのか</th></tr></thead>
+<tbody>
+<tr><td>見出しの自動検出</td><td>しない</td>
+  <td class="y"><strong>効きません。</strong>これは「数式が宣言していない見出しを名乗ってよい」という<em>許可</em>で、
+    使う数式があって初めて意味を持ちます。使う数式のほうは別に報告しています</td></tr>
+<tr><td>二桁の年の始まり</td><td>1950</td>
+  <td class="h">効きます。ただし<em>これから打ち込む</em>年の読み方が変わるだけで、いまある値は動きません</td></tr>
+<tr><td>繰り返し計算の細かさ</td><td>0.0001</td>
+  <td class="y"><strong>効きません。</strong>繰り返し計算そのものが切ってあるので、
+    どの計算処理もこの値に到達しません</td></tr>
+</tbody>
+</table></div>
+<p>
+  結果、<strong>利用者が何ひとつ設定していないファイルでも、変換のたびに言われていました</strong>。
+  嘘ではありません。ただ、いつも出る知らせは読まれなくなります。この 1 件が、他の知らせの信用を削っていました。
 </p>
 <p>
-  嘘ではありません。ただ、<strong>いつも出る警告は読まれなくなります</strong>。
-  「黙って落とさない」の価値は、警告が<em>珍しいこと</em>に支えられています。
+  <strong>問いを変えました。</strong>「こちらの既定と違うか」ではなく
+  「<strong>行き先が、この書類を違うように読むか</strong>」です。
+  そして<strong>いま効いていない設定は数えません</strong>。
 </p>
-<div class="answer">
-  <span class="q">推奨</span> 「計算結果に効く設定が既定と違うときだけ言う」に絞る。
-  ただし何を「効く」とするかは判断が要るので、方針を決めてから直したい件です。
-</div>
+<div class="tablewrap"><table>
+<thead><tr><th>書類</th><th class="m">これまで</th><th class="m">これから</th><th>言うこと</th></tr></thead>
+<tbody>
+<tr><td>まっさらなブック</td><td class="m y">0</td><td class="m y">0</td><td>—</td></tr>
+<tr><td>LibreOffice が保存した ODS（何も設定していない）</td><td class="m h">1</td><td class="m h">1</td>
+  <td><strong>件数は同じですが、言うことが変わりました。</strong>
+    漠然と「計算設定を落とした」ではなく、
+    <em>「二桁の年が、ここでは 1950 から・あちらでは 1930 から始まります」</em>と名指しします。
+    ほかの 4 項目は、行き先が同じ振る舞いをするので黙ります</td></tr>
+<tr><td>繰り返し計算の歩数だけ持つブック（繰り返しは切ってある）</td><td class="m h">1</td><td class="m y">0</td>
+  <td>どの計算処理も到達しない歩数は、一文を割く損失ではありません</td></tr>
+</tbody>
+</table></div>
+<p class="meta">
+  正直に書いておきます。<strong>LibreOffice のファイルで知らせが 1 件消えたわけではありません。</strong>
+  二桁の年の窓は本当に食い違っていて、「1/1/50」の読みが変わります。
+  減らしたのは<em>件数ではなく曖昧さ</em>で、残った 1 件は読んだ人が実際に判断できる内容になりました。
+</p>
 </div>
 </section>
 
@@ -661,8 +702,12 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
   <td><code>CrossFormatConversionTests.aPivotTableSurvivesBeingSavedTwice</code></td><td class="m">1</td></tr>
 <tr><td>マクロの損失は、どの行き先でも「マクロ」として報告される</td>
   <td><code>CrossFormatConversionTests.aDroppedVBAProjectIsAlwaysAMacroLoss</code></td><td class="m">3</td></tr>
+<tr><td><strong>変換の入口が、読み込みと書き出しの両方の知らせを返す</strong></td>
+  <td><code>CrossFormatConversionTests.convertAnswersWithBothHalvesOfTheTrip</code></td><td class="m">1</td></tr>
+<tr><td><strong>計算設定は、行き先が違う読み方をするときだけ言う</strong></td>
+  <td><code>ODFOnlyFeatureTests.aCalculationSettingIsReportedOnlyWhenItWouldChangeSomething</code></td><td class="m">1</td></tr>
 <tr><td>1 セル直して保存すると、他は 1 バイトも動かない</td><td><code>PreservationTests.editOneCellKeepsEverythingElse</code></td><td class="m">1</td></tr>
-<tr><td>OpenDocument にしか無い 6 つが往復し、LibreOffice も読む</td><td><code>ODFOnlyFeatureTests</code></td><td class="m">7</td></tr>
+<tr><td>OpenDocument にしか無い 6 つが往復し、LibreOffice も読む</td><td><code>ODFOnlyFeatureTests</code></td><td class="m">8</td></tr>
 <tr><td>Numbers の図形・セル制御が読み取りで報告される</td><td><code>NumbersSilentLossTests</code></td><td class="m">9</td></tr>
 <tr><td>Numbers.app 本人が、書いたファイルを開いて計算し保存し直せる</td>
   <td><code>Tests/NumbersParity/verify_with_numbers_app.py</code></td><td class="m">—</td></tr>
@@ -690,7 +735,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 <section>
 <h2>自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
-<pre><code>swift test                            # 837 件（全部）
+<pre><code>swift test                            # 839 件（全部）
 swift test --filter CrossFormat       # <strong>この文書そのもの</strong>。9 方向の点検と 3 世代テスト
 swift test --filter FormatSupport     # 46 項目の対応表（docs/format-support.html）
 swift test --filter Preservation      # 1 セル直して保存したとき、他がバイト同一か
