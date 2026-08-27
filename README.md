@@ -312,7 +312,8 @@ on who typed the code; it rests on the same things it would have to rest on anyw
   implementation decision with the reason behind it — including the ones that were measured and then rejected.
 - **Independent implementations are the judges.** openpyxl, LibreOffice, numbers-parser and Numbers.app read what
   SwiftSheets writes. A format is not called supported until something that did not come from this project agrees.
-- **839 tests**, including a fuzz campaign over every reader, run on every push.
+- **800+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
+  within a hundred of the count.
 - **Nothing is dropped in silence.** Every read and every write answers with the list of what it could not keep.
 
 The reverse is also true, and worth saying plainly: an AI-written library needs those checks *more* than a
