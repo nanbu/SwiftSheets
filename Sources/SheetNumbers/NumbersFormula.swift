@@ -13,6 +13,27 @@ struct NumbersFormulaDecoder {
 
     init(tableName: @escaping (String) -> String?) { self.tableName = tableName }
 
+    /// The unnamed function Numbers spreads an array formula with: every covered cell holds
+    /// `337(anchor)` and shows its own element of the anchor's result (Appendix B.26). Apple never named it
+    /// in the Protobuf; numbers-parser renders it `UNDEFINED!`.
+    static let spillFunctionIndex = 337
+
+    /// The anchor a spill cell points at, when `formula` is exactly Numbers' spill shape — one cell reference
+    /// into function 337 — or nil for any other formula. The reader turns the cells naming one anchor back into
+    /// `Table.arrayFormulas`, the model's word for an array formula's range.
+    static func spillAnchor(_ formula: ProtoMessage, row: Int, col: Int) -> CellRef? {
+        guard let nodes = formula.message("AST_node_array")?.messages("AST_node"), nodes.count == 2 else { return nil }
+        let types = NumbersSchema.shared.enums["TSCE.ASTNodeArrayArchive.ASTNodeType"] ?? [:]
+        guard nodes[1].int("AST_node_type") == types["FUNCTION_NODE"],
+              nodes[1].int("AST_function_node_index") == spillFunctionIndex,
+              nodes[0].int("AST_node_type") == types["CELL_REFERENCE_NODE"],
+              let rowNode = nodes[0].message("AST_row"), let colNode = nodes[0].message("AST_column") else { return nil }
+        let r = (rowNode.bool("absolute") ?? false) ? (rowNode.int("row") ?? 0) : row + (rowNode.int("row") ?? 0)
+        let c = (colNode.bool("absolute") ?? false) ? (colNode.int("column") ?? 0) : col + (colNode.int("column") ?? 0)
+        guard r >= 0, c >= 0, r <= CellRef.maxRow, c <= CellRef.maxCol else { return nil }
+        return CellRef(row: r, col: c)
+    }
+
     mutating func text(for formula: ProtoMessage, row: Int, col: Int) -> String? {
         stack = []
         guard let array = formula.message("AST_node_array") else { return nil }
@@ -169,6 +190,11 @@ struct NumbersFormulaEncoder {
         formula.set("AST_node_array", message: array)
         return formula
     }
+
+    // No `spillArchive` here on purpose: writing Numbers' spill shape (`337(anchor)`) was tried and measured
+    // dead — the function does not survive Numbers' load-time recalculation, which every document written from
+    // the old-version template goes through. Even Numbers' own spread, version-faked old, loses its values on
+    // open (Appendix B.26). The covered cells' values are written instead, and the writer says so.
 
     private mutating func node(_ type: String) -> ProtoMessage {
         var m = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTNodeArchive")

@@ -138,6 +138,7 @@ import SwiftSheets
         q[cell: "C5"].control = .rating
         controls.sheets[0] = q
         out.append(("18-cell-controls", controls))
+
         return out
     }
 

@@ -372,6 +372,8 @@ struct NumbersReader {
         let tileSize = tiles?.int("tile_size").flatMap { $0 > 0 ? $0 : nil } ?? 256
         var decoder = NumbersFormulaDecoder { [tableUUIDToName] hex in tableUUIDToName[hex] }
         var sharedStyles: [CellStyle: SharedStyle] = [:]
+        /// Cells covered by an array formula, by the anchor their spill formula names (Appendix B.26).
+        var spillCells: [CellRef: [CellRef]] = [:]
         for tileRef in tiles?.messages("tiles") ?? [] {
             guard let tid2 = tileRef.reference("tile"), let tile = doc.object(tid2) else { continue }
             let base = (tileRef.int("tileid") ?? 0) * tileSize
@@ -399,7 +401,15 @@ struct NumbersReader {
                             if let modelled = modelledControls[cid] { control = modelled }
                             else { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
                         }
-                        let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
+                        // a spill cell holds `337(anchor)`, which is not a formula of its own but the anchor's
+                        // array formula showing one element here — read the value, remember the anchor
+                        var storage = s
+                        if let fid = s.formulaID, let archive = formulas[fid],
+                           let anchor = NumbersFormulaDecoder.spillAnchor(archive, row: row, col: col) {
+                            spillCells[anchor, default: []].append(CellRef(row: row, col: col))
+                            storage.formulaID = nil
+                        }
+                        let value = cellValue(storage, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
                         let rich = s.richID.flatMap { richTexts[$0] }
                         let note = s.commentID.flatMap { comments[$0] }
@@ -434,6 +444,13 @@ struct NumbersReader {
             let subject = n == 1 ? "the cell at \(first.a1) carries" : "\(n) cells starting at \(first.a1) carry"
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName, location: first,
                                               message: "\(subject) a Numbers control the model has no word for (a stock quote, or a menu an inline list cannot spell); the value is kept, the control is not"))
+        }
+        // the cells spilling one anchor, plus the anchor itself, are that array formula's range — the model's
+        // own shape for one (the anchor keeps the formula, `arrayFormulas` the range, covered cells the values)
+        for (anchor, covered) in spillCells where anchor.row < rows && anchor.col < cols {
+            let points = covered + [anchor]
+            t.arrayFormulas[anchor] = CellRange(minRow: points.map(\.row).min()!, minCol: points.map(\.col).min()!,
+                                                maxRow: points.map(\.row).max()!, maxCol: points.map(\.col).max()!)
         }
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)

@@ -12,7 +12,7 @@ import SwiftSheets
     /// (MAINTENANCE.md, spec Appendix B.18).
     static let names = ["issue-3", "issue-18", "simple-func", "test-empty-rows", "test-xref-coverage", "test-2",
                         "test-10", "test-1", "test-formats", "test-hlinks", "issue-17",
-                        "conditional-formats-15", "links-notes-15", "popup-15", "controls-15"]
+                        "conditional-formats-15", "links-notes-15", "popup-15", "controls-15", "array-15"]
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
@@ -83,7 +83,10 @@ import SwiftSheets
                     case .bool(let b)?: #expect(plain?.boolValue == b, "\(name) \(ref.a1): bool")
                     case nil: break
                     }
-                    if let f = ec.f {
+                    if let f = ec.f, !f.contains("UNDEFINED!") {
+                        // "UNDEFINED!" is numbers-parser's rendering of the unnamed spill function (337): our
+                        // reader deliberately reads such a cell as the covered value of an array formula (B.26),
+                        // so there is no reference rendering to compare against
                         #expect(value.formula != nil, "\(name) \(ref.a1): formula expected (\(f))")
                         // a cross-table *range* is rendered by numbers-parser without its cell addresses
                         // (`SUM(Other::Table 1:Table 1)`), so there is nothing left to compare against

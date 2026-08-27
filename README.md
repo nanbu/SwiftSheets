@@ -108,6 +108,7 @@ is reported, never dropped in silence.
 
 - Read: every value kind (decimal128 numbers, text, rich text as plain text, dates, booleans, durations, errors),
   formulas rebuilt from Numbers' formula trees into XLSX-dialect text (cross-table references as `'Sheet::Table'!A1`),
+  array-formula spreads read back as the anchor's formula plus its `arrayFormulas` range,
   **cell formatting** (fonts, colours, fills, borders, alignment, wrapping) and **number formats**, hyperlinks,
   merges, row heights / column widths, hidden rows / columns, table positions as `Table.anchor`, header rows as
   `freezePanes`.

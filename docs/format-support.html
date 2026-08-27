@@ -216,7 +216,11 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>数式</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。Numbers へは<strong>数式のまま</strong>書きます（式の木 → 逆ポーランドのノード列）。
     手元のフィクスチャに実例が無い形 — <strong>別の表への参照・定義名・Numbers に無い関数・<code>A:C</code> のような列範囲・交差と合併の演算子</strong> — だけはキャッシュ値に落ち、どこがなぜ落ちたかを警告で言います</td></tr>
-<tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODS は起点セルの <code>table:number-matrix-*-spanned</code></td></tr>
+<tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODS は起点セルの <code>table:number-matrix-*-spanned</code>。Numbers は<strong>読みのみ対応</strong>：
+  Numbers 自身が Excel 取り込みで作った展開（起点の式＋覆うセルの内部関数）を範囲として読み戻します。
+  書けないのは、その内部関数が再計算で値を作れないため——Numbers 産の見本ですら、古い版に偽装して
+  再計算させると値が消えます（実測・付録 B.26）</td></tr>
 <tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>ODS は <code>text:span</code>。Numbers は文字スタイルの変わり目として持ちます</td></tr>
 <tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
@@ -259,7 +263,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   落としたことを言います</td></tr>
 <tr><td>名前付きの表</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
   <td>ODF の「データベース範囲」になります。名前と範囲は通り、縞模様のスタイルは落ちます</td></tr>
-<tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>Numbers 自身も Excel のフィルタを取り込みで捨てます（実測：フィルタ規則も隠し行も残らない）。
+  写す先の見本が存在しません（付録 B.26）</td></tr>
 <tr><td>　└ 絞り込み条件・並べ替えの記録</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
   <td>値の一覧と比較条件は通ります。色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言います</td></tr>
 <tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m h">△</td>
@@ -584,7 +590,8 @@ for warning in result.warnings {
   <tr><td>こちらのほうが多く残したもの: 2 件</td>
     <td><strong>結合</strong>（Numbers 自身の輸入は失う）と、<strong>1 シートに 2 つ目の表</strong></td></tr>
   <tr><td>配列数式の展開</td>
-    <td>Numbers は配列数式を覆うセルすべてに内部の式を撒く。こちらは起点だけを書く（表のとおり ×）</td></tr>
+    <td>Numbers は配列数式を覆うセルすべてに内部の式を撒く。こちらは起点の式と各セルの値を書く——
+    撒かれた式は再計算で値を作れないことが実測で判明した（付録 B.26）。読みは 2026-08-27 から範囲ごと戻る</td></tr>
   <tr><td>キャッシュ値を持たない数式: 2 件</td>
     <td>こちらの文書には値が保存されていないが、<strong>Numbers が開いたときに計算します</strong>（実機で確認）</td></tr>
 </table></div>

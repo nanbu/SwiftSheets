@@ -203,7 +203,7 @@ struct NumbersWriter {
             }
             let arrays = sheet.tables.reduce(0) { $0 + $1.arrayFormulas.count }
             if arrays > 0 {
-                warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheet.name, message: "\(arrays) array formula(s) written as ordinary formulas in their anchor cell: a Numbers formula fills one cell, and the range it spilled over is not kept"))
+                warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheet.name, message: "\(arrays) array formula(s) written as the anchor's formula and the covered cells' values: Numbers' own spill function does not survive its load-time recalculation, so the range is not kept (Appendix B.26)"))
             }
             if !sheet.scenarios.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "\(sheet.scenarios.count) scenario(s) dropped: Numbers has no scenarios"))

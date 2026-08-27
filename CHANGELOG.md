@@ -11,6 +11,18 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **An array formula in a Numbers document comes home with its range.** Numbers spreads an imported Excel array
+  formula as the anchor's own formula plus an unnamed spill function (`337(anchor)`) on every covered cell; the
+  reader now recognises that shape structurally, reads the covered cells as their values, and reconstructs
+  `Table.arrayFormulas` — so converting such a document to `.xlsx` carries a real ranged array formula, and the
+  "function id 337 is unknown" warnings are gone. The **write side stays as it was, now with a measured reason**:
+  the spill function does not survive Numbers' load-time recalculation — even Numbers' own spread, version-faked
+  old so the load recalculates it, loses its values on open — and every document written from the old-version
+  template is recalculated by design (the template trade-off approved 2026-08-26). The warning says so now.
+  Also measured and settled: **Numbers itself discards an Excel auto-filter on import** (no filter rules, hidden
+  rows un-hidden), so there is no Numbers-sanctioned mapping to copy and the auto-filter warning stands. The
+  corpus gains `array-15.numbers` (spec Appendix B.26).
+
 - **The four remaining Numbers cell controls — checkbox, stepper, slider and star rating — are a word in the
   model now**: `CellControl` on `Cell.control`, read from and written to Numbers with the dial's bounds
   (minimum / maximum / increment). The sample the wiring was measured from was built by Numbers 15.3.1 itself,
