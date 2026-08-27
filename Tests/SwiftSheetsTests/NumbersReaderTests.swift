@@ -13,7 +13,7 @@ import SwiftSheets
     static let names = ["issue-3", "issue-18", "simple-func", "test-empty-rows", "test-xref-coverage", "test-2",
                         "test-10", "test-1", "test-formats", "test-hlinks", "issue-17",
                         "conditional-formats-15", "links-notes-15", "popup-15", "controls-15", "array-15", "stock-15",
-                        "pivot-mixed-15", "category-15", "filter-15", "stockcell-15"]
+                        "pivot-mixed-15", "category-15", "filter-15", "stockcell-15", "filter-off-15"]
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
@@ -107,9 +107,11 @@ import SwiftSheets
         }
         #expect(cellChecks > 0)
         // No fixture may drop anything in silence — except the losses the fixture is *for*: stockcell-15's
-        // second table carries the attribute pop-up menus of a Numbers stock-quote table, and dropping them out
-        // loud (the model keeps validations per sheet) is the documented behaviour the fixture pins.
-        let expectedDrops = name == "stockcell-15" ? ["pop-up menus on a second table"] : []
+        // second table carries the attribute pop-up menus of a Numbers stock-quote table, and filter-off-15
+        // holds a switched-off filter whose rules have no place in the model; dropping each out loud is the
+        // documented behaviour the fixture pins.
+        let expectedDrops = ["stockcell-15": ["pop-up menus on a second table"],
+                             "filter-off-15": ["switched-off Numbers filter"]][name] ?? []
         let unexpected = warnings.filter { w in w.kind == .dropped && !expectedDrops.contains { w.message.contains($0) } }
         #expect(unexpected.isEmpty, "\(name): \(warnings)")
         _ = formulaChecks

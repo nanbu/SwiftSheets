@@ -481,14 +481,19 @@ struct NumbersReader {
         guard let owner = model.message("hidden_states_owner") else { return }
         var hiddenRows = 0
         var ruleCount = 0
+        var offRuleCount = 0
         for state in owner.messages("hidden_states") {
             for (extentName, isRow) in [("row_hidden_state_extent", true), ("column_hidden_state_extent", false)] {
                 guard let extent = state.message(extentName) else { continue }
-                // A disabled filter hides nothing, whatever its state list holds. No specimen with a switched-off
-                // filter has been measured (Appendix B.29 names the gap); reading it as "no hiding" is right
-                // either way — that is what a disabled filter means.
                 let set = extent.reference("filter_set").flatMap { doc.object($0) }
-                guard set?.bool("is_enabled") != false else { continue }
+                guard set?.bool("is_enabled") != false else {
+                    // A switched-off filter hides nothing — Numbers empties the hidden-state list when the
+                    // switch goes off (measured on a document whose filter was set up and then turned off) —
+                    // but it keeps the rules, switched off, for the person to turn back on. The model has no
+                    // place for them, so they are dropped and counted below.
+                    offRuleCount += set?.messages("filter_rules").count ?? 0
+                    continue
+                }
                 let lanes = laneIndexes(of: model, rows: isRow)
                 for hidden in extent.messages("base_hidden_states") where hidden.bool("filtered") == true {
                     guard let hex = NumbersUUID.hex(hidden.message("row_or_column_uid")), let index = lanes[hex] else { continue }
@@ -509,9 +514,12 @@ struct NumbersReader {
         if ruleCount > 0 {
             warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
                                               message: "table \(t.name ?? ""): a Numbers filter (\(ruleCount) rule(s)) is dropped — the rows it hides are kept as hidden rows, the same trade Numbers itself makes when it exports to Excel"))
-        } else if hiddenRows > 0 {
-            // no live rules, but filtered-away rows: the effect is carried, nothing more to say
         }
+        if offRuleCount > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
+                                              message: "table \(t.name ?? ""): a switched-off Numbers filter (\(offRuleCount) rule(s)) is dropped — it was hiding nothing, and its rules have no place in the model; Numbers' own Excel export drops them too"))
+        }
+        _ = hiddenRows
     }
 
     /// A category grouping on an ordinary table (Organise ▸ Categories): the same group-by machinery a pivot

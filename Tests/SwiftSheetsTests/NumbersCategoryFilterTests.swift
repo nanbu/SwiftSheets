@@ -62,6 +62,22 @@ import SwiftSheets
         #expect(table.rowDimensions[5]?.hidden != true)
     }
 
+    /// The same document with its filter switched **off** (the owner's second hand-made specimen): Numbers
+    /// empties the hidden-state list — so nothing is hidden, exactly as the safe reading assumed — and keeps the
+    /// two rules in their off state, which the model cannot hold and drops out loud. Numbers' own Excel export
+    /// of the same document shows every row and carries no filter either (measured).
+    @Test func aSwitchedOffFilterHidesNothingAndItsRulesAreDroppedOutLoud() throws {
+        let result = try NumbersCodec.read(try Self.fixture("filter-off-15.numbers"))
+        let table = result.workbook.sheets[0].tables[0]
+        for row in 0...8 { #expect(table.rowDimensions[row]?.hidden != true, "row \(row)") }
+        let named = result.warnings.filter { $0.message.contains("switched-off Numbers filter") }
+        #expect(named.count == 1, Comment(rawValue: "\(result.warnings.map(\.message))"))
+        #expect(named.first?.kind == .dropped)
+        #expect(named.first?.message.contains("2 rule(s)") == true)
+        // …and no live-filter warning fires alongside it
+        #expect(!result.warnings.contains { $0.message.contains("a Numbers filter (") })
+    }
+
     /// The discriminator the category warning stands on: a pivot summary's own group-by names no columns, so a
     /// pivot document must not be mistaken for a categorised table.
     @Test func aPivotIsNotMistakenForACategoryGrouping() throws {
