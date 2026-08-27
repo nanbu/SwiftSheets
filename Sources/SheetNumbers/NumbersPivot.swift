@@ -83,6 +83,9 @@ enum NumbersPivot {
         var value: CellValue?
         var rows: [Int]
         var children: [GroupNode] = []
+        /// Minted at grouping time so that the tree, the order map, the summary grid **and the aggregate
+        /// formulas** all name the same node by the same UUID (Appendix B.19).
+        var uid: ProtoMessage = NumbersUUID.random().uuid
     }
 
     /// The source rows grouped by `columns` in turn, outermost first. Values are ordered as Numbers orders them on
@@ -151,9 +154,17 @@ enum NumbersPivot {
     ///
     /// Numbers rebuilds this from the rules when it opens the document, so this is not what Numbers shows — it is
     /// what every *other* reader shows, and what the model reads back.
+    /// One cell of the grand-total lane, in **displayed** coordinates (the stored grid plus the total lanes).
+    struct TotalCell {
+        /// Which aggregate the cell shows — the axis leaf a row / column total belongs to, or the grand total.
+        /// A caption carries no aggregate.
+        enum Kind { case caption; case rowTotal(Int); case columnTotal(Int); case grand }
+        var row: Int; var col: Int; var value: CellValue; var kind: Kind = .caption
+    }
+
     static func summaryTable(_ pivot: PivotTable, source: [SourceColumn], named name: String,
                              rowFields: [Int], columnFields: [Int], dataFields: [PivotDataField])
-        -> (table: Table, headerRows: Int, headerColumns: Int) {
+        -> (table: Table, headerRows: Int, headerColumns: Int, totals: [TotalCell]) {
         var table = Table(name: name)
         let allRows = Array(1...(source.first?.values.count ?? 0))
         let rowGroups = group(allRows, by: rowFields.map { source[$0] })
@@ -181,9 +192,6 @@ enum NumbersPivot {
                     table[0, headerColumns + i * dataFields.count + d] = leaf.label
                 }
             }
-            if pivot.showColumnGrandTotals {
-                table[0, headerColumns + columnLeaves.count * dataFields.count] = .text("総計")
-            }
         }
         let captionRow = headerRows - 1
         if !rowFields.isEmpty { table[captionRow, 0] = .text(source[rowFields[0]].name) }
@@ -209,19 +217,42 @@ enum NumbersPivot {
                     table[row, headerColumns + i * dataFields.count + d] = value.map { CellValue(Decimal($0)) }
                 }
             }
-            if !columnFields.isEmpty, pivot.showColumnGrandTotals {
-                for (d, field) in dataFields.enumerated() {
-                    let value = summarise(rows, of: source[field.field], by: field.function)
-                    table[row, headerColumns + columnLeaves.count * dataFields.count + d] = value.map { CellValue(Decimal($0)) }
-                }
-            }
         }
         var r = headerRows
         for leaf in rowLeaves { write(row: r, rows: leaf.rows, label: leaf.label); r += 1 }
-        if pivot.showRowGrandTotals, !rowFields.isEmpty {
-            write(row: r, rows: allRows, label: .text("総計"))
+
+        // The grand totals go to the pivot's **third model**, not into the stored grid: the reference document's
+        // grid is exactly axes-sized, and its `TST.SummaryModelArchive` store holds the total lane — the caption,
+        // one cell per displayed row and column, and the grand total (Appendix B.19). The coordinates here are
+        // displayed ones: the grid's, with the total column and row appended.
+        var totals: [TotalCell] = []
+        let function = dataFields.first?.function ?? .sum
+        let valueColumn = dataFields.first.map { source[$0.field] }
+        let totalColumn = headerColumns + columnLeaves.count * dataFields.count
+        let totalRow = headerRows + rowLeaves.count
+        let showTotalColumn = !columnFields.isEmpty && pivot.showColumnGrandTotals
+        let showTotalRow = !rowFields.isEmpty && pivot.showRowGrandTotals
+        func total(_ rows: [Int]) -> CellValue? {
+            guard let valueColumn else { return nil }
+            return summarise(rows, of: valueColumn, by: function).map { CellValue(Decimal($0)) }
         }
-        return (table, headerRows, headerColumns)
+        if showTotalColumn {
+            totals.append(TotalCell(row: 0, col: totalColumn, value: .text("総計")))
+            for (i, leaf) in rowLeaves.enumerated() {
+                if let v = total(leaf.rows) { totals.append(TotalCell(row: headerRows + i, col: totalColumn, value: v, kind: .rowTotal(i))) }
+            }
+        }
+        if showTotalRow {
+            totals.append(TotalCell(row: totalRow, col: 0, value: .text("総計")))
+            for (j, leaf) in columnLeaves.enumerated() {
+                if let v = total(leaf.rows) { totals.append(TotalCell(row: totalRow, col: headerColumns + j * dataFields.count, value: v, kind: .columnTotal(j))) }
+            }
+            if columnFields.isEmpty, let v = total(allRows) { totals.append(TotalCell(row: totalRow, col: headerColumns, value: v, kind: .grand)) }
+        }
+        if showTotalColumn, showTotalRow, let v = total(allRows) {
+            totals.append(TotalCell(row: totalRow, col: totalColumn, value: v, kind: .grand))
+        }
+        return (table, headerRows, headerColumns, totals)
     }
 
     // MARK: - Archives
@@ -229,58 +260,51 @@ enum NumbersPivot {
     /// The map a pivot orders itself by: the outermost group node of each axis, in the order the summary draws
     /// them, and the sentinel `(1, 0)` Numbers keeps at the end of both lists (Appendix B.19).
     /// The UUID that stands for a pivot's label lane — the column of row headings and the row of column headings,
-    /// which belong to no group. Numbers writes it **first** in each axis, not last.
+    /// which belong to no group. Its place in the axis is **last** (measured off the reference's index arrays;
+    /// the raw `sorted_` list shows it first only because zeroes sort first).
     static var axisSentinel: ProtoMessage {
         var s = ProtoMessage(typeName: "TSP.UUID"); s.set("lower", int: 1); s.set("upper", int: 0)
         return s
     }
 
-    static func orderMap(columns: [ProtoMessage], rows: [ProtoMessage]) -> ProtoMessage {
+    /// A `TST.ColumnRowUIDMapArchive` from UID lists given **in their real order** (grid order for a table,
+    /// axis order for the pivot's order map).
+    ///
+    /// The stored lists are **sorted by UUID** — Numbers resolves a UID by binary search, so an unsorted list is
+    /// a lookup that silently fails — and the two index arrays carry the permutation: `index_for_uid[sortedPos]`
+    /// is the real position of that UID, `uid_for_index[realPos]` is where in the sorted list it sits. Read off
+    /// the reference document's arrays (Appendix B.19).
+    static func uidMap(columns: [ProtoMessage], rows: [ProtoMessage]) -> ProtoMessage {
+        func key(_ uuid: ProtoMessage) -> (UInt64, UInt64) {
+            ((uuid.uint("upper") ?? 0), (uuid.uint("lower") ?? 0))
+        }
+        func permute(_ uids: [ProtoMessage]) -> (sorted: [ProtoMessage], indexForUID: [Int], uidForIndex: [Int]) {
+            let order = uids.indices.sorted { key(uids[$0]) < key(uids[$1]) }
+            var uidForIndex = [Int](repeating: 0, count: uids.count)
+            for (sortedPos, real) in order.enumerated() { uidForIndex[real] = sortedPos }
+            return (order.map { uids[$0] }, order, uidForIndex)
+        }
+        let c = permute(columns), r = permute(rows)
         var m = ProtoMessage(typeName: "TST.ColumnRowUIDMapArchive")
-        m.set("sorted_column_uids", messages: [axisSentinel] + columns)
-        m.set("column_index_for_uid", ints: Array(0...columns.count))
-        m.set("column_uid_for_index", ints: Array(0...columns.count))
-        m.set("sorted_row_uids", messages: [axisSentinel] + rows)
-        m.set("row_index_for_uid", ints: Array(0...rows.count))
-        m.set("row_uid_for_index", ints: Array(0...rows.count))
+        m.set("sorted_column_uids", messages: c.sorted)
+        m.set("column_index_for_uid", ints: c.indexForUID)
+        m.set("column_uid_for_index", ints: c.uidForIndex)
+        m.set("sorted_row_uids", messages: r.sorted)
+        m.set("row_index_for_uid", ints: r.indexForUID)
+        m.set("row_uid_for_index", ints: r.uidForIndex)
         return m
     }
 
-    /// The summary's own grid UIDs — and this is the join Numbers reads the pivot through.
-    ///
-    /// A summary column that draws a group carries **that group's own UUID**, and so does a summary row. Give the
-    /// grid fresh UUIDs of its own and every link between the tree and the table it is drawn into is broken:
-    /// Numbers shows the two field headings and nothing under them, which is what a pivot written with an
-    /// unrelated grid looks like (Appendix B.19). Only the label lanes and the grand totals get UUIDs of their own.
-    static func summaryUIDMap(columnCount: Int, rowCount: Int, headerRows: Int, headerColumns: Int,
-                              columnAxis: [ProtoMessage], rowAxis: [ProtoMessage])
-        -> (map: ProtoMessage, columns: [ProtoMessage], rows: [ProtoMessage]) {
-        var columns = (0..<columnCount).map { _ in NumbersUUID.random().uuid }
-        var rows = (0..<rowCount).map { _ in NumbersUUID.random().uuid }
-        for (i, uid) in columnAxis.enumerated() where headerColumns + i < columns.count { columns[headerColumns + i] = uid }
-        for (i, uid) in rowAxis.enumerated() where headerRows + i < rows.count { rows[headerRows + i] = uid }
-        var m = ProtoMessage(typeName: "TST.ColumnRowUIDMapArchive")
-        m.set("sorted_column_uids", messages: columns)
-        m.set("column_index_for_uid", ints: Array(0..<columnCount))
-        m.set("column_uid_for_index", ints: Array(0..<columnCount))
-        m.set("sorted_row_uids", messages: rows)
-        m.set("row_index_for_uid", ints: Array(0..<rowCount))
-        m.set("row_uid_for_index", ints: Array(0..<rowCount))
-        return (m, columns, rows)
+    /// The pivot's order map: each axis is the outermost group nodes in tree order, then the label-lane sentinel.
+    static func orderMap(columns: [ProtoMessage], rows: [ProtoMessage]) -> ProtoMessage {
+        uidMap(columns: columns + [axisSentinel], rows: rows + [axisSentinel])
     }
 
     /// A `TSP.UUID` per source column, and the map the source copy carries so the rules can name a column by it.
     static func columnUIDMap(count: Int, rowCount: Int) -> (map: ProtoMessage, columns: [ProtoMessage], rows: [ProtoMessage]) {
         let columns = (0..<count).map { _ in NumbersUUID.random().uuid }
         let rows = (0..<rowCount).map { _ in NumbersUUID.random().uuid }
-        var m = ProtoMessage(typeName: "TST.ColumnRowUIDMapArchive")
-        m.set("sorted_column_uids", messages: columns)
-        m.set("column_index_for_uid", ints: Array(0..<count))
-        m.set("column_uid_for_index", ints: Array(0..<count))
-        m.set("sorted_row_uids", messages: rows)
-        m.set("row_index_for_uid", ints: Array(0..<rowCount))
-        m.set("row_uid_for_index", ints: Array(0..<rowCount))
-        return (m, columns, rows)
+        return (uidMap(columns: columns, rows: rows), columns, rows)
     }
 
     /// A set of row numbers as Numbers spells one: **runs**, not rows. Consecutive numbers become a single entry
@@ -347,7 +371,7 @@ enum NumbersPivot {
     /// bookkeeping slots 0…7 for itself.
     static func groupNode(_ node: GroupNode, coordinate: inout Int, uids: inout [ProtoMessage], depth: Int = 0) -> ProtoMessage {
         var m = ProtoMessage(typeName: "TST.GroupByArchive.GroupNodeArchive")
-        let uid = NumbersUUID.random().uuid
+        let uid = node.uid
         if depth == 0 { uids.append(uid) }        // the outermost level is the axis the pivot orders by
         m.set("group_uid", message: uid)
         let children = node.children.map { groupNode($0, coordinate: &coordinate, uids: &uids, depth: depth + 1) }
@@ -508,20 +532,30 @@ enum NumbersPivot {
 
     /// A `TST.GroupByArchive`: which columns it groups by, and the tree of what that grouping found. The eight
     /// bookkeeping coordinates are the ones every group-by Numbers writes carries, in the order it writes them.
-    static func groupBy(columns: [ProtoMessage], nodes: [GroupNode], allRows: [Int],
+    /// One grouped source column: which column, and the summary grid lane its labels are drawn along.
+    ///
+    /// `groupingUID` is **not an arbitrary link id**: in the reference document it is the UID of the summary
+    /// grid's label lane — the label *column* for a row grouping, the heading *row* for a column grouping — and
+    /// it appears identically on the pivot owner's rule lists and on the group-bys' own entries. Five unrelated
+    /// random values here were what left Numbers computing every total and drawing no groups (Appendix B.19).
+    struct GroupColumn { var columnUID: ProtoMessage; var groupingUID: ProtoMessage }
+
+    static func groupColumnArchive(_ c: GroupColumn) -> ProtoMessage {
+        var g = ProtoMessage(typeName: "TST.GroupColumnArchive")
+        g.set("column_uid", message: c.columnUID)
+        g.set("grouping_type", int: 0)
+        g.set("grouping_column_uid", message: c.groupingUID)
+        return g
+    }
+
+    static func groupBy(columns: [GroupColumn], nodes: [GroupNode], allRows: [Int],
                         ownerIndex: Int, uid: ProtoMessage,
                         aggregate: (column: SourceColumn, uid: ProtoMessage, function: PivotDataField.Function)? = nil,
                         rowUIDs: [ProtoMessage] = []) -> (archive: ProtoMessage, outermost: [ProtoMessage]) {
         var m = ProtoMessage(typeName: "TST.GroupByArchive")
         m.set("group_by_uid", message: uid)
         if !columns.isEmpty {
-            m.set("group_column", messages: columns.map { column in
-                var g = ProtoMessage(typeName: "TST.GroupColumnArchive")
-                g.set("column_uid", message: column)
-                g.set("grouping_type", int: 0)
-                g.set("grouping_column_uid", message: NumbersUUID.random().uuid)
-                return g
-            })
+            m.set("group_column", messages: columns.map(groupColumnArchive))
         }
         let built = groupNodeRoot(nodes, allRows: allRows)
         m.set("group_node_root", message: built.root)
@@ -628,26 +662,65 @@ enum NumbersPivot {
         return store
     }
 
+    // MARK: - The aggregate formulas the summary draws through
+
+    /// One cell of the pivot's summary as Numbers writes it: a **formula** whose whole AST is a single
+    /// `CATEGORY_REF` node naming the group-by, the summarised column, the aggregation, and the group node the
+    /// cell stands for — the root sentinel for the grand total, an outermost node for an axis total, a leaf for a
+    /// body cell. The cached value rides in the cell record beside the formula id. Read off the reference
+    /// document's formula tables and correlated node by node (Appendix B.19).
+    static func categoryFormula(groupByUID: ProtoMessage, columnUID: ProtoMessage,
+                                aggregateType: Int, level: Int, groupUID: ProtoMessage) -> ProtoMessage {
+        var cat = ProtoMessage(typeName: "TSCE.CategoryReferenceArchive")
+        cat.set("group_by_uid", message: groupByUID)
+        cat.set("column_uid", message: columnUID)
+        cat.set("aggregate_type", int: aggregateType)
+        cat.set("group_level", int: level)
+        var flags = ProtoMessage(typeName: "TSCE.PreserveColumnRowFlagsArchive")
+        flags.set("begin_row_is_absolute", bool: false)
+        flags.set("begin_column_is_absolute", bool: true)
+        flags.set("end_row_is_absolute", bool: false)
+        flags.set("end_column_is_absolute", bool: false)
+        cat.set("preserve_flags", message: flags)
+        cat.set("absolute_group_uid", message: groupUID)
+        cat.set("agg_index_level", int: 65535)
+        var wrap = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTCategoryReferenceArchive")
+        wrap.set("category_ref", message: cat)
+        var node = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTNodeArchive")
+        node.set("AST_node_type", int: 66)
+        node.set("AST_category_ref", message: wrap)
+        var array = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive")
+        array.set("AST_node", messages: [node])
+        var formula = ProtoMessage(typeName: "TSCE.FormulaArchive")
+        formula.set("AST_node_array", message: array)
+        return formula
+    }
+
+    /// Every leaf of a tree, with the rows it owns — the same walk the summary's body is laid out by, exposed so
+    /// the writer can name each body cell's leaf when it writes the aggregate formulas.
+    static func leafNodes(_ nodes: [GroupNode]) -> [GroupNode] {
+        var out: [GroupNode] = []
+        func walk(_ n: GroupNode) {
+            if n.children.isEmpty { out.append(n) } else { n.children.forEach(walk) }
+        }
+        nodes.forEach(walk)
+        return out
+    }
+
     /// The moment a pivot says its rules were last applied. Apple's reference date is 2001-01-01; the value only
     /// has to be a time, and a fixed one keeps a document written twice from the same workbook byte-identical.
     static let refreshTimestamp: Double = 809_000_000
 
     /// The rules themselves.
     static func pivotOwner(_ pivot: PivotTable, uid: ProtoMessage, sourceTableUID: ProtoMessage, sourceTableName: String,
-                           rowColumns: [ProtoMessage], columnColumns: [ProtoMessage],
+                           rowColumns: [GroupColumn], columnColumns: [GroupColumn],
                            aggregates: [(column: ProtoMessage, function: PivotDataField.Function)],
                            optionsMap: Int, formulaStore: ProtoMessage?) -> ProtoMessage {
         var m = ProtoMessage(typeName: "TST.PivotOwnerArchive")
         m.set("pivot_owner_uid", message: uid)
-        func list(_ columns: [ProtoMessage]) -> ProtoMessage {
+        func list(_ columns: [GroupColumn]) -> ProtoMessage {
             var l = ProtoMessage(typeName: "TST.GroupColumnListArchive")
-            l.set("group_column", messages: columns.map { column in
-                var g = ProtoMessage(typeName: "TST.GroupColumnArchive")
-                g.set("column_uid", message: column)
-                g.set("grouping_type", int: 0)
-                g.set("grouping_column_uid", message: NumbersUUID.random().uuid)
-                return g
-            })
+            l.set("group_column", messages: columns.map(groupColumnArchive))
             return l
         }
         m.set("grouping_columns_for_rows", message: list(rowColumns))

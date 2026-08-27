@@ -2993,42 +2993,67 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>書いていなかった</td></tr>
   </table></div>
 
-  <h4>それでも組は描かれない — 残った穴の場所</h4>
+  <h4>2026-08-27（続き・2 回目）— 構造は 1 対 1 の見本とビット水準で一致した。残るは読み込み時の「採用」だけ</h4>
   <p>
-    ここまでで Numbers は<strong>書類を修復なしに開く</strong>。<code>numbers-parser</code> とこちらの読み手は
-    東 8/4/12・北 3/6/9・西 5/10/15・総計 36 を読み戻す。<strong>元データの写しも Numbers 自身が
-    9 行 3 列すべて正しく読む</strong>（シートに戻して確かめた）。規則も読めている——
-    Numbers は行の見出し <em>Region</em> と列の見出し <em>Product</em> を描く。
-    <strong>にもかかわらず、その下に組が 1 つも現れない。</strong>
-  </p>
-  <p>
-    確かめて<em>除外</em>できたこと: フィールドの欠落（0 件）、UUID の解決（規則・group-by・累算・
-    順序の並び・要約表のマス目——すべて解決する）、版の記録（新しい版に差し替えても変わらない）、
-    <code>row_filter_set_pre_pivot</code> 等のテンプレート由来の余分な項目（外しても変わらない）、
-    エンジンの <code>group_node_map</code>（外しても変わらない）。
-  </p>
-  <p>
-    残るのは<strong>計算エンジン側の帳簿</strong>である。同じ 1 冊で数えると:
+    前節の「残るは計算エンジンの帳簿」という診断は<strong>誤りだった</strong>。見本から帳簿
+    （所有者の依存の器・セル記録タイル・<code>refs_to_dirty</code>）を削っても、見本は完全に描く——
+    Numbers は帳簿からではなく、木と累算と規則から直接描いている。この日、動く見本を 1 本ずつ壊す実験
+    （T 系）と、部分グラフの正規化 diff・UID 結線の全数照合で、以下を<strong>すべて実測で直した</strong>:
   </p>
   <div class="compare"><table>
-    <tr><th></th><th>Numbers 自身</th><th>こちら</th></tr>
-    <tr><td><code>TSCE.CellRecordTileArchive</code></td><td>14</td><td class="bad">3</td></tr>
-    <tr><td><code>TSCE.RangePrecedentsTileArchive</code></td><td>1</td><td class="bad">0</td></tr>
-    <tr><td><code>FormulaOwnerDependenciesArchive</code></td><td>36（全部が依存を持つ）</td><td class="bad">22（うち 4 つは空）</td></tr>
-    <tr><td>エンジンの <code>refs_to_dirty</code></td><td>あり</td><td class="bad">なし</td></tr>
+    <tr><th>直したもの</th><th>見つけ方</th></tr>
+    <tr><td><strong>UID 地図の整列と置換表</strong>。<code>sorted_*_uids</code> は文字どおり UUID の辞書順で、
+      <code>index_for_uid[整列位置]=実位置</code>・<code>uid_for_index[実位置]=整列位置</code>。
+      こちらは無整列＋恒等写像で、二分探索する読み手には引けない地図だった</td>
+      <td>見本の添字配列の逆算</td></tr>
+    <tr><td><strong>番兵 (1,0) の意味位置は軸の末尾</strong>（前節の記述が正しく、その後の「先頭」への修正が誤り。
+      整列表で先頭に見えるのは 0 が小さいだけ）。さらに要約モデルの空間では番兵が<strong>総計レーンそのもの</strong>を指す</td>
+      <td>同上</td></tr>
+    <tr><td><strong>要約格子は軸ちょうどの大きさ</strong>。総計の行と列は格子に入れず、
+      第 3 のモデル <code>TST.SummaryModelArchive</code> の data store に置く（「総計」+ 各行計 + 各列計 + 総計）</td>
+      <td>見本のタイルの復号</td></tr>
+    <tr><td><strong>本体セルは全部数式</strong>。型 66 の <code>CATEGORY_REF</code> 1 節だけの式で、
+      group-by の UID・集計列の UID・集計種・段数・<strong>そのセルが立つ組ノードの UID</strong> を名指す。
+      行計は行軸 group-by の外側ノード（段 1）、列計は第 1 group-by の外側（段 1）、総計は根の番兵（段 0）。
+      キャッシュ値はセル記録に同居する</td>
+      <td>見本の数式表を組ノードと 1 件ずつ突き合わせ</td></tr>
+    <tr><td><strong>所有者の種別の正体</strong>: kind 17 = pivotOwner 自身の UID、kind 8 = TableInfo の
+      <code>group_by_uuid</code>、kind 9 = 要約モデルの <code>aggregate_formula_owner_uuid</code>、
+      kind 4 = 隠し状態の持ち主、kind 11 = その列側の広がり、kind 3/5/6/10 = 表ごとの自由空間。
+      すべての所有者は空でも 8 個の依存の器を持つ（裸の所有者を 1 個足すだけで文書全体が開けなくなる）</td>
+      <td>登録済み UID を両モデルの全項目から逆引き</td></tr>
+    <tr><td><strong>元データの写しの表としての身元の解消</strong>。見本の写しには TableInfo も kind-1 所有者も無く、
+      haunted は kind-100 の直下。こちらはクローンの身元が残り、1 つのモデルに持ち主が 2 人いた</td>
+      <td>所有者グラフの突き合わせ</td></tr>
+    <tr><td><strong>クローンの複製対象の接頭辞誤り</strong>: <code>TST.</code>TrackedReferenceStoreArchive と
+      書いていたが正しくは <code>TSCE.</code>。この誤りのせいで<strong>テンプレートから複製した全ての表が
+      1 つの参照トラッカーを共有していた</strong>（ピボットに限らない実バグ）</td>
+      <td>両モデルが同じオブジェクトを指す唯一の点として検出</td></tr>
+    <tr><td>行集合は<strong>連続 run</strong>で書く・根は全行を名乗る・<code>grouping_column_uid</code> は
+      規則と木で共有し実体は<strong>ラベルレーンの UID</strong>・<code>refresh_timestamp</code>・
+      材料化した木（node ごとに 1 アーカイブ、<code>child_ref</code> 連結）・<code>formula_store</code>（参照 3 本）</td>
+      <td>各種</td></tr>
   </table></div>
   <p>
-    group-by が持つ 8 つの「帳簿の座標」（<code>grouping_columns_formula</code> ほか）は、
-    <strong>この帳簿の中の式を指している</strong>。座標は書いたが、指された先の式を書いていない。
-    <em>次に見るのはここ</em>——見本の <code>CellRecordTile</code> を 1 件ずつ読み、
-    group-by の所有者ごとにどの記録が要るのかを数える。
-    <code>refs_to_dirty</code> を見本から移植する実験は、他文書の所有者 id を名指すため書類ごと壊れた
-    （移植ではなく<em>生成</em>が要る、ということでもある）。
+    この結果、見本にあってこちらに無いフィールド経路は 0 件、UID の五者結線（木・順序・格子・要約モデル・視界）
+    は完全一致。<strong>numbers-parser とこちらの読み手は正しい集計を読み戻し、Numbers 本人も文書を修復なしに
+    開き、こちらの規則から総計 36 まで自力で計算し直す</strong>（再保存した書類の要約タイルに 12/9/15/16/20/36 が
+    書かれていた）。<strong>描かないのは表示だけ</strong>である。
+  </p>
+  <h4>白と判定できたもの（すべて実測）</h4>
+  <p>
+    移植実験の両方向——<em>見本の環境にこちらのピボット一式</em>（規則+group-by+全地図）は<strong>完全動作</strong>、
+    <em>こちらの環境に見本の一式</em>は<strong>不動作</strong>——により、ピボットのアーカイブ自体は無罪が確定。
+    環境側で除外できたもの: 部品配線（両者とも単一部品で相互参照なし）・ViewState（削っても変わらず）・
+    シート台帳（空の Table 1 を外しても変わらず）・レイアウトキャッシュ・結合地図・所有者登録の有無
+    （見本は 205/206/17 を削っても動く）・帳簿・版の記録の差し替え。
+    対照実験として<strong>見本の再保存は無改変で採用される</strong>（uid も同一）のに対し、こちらは全 uid を
+    作り直した上で「空の仕分け」を先頭に挿入して保存される——つまり読み込み時にこちらの保存状態の採用を
+    やめ、作り直し経路に落ち、その経路の仕分けが空に終わる。<strong>その引き金だけが未特定</strong>である。
   </p>
   <p class="meta">
-    書き出しの既定は <code>writesPivotTables = false</code> のまま。
-    <strong>Numbers が受け付けない書類を渡すのは、渡さないより悪い</strong>——
-    いまの文書は開きこそすれ、ピボットが空である。この線引きは変えていない。
+    書き出しの既定は <code>writesPivotTables = false</code> のまま。開くが空のピボットを渡すのは、
+    渡さないより悪い。ここまでの全修正は既定 off でも埋もれず残り、853 件のテストは緑。
   </p>
 
   <h3>B.20 値を持たないセルが消えていた（Rev 2.4）</h3>
