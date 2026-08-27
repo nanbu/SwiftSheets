@@ -23,6 +23,9 @@ try wb.editSheet(named: "Summary") { sheet in // sheets are value types; this ed
     sheet["B5"] = Formula("=B4/B3")           // parsed into an AST; follows row inserts and sheet renames
     sheet.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
 }                                             // a closure that throws leaves the workbook untouched; a missing name is loud
+var sheet = wb.sheets["Summary"]!             // the classic way still works…
+sheet["B6"] = "October"
+wb.sheets["Summary"] = sheet                  // …value types: copy out, edit, put back
 let result = try wb.write(to: URL(filePath: "monthly-report.xlsx"))   // charts, comments, VBA… untouched (F3)
 print(result.warnings)                        // whatever the format could not express — never dropped silently
 print(wb.readWarnings)                        // …and whatever the file held that the model cannot say
