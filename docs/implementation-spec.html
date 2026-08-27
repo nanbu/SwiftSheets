@@ -1853,6 +1853,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.5 Draft</td><td>2026-08-27</td><td>B.20 で「1.0 の破壊的変更の候補」として残した<strong>書体の同種欠陥を直した</strong>（付録 B.21）。<code>font_name</code> も <code>Font.default</code>（Calibri）と比べて省いていたため、Calibri を指定したセルがテンプレートの HelveticaNeue で描かれていた。モデルが述べた書体は常に書く。あわせて、この Mac の Calibri が <strong>Microsoft Office 専用フォルダにしか無い</strong>にもかかわらず Numbers が正しく描くことを実測（Numbers の PDF に本物の Calibri が埋め込まれる）</td></tr>
     <tr><td>2.6 Draft</td><td>2026-08-27</td><td>相互変換の全量点検を行い、付録 B.22 に記録。<strong>ピボット表を持つ Excel ファイルは 2 回目の保存で壊れていた</strong>（書き手が自分で書く属性を、読み手が「知らない属性」として覚え直し、次の保存で二重に書いていた——属性の重複は整形式ではない XML）。あわせて、Numbers への<strong>配列数式・保護範囲</strong>、ODS / Numbers への <strong>VBA</strong> が黙って落ちていた 3 件を直し、壊れた部品を黙って読み飛ばしていた読み手にも警告を出させた。方向ごとの点検（<code>CrossFormatConversionTests</code>）と世代テストを新設</td></tr>
     <tr><td>2.7 Draft</td><td>2026-08-27</td><td>B.22 で「先に方針を決めるべき」として残した 2 件を、方針を決めたうえで直した（付録 B.23）。<strong><code>Workbook.convert</code> が読み込みの警告を捨てていた</strong>——図とセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換して警告 0 件が返っていた。往路と復路の両方を返す。<strong>計算設定の警告が、ODS から変換するたびに必ず出ていた</strong>——モデルの既定と比べていたためで、LibreOffice が全ファイルに書く既定値がそれと食い違っていた。「<em>行き先が違う振る舞いをするか</em>」に基準を変え、効いていない設定は数えない</td></tr>
+    <tr><td>2.8 Draft</td><td>2026-08-27</td><td>付録 B.19 の診断を<strong>実験で撤回</strong>した。「古い版の刻印なので読み込み時に作り直される」は誤りで、見本を 14.1 相当に刻印しても完全に描く。さらに、翻訳器が引く対応表は<strong>読み込み時に空から詰め直される</strong>ため（<code>TSTSummaryModel._columnRowUIDMap</code>）、<strong>保存された対応表を突き合わせた一致確認はすべて無効</strong>である。あわせてピボットの写しの足場を島ごと削除するようにし（整合性検査の 30 件の問題が消える）、形ごとの表明数の指紋を記録した</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3054,6 +3055,122 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <p class="meta">
     書き出しの既定は <code>writesPivotTables = false</code> のまま。開くが空のピボットを渡すのは、
     渡さないより悪い。ここまでの全修正は既定 off でも埋もれず残り、853 件のテストは緑。
+  </p>
+
+  <h4>2026-08-27（続き・3 回目）— 「古い版だから」は誤り。対応表は読み込み時に作り直される</h4>
+  <p>
+    前 2 節が残した診断は<strong>「こちらの文書は古い版の刻印なので、読み込み時に採用をやめて作り直し経路に落ちる」</strong>
+    だった。<strong>これは誤りである。</strong>版の刻印だけを入れ替える対照実験で否定した。
+  </p>
+  <div class="compare"><table>
+    <tr><th>実験</th><th>結果</th></tr>
+    <tr><td>見本（26.3.1）を<strong>14.1 相当に刻印</strong>して開かせる<br>
+      （package の <code>file_format_version</code>・<code>read/write_version</code>、CalculationEngine 部品の版と
+       feature_infos、<code>Properties.plist</code>、<code>BuildVersionHistory.plist</code> の 4 層すべて）</td>
+      <td><strong>表明ゼロ・完全描画</strong>。古い版の監査を通り抜けて正しく描く</td></tr>
+    <tr><td>こちら（14.1）を<strong>26.3.1 相当に刻印</strong>して開かせる</td>
+      <td>「table corruption」の監査は消えるが、<code>TSTPivotStoreIterator</code> の表明 7 回は<strong>そのまま</strong>で空の殻</td></tr>
+  </table></div>
+  <p>
+    <strong>健全な中身は古い版でも通り、壊れた中身は新しい版でも通らない。</strong>
+    版・アップグレード経路は無罪であり、この線はここで畳む。あわせて package・component・object の
+    3 層すべての版印を見本に合わせる実験（34 件の再スタンプ）も無効だった。
+  </p>
+
+  <h4>形ごとの指紋 — 総計は無関係、失敗のしかたに法則がある</h4>
+  <p>
+    これまで測っていたのは最も複雑な形だけだった。形を 4 通り書き分けて 1 文書ずつ判定させると、
+    <strong>総計レーンを丸ごと消しても表明の数は変わらず</strong>、形を単純にしても直らない。
+    そして<strong>通るセルの数が「見出し列の数 + 1」で 4 形すべてに一致</strong>する。
+  </p>
+  <div class="compare"><table>
+    <tr><th>形</th><th>view / base</th><th>非 base セル</th><th>表明</th><th>通った数</th><th>見出し列</th></tr>
+    <tr><td>全部入り（行・列・総計）</td><td>4c×6r / 3c×5r</td><td>9</td><td>7</td><td>2</td><td>1</td></tr>
+    <tr><td>総計なし</td><td>4c×6r / 3c×5r</td><td>9</td><td>7</td><td>2</td><td>1</td></tr>
+    <tr><td>行の段だけ</td><td>3c×5r / 2c×4r</td><td>7</td><td>5</td><td>2</td><td>1</td></tr>
+    <tr><td>列の段だけ（退化形）</td><td>3c×3r / 2c×2r</td><td>5</td><td>4</td><td>1</td><td>0</td></tr>
+    <tr><td><strong>見本</strong></td><td>4c×6r / 3c×5r</td><td>9</td><td><strong>0</strong></td><td>9</td><td>1</td></tr>
+  </table></div>
+
+  <h4>指紋の正体 — 対応表は保存された値ではなく、読み込み時に空から詰め直される</h4>
+  <p>
+    翻訳器が引く 2 つの対応表は <code>TSTTableTranslator</code> の素の getter で、
+    <code>TSTPivotTranslator</code> も <code>TSTCategoryTranslator</code> も上書きしない。実体は
+    <code>TSTTableInfo._columnRowUIDMap</code> と <code>TSTSummaryModel._columnRowUIDMap</code>。
+    そして<strong>どちらも読み込み時に空で作られる</strong>——
+    <code>-[TSTSummaryModel loadFromUnarchiver:]</code> は
+    <code>initWithContext:columnUIDs:rowUIDs:</code> に<strong>空の配列を 2 本</strong>渡して生成し、
+    そのあと <code>insertColumnsWithUIDs:atIndex:</code> / <code>insertRowsWithUIDs:atIndex:</code> で
+    <strong>要約の骨組みだけ</strong>を詰める。よって実行時のキー集合は
+    <code>rows = {総計・要約の行}</code>、<code>cols = {見出し列} ∪ {集計・総計列}</code> で、
+    <strong>本体のデータ列とデータ行は入らない</strong>。
+  </p>
+  <div class="compare"><table>
+    <tr><th>非 base のセル</th><th>行キー</th><th>列キー</th><th>結果</th></tr>
+    <tr><td>総計行 × 見出し列</td><td>あり</td><td>あり</td><td>通る</td></tr>
+    <tr><td>総計行 × 総計列（総計の角）</td><td>あり</td><td>あり</td><td>通る</td></tr>
+    <tr><td>総計行 × 本体列</td><td>あり</td><td><strong>無い</strong></td><td>諦める（2 マス）</td></tr>
+    <tr><td>データ行 × 総計列</td><td><strong>無い</strong></td><td>あり</td><td>諦める（5 マス）</td></tr>
+  </table></div>
+  <p>
+    通る数は <code>見出し列数 + 集計列数</code> ＝ <code>hdrCols + 1</code> で、上の 4 形の実測と一致する。
+  </p>
+  <p>
+    <strong>この付録の記述を 1 つ撤回する。</strong>
+    前 2 節は「UID の五者結線は完全一致」「view∩summary は全一致」など、
+    <em>アーカイブに保存された対応表</em>（<code>view_column_row_uids</code>・
+    <code>column_row_uids</code>・<code>base_column_row_uids</code>）を突き合わせて一致を確認していた。
+    これらは読み込み時に作り直されるので<strong>そのまま使われない</strong>。
+    したがって「地図は一致しているから無罪」という論法は成り立たず、
+    この方向の一致確認はすべて<strong>実行時に使われない値を比べていた</strong>ことになる。
+    差が見つからなかったのは当然である。
+  </p>
+
+  <h4>いま分かっている本当の争点</h4>
+  <p>
+    実行時の対応表は要約の骨組みから詰められる。見本ではその骨組みが<strong>組を含んで</strong>作られ、
+    こちらでは<strong>組ゼロ</strong>で作られる。証拠は再保存にある——Numbers 自身にこちらの文書を保存し直させると、
+    view の対応表が 6 行 4 列から <strong>3 行 2 列</strong>に縮む。これは組がゼロのピボットの自然な寸法である。
+    つまり座標の表明は<strong>結果であって原因ではなく</strong>、読み込みの時点で組が 1 つも採用されていない。
+    次に見るべきは対応表ではなく、<strong>読み込み時に要約の骨組みを組み立てる処理が、
+    こちらの group-by を採用しない理由</strong>（<code>insertRowsWithUIDs:</code> を駆動する側）である。
+  </p>
+
+  <h4>この日に無罪と確定したもの（すべて実測）</h4>
+  <p>
+    こちらを直そうとして<strong>効かなかった</strong>もの: 版の刻印（3 層すべて）・オブジェクトのメッセージ版印・
+    要約行の並び順・要約のヘッダバケツ充填・タイルの <code>numrows</code>・ワイド offset の解除・
+    レイアウトキャッシュの削除・<code>merge_region_map</code> の削除・組ノード UUID の見本値への全置換・
+    セルのフラグ <code>0x1000</code> の注入・空の <code>group_node_map</code> の削除・UI の選択状態の削除。
+  </p>
+  <p>
+    見本を<strong>壊しても描き続けた</strong>もの: 要約バケツの空化・ピボットタイルのワイド化・
+    組の座標入替・フラグ <code>0x1000</code> の除去・旧版セル記録を 🤠 穴埋めに置換・
+    offsets を列数ぴったりに切り詰め・ZIP エントリ順の完全反転・14.1 相当への刻印。
+  </p>
+  <p>
+    <strong>観測手段の妥当性も確かめた。</strong>見本の 81 個の IWA をすべて numbers-parser で
+    無改変往復させても完全に描く。よって復号器は何も落としておらず、比較結果は信用してよい。
+    未知フィールドもワイヤから直接走査したが、両文書ともチャート装飾のみで同一だった。
+    そのうえで役割（最短フィールドパス）で対応づけた値の全数比較（1215 対 1242 項目）を行い、
+    残る差はすべて (a) uid が乱数であることに由来する並び順、(b) スタイルと寸法、(c) 上の実験で無罪と確かめたもの、
+    (d) 識別子・名前・時刻のいずれかであることを確認した。
+  </p>
+
+  <h4>この日に入れた実装の修正</h4>
+  <p>
+    <code>deleteCloneScaffolding(tableInfo:)</code> — ピボットの元データの写しは、テンプレートから複製した表の
+    <code>tableModel</code> を乗っ取って作る。乗っ取ったあと、複製の足場（TableInfo・キャプション・
+    それ自身の要約モデル・カテゴリ順）を<strong>島ごと</strong>削除するようにした。島は到達可能性で決めるので、
+    文書のほかが名指しているもの（写しのモデル自身・シート・共有のスタンディン）は島から外れ、
+    生き残りが消えたオブジェクトを参照することはない。台帳（<code>ComponentInfo</code> と
+    <code>object_uuid_map_entries</code>）も同時に掃除する。これで写しのモデルの持ち主が 1 人になり、
+    整合性検査の 30 件の問題と「table corruption」の監査が消えた。<strong>描画は直らない。</strong>
+  </p>
+  <p class="meta">
+    書き出しの既定は <code>writesPivotTables = false</code> のまま。既定 off なのでこの修正は
+    利用者の出力を変えない。854 件のテストは緑。調査の道具（graft / refgraph / grids / subgraph_diff /
+    value_diff / unknown_fields）と全知見は工房の <code>experiments/numbers-pivot/tools/</code> にある。
   </p>
 
   <h3>B.20 値を持たないセルが消えていた（Rev 2.4）</h3>
