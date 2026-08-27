@@ -7,7 +7,7 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.10.0] — 2026-08-28
 
 ### Added
 
@@ -21,7 +21,8 @@ writes, so the constant, the README's status line and the tag always name the sa
   Numbers and CSV count the charts they cannot hold. The XML structure was learned from libxlsxwriter's chart.c
   (BSD-2, consulted; no code copied — see NOTICE). Judged by openpyxl (all four kinds read back with their types,
   titles, series names and qualified references — the line chart with both series) and LibreOffice (all four
-  render in the converted PDF: rising bars, horizontal bars, two crossing lines, six slices).
+  render in the converted PDF: rising bars, horizontal bars, two crossing lines, six slices). Confirmed in
+  real Excel by the maintainer (2026-08-28, read-only licence): the written workbook opens cleanly.
 
 ## [0.9.0] — 2026-08-28
 
