@@ -1873,6 +1873,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.1 Draft</td><td>2026-08-28</td><td><strong>新方式の保護の鍵の生成</strong>を実装し付録 B.31 に記録（MIT 採用計画の第 1 段）。ECMA-376 §18.2.29 の反復 SHA-512（塩 16 バイト・spinCount 既定 100,000・反復番号は 0 起点 LE32 後置）。<code>setModernPassword</code> / <code>modernPasswordMatches</code> を 3 つの保護型に対で追加、計算は <code>ModernPasswordHash</code> として公開。SHA-512 は CryptoKit（枠組み依存が「＋ CryptoKit」へ 1 つ広がる・SwiftPM 依存ゼロは不変）、塩は SystemRandomNumberGenerator。出自は XLKit（MIT・NOTICE 3 項）。検証は Python hashlib の独立実装による既知解 3 本＋往復。実機 Excel の開錠確認は未</td></tr>
     <tr><td>4.2 Draft</td><td>2026-08-28</td><td><strong>画像をマスに置く</strong> API を実装し付録 B.32 に記録（採用計画の第 2 段）。<code>SheetImage</code>（PNG / JPEG / GIF をバイトから判定・縦横をヘッダから読む）＋ <code>addImage(_:at:sizing:)</code> / <code>addImage(_:over:)</code>（原寸・fitCell・resizeCellToFit・範囲張り）。書き出しは 2 経路 — 絵の紙が無ければ一式生成、あれば既存の紙の末尾へ錨だけ追記（既存部分は byte のまま・rId は最大値の次から・名前空間は錨が自前で宣言）。F3 は「画像を足した紙は追記・他は byte 一致」に細分化。ODS / Numbers / CSV へは枚数を数えて落として言う。出自は XLKit と XlsxReaderWriter（MIT）。審判は openpyxl</td></tr>
     <tr><td>4.3 Draft</td><td>2026-08-28</td><td><strong>列幅の自動調整</strong>を実装し付録 B.33 に記録（採用計画の第 3 段）。XlsxWriter（BSD-2）の autofit と CHAR_WIDTHS（Calibri 11 実測・ASCII 95 文字）を翻訳。文字は表引きの合算・数値は桁 × 7 px・TRUE 31 / FALSE 36・余白 7 px・フィルタ列 +16 px・上限 255 文字・手で広げた列は広がる方向のみ。逸脱 1 つ: 非 ASCII 一律 8 px の出典に対し東アジア全角域は 16 px とした</td></tr>
+    <tr><td>4.4 Draft</td><td>2026-08-28</td><td><strong>グラフを作る</strong>を実装し付録 B.34 に記録（採用計画の最終段）。縦棒・横棒・折れ線・円の 4 種。<code>Chart</code> / <code>addSeries</code> / <code>addChart(_:over:)</code>。chart 部品＋graphicFrame 錨で書き、紙の扱いは B.32 の機構を共有（無ければ生成・あれば追記・採番は最大値の次）。範囲はシート名で修飾し絶対参照へ。円は軸なし。他形式は数えて落とす。構造の参考は libxlsxwriter chart.c（BSD-2・コードは写していない）。審判は openpyxl（型・系列・参照・表題）と LibreOffice</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4337,6 +4338,53 @@ sheet.autofitColumns(maxWidth: <span class="nu">60</span>)    <span class="cm">/
     実装はモデル側の mutating API — 書き出しがモデルを黙って変えることはしない、の線（B.32 と同じ）。
     検証は文字幅表の総和の一致（出典の Python 実装と同値になる既知ケース）、全角 16 px、
     真偽値・数値・日付の測り、余白 7 px、上限、既に広い列を縮めないこと。
+  </p>
+
+  <h3>B.34 グラフを作る — 採用計画の第 4 段・最終（Rev 4.4）</h3>
+  <p>
+    2026-08-28。機能採用計画の最終段。グラフはこれまで「保つだけ」だった——作る側を実装する。
+    範囲は計画どおり<strong>実務の大半を占める 4 種: 縦棒・横棒・折れ線・円</strong>。
+    積み上げ・散布図・面・レーダーは計画の範囲外のまま（needs が出たら次の計画）。
+    XML の構造（要素の並び・軸の結線・系列の形）は libxlsxwriter の <code>chart.c</code> を
+    構造の参考として読んだ（BSD-2・コードは 1 行も写していない——NOTICE 5 項の注記どおり）。
+  </p>
+
+  <h4>モデル — グラフもシートの持ち物・値型</h4>
+  <pre><code><span class="kw">var</span> chart = <span class="ty">Chart</span>(.column)                  <span class="cm">// .column / .bar / .line / .pie</span>
+chart.title = <span class="st">"月次売上"</span>
+chart.addSeries(values: <span class="st">"B2:B13"</span>, categories: <span class="st">"A2:A13"</span>, name: <span class="st">"売上"</span>)
+sheet.addChart(chart, over: <span class="st">"D2:K16"</span>)     <span class="cm">// 置き場所は範囲の錨（画像と同じ紙に乗る）</span></code></pre>
+  <p>
+    系列の範囲はシート名なしでも書ける——書き出し時に<strong>置かれたシートの名前で修飾し、
+    $ 付きの絶対参照へ直す</strong>（Excel のグラフはシート修飾の絶対参照しか受け付けないため。
+    元からシート修飾されている参照はそのまま）。系列の無いグラフは書かずに数えて言う。
+  </p>
+
+  <h4>書き出し — 画像と同じ紙に、別の種類の錨で</h4>
+  <p>
+    グラフは chart 部品（<code>c:chartSpace</code>）と、絵の紙の上の
+    <code>xdr:graphicFrame</code> 錨の 2 つで書く。紙の扱いは B.32 の機構をそのまま共有する——
+    紙が無ければ一式生成、保っている紙があれば末尾へ錨だけ追記し、紙の関係ファイルには
+    画像（image 型）とグラフ（chart 型）の関係を同じ採番で足す。chart 部品の番号・
+    関係 id・図形 id はすべて既存の最大値の次から。要素の並びは CT_Chart / CT_PlotArea /
+    CT_BarChart 等のスキーマ順（title → plotArea → legend → plotVisOnly、
+    barDir → grouping → varyColors → ser → axId、ser 内は idx → order → tx → cat → val）。
+    円グラフだけ軸を持たない。凡例は既定でオン（右）、<code>legend = false</code> で消える。
+  </p>
+
+  <h4>他形式と 2 回目の保存</h4>
+  <p>
+    ODS・Numbers・CSV へは枚数を数えて <code>dropped</code>（画像と同じ扱い）。
+    自分の書いたグラフ入りブックを読み戻すと <code>charts</code> は空になり
+    （chart 部品と紙は保全バイトへ）、もう一度保存しても byte 一致——B.22 の釘を
+    グラフにも打つ。
+  </p>
+
+  <h4>検証</h4>
+  <p>
+    審判は openpyxl——4 種それぞれを読ませ、型（BarChart / LineChart / PieChart）・系列数・
+    参照の文字列・表題が一致すること。LibreOffice の PDF 変換が通ること。
+    グラフ入り fixture への追記で既存のグラフと画像が byte のまま残ること。2 回目の保存の byte 一致。
   </p>
 
 </section>

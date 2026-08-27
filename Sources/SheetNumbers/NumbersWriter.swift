@@ -128,6 +128,10 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.images.count) image(s) added by addImage dropped: writing pictures into Numbers is not implemented yet (write .xlsx to keep them)"))
         }
+        for sheet in workbook.sheets where !sheet.charts.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
+        }
         if !workbook.definedNames.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formulas, message: "\(workbook.definedNames.count) defined name(s) dropped: Numbers has no defined names"))
         }

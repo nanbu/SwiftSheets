@@ -58,8 +58,8 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
      THEORY OF LIABILITY) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
      POSSIBILITY OF SUCH DAMAGE.
 
-   libxlsxwriter (same author, same license) is consulted as a structural reference for future chart support;
-   no code from it is included.
+   libxlsxwriter (same author, same license) was consulted as a structural reference for the chart writer
+   (element order, axis wiring — spec Appendix B.34); no code from it is included.
 
 5. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
    - Tests/SwiftSheetsTests/Fixtures/openpyxl/ — test fixture files, unmodified (see NOTICE.md there)

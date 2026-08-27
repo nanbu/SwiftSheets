@@ -300,6 +300,9 @@ enum ODSWriter {
             if !sheet.images.isEmpty {
                 sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.images.count) image(s) added by addImage dropped: writing pictures into ODS is not implemented yet (write .xlsx to keep them)")
             }
+            if !sheet.charts.isEmpty {
+                sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into ODS is not implemented yet (write .xlsx to keep them)")
+            }
             let controls = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.control != nil }.count }
             if controls > 0 {
                 sink.add(.dropped, subject: .other, sheet: sheet.name, "\(controls) cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has no cell controls — the value is kept (write .numbers to keep the control)")

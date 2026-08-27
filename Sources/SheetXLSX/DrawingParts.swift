@@ -57,18 +57,19 @@ enum DrawingParts {
         return Data((xml[..<close.lowerBound] + anchors.joined() + xml[close.lowerBound...]).utf8)
     }
 
-    /// Adds image relationships to a drawing's rels part — existing ids stay, new ones are numbered after the
-    /// highest in use. `bytes` nil means the drawing had no rels part yet. Returns the new bytes and the fresh ids.
-    static func appendingImageRelationships(targets: [String], to bytes: Data?) -> (data: Data, ids: [String])? {
+    /// Adds relationships (image, chart, …) to a drawing's rels part — existing ids stay, new ones are numbered
+    /// after the highest in use. `bytes` nil means the drawing had no rels part yet. Each entry is a relationship
+    /// type suffix and a target. Returns the new bytes and the fresh ids, in entry order.
+    static func appendingRelationships(entries: [(type: String, target: String)], to bytes: Data?) -> (data: Data, ids: [String])? {
         var xml = bytes.flatMap { String(data: $0, encoding: .utf8) }
             ?? XMLWriter.header + "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\"></Relationships>"
         guard let close = xml.range(of: "</Relationships>", options: .backwards) else { return nil }
         var next = 1
         for m in xml.matches(of: /Id="rId([0-9]+)"/) { next = max(next, (Int(m.1) ?? 0) + 1) }
         var ids: [String] = [], inserted = ""
-        for target in targets {
+        for entry in entries {
             let id = "rId\(next)"; next += 1; ids.append(id)
-            inserted += "<Relationship Id=\"\(id)\" Type=\"\(XMLWriter.nsRel)\(imageRelationshipType)\" Target=\"\(XML.esc(target))\"/>"
+            inserted += "<Relationship Id=\"\(id)\" Type=\"\(XMLWriter.nsRel)\(entry.type)\" Target=\"\(XML.esc(entry.target))\"/>"
         }
         xml.replaceSubrange(close.lowerBound..<close.lowerBound, with: inserted)
         return (Data(xml.utf8), ids)

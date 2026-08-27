@@ -74,6 +74,8 @@ public struct Sheet: Equatable, Sendable {
     /// Pictures placed by `addImage` (spec Appendix B.32). Pictures already in an opened file stay in
     /// `preserved` as opaque bytes and are not listed here.
     public var images: [SheetImage] = []
+    /// Charts placed by `addChart` (spec Appendix B.34). Charts already in an opened file stay in `preserved`.
+    public var charts: [Chart] = []
     /// Material the reader kept for a lossless write-back (spec §6).
     public var preserved = SheetPreservation()
 

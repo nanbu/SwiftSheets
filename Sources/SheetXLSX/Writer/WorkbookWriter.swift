@@ -157,15 +157,49 @@ enum WorkbookWriter {
             let stem = path.dropFirst("xl/drawings/drawing".count)
             if let n = Int(stem.prefix(while: \.isNumber)) { nextDrawing = max(nextDrawing, n + 1) }
         }
-        for (i, sheet) in wb.sheets.enumerated() where !sheet.images.isEmpty {
-            var mediaTargets: [String] = []
+        var nextChart = 1
+        for path in usedPaths where path.hasPrefix("xl/charts/chart") {
+            let stem = path.dropFirst("xl/charts/chart".count)
+            if let n = Int(stem.prefix(while: \.isNumber)) { nextChart = max(nextChart, n + 1) }
+        }
+        var generatedOverrides: [String: String] = [:]
+        for (i, sheet) in wb.sheets.enumerated() where !sheet.images.isEmpty || !sheet.charts.isEmpty {
+            // every image becomes a media part; every chart with series becomes a chart part (B.34)
+            var entries: [(type: String, target: String)] = []
             for image in sheet.images {
                 let path = "xl/media/image\(nextMedia).\(image.format.rawValue)"
                 nextMedia += 1
                 usedPaths.insert(path)
                 opaque[path] = image.data
                 imageExtensions.insert(image.format.rawValue)
-                mediaTargets.append("../media/" + (path as NSString).lastPathComponent)
+                entries.append((DrawingParts.imageRelationshipType, "../media/" + (path as NSString).lastPathComponent))
+            }
+            var charts: [Chart] = []
+            for chart in sheet.charts {
+                guard !chart.series.isEmpty, chart.anchor != nil else {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart with no series was not written")
+                    continue
+                }
+                let path = "xl/charts/chart\(nextChart).xml"
+                nextChart += 1
+                usedPaths.insert(path)
+                opaque[path] = Data(ChartParts.chartXML(chart, sheetName: sheet.name).utf8)
+                generatedOverrides[path] = ChartParts.contentType
+                entries.append((ChartParts.relationshipType, "../charts/" + (path as NSString).lastPathComponent))
+                charts.append(chart)
+            }
+            guard !entries.isEmpty else { continue }
+            func anchors(_ ids: [String], firstShapeID: (String) -> Int) -> [String] {
+                var out: [String] = []
+                for (n, image) in sheet.images.enumerated() {
+                    out.append(DrawingParts.anchorXML(image, shapeID: firstShapeID(ids[n]), relID: ids[n],
+                                                      cellSize: DrawingParts.cellSize(of: sheet, at: image.anchor)))
+                }
+                for (n, chart) in charts.enumerated() {
+                    let id = ids[sheet.images.count + n]
+                    out.append(ChartParts.anchorXML(over: chart.anchor!, shapeID: firstShapeID(id), relID: id))
+                }
+                return out
             }
             // the sheet's existing drawing, if the source had one and it survived into this write
             let sheetDir = (plans[i].path as NSString).deletingLastPathComponent
@@ -175,14 +209,12 @@ enum WorkbookWriter {
                 .flatMap { opaque[$0] != nil ? $0 : nil }
             if let drawingPath = existing {
                 let relsPath = WorkbookReader.relsPath(of: drawingPath)
-                guard let patched = DrawingParts.appendingImageRelationships(targets: mediaTargets, to: opaque[relsPath]) else { continue }
-                let anchors = zip(sheet.images, patched.ids).map { image, id in
-                    DrawingParts.anchorXML(image, shapeID: 1000 + (Int(id.dropFirst(3)) ?? 0), relID: id,
-                                           cellSize: DrawingParts.cellSize(of: sheet, at: image.anchor))
-                }
-                guard let spliced = DrawingParts.appendingAnchors(anchors, to: opaque[drawingPath]!) else {
+                guard let patched = DrawingParts.appendingRelationships(entries: entries, to: opaque[relsPath]),
+                      let spliced = DrawingParts.appendingAnchors(
+                          anchors(patched.ids, firstShapeID: { 1000 + (Int($0.dropFirst(3)) ?? 0) }), to: opaque[drawingPath]!)
+                else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name,
-                             "\(sheet.images.count) image(s) not written: the sheet's existing drawing part could not be extended")
+                             "\(entries.count) image(s)/chart(s) not written: the sheet's existing drawing part could not be extended")
                     continue
                 }
                 opaque[drawingPath] = spliced
@@ -191,12 +223,9 @@ enum WorkbookWriter {
                 let drawingPath = "xl/drawings/drawing\(nextDrawing).xml"
                 nextDrawing += 1
                 usedPaths.insert(drawingPath)
-                guard let rels = DrawingParts.appendingImageRelationships(targets: mediaTargets, to: nil) else { continue }
-                let anchors = zip(sheet.images, rels.ids).enumerated().map { n, pair in
-                    DrawingParts.anchorXML(pair.0, shapeID: n + 2, relID: pair.1,
-                                           cellSize: DrawingParts.cellSize(of: sheet, at: pair.0.anchor))
-                }
-                imagePlans[i] = ImagePlan(newDrawing: (drawingPath, DrawingParts.drawingXML(anchors: anchors),
+                guard let rels = DrawingParts.appendingRelationships(entries: entries, to: nil) else { continue }
+                imagePlans[i] = ImagePlan(newDrawing: (drawingPath,
+                                                      DrawingParts.drawingXML(anchors: anchors(rels.ids, firstShapeID: { 1 + (Int($0.dropFirst(3)) ?? 0) })),
                                                       String(data: rels.data, encoding: .utf8)!))
             }
         }
@@ -344,6 +373,7 @@ enum WorkbookWriter {
         for ext in imageExtensions.sorted() where defaults[ext] == nil {
             defaults[ext] = SheetImage.Format(rawValue: ext)!.contentType
         }
+        for (path, type) in generatedOverrides { overrides[path] = type }
         for plan in cachePlans {
             overrides[plan.definitionPath] = PivotParts.ctCacheDefinition
             if let records = plan.recordsPath { overrides[records] = PivotParts.ctCacheRecords }

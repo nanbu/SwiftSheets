@@ -75,6 +75,10 @@ public enum CSVCodec: SpreadsheetCodec {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.images.count) image(s) not written: CSV holds values only (write .xlsx to keep them)"))
         }
+        if !sheet.charts.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.charts.count) chart(s) not written: CSV holds values only (write .xlsx to keep them)"))
+        }
         // a date value's automatic number format is not formatting the user applied — it does not count
         func hasFormatting(_ c: Cell) -> Bool {
             var plain = c.style; plain.numberFormat = CellStyle.default.numberFormat

@@ -7,6 +7,22 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **Charts can be built now** (spec Appendix B.34, the fourth and final step of the MIT-adoption plan): column,
+  bar, line and pie — the four kinds that carry most real work. `Chart(.column, title:)`,
+  `chart.addSeries(values:categories:name:)`, `sheet.addChart(_:over:)`. Series ranges may skip the sheet name;
+  the writer qualifies them with the host sheet and makes them absolute, since chart references accept nothing
+  less. A chart rides the same drawing part as pictures: a sheet whose source file already carries a drawing gets
+  the graphic-frame anchor spliced in after the preserved bytes, and chart parts, relationship ids and shape ids
+  are numbered after the existing maxima. A chart with no series is not invented — counted and reported. ODS,
+  Numbers and CSV count the charts they cannot hold. The XML structure was learned from libxlsxwriter's chart.c
+  (BSD-2, consulted; no code copied — see NOTICE). Judged by openpyxl (all four kinds read back with their types,
+  titles, series names and qualified references — the line chart with both series) and LibreOffice (all four
+  render in the converted PDF: rising bars, horizontal bars, two crossing lines, six slices).
+
 ## [0.9.0] — 2026-08-28
 
 ### Added
