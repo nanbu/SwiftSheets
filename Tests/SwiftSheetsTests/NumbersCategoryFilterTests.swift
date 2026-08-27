@@ -78,6 +78,22 @@ import SwiftSheets
         #expect(!result.warnings.contains { $0.message.contains("a Numbers filter (") })
     }
 
+    /// The same document with its categories switched **off** (another hand-made specimen): the flip is
+    /// `is_enabled` alone — the grouped columns and the whole tree stay — and Numbers' own Excel export of it
+    /// carries no trace of the grouping (measured: a flat table, no label rows, no shifted grid). The retained
+    /// set-up has no place in the model and is dropped out loud, named by its columns.
+    @Test func switchedOffCategoriesAreDroppedOutLoud() throws {
+        let result = try NumbersCodec.read(try Self.fixture("category-off-15.numbers"))
+        let s = result.workbook.sheets[0]
+        #expect(s["D6"]?.textValue == "神奈川事業所")     // the rows still come back flat and whole
+        let named = result.warnings.filter { $0.message.contains("switched-off category grouping") }
+        #expect(named.count == 1, Comment(rawValue: "\(result.warnings.map(\.message))"))
+        #expect(named.first?.kind == .dropped)
+        #expect(named.first?.message.contains("地域") == true)
+        #expect(named.first?.message.contains("都道府県") == true)
+        #expect(!result.warnings.contains { $0.message.contains("a category grouping by") })
+    }
+
     /// The discriminator the category warning stands on: a pivot summary's own group-by names no columns, so a
     /// pivot document must not be mistaken for a categorised table.
     @Test func aPivotIsNotMistakenForACategoryGrouping() throws {

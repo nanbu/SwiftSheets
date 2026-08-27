@@ -19,10 +19,12 @@ writes, so the constant, the README's status line and the tag always name the sa
   look into extra label rows and a shifted grid — a change of data this library does not copy). A
   **stock-quote cell** turns out to be a plain `STOCK` formula in current Numbers, already carried since the
   quote-function work; the quote-table variant's attribute pop-up menus are dropped out loud as on any second
-  table. A **switched-off filter** was measured too, on a second hand-made document: Numbers empties the
-  hidden-state list (so nothing is hidden) and keeps the rules in their off state — those rules have no place in
-  the model and are dropped out loud, as Numbers' own Excel export drops them without a trace. The corpus gains
-  `category-15.numbers`, `filter-15.numbers`, `filter-off-15.numbers` and `stockcell-15.numbers`.
+  table. The **switched-off states** were measured too, on two more hand-made documents: turning a filter off empties
+  the hidden-state list and keeps the rules in their off state; turning categories off flips `is_enabled` alone,
+  the grouped columns and the tree staying whole. Neither retained set-up has a place in the model, so both are
+  dropped out loud — and Numbers' own Excel export drops both without a trace. The corpus gains
+  `category-15.numbers`, `category-off-15.numbers`, `filter-15.numbers`, `filter-off-15.numbers` and
+  `stockcell-15.numbers`.
 
 - **A Numbers pivot now takes several fields on either axis** (spec Appendix B.28): two row fields, two column
   fields, three-deep nesting, mixed shapes — written as the real thing, with each group's own subtotal lane after

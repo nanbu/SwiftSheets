@@ -531,17 +531,29 @@ struct NumbersReader {
         guard let catID = model.reference("category_owner") else { return }
         let lanes = laneIndexes(of: model, rows: false)
         var names: [String] = []
+        var offNames: [String] = []
         for gbID in doc.object(catID)?.references("group_by") ?? [] {
-            guard let gb = doc.object(gbID), gb.bool("is_enabled") != false else { continue }
+            guard let gb = doc.object(gbID) else { continue }
+            // Switching categories off flips is_enabled and keeps everything else — the grouped columns and the
+            // whole tree (measured on a document whose categories were set up and then turned off). The set-up
+            // has no place in the model either way, so both states are named; only the wording differs.
+            let enabled = gb.bool("is_enabled") != false
             for column in gb.messages("group_column") {
                 guard let hex = NumbersUUID.hex(column.message("column_uid")), let index = lanes[hex] else { continue }
                 let heading = t[CellRef(row: 0, col: index)]?.stringValue
-                names.append(heading?.isEmpty == false ? heading! : "column \(index + 1)")
+                let name = heading?.isEmpty == false ? heading! : "column \(index + 1)"
+                if enabled { names.append(name) } else { offNames.append(name) }
             }
         }
-        guard !names.isEmpty else { return }        // a pivot summary's own group-by names no columns
-        warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
-                                          message: "table \(t.name ?? ""): a category grouping by \(names.joined(separator: ", ")) is dropped — the model has no word for Numbers categories; the rows are kept flat in stored order"))
+        // a pivot summary's own group-by names no columns, so neither warning fires on a pivot
+        if !names.isEmpty {
+            warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
+                                              message: "table \(t.name ?? ""): a category grouping by \(names.joined(separator: ", ")) is dropped — the model has no word for Numbers categories; the rows are kept flat in stored order"))
+        }
+        if !offNames.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName,
+                                              message: "table \(t.name ?? ""): a switched-off category grouping by \(offNames.joined(separator: ", ")) is dropped — it was grouping nothing on screen, and its set-up has no place in the model; Numbers' own Excel export drops it too"))
+        }
     }
 
     static func offsets(_ data: Data, wide: Bool) -> [Int] {

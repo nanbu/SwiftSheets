@@ -13,7 +13,8 @@ import SwiftSheets
     static let names = ["issue-3", "issue-18", "simple-func", "test-empty-rows", "test-xref-coverage", "test-2",
                         "test-10", "test-1", "test-formats", "test-hlinks", "issue-17",
                         "conditional-formats-15", "links-notes-15", "popup-15", "controls-15", "array-15", "stock-15",
-                        "pivot-mixed-15", "category-15", "filter-15", "stockcell-15", "filter-off-15"]
+                        "pivot-mixed-15", "category-15", "filter-15", "stockcell-15", "filter-off-15",
+                        "category-off-15"]
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
@@ -111,7 +112,8 @@ import SwiftSheets
         // holds a switched-off filter whose rules have no place in the model; dropping each out loud is the
         // documented behaviour the fixture pins.
         let expectedDrops = ["stockcell-15": ["pop-up menus on a second table"],
-                             "filter-off-15": ["switched-off Numbers filter"]][name] ?? []
+                             "filter-off-15": ["switched-off Numbers filter"],
+                             "category-off-15": ["switched-off category grouping"]][name] ?? []
         let unexpected = warnings.filter { w in w.kind == .dropped && !expectedDrops.contains { w.message.contains($0) } }
         #expect(unexpected.isEmpty, "\(name): \(warnings)")
         _ = formulaChecks
