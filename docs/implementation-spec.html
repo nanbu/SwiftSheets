@@ -1871,6 +1871,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.9 Draft</td><td>2026-08-28</td><td><strong>並べ替え</strong>を保守者手作りの 5 冊目の見本で実測（付録 B.29 追補）。規則は <code>sort_order</code> に列番号＋方向で残り、適用で格納行そのものが並び替わる——データは並んだ順で既に読めている。規則は列名を挙げて落として言うようにした。Numbers 自身の Excel 書き出しも sortState を書かず並んだ行だけを渡す（実測）。整理パネルの並べ替えにオン/オフは無い（UI で確認）。検体 <code>sort-15.numbers</code> を追加、テスト 892 件</td></tr>
     <tr><td>4.0 Draft</td><td>2026-08-28</td><td><strong>まとめて編集する API</strong> <code>Workbook.editSheet(named:_:)</code> / <code>(at:_:)</code> を採用し付録 B.30 に記録（保守者の提案を査読のうえ採用。動機②——連鎖代入でも複製が走る——は B.11 のインプレース編集で既に解決済みと訂正）。クロージャが返った時点で反映、throw なら全部破棄のトランザクション。無い名前はモデル層初の throws として新設の <code>SheetError.sheetNotFound(name:)</code>（照会は Optional・操作の不成立は throws、と線を引いた）。命名は同族に合わせ <code>named:</code> ラベルに変更。<code>~Copyable</code> セッション型は「古い編集が新しい構造を黙って上書きする」難点を挙げて見送り。§15.1 の使用例から自作エラーの 4 行が消えた。テスト 896 件</td></tr>
     <tr><td>4.1 Draft</td><td>2026-08-28</td><td><strong>新方式の保護の鍵の生成</strong>を実装し付録 B.31 に記録（MIT 採用計画の第 1 段）。ECMA-376 §18.2.29 の反復 SHA-512（塩 16 バイト・spinCount 既定 100,000・反復番号は 0 起点 LE32 後置）。<code>setModernPassword</code> / <code>modernPasswordMatches</code> を 3 つの保護型に対で追加、計算は <code>ModernPasswordHash</code> として公開。SHA-512 は CryptoKit（枠組み依存が「＋ CryptoKit」へ 1 つ広がる・SwiftPM 依存ゼロは不変）、塩は SystemRandomNumberGenerator。出自は XLKit（MIT・NOTICE 3 項）。検証は Python hashlib の独立実装による既知解 3 本＋往復。実機 Excel の開錠確認は未</td></tr>
+    <tr><td>4.2 Draft</td><td>2026-08-28</td><td><strong>画像をマスに置く</strong> API を実装し付録 B.32 に記録（採用計画の第 2 段）。<code>SheetImage</code>（PNG / JPEG / GIF をバイトから判定・縦横をヘッダから読む）＋ <code>addImage(_:at:sizing:)</code> / <code>addImage(_:over:)</code>（原寸・fitCell・resizeCellToFit・範囲張り）。書き出しは 2 経路 — 絵の紙が無ければ一式生成、あれば既存の紙の末尾へ錨だけ追記（既存部分は byte のまま・rId は最大値の次から・名前空間は錨が自前で宣言）。F3 は「画像を足した紙は追記・他は byte 一致」に細分化。ODS / Numbers / CSV へは枚数を数えて落として言う。出自は XLKit と XlsxReaderWriter（MIT）。審判は openpyxl</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4251,6 +4252,64 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     鍵を作り直せず落とすと判明して不成立。UNO 経由で平文から掛けさせる試みも 3 回で断念
     （同梱 Python の包みがスクリプトを実行しない）。実機の Excel か Numbers での開錠が
     確認できたら、この欄を更新する。
+  </p>
+
+  <h3>B.32 画像をマスに置く — 採用計画の第 2 段（Rev 4.2）</h3>
+  <p>
+    2026-08-28。機能採用計画の第 2 段。これまで画像は「元ファイルにあれば byte のまま保つ」だけで、
+    新しく置く手段が無かった。置く側を実装する。置き方の計算と drawing XML の形は XLKit（MIT）、
+    「このマスに・この範囲に」という API の形と既存の絵の紙への追記という発想は
+    XlsxReaderWriter（MIT）を参考にした。EMU 換算は導入済みの <code>Units</code> をそのまま使う。
+  </p>
+
+  <h4>モデル — 画像はシートの持ち物・値型</h4>
+  <pre><code><span class="kw">let</span> img = <span class="kw">try</span> <span class="ty">SheetImage</span>(data: pngData)      <span class="cm">// 形式（PNG / JPEG / GIF）と縦横はバイト列から判定</span>
+sheet.addImage(img, at: <span class="st">"B2"</span>)                 <span class="cm">// 原寸で置く（oneCellAnchor）</span>
+sheet.addImage(img, at: <span class="st">"B2"</span>, sizing: .fitCell) <span class="cm">// マスの現寸に縦横比を保って収める</span>
+sheet.addImage(img, at: <span class="st">"B2"</span>, sizing: .resizeCellToFit) <span class="cm">// マスの方を画像に合わせて広げる（XLKit 方式）</span>
+sheet.addImage(img, over: <span class="st">"B2:D6"</span>)            <span class="cm">// 範囲いっぱいに張る（twoCellAnchor）</span></code></pre>
+  <p>
+    形式の判定は先頭バイト（PNG 署名・JPEG SOI・GIF87a/89a）、縦横は PNG の IHDR・GIF のヘッダ・
+    JPEG は SOF マーカー走査で読む。知らない形式は <code>unsupportedFeature</code>、
+    壊れたヘッダは <code>malformedPart</code> を投げる。<code>.resizeCellToFit</code> は
+    <code>addImage</code> の時点で列幅・行高を変える（書き出しがモデルを黙って変えることはしない）。
+    ピクセル→列幅は標準の (px − 5) ÷ 7（Calibri 11 の MDW）、行高は px × 0.75 pt。
+    XLKit の px ÷ 8 という近似式は採らなかった。
+  </p>
+
+  <h4>書き出し — 絵の紙は 1 シートに 1 枚、だから追記する</h4>
+  <p>
+    OOXML の決まりで、ワークシートが指せる drawing は 1 枚だけである。そこで書き出しは 2 経路:
+    <strong>絵の紙が無いシート</strong>には紙・関係・内容種別・<code>&lt;drawing r:id&gt;</code> を
+    一式生成する（注釈・名前付き表と同じ計画方式）。<strong>保っている絵の紙があるシート</strong>
+    （グラフや既存画像）には、その紙の <code>&lt;/xdr:wsDr&gt;</code> 直前へ新しい錨だけを差し込み、
+    紙の関係ファイルには既存の最大 rId の次から画像の関係を足す。既存の錨・グラフへの参照は
+    文字列のまま一切触らない。差し込む錨は自前の名前空間宣言を要素自身に持たせ、
+    元の紙がどんな接頭辞を使っていても壊れないようにした。
+  </p>
+  <p>
+    <strong>F3 の意味はここで一段細かくなる</strong>: 画像を足した紙は「byte 一致」から
+    「既存部分は byte のまま・末尾に追記」へ変わり、画像を足していないシートの紙は従来どおり
+    byte 一致のままである。<code>PreservationTests</code> の検査対象に、グラフ入りブックへ画像を
+    足しても既存の錨と関係が無傷で残ることを加えた。読み側は従来どおり——drawing は解釈せず
+    byte のまま保つので、読んだブックの既存画像は <code>sheet.images</code> に現れない
+    （現れるのは自分が置いた分だけ）。
+  </p>
+
+  <h4>他形式 — 置き場が無いものは数えて落とす</h4>
+  <p>
+    ODS・Numbers・CSV への書き出しでは、画像は枚数を数えて <code>dropped</code> で報告する
+    （黙って消さない・§6）。ODS の <code>draw:frame</code> と Numbers の描画オブジェクトへの
+    対応は将来の段に譲る。ストリーミング書き（値と書式のみ）も対象外のまま。
+  </p>
+
+  <h4>検証</h4>
+  <p>
+    新規ブックで紙・関係・内容種別・EMU（px × 9525）の構造一致、3 形式の判定と縦横の読み
+    （検体は sips で相互変換した実バイト）、グラフ入り fixture への追記で
+    <strong>グラフの部品が byte 一致のまま</strong>残ること、範囲アンカーの from/to、
+    <code>.resizeCellToFit</code> の寸法反映、他形式の警告。外部の審判は openpyxl —
+    こちらが書いた画像入りブックを読ませ、画像の存在と寸法が一致することを確認する。
   </p>
 
 </section>

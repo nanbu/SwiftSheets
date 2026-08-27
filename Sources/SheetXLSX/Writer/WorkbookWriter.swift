@@ -143,6 +143,64 @@ enum WorkbookWriter {
                                           notes: notes)
         }
 
+        // pictures (spec Appendix B.32): media goes into the package once per image; a sheet that already has a
+        // drawing part gets the anchors spliced into the preserved bytes, a sheet without one gets a fresh part.
+        var imagePlans: [Int: ImagePlan] = [:]
+        var imageExtensions = Set<String>()
+        var nextMedia = 1
+        for path in usedPaths where path.hasPrefix("xl/media/image") {
+            let stem = path.dropFirst("xl/media/image".count)
+            if let n = Int(stem.prefix(while: \.isNumber)) { nextMedia = max(nextMedia, n + 1) }
+        }
+        var nextDrawing = 1
+        for path in usedPaths where path.hasPrefix("xl/drawings/drawing") {
+            let stem = path.dropFirst("xl/drawings/drawing".count)
+            if let n = Int(stem.prefix(while: \.isNumber)) { nextDrawing = max(nextDrawing, n + 1) }
+        }
+        for (i, sheet) in wb.sheets.enumerated() where !sheet.images.isEmpty {
+            var mediaTargets: [String] = []
+            for image in sheet.images {
+                let path = "xl/media/image\(nextMedia).\(image.format.rawValue)"
+                nextMedia += 1
+                usedPaths.insert(path)
+                opaque[path] = image.data
+                imageExtensions.insert(image.format.rawValue)
+                mediaTargets.append("../media/" + (path as NSString).lastPathComponent)
+            }
+            // the sheet's existing drawing, if the source had one and it survived into this write
+            let sheetDir = (plans[i].path as NSString).deletingLastPathComponent
+            let existing: String? = !sameFamily ? nil : sheet.preserved.relationships
+                .first { $0.type.hasSuffix(DrawingParts.relationshipType) }
+                .map { WorkbookReader.resolvePart($0.target, relativeTo: sheetDir) }
+                .flatMap { opaque[$0] != nil ? $0 : nil }
+            if let drawingPath = existing {
+                let relsPath = WorkbookReader.relsPath(of: drawingPath)
+                guard let patched = DrawingParts.appendingImageRelationships(targets: mediaTargets, to: opaque[relsPath]) else { continue }
+                let anchors = zip(sheet.images, patched.ids).map { image, id in
+                    DrawingParts.anchorXML(image, shapeID: 1000 + (Int(id.dropFirst(3)) ?? 0), relID: id,
+                                           cellSize: DrawingParts.cellSize(of: sheet, at: image.anchor))
+                }
+                guard let spliced = DrawingParts.appendingAnchors(anchors, to: opaque[drawingPath]!) else {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name,
+                             "\(sheet.images.count) image(s) not written: the sheet's existing drawing part could not be extended")
+                    continue
+                }
+                opaque[drawingPath] = spliced
+                opaque[relsPath] = patched.data
+            } else {
+                let drawingPath = "xl/drawings/drawing\(nextDrawing).xml"
+                nextDrawing += 1
+                usedPaths.insert(drawingPath)
+                guard let rels = DrawingParts.appendingImageRelationships(targets: mediaTargets, to: nil) else { continue }
+                let anchors = zip(sheet.images, rels.ids).enumerated().map { n, pair in
+                    DrawingParts.anchorXML(pair.0, shapeID: n + 2, relID: pair.1,
+                                           cellSize: DrawingParts.cellSize(of: sheet, at: pair.0.anchor))
+                }
+                imagePlans[i] = ImagePlan(newDrawing: (drawingPath, DrawingParts.drawingXML(anchors: anchors),
+                                                      String(data: rels.data, encoding: .utf8)!))
+            }
+        }
+
         // named tables: each gets a part of its own, an id unique across the workbook, and a sheet relationship.
         // A table read from a file keeps its part path and id; a new one is numbered after the highest in use.
         var usedTableIDs = Set<Int>()
@@ -252,7 +310,7 @@ enum WorkbookWriter {
             sheetParts.append(sheetXML(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily,
                                        isActive: i == wb.activeIndex, comments: commentPlans[i],
                                        tables: tablePlans[i] ?? [], pivots: pivotPlans[i] ?? [],
-                                       sharedSourceStyles: sharedSourceStyles, sink: sink))
+                                       images: imagePlans[i], sharedSourceStyles: sharedSourceStyles, sink: sink))
         }
         let generatedNoteParts = sheetParts.flatMap(\.parts)
         // styles reference theme colours, so a theme part must exist: keep the source's, or ship the default one
@@ -280,7 +338,11 @@ enum WorkbookWriter {
             if part.path.hasSuffix(".vml") { defaults["vml"] = CommentParts.vmlContentType }
             else if part.path.hasPrefix("xl/tables/") { overrides[part.path] = ctTable }
             else if part.path.hasPrefix("xl/pivotTables/") { overrides[part.path] = PivotParts.ctTable }
+            else if part.path.hasPrefix("xl/drawings/") { overrides[part.path] = DrawingParts.contentType }
             else { overrides[part.path] = CommentParts.contentType }
+        }
+        for ext in imageExtensions.sorted() where defaults[ext] == nil {
+            defaults[ext] = SheetImage.Format(rawValue: ext)!.contentType
         }
         for plan in cachePlans {
             overrides[plan.definitionPath] = PivotParts.ctCacheDefinition
@@ -672,8 +734,13 @@ enum WorkbookWriter {
         let notes: [(ref: CellRef, note: CellNote)]
     }
 
+    /// A freshly generated drawing part for a sheet that had none. A sheet whose source already carries a
+    /// drawing needs no plan: its preserved bytes were spliced during planning (spec Appendix B.32).
+    struct ImagePlan { var newDrawing: (path: String, xml: String, rels: String)? }
+
     static func sheetXML(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool,
                          comments: CommentPlan?, tables: [TablePlan] = [], pivots: [PivotPlan] = [],
+                         images: ImagePlan? = nil,
                          sharedSourceStyles: Set<Int> = [], sink: WarningSink) -> (xml: String, rels: String?, parts: [(path: String, data: Data)]) {
         let table = ws.table
         // a worksheet is one grid: a canvas carrying several tables (Numbers) keeps only the first one
@@ -942,7 +1009,15 @@ enum WorkbookWriter {
             extraParts.append((plan.commentsPath, Data((XMLWriter.header + CommentParts.commentsXML(plan.notes)).utf8)))
             extraParts.append((plan.vmlPath, Data(CommentParts.vmlXML(plan.notes).utf8)))
         }
-        if !preservedRels.isEmpty || relXML.contains("/hyperlink") || comments != nil || !tables.isEmpty || !pivots.isEmpty {
+        if let plan = images?.newDrawing {
+            let dir = (ws.preserved.partPath.map { ($0 as NSString).deletingLastPathComponent } ?? "xl/worksheets")
+            let id = freshRelID()
+            relXML += "<Relationship Id=\"\(id)\" Type=\"\(XMLWriter.nsRel)\(DrawingParts.relationshipType)\" Target=\"\(XML.esc(relativeTarget(plan.path, from: dir)))\"/>"
+            generated.append(("drawing", "<drawing r:id=\"\(id)\"/>"))
+            extraParts.append((plan.path, Data((XMLWriter.header + plan.xml).utf8)))
+            extraParts.append((WorkbookReader.relsPath(of: plan.path), Data(plan.rels.utf8)))
+        }
+        if !preservedRels.isEmpty || relXML.contains("/hyperlink") || comments != nil || !tables.isEmpty || !pivots.isEmpty || images?.newDrawing != nil {
             rels = relXML + "</Relationships>"
         }
         let po = ws.printOptions

@@ -124,6 +124,10 @@ struct NumbersWriter {
         if workbook.preserved.hasVBAProject {
             warnings.append(ConversionWarning(.dropped, subject: .macros, message: "VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)"))
         }
+        for sheet in workbook.sheets where !sheet.images.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.images.count) image(s) added by addImage dropped: writing pictures into Numbers is not implemented yet (write .xlsx to keep them)"))
+        }
         if !workbook.definedNames.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formulas, message: "\(workbook.definedNames.count) defined name(s) dropped: Numbers has no defined names"))
         }

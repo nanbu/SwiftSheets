@@ -11,6 +11,17 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **Pictures can be placed on a sheet now** (spec Appendix B.32, the second step of the MIT-adoption plan).
+  `SheetImage(data:)` reads the format (PNG, JPEG, GIF) and pixel size from the bytes; `addImage(_:at:sizing:)`
+  pins one to a cell (`.original`, `.scaled`, `.fitCell`, or XLKit's `.resizeCellToFit`, which shapes the column
+  and row to the image at the moment of the call) and `addImage(_:over:)` stretches one across a range. A sheet
+  with no drawing part gets a freshly generated one; a sheet whose source file already carries a drawing — a
+  chart, older pictures — gets the new anchors spliced into the preserved bytes, everything already there staying
+  byte for byte, relationship ids numbered after the existing maximum. ODS, Numbers and CSV report the pictures
+  they cannot hold, counted, never silently. Judged by openpyxl (both anchors read back at the right cells and
+  sizes, the neighbouring chart intact) and LibreOffice. Adapted from XLKit and XlsxReaderWriter (both MIT — see
+  NOTICE).
+
 - **The modern sheet-protection password can be generated now** (spec Appendix B.31, the first step of the
   MIT-adoption plan). `setModernPassword(_:spinCount:salt:)` on `SheetProtection`, `WorkbookProtection` and
   `ProtectedRange` computes the iterated SHA-512 hash Excel 2010+ verifies (ECMA-376 §18.2.29: 16 random salt

@@ -223,7 +223,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ws.protection`, `wb.security`, `ws.scenarios` | `sheet.protection`, `wb.protection`, `sheet.protectedRanges`, `sheet.scenarios` — named for what is **allowed**, since the file's own booleans say what is forbidden. `setModernPassword(_:)` generates the SHA-512 hash Excel 2010+ verifies (the legacy 16-bit hash stays on `setPassword(_:)`) |
 | `wb.custom_doc_props` | `wb.customProperties` — text, integers, numbers, booleans, dates and defined-name links (ODS keeps them as `meta:user-defined`) |
 | pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
-| charts / images | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
+| `ws.add_image(Image(path), 'B2')` | `sheet.addImage(try SheetImage(data:), at: "B2", sizing: .resizeCellToFit)` / `addImage(_:over: "B2:D6")` — PNG / JPEG / GIF, format and pixel size read from the bytes; a sheet that already carries a drawing (a chart) gets the anchors spliced in, everything there staying byte for byte. Charts still have no API — preserved unchanged (F3), `dropped` warnings when converting |
 | `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)`, `StreamingWriter(url:sheetName:)` + `append(_:)` / `close()` — XLSX only, values and formatting only (see [Limits](#limits)) |
 
 ### openpyxl test parity

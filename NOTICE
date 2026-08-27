@@ -30,9 +30,17 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
 2. XLKit (https://github.com/TheAcharya/XLKit), MIT License, Copyright (c) 2025 The Acharya.
    The iterated SHA-512 sheet-protection hash (ECMA-376 §18.2.29 / MS-OFFCRYPTO spin-count scheme) in
    Sources/SheetCore/Model/Protection.swift (`ModernPasswordHash`) is adapted from XLKit's
-   `CoreUtils.excelModernSheetPasswordHash` (Sources/XLKitCore/CoreTypes.swift). No other XLKit code is included.
+   `CoreUtils.excelModernSheetPasswordHash` (Sources/XLKitCore/CoreTypes.swift). The image-format sniffing and
+   header dimension parsing for PNG, JPEG and GIF in Sources/SheetCore/Model/SheetImage.swift and the drawing-XML
+   anchor shape in Sources/SheetXLSX/DrawingParts.swift are adapted from XLKit's ImageUtils.swift and
+   XLSXEngine.swift. No other XLKit code is included.
 
-3. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
+3. XlsxReaderWriter (https://github.com/renebigot/XlsxReaderWriter), MIT License, Copyright René Bigot.
+   The three image-anchoring API forms (at a cell / over a range / in a frame) and the approach of appending
+   anchors into a sheet's existing drawing part follow BRAWorksheet / BRADrawing (Objective-C); the Swift
+   implementation in SheetXLSX is original. No XlsxReaderWriter code is included.
+
+4. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
    - Tests/SwiftSheetsTests/Fixtures/openpyxl/ — test fixture files, unmodified (see NOTICE.md there)
    - Tests/OpenpyxlParity/openpyxl-3.1.5-tests.json — an enumeration of openpyxl's test function names
 

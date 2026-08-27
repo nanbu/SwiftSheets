@@ -71,6 +71,9 @@ public struct Sheet: Equatable, Sendable {
     public var definedNames: [String: String] = [:]
     /// Informational: the `<dimension ref>` the file declared, if any.
     public var declaredDimension: CellRange?
+    /// Pictures placed by `addImage` (spec Appendix B.32). Pictures already in an opened file stay in
+    /// `preserved` as opaque bytes and are not listed here.
+    public var images: [SheetImage] = []
     /// Material the reader kept for a lossless write-back (spec §6).
     public var preserved = SheetPreservation()
 
@@ -300,6 +303,35 @@ public struct Sheet: Equatable, Sendable {
     public mutating func setWidth(_ width: Double?, ofColumn col: Int) { table.setWidth(width, ofColumn: col) }
     public mutating func setWidth(_ width: Double?, ofColumn name: String) { table.setWidth(width, ofColumn: name) }
     public mutating func setHeight(_ height: Double?, ofRow row: Int) { table.setHeight(height, ofRow: row) }
+    /// Places a picture at one cell (spec Appendix B.32). `.resizeCellToFit` grows the column and row to the
+    /// image's pixel size here and now — the writer never changes the model behind your back — and the picture
+    /// itself is stored `.fitCell`, so it fills the cell it just shaped.
+    public mutating func addImage(_ image: SheetImage, at ref: CellRef, sizing: ImagePlacement = .original) {
+        var img = image
+        switch sizing {
+        case .original: img.anchor = .cell(ref, sizing: .original)
+        case .scaled(let w, let h): img.anchor = .cell(ref, sizing: .scaled(width: w, height: h))
+        case .fitCell: img.anchor = .cell(ref, sizing: .fitCell)
+        case .resizeCellToFit:
+            setWidth(CellPixels.columnWidth(forPixels: Double(image.pixelWidth)), ofColumn: ref.col)
+            setHeight(CellPixels.rowHeight(forPixels: Double(image.pixelHeight)), ofRow: ref.row)
+            img.anchor = .cell(ref, sizing: .fitCell)
+        }
+        images.append(img)
+    }
+    /// A1 form of `addImage(_:at:sizing:)`. An unparseable reference is a programmer error, as with subscripts.
+    public mutating func addImage(_ image: SheetImage, at a1: String, sizing: ImagePlacement = .original) {
+        addImage(image, at: CellRef(a1)!, sizing: sizing)
+    }
+    /// Stretches a picture over a range (both corners follow their cells).
+    public mutating func addImage(_ image: SheetImage, over range: CellRange) {
+        var img = image
+        img.anchor = .span(range)
+        images.append(img)
+    }
+    /// A1 form of `addImage(_:over:)`.
+    public mutating func addImage(_ image: SheetImage, over a1: String) { addImage(image, over: CellRange(a1)!) }
+
     public mutating func groupRows(_ range: ClosedRange<Int>, outlineLevel: Int = 1, hidden: Bool = false) { table.groupRows(range, outlineLevel: outlineLevel, hidden: hidden) }
     public mutating func groupColumns(_ range: ClosedRange<Int>, outlineLevel: Int = 1, hidden: Bool = false) { table.groupColumns(range, outlineLevel: outlineLevel, hidden: hidden) }
     public mutating func groupColumns(_ start: String, _ end: String, outlineLevel: Int = 1, hidden: Bool = false) { table.groupColumns(start, end, outlineLevel: outlineLevel, hidden: hidden) }
