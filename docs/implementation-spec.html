@@ -1864,6 +1864,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.6 Draft</td><td>2026-08-28</td><td>カテゴリ・フィルタ・株価セルの読みを確定（付録 B.29）。見本は保守者が UI で手作りした 3 冊。<strong>フィルタ</strong>は隠し行を保ち規則を数えて言う（Numbers 自身の Excel 書き出しと同じ取引・行単位で一致を実測）。<strong>カテゴリ</strong>は素の行を保ち、組んだ列の名前を挙げて言う（Numbers 自身は Excel へ書き出すとき見出しだけの行を挟んで表の形を変えてしまう——5 行が 14 行になる——ので、そのやり方は採らなかった）。<strong>株価セル</strong>は現行 Numbers では素の STOCK 式と判明し、B.27 が既に運んでいた。2026-08-26 の②一覧（読まずに黙る）はこれで空。検体 3 冊を追加、テスト 888 件</td></tr>
     <tr><td>3.7 Draft</td><td>2026-08-28</td><td>B.29 の唯一の未計測——<strong>フィルタを無効にした書類</strong>——を、保守者が同じフィルタをオフにして作った 2 冊目の見本で解消。Numbers はオフで隠し状態を空にし（安全側の読みが正しかったと確定）、規則をオフのまま保持する。オフの規則はモデルに置き場が無く、数えて落として言うようにした（Numbers 自身の Excel 書き出しも跡形なく捨てる、を実測）。検体 <code>filter-off-15.numbers</code> を追加、テスト 889 件</td></tr>
     <tr><td>3.8 Draft</td><td>2026-08-28</td><td><strong>カテゴリをオフにした書類</strong>も同じ方式の見本で実測（付録 B.29 続き）。切り替わるのは <code>is_enabled</code> だけで組列も木も残る——フィルタのオフと同じ形。残った設えは列名を挙げて落として言うようにし、Numbers 自身の Excel 書き出しもオフのときは見出し行を挟まずカテゴリの跡を何も残さないことを実測。検体 <code>category-off-15.numbers</code> を追加、テスト 891 件</td></tr>
+    <tr><td>3.9 Draft</td><td>2026-08-28</td><td><strong>並べ替え</strong>を保守者手作りの 5 冊目の見本で実測（付録 B.29 追補）。規則は <code>sort_order</code> に列番号＋方向で残り、適用で格納行そのものが並び替わる——データは並んだ順で既に読めている。規則は列名を挙げて落として言うようにした。Numbers 自身の Excel 書き出しも sortState を書かず並んだ行だけを渡す（実測）。整理パネルの並べ替えにオン/オフは無い（UI で確認）。検体 <code>sort-15.numbers</code> を追加、テスト 892 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4061,6 +4062,12 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
       <code>is_enabled</code> だけで、組んだ列も木も丸ごと残る（フィルタと同じ形）。残った設えは
       モデルに置き場が無く、列名を挙げて落として言う（Numbers 自身の Excel 書き出しも、オフのときは
       見出し行を挟まず、カテゴリの跡を何も残さない——実測）</li>
+    <li><strong>並べ替え</strong>（追補・見本は保守者手作りの 5 冊目）——整理パネルの並べ替えには
+      オン/オフが無いことを UI で確認（保守者）。規則は表の <code>sort_order</code> に
+      「列番号＋昇順/降順」の並びで残り、<strong>適用すると格納された行そのものが並び替わる</strong>。
+      つまりデータは並んだ順で読めており、どの読み手もそれを既に受け取っている。規則のほうは
+      モデルに置き場が無く、列名を挙げて落として言う。Numbers 自身の Excel 書き出しも
+      sortState（並べ替えの記録）を書かず、並んだ行だけを渡す（実測）</li>
     <li><strong>株価セル</strong>——現行 Numbers の「挿入 ▸ 株価情報」は<strong>特別なセルではなく素の
       STOCK 式</strong>を書く（セル形は <code>=STOCK("AAPL",0)</code>、表形は見出しセル参照の
       <code>IFERROR(STOCK($A2,B$1),"—")</code>＋属性ポップアップ）。つまり B.27 が既に運んでいて、

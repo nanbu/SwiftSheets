@@ -14,7 +14,7 @@ import SwiftSheets
                         "test-10", "test-1", "test-formats", "test-hlinks", "issue-17",
                         "conditional-formats-15", "links-notes-15", "popup-15", "controls-15", "array-15", "stock-15",
                         "pivot-mixed-15", "category-15", "filter-15", "stockcell-15", "filter-off-15",
-                        "category-off-15"]
+                        "category-off-15", "sort-15"]
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }

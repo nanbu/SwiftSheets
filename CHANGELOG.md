@@ -22,8 +22,11 @@ writes, so the constant, the README's status line and the tag always name the sa
   table. The **switched-off states** were measured too, on two more hand-made documents: turning a filter off empties
   the hidden-state list and keeps the rules in their off state; turning categories off flips `is_enabled` alone,
   the grouped columns and the tree staying whole. Neither retained set-up has a place in the model, so both are
-  dropped out loud — and Numbers' own Excel export drops both without a trace. The corpus gains
-  `category-15.numbers`, `category-off-15.numbers`, `filter-15.numbers`, `filter-off-15.numbers` and
+  dropped out loud — and Numbers' own Excel export drops both without a trace. A **sort order** (a fifth hand-made document; the
+  Sort panel has no on/off switch) reads the same way: applying a sort reorders the stored rows themselves, so
+  the data comes back already sorted, and the remembered rules are dropped out loud, named by their columns —
+  Numbers' own Excel export writes no sortState either. The corpus gains `category-15.numbers`,
+  `category-off-15.numbers`, `filter-15.numbers`, `filter-off-15.numbers`, `sort-15.numbers` and
   `stockcell-15.numbers`.
 
 - **A Numbers pivot now takes several fields on either axis** (spec Appendix B.28): two row fields, two column

@@ -457,6 +457,7 @@ struct NumbersReader {
         t.nextAppendRow = rows
         readFilter(model, into: &t, sheetName: sheetName)
         readCategories(model, table: t, sheetName: sheetName)
+        readSortOrder(model, table: t, sheetName: sheetName)
         _ = cols
         return t
     }
@@ -520,6 +521,22 @@ struct NumbersReader {
                                               message: "table \(t.name ?? ""): a switched-off Numbers filter (\(offRuleCount) rule(s)) is dropped — it was hiding nothing, and its rules have no place in the model; Numbers' own Excel export drops them too"))
         }
         _ = hiddenRows
+    }
+
+    /// A Numbers sort order (Organise ▸ Sort): rules the table remembers so the person can sort again. Applying
+    /// a sort reorders the stored rows themselves, so the data already comes back in the sorted order — every
+    /// reader gets that for free. The rules have no place in the model and are dropped out loud; Numbers' own
+    /// Excel export drops them too and hands over the sorted rows alone (measured: no sortState element).
+    private mutating func readSortOrder(_ model: ProtoMessage, table t: Table, sheetName: String) {
+        let rules = model.message("sort_order")?.messages("rules") ?? []
+        guard !rules.isEmpty else { return }
+        let names = rules.map { rule -> String in
+            guard let index = rule.int("index") else { return "a column" }
+            let heading = t[CellRef(row: 0, col: index)]?.stringValue
+            return heading?.isEmpty == false ? heading! : "column \(index + 1)"
+        }
+        warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
+                                          message: "table \(t.name ?? ""): a Numbers sort order (\(rules.count) rule(s), by \(names.joined(separator: ", "))) is dropped — the rows already come back in that order, and Numbers' own Excel export drops the rules the same way"))
     }
 
     /// A category grouping on an ordinary table (Organise ▸ Categories): the same group-by machinery a pivot

@@ -94,6 +94,24 @@ import SwiftSheets
         #expect(!result.warnings.contains { $0.message.contains("a category grouping by") })
     }
 
+    /// A sort order (another hand-made specimen; the Sort panel has no on/off switch, confirmed in the UI):
+    /// applying it reorders the stored rows themselves, so the data comes back already sorted — and the rules,
+    /// which only Numbers could use again, are dropped out loud. Numbers' own Excel export of the same document
+    /// carries no sortState element either (measured): the sorted rows are the whole story there too.
+    @Test func aSortOrderKeepsTheOrderAndNamesItsRules() throws {
+        let result = try NumbersCodec.read(try Self.fixture("sort-15.numbers"))
+        let table = result.workbook.sheets[0].tables[0]
+        // the stored rows are the sorted rows: No. runs 8 down to 1
+        #expect(table[1, 0]?.intValue == 8)
+        #expect(table[8, 0]?.intValue == 1)
+        let named = result.warnings.filter { $0.message.contains("Numbers sort order") }
+        #expect(named.count == 1, Comment(rawValue: "\(result.warnings.map(\.message))"))
+        #expect(named.first?.kind == .degraded)
+        #expect(named.first?.message.contains("2 rule(s)") == true)
+        #expect(named.first?.message.contains("No.") == true)
+        #expect(named.first?.message.contains("事業所") == true)
+    }
+
     /// The discriminator the category warning stands on: a pivot summary's own group-by names no columns, so a
     /// pivot document must not be mistaken for a categorised table.
     @Test func aPivotIsNotMistakenForACategoryGrouping() throws {
