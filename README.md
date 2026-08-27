@@ -70,7 +70,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
 | ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
-| Numbers | ✅ values, formulas (as text, cross-table references included), cell formatting, number formats, conditional formats, pop-up menus as list validations, cell controls (checkbox, stepper, slider, rating), hyperlinks, formatting runs, notes, merges, sizes, several tables per sheet | ✅ values, formulas, cell formatting, number formats, conditional formats, inline-list validations as pop-up menus, cell controls, pivot tables (one field per axis), hyperlinks, formatting runs, notes, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
+| Numbers | ✅ values, formulas (as text, cross-table references included), cell formatting, number formats, conditional formats, pop-up menus as list validations, cell controls (checkbox, stepper, slider, rating), hyperlinks, formatting runs, notes, merges, sizes, several tables per sheet | ✅ values, formulas, cell formatting, number formats, conditional formats, inline-list validations as pop-up menus, cell controls, pivot tables (several fields per axis, one summarised value), hyperlinks, formatting runs, notes, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
@@ -143,7 +143,8 @@ is reported, never dropped in silence.
   writer). The objects on the canvas have no place in the model: they are reported as `dropped`.
 - Everything else Numbers has no word for — range-sourced and numeric validations, named tables, auto-filters,
   sheet protection, scenarios, print setup, defined names, tab colours, outline grouping — is reported as a
-  warning, and so is a pivot table beyond the one-field-per-axis shape Numbers pivots are written in. Nothing is
+  warning, and so is the second and every further summarised value of a pivot table (the value lanes of a rebuilt
+  Numbers pivot share one placeholder id, so only the first survives the trip — spec Appendix B.28). Nothing is
   dropped in silence.
 - Judges: round trip through our own reader, numbers-parser reading our output
   (`Tests/NumbersParity/verify_with_numbers_parser.py`), LibreOffice's Numbers importer — and, since 2026-08-25,

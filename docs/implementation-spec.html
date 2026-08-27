@@ -1860,6 +1860,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.2 Draft</td><td>2026-08-27</td><td>残る 4 つのセル制御——<strong>チェックボックス・ステッパー・スライダー・レート</strong>——をモデルの言葉 <code>CellControl</code> にして、Numbers と双方向に読み書きする（付録 B.25）。見本は AppleScript で Numbers 自身に作らせた（Excel 経由では制御を作れないため）。制御のセルは必ず値を持つという Numbers の決まりに合わせ、空セルには静止値（false・最小値・0）を書く。審判は開封に加え、書いた書類の各セルの <code>format</code> を Numbers に直接照会（8 セル全部が制御の名で答えた）。Excel・ODS の書き手には「制御を落とした」警告を追加。機能表は 47 項目（セルの制御の行を追加）</td></tr>
     <tr><td>3.3 Draft</td><td>2026-08-27</td><td>積み残し 2 件を Numbers 自身に答えさせて確定（付録 B.26）。<strong>オートフィルタ</strong>は Numbers 自身が取り込みで捨てる（規則も隠し行も残らない）と実測し、写像を発明しない線で確定。<strong>配列数式</strong>は置き方（起点の式＋覆うセルの関数 337）が判明し、<strong>読みを実装</strong>——Numbers 産の展開を範囲として <code>Table.arrayFormulas</code> に復元し、xlsx への変換で本物の配列数式として渡る。書きは 2 つの実験（同形書き出し・見本の版偽装）で「337 は再計算で値を作れない」と判明し、古い版テンプレートの設計と両立しないため従来どおり落として言う。あわせて改訂履歴の番号衝突（3.0 の後に 2.8〜2.9 を再使用していた）を時系列順に振り直した。検体 <code>array-15.numbers</code> を追加</td></tr>
     <tr><td>3.4 Draft</td><td>2026-08-27</td><td>株価・為替の関数 <strong>STOCK・STOCKH・CURRENCY・CURRENCYH・CURRENCYCONVERT・CURRENCYCODE</strong> の扱いを確定（付録 B.27）。Numbers へは式のまま書き（開封時に取り直される・審判合格）、Excel・ODS へは取得済みの値を書いて言う——Numbers 自身の Excel 書き出しが同じ置き換えをすることを実測して写像に採用。見本は保守者の手作り書類を種に AppleScript で属性の形を一通り足させた <code>stock-15.numbers</code>。機能表は 48 項目（株価・為替の関数の行を追加・Numbers 20 生存）</td></tr>
+    <tr><td>3.5 Draft</td><td>2026-08-27</td><td>集計表の残りの形を確定（付録 B.28）。<strong>段は縦横とも複数</strong>——後置順の表示レーン・列接頭辞ごとの group-by（205, 206, …）・値経路で共有するノード UUID・"aggre names row/col" の定数レーン・部分合計を第 3 モデルへ、という置き方を 7 冊の見本から読み取り、17 形一括の書き出しがすべて完全描画・座標表明 0 を実測。<strong>値は 1 つまで</strong>を実験で確定——組の無い軸のレーンは共有の目印 (1,0) で引かれ、作り直される書類では区別が残らない（Numbers 自身の値 2 つの書類は作り直されないから無事、と版偽装で切り分け）。2 つ目以降の値は落として言う。検体 <code>pivot-mixed-15.numbers</code> を追加</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3961,6 +3962,66 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
         expected.json 照合</td></tr>
     <tr><td>全体</td><td>879 件が緑。機能表に「株価・為替の関数」の行を追加（48 項目・Numbers 20 生存・
         Excel / ODS は △ で警告 1 件ずつ増）</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h3>B.28 集計表の残りの形 — 段は開き、値は 1 つに確定（Rev 3.5）</h3>
+  <p>
+    B.19 が残した「書けない 2 形」——<strong>片軸に段が 2 つ</strong>と<strong>集計する値が 2 つ</strong>——を、
+    見本を 7 通りに増やして解いた。結論：<strong>段は縦横とも複数書ける</strong>（3 段の入れ子と両軸混成まで実測）。
+    <strong>値は 1 つまで</strong>で、これは実装の穴ではなく仕組みの壁だと実験で確定した。
+  </p>
+  <h4>見本の増やし方</h4>
+  <p>
+    SwiftSheets 自身が多段の Excel ピボットを書けるので、形ごとに 1 冊ずつ書いて Numbers 15.3.1 に
+    取り込ませ保存させた——対照（1×1×1）・段 2 つ（行側・列側）・値 2 つ・混成 2 種・3 段の計 7 冊。
+    判定は CSV 書き出しのバイト数と内容（画面ロック中でも有効なことを対照済みの判定基盤）。
+  </p>
+  <h4>読み取れた置き方の法則</h4>
+  <ul>
+    <li><strong>表示レーンは「子ら→親」の後置順</strong>。組の見出し行（部分合計）は成員の直後に並び、
+      末尾に総計レーン。順序地図（<code>pivot_order</code>）も同じ後置順＋番兵で、見出しレーンは持たない</li>
+    <li><strong>源の写しの group-by は「列側の接頭辞＋行側全部」が 1 本ずつ</strong>——列の段数＋1 本
+      （205, 206, …）。列 2 段なら 3 本目（207）は組列なしの根だけで、<code>is_enabled</code> は真のまま</li>
+    <li><strong>合計レーンのセルの式は 1 つの法則で決まる</strong>：行深さ r・列深さ c のセルは
+      group-by（205＋列段数−c）を、水準 c+r・組は（列経路＋行経路）のノードで引く。
+      7 冊の全数式（本文セル含む）がこの 1 本で説明できた</li>
+    <li><strong>組ノードの UUID は値の経路から導出される</strong>（同じ値の並びなら別の書類でも同じ 128 ビット）。
+      導出関数は再現しなくてよい：見本の 9 ノードを乱数へ「現れる場所全部で一貫して」書き換えても
+      完全に描かれた（66 か所書き換えの実験）。一貫性が契約で、経路→UUID の辞書で写す</li>
+    <li><strong>ラベルのレーンにも決まった UUID がある</strong>：段の見出しレーンはその段の
+      <code>grouping_column_uid</code>（段ごとに別）、見出し語のレーンは ASCII 定数
+      <code>"aggre names row"</code>（行）／<code>"aggre names col"</code>（列）</li>
+    <li><strong>値ごとの座標ブロック</strong>：組ノードは値の数だけ <code>agg_formula_coords</code> を持ち、
+      集約器（<code>aggregator</code>）は値ごとに 1 本、自分のブロックの座標で木をなぞる。
+      一覧の並びは規則と逆順（実測どおり）</li>
+    <li>部分合計行・総計行の中身（ラベルと数式つきの値）は<strong>第 3 モデル（summary model）</strong>の
+      店に、表示座標で入る。格納グリッドは見出し＋葉だけ</li>
+  </ul>
+  <h4>値 2 つが書けない理由（実測で閉じた扉）</h4>
+  <p>
+    組の無い軸のレーンは、地図の上では<strong>全部が同じ目印 <code>(1,0)</code></strong>で引かれる
+    ——Numbers 自身の書類も値 2 つならこの目印を 2 回並べる。同じ鍵が 2 つある地図は二分探索では
+    引き分けられない。Numbers 自身の書類が無事なのは<strong>開いても作り直されない</strong>からで
+    （版を偽装し集約器まで剥がしても、作り直しは起きず 0 が並ぶだけ）、旧版の雛形から書くこちらの書類は
+    <strong>必ず作り直される</strong>。試した並べ替え——値の順序・レーンの目印の発明・Numbers 自身が書く
+    本文セルの数式（こちらの書類では再計算で値を消すことも再実測）——のどれでも、描かれる値は 1 つか 0 だった。
+    よって<strong>最初の値だけ書き、2 つ目以降は落として言う</strong>に確定。
+    扉が開くとすれば、作り直しを起こさない書類（依存関係の記録を自前で書いた新しい雛形）が書けたとき——
+    B.26 の配列数式と同じ鍵である。
+  </p>
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>Numbers 本人（見本）</td><td>7 形の取り込み見本すべて完全描画（正解の CSV を採取）</td></tr>
+    <tr><td>Numbers 本人（書き）</td><td>こちらの 7 形＋17 形一括の書類が<strong>すべて完全描画・座標の表明 0</strong>
+        （段 2 つの部分合計行・3 段の中間小計・混成の交差セルまで数字一致。
+        値 2 つは最初の値の形で完全描画）</td></tr>
+    <tr><td>Numbers 本人（実験）</td><td>ノード UUID 乱数化（無罪）・版偽装＋集約器剥がし（作り直し不発を確定）・
+        本文数式の付与（値が消えるを再実測）・レーン目印の発明（引く値が変わることを確認）</td></tr>
+    <tr><td>参照実装</td><td>新検体 <code>pivot-mixed-15.numbers</code>（両軸＋段 2 つ）を expected.json 照合</td></tr>
+    <tr><td>全体</td><td>884 件が緑（形ごとの単体テスト 5 件を新設）</td></tr>
   </table></div>
 </section>
 

@@ -274,10 +274,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m h">△</td>
   <td>Excel / ODS は<strong>配置だけ</strong>書き、数字は開いた側に計算させます。Numbers へは
     <strong>本物の Numbers の集計表</strong>として書きます（生きた要約で、Numbers が元の行から数え直します）。
-    段は縦横それぞれ 1 つ・集計する値は 1 つまで。それを超える形は、これまでどおり落として言います。
-    読み戻すときは普通の表になります。
-    <strong>かつてはここだけ Numbers 自身のほうが多く残していました</strong>が、2026-08-27 に埋まりました
-    （17 通りの見本を Numbers 15.3.1 に開かせ、書ける 15 個すべてが正しく描かれることを実測）</td></tr>
+    <strong>段は縦横とも複数可</strong>——組ごとの部分合計行つきで、3 段の入れ子まで実測済みです（付録 B.28）。
+    集計する値だけは 1 つまでで、2 つ目以降は最初の値を残して落として言います（再構築された集計表の
+    値レーンは共有の目印 1 つで引かれ、区別が原理的に残らないことを実測）。読み戻すときは普通の表になります</td></tr>
 <tr><td>シート保護</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>保護範囲（保護シート内の編集可能な窓）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
   <td>ODF は表全体を守り、その中に窓を持ちません</td></tr>

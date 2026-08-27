@@ -11,6 +11,17 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **A Numbers pivot now takes several fields on either axis** (spec Appendix B.28): two row fields, two column
+  fields, three-deep nesting, mixed shapes — written as the real thing, with each group's own subtotal lane after
+  its members and a grand-total lane last, one group-by per column-field prefix, and node UUIDs shared by value
+  path across every tree. Numbers 15.3.1 drew every shape — the seventeen-pivot probe workbook included — with
+  every number right and zero coordinate assertions, judged against the documents Numbers itself wrote for the
+  same workbooks. **Of several summarised values the first is kept and the rest are dropped, out loud**: the value
+  lanes of a rebuilt pivot all share one placeholder id and cannot be told apart, a document this writer builds is
+  always rebuilt on open, and every arrangement measured (value order, invented lane ids, the body formulas
+  Numbers itself writes) drew one value or none — Numbers' own two-value document survives only because it is
+  never rebuilt. The corpus gains `pivot-mixed-15.numbers` (a both-axes, two-row-field pivot Numbers built).
+
 - **The quote functions — `STOCK`, `STOCKH`, `CURRENCY`, `CURRENCYH`, `CURRENCYCONVERT`, `CURRENCYCODE` — have a
   settled mapping now** (spec Appendix B.27). Reading a Numbers document keeps the formula with the fetched value
   as its cache (an error stays an error); writing Numbers keeps the formula, and Numbers fetches a fresh quote on
