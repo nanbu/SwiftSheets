@@ -110,8 +110,11 @@ is reported, never dropped in silence.
   formulas rebuilt from Numbers' formula trees into XLSX-dialect text (cross-table references as `'Sheet::Table'!A1`),
   array-formula spreads read back as the anchor's formula plus its `arrayFormulas` range,
   **cell formatting** (fonts, colours, fills, borders, alignment, wrapping) and **number formats**, hyperlinks,
-  merges, row heights / column widths, hidden rows / columns, table positions as `Table.anchor`, header rows as
-  `freezePanes`.
+  merges, row heights / column widths, hidden rows / columns — the rows a **Numbers filter** hides included
+  (the filter's rules are dropped out loud, the same trade Numbers itself makes when it exports to Excel) —
+  table positions as `Table.anchor`, header rows as `freezePanes`. A **category grouping** comes back as the
+  flat rows plus a warning naming the grouped columns; a **stock-quote cell** is a plain `STOCK` formula in
+  current Numbers and reads as one (spec Appendix B.29).
 - Write: the empty document shipped with numbers-parser is the template (spec §11.1); the first sheet / table is
   patched in place, further sheets and tables are deep-copied subgraphs with fresh ids and UUIDs. Values, **cell
   formatting and number formats**, merges, sizes, header rows, **hyperlinks**, **formatting runs inside one cell**,

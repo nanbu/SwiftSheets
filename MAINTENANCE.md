@@ -7,7 +7,7 @@ therefore a recurring maintenance item, not a one-off.
 
 The documents in `Tests/SwiftSheetsTests/Fixtures/numbers/` are the verified corpus; their `Metadata/BuildVersionHistory.plist`
 entries name the Numbers versions they were produced by — Numbers 11–14 era files from numbers-parser's suite, plus
-eight written by **Numbers 15.3.1** (`conditional-formats-15`, `links-notes-15` on 2026-08-25;
+eleven written by **Numbers 15.3.1** (`conditional-formats-15`, `links-notes-15` on 2026-08-25;
 `chart-and-control-15` on 2026-08-26; `popup-15` on 2026-08-27, from an openpyxl workbook holding three list
 validations — text, numeric and strict — each over a filled and an empty cell; `controls-15` on 2026-08-27,
 built by driving Numbers itself over AppleScript — `set format of range … to checkbox/stepper/slider/rating` —
@@ -19,7 +19,10 @@ string (which Numbers answers with `#VALUE!`) — plus `STOCKH` with a nested `D
 `"=STOCK(…)"` is enough for Numbers to take it as a formula and fetch the quote, so no UI work is needed for this
 family; `pivot-mixed-15` on 2026-08-27, from a SwiftSheets-written workbook holding one pivot with two row fields,
 one column field and one summarised value, imported and saved by Numbers — the record of the multi-level pivot
-shapes of Appendix B.28). Theme images and previews are stripped, which Numbers
+shapes of Appendix B.28; `category-15`, `filter-15` and `stockcell-15` on 2026-08-28, built **by hand in the
+Numbers UI** by the maintainer — a two-level category grouping, a table filter with two rules, and Insert ▸
+Stock Quote in both its cell and table forms — because AppleScript has no vocabulary for any of the three
+(Appendix B.29)). Theme images and previews are stripped, which Numbers
 does not need to open them and which would otherwise make each file half a megabyte.
 
 **Keep at least one document in the corpus that is not all tables.** Until `chart-and-control-15` was added, every

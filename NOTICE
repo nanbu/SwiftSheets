@@ -19,10 +19,11 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
    - Sources/SheetNumbers/Resources/empty.numbers — the empty document used as the write template
    - Tests/SwiftSheetsTests/Fixtures/numbers/*.numbers — test documents from numbers-parser's test suite, except
      conditional-formats-15.numbers, links-notes-15.numbers, chart-and-control-15.numbers, popup-15.numbers,
-     controls-15.numbers, array-15.numbers, stock-15.numbers and pivot-mixed-15.numbers, which were produced by
-     Numbers 15.3.1 on this maintainer's own Mac (three from workbooks built with openpyxl, which is MIT;
-     controls-15 and stock-15 by driving Numbers over AppleScript; pivot-mixed-15 from a workbook SwiftSheets
-     itself wrote — see MAINTENANCE.md)
+     controls-15.numbers, array-15.numbers, stock-15.numbers, pivot-mixed-15.numbers, category-15.numbers,
+     filter-15.numbers and stockcell-15.numbers, which were produced by Numbers 15.3.1 on this maintainer's own
+     Mac (three from workbooks built with openpyxl, which is MIT; controls-15 and stock-15 by driving Numbers
+     over AppleScript; pivot-mixed-15 from a workbook SwiftSheets itself wrote; the last three by hand in the
+     Numbers UI — see MAINTENANCE.md)
    No Python code from numbers-parser is included; the Swift reader / writer were written against the extracted
    schema and the observed behaviour of the documents.
 

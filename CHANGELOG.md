@@ -11,6 +11,16 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **The last three silent readers have voices now** (spec Appendix B.29, from three documents the maintainer built
+  in Numbers' own UI — AppleScript has no vocabulary for any of them). A **Numbers filter** keeps its effect and
+  names its loss: the rows it hides come back as hidden rows — measured row-for-row identical to Numbers' own
+  Excel export, which also drops the rules — and the dropped rules are counted out loud. A **category grouping**
+  comes back as the flat rows plus a warning naming the grouped columns (Numbers' own export bakes the grouped
+  look into extra label rows and a shifted grid — a change of data this library does not copy). A
+  **stock-quote cell** turns out to be a plain `STOCK` formula in current Numbers, already carried since the
+  quote-function work; the quote-table variant's attribute pop-up menus are dropped out loud as on any second
+  table. The corpus gains `category-15.numbers`, `filter-15.numbers` and `stockcell-15.numbers`.
+
 - **A Numbers pivot now takes several fields on either axis** (spec Appendix B.28): two row fields, two column
   fields, three-deep nesting, mixed shapes — written as the real thing, with each group's own subtotal lane after
   its members and a grand-total lane last, one group-by per column-field prefix, and node UUIDs shared by value

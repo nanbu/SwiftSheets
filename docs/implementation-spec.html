@@ -1861,6 +1861,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.3 Draft</td><td>2026-08-27</td><td>積み残し 2 件を Numbers 自身に答えさせて確定（付録 B.26）。<strong>オートフィルタ</strong>は Numbers 自身が取り込みで捨てる（規則も隠し行も残らない）と実測し、写像を発明しない線で確定。<strong>配列数式</strong>は置き方（起点の式＋覆うセルの関数 337）が判明し、<strong>読みを実装</strong>——Numbers 産の展開を範囲として <code>Table.arrayFormulas</code> に復元し、xlsx への変換で本物の配列数式として渡る。書きは 2 つの実験（同形書き出し・見本の版偽装）で「337 は再計算で値を作れない」と判明し、古い版テンプレートの設計と両立しないため従来どおり落として言う。あわせて改訂履歴の番号衝突（3.0 の後に 2.8〜2.9 を再使用していた）を時系列順に振り直した。検体 <code>array-15.numbers</code> を追加</td></tr>
     <tr><td>3.4 Draft</td><td>2026-08-27</td><td>株価・為替の関数 <strong>STOCK・STOCKH・CURRENCY・CURRENCYH・CURRENCYCONVERT・CURRENCYCODE</strong> の扱いを確定（付録 B.27）。Numbers へは式のまま書き（開封時に取り直される・審判合格）、Excel・ODS へは取得済みの値を書いて言う——Numbers 自身の Excel 書き出しが同じ置き換えをすることを実測して写像に採用。見本は保守者の手作り書類を種に AppleScript で属性の形を一通り足させた <code>stock-15.numbers</code>。機能表は 48 項目（株価・為替の関数の行を追加・Numbers 20 生存）</td></tr>
     <tr><td>3.5 Draft</td><td>2026-08-27</td><td>集計表の残りの形を確定（付録 B.28）。<strong>段は縦横とも複数</strong>——後置順の表示レーン・列接頭辞ごとの group-by（205, 206, …）・値経路で共有するノード UUID・"aggre names row/col" の定数レーン・部分合計を第 3 モデルへ、という置き方を 7 冊の見本から読み取り、17 形一括の書き出しがすべて完全描画・座標表明 0 を実測。<strong>値は 1 つまで</strong>を実験で確定——組の無い軸のレーンは共有の目印 (1,0) で引かれ、作り直される書類では区別が残らない（Numbers 自身の値 2 つの書類は作り直されないから無事、と版偽装で切り分け）。2 つ目以降の値は落として言う。検体 <code>pivot-mixed-15.numbers</code> を追加</td></tr>
+    <tr><td>3.6 Draft</td><td>2026-08-28</td><td>カテゴリ・フィルタ・株価セルの読みを確定（付録 B.29）。見本は保守者が UI で手作りした 3 冊。<strong>フィルタ</strong>は隠し行を保ち規則を数えて言う（Numbers 自身の Excel 書き出しと同じ取引・行単位で一致を実測）。<strong>カテゴリ</strong>は素の行を保ち組列の名前を挙げて言う（Numbers 自身の書き出しは見た目を焼き込みデータを変えるため複製しない）。<strong>株価セル</strong>は現行 Numbers では素の STOCK 式と判明し、B.27 が既に運んでいた。2026-08-26 の②一覧（読まずに黙る）はこれで空。検体 3 冊を追加、テスト 888 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4022,6 +4023,43 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
         本文数式の付与（値が消えるを再実測）・レーン目印の発明（引く値が変わることを確認）</td></tr>
     <tr><td>参照実装</td><td>新検体 <code>pivot-mixed-15.numbers</code>（両軸＋段 2 つ）を expected.json 照合</td></tr>
     <tr><td>全体</td><td>884 件が緑（形ごとの単体テスト 5 件を新設）</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h3>B.29 カテゴリ・フィルタ・株価セル — 手作りの見本で沈黙が終わった（Rev 3.6）</h3>
+  <p>
+    読み残していた 3 つは、どれも AppleScript に語彙が無く UI でしか作れないため見本が無かった。
+    保守者が Numbers 15.3.1 の UI で 3 冊を手作りし（カテゴリ 2 段・フィルタ規則 2 つ・株価の
+    セルと表の両形）、それを見本に確定した。写像はいつもどおり Numbers 自身の Excel 書き出しに聞いた。
+  </p>
+  <ul>
+    <li><strong>フィルタ</strong>——Numbers 自身の Excel 書き出しは規則を捨て、<strong>隠し行だけを渡す</strong>
+      （autoFilter 要素なし・落ちる行に hidden="1"、実測）。読みも同じ取引にする：
+      <code>hidden_states_owner → row_hidden_state_extent → base_hidden_states</code> の
+      <code>filtered</code> な行 UID を <code>base_column_row_uids</code> で行番号に解いて隠し行に写し、
+      <code>filter_set</code> の規則数を数えて落として言う。読んだ隠し行は Excel にも Numbers への
+      書き戻しにも生き残る（往復テストで固定）。実測では Numbers 自身の書き出しと<strong>行単位で一致</strong></li>
+    <li><strong>カテゴリ</strong>——正体は集計表と同じ group-by 機構が普通の表の
+      <code>category_owner</code>（kind 8・組列つき）に載ったもの。Numbers 自身の Excel 書き出しは
+      グループの<strong>見た目を焼き込む</strong>（ラベル行を挟み、格子を 1 列ずらす）——データが変わるので
+      この写像は複製しない。読みは素の行を格納順のまま保ち、<strong>組んだ列の名前を挙げて</strong>落として言う。
+      集計表の要約が持つ組列ゼロの group-by には発火しない（判別子は組列の有無）</li>
+    <li><strong>株価セル</strong>——現行 Numbers の「挿入 ▸ 株価情報」は<strong>特別なセルではなく素の
+      STOCK 式</strong>を書く（セル形は <code>=STOCK("AAPL",0)</code>、表形は見出しセル参照の
+      <code>IFERROR(STOCK($A2,B$1),"—")</code>＋属性ポップアップ）。つまり B.27 が既に運んでいて、
+      読み側の実装は不要だった。表形の属性ポップアップは第 2 の表の常で落として言う（既存挙動）。
+      古い世代の「株価コントロール」への警告文は残す（該当検体は現れなかった）</li>
+  </ul>
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>Numbers 本人（写像）</td><td>カテゴリ・フィルタ両見本の Excel 書き出しを採取。フィルタの隠し行は
+        こちらの読みと行単位で一致、カテゴリは見た目の焼き込みであることを確認</td></tr>
+    <tr><td>参照実装</td><td>新検体 3 冊（category-15・filter-15・stockcell-15）を expected.json 照合。
+        全 21 検体の一斉照合が緑</td></tr>
+    <tr><td>全体</td><td>888 件が緑（読み 3 件＋往復 1 件を新設）。②「読まずに黙る」一覧
+        （2026-08-26 の残件）はこれで空——グラフ等の描画物は読まないが、すべて言う</td></tr>
   </table></div>
 </section>
 

@@ -455,8 +455,83 @@ struct NumbersReader {
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)
         t.nextAppendRow = rows
+        readFilter(model, into: &t, sheetName: sheetName)
+        readCategories(model, table: t, sheetName: sheetName)
         _ = cols
         return t
+    }
+
+    /// The lane a UID names, from a table's base UID map: `index_for_uid[sortedPos]` is the real index of the
+    /// UID at `sortedPos` of the sorted list — the same arrangement the writer builds (Appendix B.19).
+    private func laneIndexes(of model: ProtoMessage, rows: Bool) -> [String: Int] {
+        guard let mapID = model.reference("base_column_row_uids"), let map = doc.object(mapID) else { return [:] }
+        let uids = map.messages(rows ? "sorted_row_uids" : "sorted_column_uids")
+        let real = map.ints(rows ? "row_index_for_uid" : "column_index_for_uid")
+        var out: [String: Int] = [:]
+        for (pos, uid) in uids.enumerated() where real.indices.contains(pos) {
+            if let hex = NumbersUUID.hex(uid) { out[hex] = real[pos] }
+        }
+        return out
+    }
+
+    /// A Numbers filter: rules the model has no word for, hiding rows it can say. The rows the filter hides come
+    /// back as hidden rows and the rules are dropped out loud — the same trade Numbers itself makes when it
+    /// exports to Excel (measured: no autoFilter element, the filtered-out rows written `hidden="1"`).
+    private mutating func readFilter(_ model: ProtoMessage, into t: inout Table, sheetName: String) {
+        guard let owner = model.message("hidden_states_owner") else { return }
+        var hiddenRows = 0
+        var ruleCount = 0
+        for state in owner.messages("hidden_states") {
+            for (extentName, isRow) in [("row_hidden_state_extent", true), ("column_hidden_state_extent", false)] {
+                guard let extent = state.message(extentName) else { continue }
+                let lanes = laneIndexes(of: model, rows: isRow)
+                for hidden in extent.messages("base_hidden_states") where hidden.bool("filtered") == true {
+                    guard let hex = NumbersUUID.hex(hidden.message("row_or_column_uid")), let index = lanes[hex] else { continue }
+                    if isRow {
+                        var d = t.rowDimensions[index] ?? RowDimension()
+                        d.hidden = true
+                        t.rowDimensions[index] = d
+                        hiddenRows += 1
+                    } else {
+                        var d = t.columnDimensions[index] ?? ColumnDimension()
+                        d.hidden = true
+                        t.columnDimensions[index] = d
+                    }
+                }
+                if let setID = extent.reference("filter_set"), let set = doc.object(setID),
+                   set.bool("is_enabled") != false {
+                    ruleCount += set.messages("filter_rules").count
+                }
+            }
+        }
+        if ruleCount > 0 {
+            warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
+                                              message: "table \(t.name ?? ""): a Numbers filter (\(ruleCount) rule(s)) is dropped — the rows it hides are kept as hidden rows, the same trade Numbers itself makes when it exports to Excel"))
+        } else if hiddenRows > 0 {
+            // no live rules, but filtered-away rows: the effect is carried, nothing more to say
+        }
+    }
+
+    /// A category grouping on an ordinary table (Organise ▸ Categories): the same group-by machinery a pivot
+    /// uses, hung on the table's own category owner with the grouped columns named. The model has no word for
+    /// it, so the rows are kept flat in stored order and the grouping is dropped out loud — Numbers' own Excel
+    /// export bakes the grouped *look* into extra label rows and a shifted grid instead, which would change the
+    /// data, so it is not copied.
+    private mutating func readCategories(_ model: ProtoMessage, table t: Table, sheetName: String) {
+        guard let catID = model.reference("category_owner") else { return }
+        let lanes = laneIndexes(of: model, rows: false)
+        var names: [String] = []
+        for gbID in doc.object(catID)?.references("group_by") ?? [] {
+            guard let gb = doc.object(gbID), gb.bool("is_enabled") != false else { continue }
+            for column in gb.messages("group_column") {
+                guard let hex = NumbersUUID.hex(column.message("column_uid")), let index = lanes[hex] else { continue }
+                let heading = t[CellRef(row: 0, col: index)]?.stringValue
+                names.append(heading?.isEmpty == false ? heading! : "column \(index + 1)")
+            }
+        }
+        guard !names.isEmpty else { return }        // a pivot summary's own group-by names no columns
+        warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
+                                          message: "table \(t.name ?? ""): a category grouping by \(names.joined(separator: ", ")) is dropped — the model has no word for Numbers categories; the rows are kept flat in stored order"))
     }
 
     static func offsets(_ data: Data, wide: Bool) -> [Int] {
