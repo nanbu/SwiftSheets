@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// What a protected sheet still lets people do (`<sheetProtection>`).
@@ -16,7 +17,7 @@ public struct SheetProtection: Hashable, Sendable {
     /// The legacy hash of the password (`password`), as four hexadecimal digits. Set it through `setPassword(_:)`.
     public package(set) var passwordHash: String?
     /// The modern hash Excel 2010 and later write (`algorithmName` / `hashValue` / `saltValue` / `spinCount`).
-    /// Carried verbatim: a file that has one keeps it, and SwiftSheets does not compute new ones.
+    /// A file that has one keeps it verbatim; `setModernPassword(_:)` computes a fresh one (Appendix B.31).
     public var algorithmName: String?
     public var hashValue: String?
     public var saltValue: String?
@@ -81,6 +82,19 @@ public struct SheetProtection: Hashable, Sendable {
         return LegacyPasswordHash.hash(password) == passwordHash
     }
 
+    /// Sets — or with nil clears — the modern (SHA-512) password, filling `algorithmName` / `hashValue` /
+    /// `saltValue` / `spinCount`. The legacy hash is separate and unchanged. Omit `salt` for 16 random bytes.
+    public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
+                                           salt: Data? = nil) {
+        (algorithmName, hashValue, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
+    }
+
+    /// True when `password` matches the stored modern hash. False when no modern hash is stored.
+    public func modernPasswordMatches(_ password: String) -> Bool {
+        ModernPasswordHash.matches(password, algorithmName: algorithmName, hashValue: hashValue,
+                                   saltValue: saltValue, spinCount: spinCount)
+    }
+
     public var isDefault: Bool { self == SheetProtection() }
 }
 
@@ -108,6 +122,16 @@ public struct WorkbookProtection: Hashable, Sendable {
 
     public mutating func setPassword(_ password: String?) { passwordHash = password.map(LegacyPasswordHash.hash) }
     public mutating func setRevisionsPassword(_ password: String?) { revisionsPasswordHash = password.map(LegacyPasswordHash.hash) }
+    /// Sets — or with nil clears — the modern (SHA-512) password (Appendix B.31).
+    public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
+                                           salt: Data? = nil) {
+        (algorithmName, hashValue, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
+    }
+    /// True when `password` matches the stored modern hash. False when no modern hash is stored.
+    public func modernPasswordMatches(_ password: String) -> Bool {
+        ModernPasswordHash.matches(password, algorithmName: algorithmName, hashValue: hashValue,
+                                   saltValue: saltValue, spinCount: spinCount)
+    }
     public func passwordMatches(_ password: String) -> Bool {
         guard let passwordHash else { return false }
         return LegacyPasswordHash.hash(password) == passwordHash
@@ -136,6 +160,16 @@ public struct ProtectedRange: Hashable, Sendable {
         self.init(name: name, ranges: r)
     }
     public mutating func setPassword(_ password: String?) { passwordHash = password.map(LegacyPasswordHash.hash) }
+    /// Sets — or with nil clears — the modern (SHA-512) password (Appendix B.31).
+    public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
+                                           salt: Data? = nil) {
+        (algorithmName, hashValue, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
+    }
+    /// True when `password` matches the stored modern hash. False when no modern hash is stored.
+    public func modernPasswordMatches(_ password: String) -> Bool {
+        ModernPasswordHash.matches(password, algorithmName: algorithmName, hashValue: hashValue,
+                                   saltValue: saltValue, spinCount: spinCount)
+    }
 }
 
 /// A named set of "what if" cell values (`<scenario>`): Excel puts them into the sheet on demand and takes the old
@@ -233,5 +267,56 @@ public enum LegacyPasswordHash {
         password ^= UInt64(plaintext.unicodeScalars.count)
         password ^= 0xCE4B
         return String(password, radix: 16, uppercase: true)
+    }
+}
+
+/// The iterated SHA-512 hash Excel 2010 and later protect sheets with (ECMA-376 §18.2.29; Appendix B.31).
+///
+/// H₀ = SHA-512(salt ‖ UTF-16LE(password)); Hₙ = SHA-512(Hₙ₋₁ ‖ LE32(n−1)), `spinCount` times — the iteration
+/// counter starts at 0 and is appended little-endian. Same warning as the legacy hash: this prevents accidents,
+/// not determined people — the cells are stored in plain sight either way.
+///
+/// Adapted from XLKit (MIT — see NOTICE), whose implementation this matches round for round.
+public enum ModernPasswordHash {
+    /// Excel's own iteration count.
+    public static let defaultSpinCount = 100_000
+    /// What Excel writes as `algorithmName` for this scheme.
+    public static let algorithmName = "SHA-512"
+
+    /// The raw 64-byte hash for `plaintext` under `salt` and `spinCount` iterations.
+    public static func hash(_ plaintext: String, salt: Data, spinCount: Int = defaultSpinCount) -> Data {
+        precondition(spinCount > 0, "spinCount must be positive")
+        let password = Data(plaintext.utf16.flatMap { [UInt8($0 & 0xFF), UInt8($0 >> 8)] })   // UTF-16LE
+        var key = Data(SHA512.hash(data: salt + password))
+        for i in 0..<UInt32(spinCount) {
+            key = Data(SHA512.hash(data: key + withUnsafeBytes(of: i.littleEndian) { Data($0) }))
+        }
+        return key
+    }
+
+    /// 16 random bytes, from the system's cryptographically secure generator.
+    static func randomSalt() -> Data {
+        var generator = SystemRandomNumberGenerator()
+        var salt = Data(capacity: 16)
+        for _ in 0..<2 { withUnsafeBytes(of: generator.next() as UInt64) { salt.append(contentsOf: $0) } }
+        return salt
+    }
+
+    /// The four attribute values for a protection element — or four nils when `plaintext` is nil.
+    static func fields(_ plaintext: String?, spinCount: Int, salt: Data?)
+        -> (algorithmName: String?, hashValue: String?, saltValue: String?, spinCount: Int?) {
+        guard let plaintext else { return (nil, nil, nil, nil) }
+        let salt = salt ?? randomSalt()
+        let key = hash(plaintext, salt: salt, spinCount: spinCount)
+        return (algorithmName, key.base64EncodedString(), salt.base64EncodedString(), spinCount)
+    }
+
+    /// True when `plaintext` reproduces `hashValue` under the stored salt and count. Only the scheme this type
+    /// writes (`SHA-512`) can be checked; any other `algorithmName` answers false.
+    static func matches(_ plaintext: String, algorithmName: String?, hashValue: String?,
+                        saltValue: String?, spinCount: Int?) -> Bool {
+        guard algorithmName == Self.algorithmName, let hashValue, let saltValue, let spinCount, spinCount > 0,
+              let salt = Data(base64Encoded: saltValue), let stored = Data(base64Encoded: hashValue) else { return false }
+        return hash(plaintext, salt: salt, spinCount: spinCount) == stored
     }
 }

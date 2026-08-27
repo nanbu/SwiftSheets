@@ -1870,6 +1870,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.8 Draft</td><td>2026-08-28</td><td><strong>カテゴリをオフにした書類</strong>も同じ方式の見本で実測（付録 B.29 続き）。切り替わるのは <code>is_enabled</code> だけで組列も木も残る——フィルタのオフと同じ形。残った設えは列名を挙げて落として言うようにし、Numbers 自身の Excel 書き出しもオフのときは見出し行を挟まずカテゴリの跡を何も残さないことを実測。検体 <code>category-off-15.numbers</code> を追加、テスト 891 件</td></tr>
     <tr><td>3.9 Draft</td><td>2026-08-28</td><td><strong>並べ替え</strong>を保守者手作りの 5 冊目の見本で実測（付録 B.29 追補）。規則は <code>sort_order</code> に列番号＋方向で残り、適用で格納行そのものが並び替わる——データは並んだ順で既に読めている。規則は列名を挙げて落として言うようにした。Numbers 自身の Excel 書き出しも sortState を書かず並んだ行だけを渡す（実測）。整理パネルの並べ替えにオン/オフは無い（UI で確認）。検体 <code>sort-15.numbers</code> を追加、テスト 892 件</td></tr>
     <tr><td>4.0 Draft</td><td>2026-08-28</td><td><strong>まとめて編集する API</strong> <code>Workbook.editSheet(named:_:)</code> / <code>(at:_:)</code> を採用し付録 B.30 に記録（保守者の提案を査読のうえ採用。動機②——連鎖代入でも複製が走る——は B.11 のインプレース編集で既に解決済みと訂正）。クロージャが返った時点で反映、throw なら全部破棄のトランザクション。無い名前はモデル層初の throws として新設の <code>SheetError.sheetNotFound(name:)</code>（照会は Optional・操作の不成立は throws、と線を引いた）。命名は同族に合わせ <code>named:</code> ラベルに変更。<code>~Copyable</code> セッション型は「古い編集が新しい構造を黙って上書きする」難点を挙げて見送り。§15.1 の使用例から自作エラーの 4 行が消えた。テスト 896 件</td></tr>
+    <tr><td>4.1 Draft</td><td>2026-08-28</td><td><strong>新方式の保護の鍵の生成</strong>を実装し付録 B.31 に記録（MIT 採用計画の第 1 段）。ECMA-376 §18.2.29 の反復 SHA-512（塩 16 バイト・spinCount 既定 100,000・反復番号は 0 起点 LE32 後置）。<code>setModernPassword</code> / <code>modernPasswordMatches</code> を 3 つの保護型に対で追加、計算は <code>ModernPasswordHash</code> として公開。SHA-512 は CryptoKit（枠組み依存が「＋ CryptoKit」へ 1 つ広がる・SwiftPM 依存ゼロは不変）、塩は SystemRandomNumberGenerator。出自は XLKit（MIT・NOTICE 3 項）。検証は Python hashlib の独立実装による既知解 3 本＋往復。実機 Excel の開錠確認は未</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4193,6 +4194,65 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     <tr><td>改名の釘</td><td>クロージャ内の改名で、他シートの数式が追随し、衝突名は連番で逃げる——書き戻しが添字を迂回する将来の書き換えをこれが捕まえる</td></tr>
     <tr><td>全体</td><td>896 件が緑（editSheet の契約 4 件を新設）</td></tr>
   </table></div>
+
+  <h3>B.31 新方式の保護の鍵を生成する — 採用計画の第 1 段（Rev 4.1）</h3>
+  <p>
+    2026-08-28。MIT ライセンスを保てる先行ライブラリの実地調査に基づく機能採用計画
+    （保護の鍵 → 画像 → 列幅の自動調整 → グラフ、の 4 段）の第 1 段。
+    これまでシート・ブック・保護範囲の「新方式の鍵」（<code>algorithmName</code> /
+    <code>hashValue</code> / <code>saltValue</code> / <code>spinCount</code>、Excel 2010 以降）は
+    <strong>運ぶだけ</strong>で、作れるのは 1990 年代の 16 ビット鍵だけだった。
+    生成を実装し、この非対称を閉じる。
+  </p>
+
+  <h4>方式 — ECMA-376 §18.2.29 の反復 SHA-512</h4>
+  <p>
+    H<sub>0</sub> = SHA-512(塩 ‖ UTF-16LE(合言葉))、以後
+    H<sub>n</sub> = SHA-512(H<sub>n−1</sub> ‖ LE32(n−1)) を <code>spinCount</code> 回
+    （反復番号は <strong>0 起点</strong>の 32 ビット・リトルエンディアンを<strong>後ろに</strong>連結）。
+    塩は 16 バイトの乱数、既定の <code>spinCount</code> は Excel と同じ 100,000。
+    ファイルへは塩と最終ハッシュを Base64 で、<code>algorithmName="SHA-512"</code> と共に書く。
+    実装の出自は XLKit（MIT・NOTICE 3 項）<code>CoreUtils.excelModernSheetPasswordHash</code> の翻案。
+    反復番号の 0 起点・後置は同実装と ECMA-376 の読みで一致を確認した。
+  </p>
+
+  <h4>設計判断</h4>
+  <p>
+    <strong>SHA-512 は CryptoKit</strong>。暗号プリミティブを手書きしない原則を優先し、
+    SheetCore の枠組み依存は「Foundation ＋ Compression」から「＋ CryptoKit」へ 1 つ広がる
+    （B.1 の外部依存ゼロは不変 — CryptoKit は Compression と同格の Apple 付属品で、
+    SwiftPM の依存は増えない。Linux 未達の状況も変わらない — swift-crypto へ差し替えれば
+    Linux でも同 API という点はむしろ将来の復帰に有利）。
+    <strong>塩の乱数は <code>SystemRandomNumberGenerator</code></strong> — Apple プラットフォームでは
+    暗号学的に安全と文書化されており、XLKit が使う Security フレームワークまでは増やさない。
+    API は 3 つの保護型に対で足す:
+  </p>
+  <pre><code><span class="cm">/// 新方式（SHA-512）の鍵を計算して 4 属性に納める。nil で全部消す。塩は省略で乱数 16 バイト</span>
+<span class="kw">public mutating func</span> setModernPassword(_ password: <span class="ty">String</span>?, spinCount: <span class="ty">Int</span> = <span class="nu">100_000</span>, salt: <span class="ty">Data</span>? = <span class="kw">nil</span>)
+<span class="cm">/// 納めた新方式の鍵と照合する。鍵が無ければ false</span>
+<span class="kw">public func</span> modernPasswordMatches(_ password: <span class="ty">String</span>) -&gt; <span class="ty">Bool</span></code></pre>
+  <p>
+    旧 <code>setPassword(_:)</code> の意味（16 ビット鍵）は変えない — 既存の呼び出しの挙動を
+    黙って変えないため。両方式は併存でき、Excel も両属性の同居を認める。
+    ハッシュ計算そのものは <code>ModernPasswordHash.hash(_:salt:spinCount:)</code> として公開する
+    （<code>LegacyPasswordHash</code> と対·利用者が自前で照合や検査をできるように）。
+    空文字の合言葉は方式上は定義されるので拒まない（Excel の UI が拒むのは UI の都合）。
+    <code>spinCount &lt;= 0</code> はプログラマ誤りとして停止。
+  </p>
+
+  <h4>検証 — 独立実装の既知解と、届かなかった審判の記録</h4>
+  <p>
+    Python <code>hashlib</code> で同方式を独立に実装し、固定の塩
+    （<code>AAECAwQFBgcICQoLDA0ODw==</code> = 00…0F の 16 バイト）で作った既知解 3 本
+    （"secret"×spinCount 10・"secret"×100,000・"秘密"×100,000 — 非 ASCII の UTF-16LE 経路を含む）を
+    テストに釘打つ。往復（書いて読み戻して 4 属性一致）と照合の成否、旧方式の不変も見る。
+    <strong>実機 Excel での開錠確認は未実施</strong>。LibreOffice を審判に立てる試み
+    （保護つき ODS を変換させて LO 自身の SHA-512 を検体に採る）は、LO が平文を知らないため
+    鍵を作り直せず落とすと判明して不成立。UNO 経由で平文から掛けさせる試みも 3 回で断念
+    （同梱 Python の包みがスクリプトを実行しない）。実機の Excel か Numbers での開錠が
+    確認できたら、この欄を更新する。
+  </p>
+
 </section>
 
 </div><!-- /.container -->

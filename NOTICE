@@ -27,7 +27,12 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
    No Python code from numbers-parser is included; the Swift reader / writer were written against the extracted
    schema and the observed behaviour of the documents.
 
-2. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
+2. XLKit (https://github.com/TheAcharya/XLKit), MIT License, Copyright (c) 2025 The Acharya.
+   The iterated SHA-512 sheet-protection hash (ECMA-376 §18.2.29 / MS-OFFCRYPTO spin-count scheme) in
+   Sources/SheetCore/Model/Protection.swift (`ModernPasswordHash`) is adapted from XLKit's
+   `CoreUtils.excelModernSheetPasswordHash` (Sources/XLKitCore/CoreTypes.swift). No other XLKit code is included.
+
+3. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
    - Tests/SwiftSheetsTests/Fixtures/openpyxl/ — test fixture files, unmodified (see NOTICE.md there)
    - Tests/OpenpyxlParity/openpyxl-3.1.5-tests.json — an enumeration of openpyxl's test function names
 

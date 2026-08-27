@@ -7,6 +7,20 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **The modern sheet-protection password can be generated now** (spec Appendix B.31, the first step of the
+  MIT-adoption plan). `setModernPassword(_:spinCount:salt:)` on `SheetProtection`, `WorkbookProtection` and
+  `ProtectedRange` computes the iterated SHA-512 hash Excel 2010+ verifies (ECMA-376 §18.2.29: 16 random salt
+  bytes, UTF-16LE, spin count 100,000 by default, the 0-based iteration counter appended little-endian each
+  round), and `modernPasswordMatches(_:)` checks a password against whatever the file carries. The scheme itself
+  is public as `ModernPasswordHash`, next to `LegacyPasswordHash`. Adapted from XLKit (MIT — see NOTICE);
+  verified against an independent Python-hashlib implementation with pinned vectors, including a non-ASCII
+  password. SHA-512 comes from CryptoKit, so SheetCore's framework list grows by one Apple framework and the
+  package still has zero SwiftPM dependencies. `setPassword(_:)` keeps its legacy meaning untouched.
+
 ## [0.8.0] — 2026-08-28
 
 ### Added

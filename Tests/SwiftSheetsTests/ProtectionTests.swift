@@ -48,6 +48,66 @@ import SwiftSheets
         #expect(again.style("B1").protection.locked == false)
     }
 
+    /// The modern hash against an independent implementation: the three vectors were computed with Python's
+    /// hashlib (same scheme, ECMA-376 §18.2.29 — salt ‖ UTF-16LE, then LE32(0-based iterator) appended each
+    /// round), so a typo in either implementation cannot agree by accident. Salt is the fixed bytes 00…0F.
+    @Test(arguments: [
+        ("secret", 10, "CoBj8C4LJFOzosCJXdhEU4RdNsPlIhFCwkr+U7x3wbUjL+uH1qt3FIP83qh0VJlKuokE7RJwMheXqYN4Yc1sdQ=="),
+        ("secret", 100_000, "M5SOVnbQG4SHyBnRVAYzAx8mPtxyyzMuWxcMv7tkyFO3MBXX9OJjklwPglNHdoHVkKPm4MPfUblqHmAsXfF5HA=="),
+        ("秘密", 100_000, "Y/aSu3++rha+5yY9c209QtwU6jV7J3dpXK4s/Xn1tNi5PWZwTg5gUyE8oIl6FxiKa+EFtQrxvqQzNSIqKMMgKw==")
+    ])
+    func theModernHashMatchesTheIndependentReference(_ password: String, _ spinCount: Int, _ expected: String) {
+        let salt = Data((0..<16).map { UInt8($0) })
+        #expect(ModernPasswordHash.hash(password, salt: salt, spinCount: spinCount).base64EncodedString() == expected)
+    }
+
+    /// A modern password survives the file: all four attributes round-trip, the stored hash verifies, and the
+    /// legacy hash is untouched by setting it.
+    @Test func modernPasswordRoundTrips() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        var p = SheetProtection.on
+        p.setPassword("legacy")                      // both schemes may coexist, as in Excel's own files
+        p.setModernPassword("secret", spinCount: 10) // small count keeps the test fast
+        wb.sheets[0].protection = p
+        #expect(p.algorithmName == "SHA-512" && p.spinCount == 10 && p.saltValue != nil && p.hashValue != nil)
+
+        let again = try Workbook(data: try wb.data(as: .xlsx)).sheets[0].protection
+        #expect(again == p)
+        #expect(again.modernPasswordMatches("secret") && !again.modernPasswordMatches("other"))
+        #expect(again.passwordMatches("legacy"), "setting the modern password must not touch the legacy hash")
+
+        var cleared = p
+        cleared.setModernPassword(nil)
+        #expect(cleared.algorithmName == nil && cleared.hashValue == nil && cleared.saltValue == nil && cleared.spinCount == nil)
+    }
+
+    /// Two calls draw two different salts, so equal passwords produce unequal files — and both still verify.
+    @Test func modernPasswordSaltsAreRandom() {
+        var a = SheetProtection.on, b = SheetProtection.on
+        a.setModernPassword("same", spinCount: 10)
+        b.setModernPassword("same", spinCount: 10)
+        #expect(a.saltValue != b.saltValue && a.hashValue != b.hashValue)
+        #expect(a.modernPasswordMatches("same") && b.modernPasswordMatches("same"))
+    }
+
+    /// Workbook protection and a protected range carry the same scheme.
+    @Test func modernPasswordOnWorkbookAndRange() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.protection.lockStructure = true
+        wb.protection.setModernPassword("book", spinCount: 10)
+        var range = ProtectedRange(name: "window", "B2:C3")!
+        range.setModernPassword("range", spinCount: 10)
+        wb.sheets[0].protectedRanges = [range]
+
+        let data = try wb.data(as: .xlsx)
+        #expect(try Package.part("xl/workbook.xml", of: data).contains("workbookAlgorithmName=\"SHA-512\""))
+        let again = try Workbook(data: data)
+        #expect(again.protection.modernPasswordMatches("book"))
+        #expect(again.sheets[0].protectedRanges.first?.modernPasswordMatches("range") == true)
+    }
+
     /// A sheet with no protection writes no element.
     @Test func noProtectionNoElement() throws {
         var wb = Workbook()

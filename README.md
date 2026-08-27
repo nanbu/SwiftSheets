@@ -7,7 +7,7 @@
 
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
 workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
-as they went in. Foundation + the Compression framework only; no external dependencies. **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
+as they went in. Foundation + the Compression and CryptoKit frameworks only; no external dependencies. **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
 
 The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
 (Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
@@ -220,7 +220,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `DifferentialStyle(...)`, `wb._differential_styles` | `DifferentialStyle` / `DifferentialFont`, `wb.differentialStyles` — every field optional, nil meaning "leave the cell as it is" |
 | `PatternFill` / `GradientFill` | `Fill.pattern(_:)` / `Fill.gradient(_:)`; `.solid(_:)` and `.none` for the everyday cases |
 | `ws.tables`, `Table(displayName:ref:)` | `sheet.excelTables`, `sheet.addExcelTable(named:over:)` — the part, its content type, its relationship and `<tableParts>` are all generated |
-| `ws.protection`, `wb.security`, `ws.scenarios` | `sheet.protection`, `wb.protection`, `sheet.protectedRanges`, `sheet.scenarios` — named for what is **allowed**, since the file's own booleans say what is forbidden |
+| `ws.protection`, `wb.security`, `ws.scenarios` | `sheet.protection`, `wb.protection`, `sheet.protectedRanges`, `sheet.scenarios` — named for what is **allowed**, since the file's own booleans say what is forbidden. `setModernPassword(_:)` generates the SHA-512 hash Excel 2010+ verifies (the legacy 16-bit hash stays on `setPassword(_:)`) |
 | `wb.custom_doc_props` | `wb.customProperties` — text, integers, numbers, booleans, dates and defined-name links (ODS keeps them as `meta:user-defined`) |
 | pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
 | charts / images | no API — preserved unchanged on a same-format write (F3), listed as `dropped` warnings when converting |
@@ -312,7 +312,7 @@ on who typed the code; it rests on the same things it would have to rest on anyw
   implementation decision with the reason behind it — including the ones that were measured and then rejected.
 - **Independent implementations are the judges.** openpyxl, LibreOffice, numbers-parser and Numbers.app read what
   SwiftSheets writes. A format is not called supported until something that did not come from this project agrees.
-- **800+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
+- **900+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
   within a hundred of the count.
 - **Nothing is dropped in silence.** Every read and every write answers with the list of what it could not keep.
 

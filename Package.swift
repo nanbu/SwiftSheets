@@ -2,7 +2,7 @@
 import PackageDescription
 
 // SwiftSheets — a pure Swift spreadsheet library with one format-neutral model (SheetCore) and one codec per file
-// format. Foundation + the Compression framework only; no external dependencies.
+// format. Foundation + the Compression and CryptoKit frameworks only; no external dependencies.
 //
 //   SheetCore   model, styles, formula AST, codec contract, ZIP / XML plumbing, CSV options   (no dependencies)
 //   SheetXLSX   .xlsx / .xlsm codec (ECMA-376 SpreadsheetML) with round-trip preservation
