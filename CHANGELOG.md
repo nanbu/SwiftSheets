@@ -175,6 +175,10 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Changed
 
+- **The README's test count is a machine-checked floor now.** The hand-written "839 tests" was 57 behind the day
+  it was checked, and drifting further with every commit; the line says "800+ tests" instead, and a contract test
+  (`APIContractTests.theReadmeSaysHowManyTestsThereAre`) pins that floor to the number of `@Test` declarations
+  under `Tests/`, rounded down to the nearest hundred — the same recipe that keeps the version pin in step.
 - **A font face the model states is now always written to Numbers, which changes how output looks.** The writer
   skipped any face equal to `Font.default.name` (Calibri, Excel's default) as "already the default", the same wrong
   baseline that made 11pt come out small in 0.7.2: the Numbers template defaults to HelveticaNeue, so a cell asking

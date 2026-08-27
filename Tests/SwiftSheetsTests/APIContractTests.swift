@@ -250,4 +250,30 @@ import SwiftSheets
         #expect(changelog.contains("## [\(SwiftSheetsInfo.version)]"),
                 Comment(rawValue: "CHANGELOG must carry a section for \(SwiftSheetsInfo.version)"))
     }
+
+    /// The README's test count is a floor ("800+ tests"), and the floor cannot drift: it must equal the number of
+    /// `@Test` declarations under `Tests/`, rounded down to the nearest hundred. Counting declarations in source
+    /// stands in for counting at run time (a suite cannot ask the runner for its own total mid-run), and it counts
+    /// the same unit the `swift test` summary reports — measured equal, 896 both ways, when this was written, with
+    /// parameterised functions counting once on each side. The hand-written number this replaces was 57 behind.
+    @Test func theReadmeSaysHowManyTestsThereAre() throws {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        var swiftFiles = 0, tests = 0
+        let walker = FileManager.default.enumerator(at: root.appending(path: "Tests"), includingPropertiesForKeys: nil)
+        while let file = walker?.nextObject() as? URL {
+            guard file.pathExtension == "swift" else { continue }
+            swiftFiles += 1
+            for line in try String(contentsOf: file, encoding: .utf8).split(separator: "\n", omittingEmptySubsequences: false) {
+                // the attribute itself — `@Test`, `@Test(...)`, `@Test func ...` — never a mention in a comment,
+                // which cannot start a trimmed line with anything but `//`
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed == "@Test" || trimmed.hasPrefix("@Test(") || trimmed.hasPrefix("@Test ") { tests += 1 }
+            }
+        }
+        #expect(swiftFiles > 0, Comment(rawValue: "found no Swift files under Tests/ — the path derivation broke"))
+        let claim = "**\((tests / 100 * 100).formatted(.number.locale(Locale(identifier: "en_US"))))+ tests**"
+        let readme = try String(contentsOf: root.appending(path: "README.md"), encoding: .utf8)
+        #expect(readme.contains(claim),
+                Comment(rawValue: "Tests/ holds \(tests) @Test functions; the README must say \(claim)"))
+    }
 }
