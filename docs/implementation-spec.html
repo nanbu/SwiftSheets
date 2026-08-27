@@ -957,6 +957,9 @@ pre .vr { color: var(--code-var); }
     <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// 暗号化ファイル等</span>
     <span class="kw">case</span> unsupportedVersion(found: <span class="ty">String</span>, supported: <span class="ty">ClosedRange</span>&lt;<span class="ty">Int</span>&gt;)  <span class="cm">// Numbers 用</span>
     <span class="kw">case</span> formulaSyntax(offset: <span class="ty">Int</span>, detail: <span class="ty">String</span>)
+    <span class="kw">case</span> invalidWorkbook(<span class="ty">String</span>)                 <span class="cm">// 求められた形では書けないモデル（シート 0 枚 等）</span>
+    <span class="kw">case</span> sheetNotFound(name: <span class="ty">String</span>)             <span class="cm">// 名指しされたシートが無い（editSheet — Rev 4.0・B.30）</span>
+    <span class="kw">case</span> ioFailure(detail: <span class="ty">String</span>)               <span class="cm">// ファイル入出力そのものの失敗</span>
 }</code></pre>
   <div class="callout callout-info">
     <span class="label">ファサードの動作</span>
@@ -1504,6 +1507,7 @@ print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "
     <tr><td><code>wb.create_sheet('X', 0)</code></td><td><code>wb.addSheet(named: "X", at: 0)</code></td><td>作成。位置省略で末尾。作成した <code>Sheet</code> への添字を返す</td></tr>
     <tr><td><code>wb.remove(ws)</code></td><td><code>wb.removeSheet(named: "X")</code></td><td>削除</td></tr>
     <tr><td><code>wb.copy_worksheet(ws)</code></td><td><code>wb.duplicateSheet(named: "X", as: "X2")</code></td><td>複製（書式・数式込み）</td></tr>
+    <tr><td>（概念なし — 参照型に書き戻しは無い）</td><td><code>wb.editSheet(named: "X") { sheet in … }</code></td><td><strong>まとめて編集</strong>。クロージャが返った時点で反映、途中で throw すれば全部破棄。無い名前は <code>SheetError.sheetNotFound</code>（Rev 4.0・B.30）</td></tr>
     <tr><td><code>ws.title = 'New'</code></td><td><code>wb.sheets[0].name = "New"</code></td><td>改名。数式内シート参照も AST 経由で追随</td></tr>
     <tr><td><code>ws.sheet_state = 'hidden'</code></td><td><code>sheet.isHidden = true</code></td><td>非表示化</td></tr>
     <tr><td><code>ws.sheet_properties.tabColor</code></td><td><code>sheet.tabColor = "1072BA"</code></td><td>タブ色（RGB hex）</td></tr>
@@ -1660,10 +1664,10 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
   </p>
   <pre><code><span class="kw">var</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: <span class="ty">URL</span>(filePath: <span class="st">"月次報告.xlsx"</span>))
 
-<span class="kw">guard var</span> sheet = wb.sheets[<span class="st">"集計"</span>] <span class="kw">else</span> { <span class="kw">throw</span> <span class="ty">MyError</span>.sheetNotFound }
-sheet[<span class="st">"B4"</span>] = <span class="nm">1_380_000</span>                       <span class="cm">// 今月の実績だけ更新</span>
-sheet[<span class="st">"B5"</span>] = <span class="ty">Formula</span>(<span class="st">"=B4/B3"</span>)               <span class="cm">// 達成率</span>
-wb.sheets[<span class="st">"集計"</span>] = sheet                       <span class="cm">// 値型なので書き戻す</span>
+<span class="kw">try</span> wb.editSheet(named: <span class="st">"集計"</span>) { sheet <span class="kw">in</span>      <span class="cm">// 無い名前なら SheetError.sheetNotFound</span>
+    sheet[<span class="st">"B4"</span>] = <span class="nm">1_380_000</span>                     <span class="cm">// 今月の実績だけ更新</span>
+    sheet[<span class="st">"B5"</span>] = <span class="ty">Formula</span>(<span class="st">"=B4/B3"</span>)             <span class="cm">// 達成率</span>
+}                                               <span class="cm">// 返ったこの時点で反映済み。書き戻しの 1 行は要らない（B.30）</span>
 
 <span class="kw">try</span> wb.write(to: <span class="ty">URL</span>(filePath: <span class="st">"月次報告.xlsx"</span>))  <span class="cm">// グラフは無傷（F3）</span></code></pre>
 
@@ -1865,6 +1869,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.7 Draft</td><td>2026-08-28</td><td>B.29 の唯一の未計測——<strong>フィルタを無効にした書類</strong>——を、保守者が同じフィルタをオフにして作った 2 冊目の見本で解消。Numbers はオフで隠し状態を空にし（安全側の読みが正しかったと確定）、規則をオフのまま保持する。オフの規則はモデルに置き場が無く、数えて落として言うようにした（Numbers 自身の Excel 書き出しも跡形なく捨てる、を実測）。検体 <code>filter-off-15.numbers</code> を追加、テスト 889 件</td></tr>
     <tr><td>3.8 Draft</td><td>2026-08-28</td><td><strong>カテゴリをオフにした書類</strong>も同じ方式の見本で実測（付録 B.29 続き）。切り替わるのは <code>is_enabled</code> だけで組列も木も残る——フィルタのオフと同じ形。残った設えは列名を挙げて落として言うようにし、Numbers 自身の Excel 書き出しもオフのときは見出し行を挟まずカテゴリの跡を何も残さないことを実測。検体 <code>category-off-15.numbers</code> を追加、テスト 891 件</td></tr>
     <tr><td>3.9 Draft</td><td>2026-08-28</td><td><strong>並べ替え</strong>を保守者手作りの 5 冊目の見本で実測（付録 B.29 追補）。規則は <code>sort_order</code> に列番号＋方向で残り、適用で格納行そのものが並び替わる——データは並んだ順で既に読めている。規則は列名を挙げて落として言うようにした。Numbers 自身の Excel 書き出しも sortState を書かず並んだ行だけを渡す（実測）。整理パネルの並べ替えにオン/オフは無い（UI で確認）。検体 <code>sort-15.numbers</code> を追加、テスト 892 件</td></tr>
+    <tr><td>4.0 Draft</td><td>2026-08-28</td><td><strong>まとめて編集する API</strong> <code>Workbook.editSheet(named:_:)</code> / <code>(at:_:)</code> を採用し付録 B.30 に記録（保守者の提案を査読のうえ採用。動機②——連鎖代入でも複製が走る——は B.11 のインプレース編集で既に解決済みと訂正）。クロージャが返った時点で反映、throw なら全部破棄のトランザクション。無い名前はモデル層初の throws として新設の <code>SheetError.sheetNotFound(name:)</code>（照会は Optional・操作の不成立は throws、と線を引いた）。命名は同族に合わせ <code>named:</code> ラベルに変更。<code>~Copyable</code> セッション型は「古い編集が新しい構造を黙って上書きする」難点を挙げて見送り。§15.1 の使用例から自作エラーの 4 行が消えた。テスト 896 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4083,6 +4088,110 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
         全 21 検体の一斉照合が緑</td></tr>
     <tr><td>全体</td><td>888 件が緑（読み 3 件＋往復 1 件を新設）。②「読まずに黙る」一覧
         （2026-08-26 の残件）はこれで空——グラフ等の描画物は読まないが、すべて言う</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h3>B.30 まとめて編集する API — 値型の代償を配当に変える（Rev 4.0）</h3>
+  <p>
+    2026-08-28。保守者から、シートへの複数の変更をひとつのスコープで行う API の提案が出た——
+    クロージャ版 <code>editSheet</code> と、将来の <code>~Copyable</code> なセッション型の 2 段構え。
+    提案どおりに入れる前に、動機として挙がった 3 つの摩擦を既存の実装と本仕様書に照らして査読した。
+    結論: <strong>クロージャ版だけを、トランザクション意味論（提案の案2）で採用</strong>。
+    セッション型は理由をつけて見送る。
+  </p>
+
+  <h4>動機の査読 — 3 つのうち 2 つは本物、1 つは半分だった</h4>
+  <p>
+    提案が挙げた摩擦は、①書き戻し忘れがコンパイルエラーにならない（編集が黙って消える）、
+    ②取り出した時点で共有が生まれ、最初の変更でシート全体の複製が走る、
+    ③途中で throw したとき何が残るかが書き方に依存する、の 3 つ。
+    ①と③はそのとおりである。何よりの証拠は本仕様書自身にあった——
+    §15.1 の使用例が自前の <code>MyError.sheetNotFound</code> を定義して <code>guard</code> し、
+    「値型なので書き戻す」と注釈した 1 行を置いていた。つまり<strong>利用者全員が同じ 4 行を
+    手書きする運命</strong>だと、レシピ集が最初から白状していたのである。
+  </p>
+  <p>
+    ②は半分だけ本物である。名前添字を通した 1 文ずつの編集（<code>wb.sheets["集計"]?["B4"] = 42</code>）は、
+    B.11 で入れたインプレース編集——編集のあいだシートを配列から抜き取り、唯一の持ち主として
+    書き換えてから戻す——が既に効いていて、複製は走らない。複製が走るのは「変数に取り出して
+    書き戻す」パターンだけである。新 API が救うのは複製そのものではなく、
+    <strong>複数の変更をまとめたいときに、複製が走るパターンへ追い込まれること</strong>。
+    摩擦の在り処をこう言い直したうえで採用した。
+  </p>
+
+  <h4>採用した形</h4>
+  <pre><code><span class="cm">/// クロージャが正常に返ったときだけ変更をワークブックへ反映する。throw なら全部破棄</span>
+<span class="kw">@discardableResult</span>
+<span class="kw">public mutating func</span> editSheet&lt;R&gt;(named name: <span class="ty">String</span>, _ body: (<span class="kw">inout</span> <span class="ty">Sheet</span>) <span class="kw">throws</span> -&gt; R) <span class="kw">throws</span> -&gt; R
+
+<span class="cm">/// 位置指定版。範囲外はコレクション自身と同じくプログラマ誤りとして停止（throw ではない）</span>
+<span class="kw">@discardableResult</span>
+<span class="kw">public mutating func</span> editSheet&lt;R&gt;(at index: <span class="ty">Int</span>, _ body: (<span class="kw">inout</span> <span class="ty">Sheet</span>) <span class="kw">throws</span> -&gt; R) <span class="kw">rethrows</span> -&gt; R</code></pre>
+  <p>
+    命名は提案の <code>editSheet("Summary")</code>（無ラベル）から <code>editSheet(named:)</code> に変えた。
+    シートを名指しする Workbook の同族——<code>addSheet(named:)</code>・<code>removeSheet(named:)</code>・
+    <code>duplicateSheet(named:as:)</code>・<code>moveSheet(named:to:)</code>——がすべて <code>named:</code> で
+    揃っているためで、提案のオープンクエスチョン 3 への答えである。
+    シート内の変更は閉じたスコープの中に全部書く。改名もその一つで、クロージャの中で
+    <code>sheet.name</code> を変えれば、ふだんの改名と同じ検証・重複回避・数式の追随がそのまま働く
+    （書き戻しが <code>Sheets</code> の添字を通るからで、これは回帰テストで釘を打った）。
+  </p>
+
+  <h4>throw したら「何も起きていない」——案2 を選んだ理由</h4>
+  <p>
+    案1（ストレージを直接貸し出す。複製ゼロだが throw で途中までの変更が残る）と
+    案2（写しを編集し、正常終了時だけ差し替える。複製 1 回だが throw で何も起きていない）は、
+    <strong>両取りできない</strong>——「途中まで変えたものを元に戻す」には変える前の姿が要り、
+    それを取っておくことがまさに複製だからである。選んだのは案2。
+    「throw したら何も起きていない」は §14.1 の「黙って落ちる経路を作らない」と同じ精神で、
+    中途半端な状態を黙って残さない。複製 1 回の代金は、従来の取り出し・書き戻しパターンが
+    既に払っていたものと同額であり、悪化ではない。複製ゼロが欲しい 1 文だけの編集には、
+    名前添字のインプレース編集（B.11）がそのまま残っている。
+    参照型のモデル（openpyxl 等）がこれをやるには深い複製を手書きするしかない——
+    値型を選んだ代償と呼ばれてきたものが、ここでは 1 行の配当になる。提案の核はこの言い換えにあり、
+    査読でもそのまま成立した。
+  </p>
+
+  <h4>モデル層で初めての throws — Optional 規約との線引き</h4>
+  <p>
+    §14.3 は名前アクセスを「KeyError ではなく Optional」と定めており、モデル層はこれまで
+    throw しない層だった（<code>removeSheet</code> は Bool、<code>duplicateSheet</code> は Optional）。
+    <code>editSheet</code> はこの規約をまたがず、線を引き直した——あれらは<strong>照会</strong>
+    （見つからないことも答えのうち）であり、これは<strong>操作</strong>（頼んだ編集が丸ごと
+    行われないのは失敗）である。書き戻し忘れを構造から消すための API が、名前の打ち間違いで
+    黙って何もしないのでは本末転倒であるため、無い名前は新設の
+    <code>SheetError.sheetNotFound(name:)</code> を投げる。§15.1 で利用者に手作りさせていた
+    エラーが、ライブラリの語彙になった。位置指定版だけは throw せず範囲外で停止する——
+    <code>sheets[i]</code> 自身・<code>removeSheet(at:)</code> と同じ扱いで、
+    「名前はデータ、添字はプログラマの責任」という Swift の線と §14.3 の既存の非対称に合わせた。
+  </p>
+  <p>
+    再入（クロージャの中で <code>wb</code> 自体を触る）は禁じる仕掛けを書くまでもなく、
+    Swift の排他則がコンパイル時に断る——<code>editSheet</code> が <code>wb</code> を占有している
+    あいだ、クロージャが <code>wb</code> を捕まえようとすると重複アクセスの診断になる
+    （クロージャが逃げない引数だからで、これが提案のオープンクエスチョン 2 への答えである）。
+  </p>
+
+  <h4>見送ったもの — <code>~Copyable</code> なセッション型</h4>
+  <p>
+    提案の第二段階（<code>beginEditing</code> / <code>commit</code> / <code>discard</code> を持つ
+    所有権管理のセッション型）は入れない。クロージャに収まらない編集という需要が確認されていない
+    こと（提案自身も「要求が確認されてから」としている）に加え、査読で積極的な難点を 1 つ足した:
+    セッションが生きているあいだワークブック側は自由に変われるため、シートの削除や改名の後に
+    <code>commit(into:)</code> されると<strong>古い編集が新しい構造を黙って上書きする</strong>
+    （クロージャ版なら排他則がこの重なりを構文ごと禁じる）。入れるなら、この上書きを検出して
+    断る規則を先に決めてからである。
+  </p>
+
+  <h4>検証</h4>
+  <div class="compare"><table>
+    <tr><th>柱</th><th>内容</th></tr>
+    <tr><td>反映の保証</td><td>クロージャ内の複数の変更（値・数式・スタイル）が返った時点で全部見える。戻り値の持ち出しも確認</td></tr>
+    <tr><td>トランザクション</td><td>途中まで編集して throw → ワークブックが呼ぶ前と <code>==</code> で一致（Workbook は Equatable なので 1 行で言える）</td></tr>
+    <tr><td>無い名前</td><td><code>sheetNotFound(name:)</code> が飛び、ワークブックは無傷</td></tr>
+    <tr><td>改名の釘</td><td>クロージャ内の改名で、他シートの数式が追随し、衝突名は連番で逃げる——書き戻しが添字を迂回する将来の書き換えをこれが捕まえる</td></tr>
+    <tr><td>全体</td><td>896 件が緑（editSheet の契約 4 件を新設）</td></tr>
   </table></div>
 </section>
 

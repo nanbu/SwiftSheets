@@ -244,6 +244,30 @@ public struct Workbook: Equatable, Sendable {
         return sheets[i].name
     }
 
+    /// Edits a sheet in one scope: the changes land in the workbook when the closure returns, so there is no copy
+    /// to put back and no edit lost to a forgotten write-back. The edit is a transaction — a closure that throws
+    /// leaves the workbook exactly as it was. A name the workbook does not have throws
+    /// `SheetError.sheetNotFound` rather than editing nothing in silence (spec Appendix B.30).
+    ///
+    /// The sheet is copied once, at its first change — the same price the copy-out / write-back pattern paid,
+    /// and what makes the discard-on-throw possible. A single-statement edit through `wb.sheets["Sales"]?["A1"]`
+    /// stays copy-free.
+    @discardableResult
+    public mutating func editSheet<R>(named name: String, _ body: (inout Sheet) throws -> R) throws -> R {
+        guard let i = sheets.index(of: name) else { throw SheetError.sheetNotFound(name: name) }
+        return try editSheet(at: i, body)
+    }
+
+    /// `editSheet(named:_:)` by position. An index outside `sheets.indices` is a programmer error and traps, the
+    /// way `sheets[index]` itself does; the closure's own errors still discard the edit.
+    @discardableResult
+    public mutating func editSheet<R>(at index: Int, _ body: (inout Sheet) throws -> R) rethrows -> R {
+        var copy = sheets[index]
+        let result = try body(&copy)
+        sheets[index] = copy   // through the subscript, so a rename validates, de-duplicates and rewrites formulas
+        return result
+    }
+
     /// Adds a pivot table to `sheet`, summarising `source` on `sourceSheet` — whose header row this reads for you.
     ///
     /// The table is laid out, not computed: it is written with "refresh when opened" set, so the application fills

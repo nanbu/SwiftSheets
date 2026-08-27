@@ -18,11 +18,11 @@ The design is written down in [the implementation spec](https://nanbu.github.io/
 import SwiftSheets
 
 var wb = try Workbook(contentsOf: URL(filePath: "monthly-report.xlsx"))   // format detected from the bytes, not the extension
-var sheet = wb.sheets["Summary"]!
-sheet["B4"] = 1_380_000                       // Int / Double / Decimal / String / Bool / CivilDate literals and values
-sheet["B5"] = Formula("=B4/B3")               // parsed into an AST; follows row inserts and sheet renames
-sheet.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
-wb.sheets["Summary"] = sheet                  // value types: copy out, edit, put back
+try wb.editSheet(named: "Summary") { sheet in // sheets are value types; this edits one in place — nothing to put back
+    sheet["B4"] = 1_380_000                   // Int / Double / Decimal / String / Bool / CivilDate literals and values
+    sheet["B5"] = Formula("=B4/B3")           // parsed into an AST; follows row inserts and sheet renames
+    sheet.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
+}                                             // a closure that throws leaves the workbook untouched; a missing name is loud
 let result = try wb.write(to: URL(filePath: "monthly-report.xlsx"))   // charts, comments, VBA… untouched (F3)
 print(result.warnings)                        // whatever the format could not express — never dropped silently
 print(wb.readWarnings)                        // …and whatever the file held that the model cannot say
@@ -191,6 +191,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `Workbook()`, `wb.save(path)` | `Workbook()`, `wb.write(to:)` → `WriteResult` (`@discardableResult`) |
 | `wb.sheetnames`, `wb['Sales']`, `wb.active` | `wb.sheetNames`, `wb.sheets["Sales"]`, `wb.activeSheet` |
 | `create_sheet`, `remove`, `copy_worksheet`, `move_sheet` | `addSheet(named:at:)`, `removeSheet(named:)`, `duplicateSheet(named:as:)`, `moveSheet(named:to:)` |
+| (no equivalent — reference types have no write-back to forget) | `wb.editSheet(named: "Sales") { sheet in … }` — scoped editing: applied when the closure returns, discarded whole when it throws, `SheetError.sheetNotFound` when the name is absent |
 | `ws.title = 'New'` | `wb.sheets[0].name = "New"` (formulas referring to the sheet follow) |
 | `ws['A1'].value`, `ws['A1'] = 42`, `ws.cell(row=1, column=2)` | `sheet["A1"]`, `sheet["A1"] = 42`, `sheet[0, 1]` |
 | `cell.font = Font(bold=True)` | `sheet.style("A1") { $0.font.bold = true }` or `sheet[cell: "A1"].font.bold = true` |

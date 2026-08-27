@@ -145,6 +145,74 @@ import SwiftSheets
         #expect(wb.sheets[wb.activeIndex]["C3"] == .text("active"))
     }
 
+    // MARK: - Editing a sheet in one scope is a transaction (spec Appendix B.30)
+
+    struct Interrupted: Error {}
+
+    /// The changes are in the workbook the moment the closure returns — no write-back to forget — and the
+    /// closure's result comes through.
+    @Test func editSheetAppliesOnReturn() throws {
+        var wb = Workbook()
+        let count = try wb.editSheet(named: "Sheet1") { sheet in
+            sheet["B4"] = 1_380_000
+            sheet["B5"] = Formula("=B4/B3")
+            sheet.style("A1") { $0.font.bold = true }
+            return sheet.cells.count
+        }
+        #expect(count == 3)
+        #expect(wb.sheets[0]["B4"] == .integer(1_380_000))
+        #expect(wb.sheets[0]["B5"]?.formula?.text == "=B4/B3")
+        #expect(wb.sheets[0].style("A1").font.bold == true)
+    }
+
+    /// A closure that throws leaves the workbook exactly as it was — partial changes are discarded, not kept.
+    @Test func editSheetDiscardsEverythingOnThrow() {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "before"
+        let snapshot = wb
+        #expect(throws: Interrupted.self) {
+            try wb.editSheet(named: "Sheet1") { sheet in
+                sheet["A1"] = "after"
+                sheet["A2"] = 42
+                throw Interrupted()
+            }
+        }
+        #expect(wb == snapshot)
+        // the index variant makes the same promise
+        #expect(throws: Interrupted.self) {
+            try wb.editSheet(at: 0) { sheet in
+                sheet["A1"] = "after"
+                throw Interrupted()
+            }
+        }
+        #expect(wb == snapshot)
+    }
+
+    /// A name the workbook does not have is loud — the error names the sheet, and nothing is edited. Lookups
+    /// stay Optional (`wb.sheets["X"]`); an operation that would otherwise do nothing in silence throws.
+    @Test func editSheetSaysWhichSheetIsMissing() {
+        var wb = Workbook()
+        let snapshot = wb
+        #expect(throws: SheetError.sheetNotFound(name: "Summery")) {
+            try wb.editSheet(named: "Summery") { $0["A1"] = "lost" }
+        }
+        #expect(wb == snapshot)
+        #expect(SheetError.sheetNotFound(name: "Summery").localizedDescription == "no sheet named Summery")
+    }
+
+    /// The write-back goes through the `Sheets` subscript, so a rename inside the closure behaves like any other
+    /// rename: formulas referring to the sheet follow, and a colliding name gets the next free suffix.
+    @Test func editSheetRenameFollowsTheUsualRules() throws {
+        var wb = Workbook()
+        wb.addSheet(named: "Report")
+        wb.sheets[1]["A1"] = Formula("=Sheet1!B2")
+        try wb.editSheet(named: "Sheet1") { $0.name = "Data" }
+        #expect(wb.sheetNames == ["Data", "Report"])
+        #expect(wb.sheets[1]["A1"]?.formula?.text == "=Data!B2")
+        try wb.editSheet(named: "Data") { $0.name = "Report" }   // taken: de-duplicated, not clobbered
+        #expect(wb.sheetNames == ["Report1", "Report"])
+    }
+
     // MARK: - Errors, detection, version
 
     @Test func errorsReadWellWhereFoundationPutsThem() {

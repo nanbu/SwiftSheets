@@ -11,6 +11,19 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **A sheet can be edited in one scope now** (spec Appendix B.30, a maintainer proposal reviewed and adopted):
+  `wb.editSheet(named:_:)` / `editSheet(at:_:)` hand the sheet to a closure and the changes are in the workbook
+  the moment it returns — no copy to put back, so no edit is lost to a forgotten write-back. The edit is a
+  transaction: a closure that throws leaves the workbook exactly as it was, which a reference-type model cannot
+  offer without a hand-written deep copy. A name the workbook does not have throws the new
+  `SheetError.sheetNotFound(name:)` rather than editing nothing in silence — the model layer's first throwing
+  API, and a deliberate line: lookups (`wb.sheets["X"]`) stay Optional, an operation that cannot be performed is
+  loud (pre-1.0 note: an exhaustive `switch` over `SheetError` gains a case). A rename inside the closure keeps
+  the usual rules — validation, de-duplication, formulas follow. The single-statement path
+  (`wb.sheets["Sales"]?["A1"] = 1`) keeps its copy-free in-place behaviour. The proposal's second stage, a
+  `~Copyable` edit-session type, was declined: a session outliving its scope can commit stale edits over a
+  restructured workbook, and the closure form rules that out at compile time.
+
 - **The last three silent readers have voices now** (spec Appendix B.29, from three documents the maintainer built
   in Numbers' own UI — AppleScript has no vocabulary for any of them). A **Numbers filter** keeps its effect and
   names its loss: the rows it hides come back as hidden rows — measured row-for-row identical to Numbers' own
