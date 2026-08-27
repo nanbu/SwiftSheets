@@ -1858,12 +1858,12 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.0 Draft</td><td>2026-08-27</td><td><strong>Numbers の集計表が描けた</strong>。読み込みの実際の振る舞いを観測して原因を特定 — 数え始める番号は<strong>表の <code>table_id</code></strong> であって計算エンジンの基底所有者 UID ではない（見本では両者が同じ値なので、見本の中だけを見ていては区別がつかない）。そこから本体のマスの数式・組の無いレーンの番兵・片軸の置き方を実測で直し、17 通りの見本のうち書ける 15 個が<strong>すべて正しく描かれ、表明は 0</strong>。既定を ON にし、書けない 2 形（段 2 つ・値 2 つ）は落として言う。公開表のピボット行を × → △</td></tr>
     <tr><td>3.1 Draft</td><td>2026-08-27</td><td>リスト型の入力規則を Numbers の<strong>ポップアップメニュー</strong>として読み書きする（付録 B.24）。根拠は Numbers 自身の双方向の置き換え（取り込みでドロップダウン→ポップアップ、書き出しでポップアップ→リスト型規則）を実測したこと。選択肢を書き並べた形だけを書き、範囲参照・数値条件は従来どおり落として言う。空の記入行を覆う規則は表を広げて置き、列全体の規則は Numbers 自身と同じく表の端で止める。検体 <code>popup-15.numbers</code> をコーパスに追加。機能表の Numbers 列は入力規則を × → △ に</td></tr>
     <tr><td>3.2 Draft</td><td>2026-08-27</td><td>残る 4 つのセル制御——<strong>チェックボックス・ステッパー・スライダー・レート</strong>——をモデルの言葉 <code>CellControl</code> にして、Numbers と双方向に読み書きする（付録 B.25）。見本は AppleScript で Numbers 自身に作らせた（Excel 経由では制御を作れないため）。制御のセルは必ず値を持つという Numbers の決まりに合わせ、空セルには静止値（false・最小値・0）を書く。審判は開封に加え、書いた書類の各セルの <code>format</code> を Numbers に直接照会（8 セル全部が制御の名で答えた）。Excel・ODS の書き手には「制御を落とした」警告を追加。機能表は 47 項目（セルの制御の行を追加）</td></tr>
-    <tr><td>3.3 Draft</td><td>2026-08-27</td><td>積み残し 2 件を Numbers 自身に答えさせて確定（付録 B.26）。<strong>オートフィルタ</strong>は Numbers 自身が取り込みで捨てる（規則も隠し行も残らない）と実測し、写像を発明しない線で確定。<strong>配列数式</strong>は置き方（起点の式＋覆うセルの関数 337）が判明し、<strong>読みを実装</strong>——Numbers 産の展開を範囲として <code>Table.arrayFormulas</code> に復元し、xlsx への変換で本物の配列数式として渡る。書きは 2 つの実験（同形書き出し・見本の版偽装）で「337 は再計算で値を作れない」と判明し、古い版テンプレートの設計と両立しないため従来どおり落として言う。あわせて改訂履歴の番号衝突（3.0 の後に 2.8〜2.9 を再使用していた）を時系列順に振り直した。検体 <code>array-15.numbers</code> を追加</td></tr>
-    <tr><td>3.4 Draft</td><td>2026-08-27</td><td>株価・為替の関数 <strong>STOCK・STOCKH・CURRENCY・CURRENCYH・CURRENCYCONVERT・CURRENCYCODE</strong> の扱いを確定（付録 B.27）。Numbers へは式のまま書き（開封時に取り直される・審判合格）、Excel・ODS へは取得済みの値を書いて言う——Numbers 自身の Excel 書き出しが同じ置き換えをすることを実測して写像に採用。見本は保守者の手作り書類を種に AppleScript で属性の形を一通り足させた <code>stock-15.numbers</code>。機能表は 48 項目（株価・為替の関数の行を追加・Numbers 20 生存）</td></tr>
+    <tr><td>3.3 Draft</td><td>2026-08-27</td><td>積み残し 2 件を Numbers 自身に答えさせて確定（付録 B.26）。<strong>オートフィルタ</strong>は Numbers 自身が取り込みで捨てる（規則も隠し行も残らない）と実測し、「Numbers が認める置き換えが無いものは、こちらも発明して書かない」で確定。<strong>配列数式</strong>は置き方（起点の式＋覆うセルの関数 337）が判明し、<strong>読みを実装</strong>——Numbers 産の展開を範囲として <code>Table.arrayFormulas</code> に復元し、xlsx への変換で本物の配列数式として渡る。書きは 2 つの実験（同形書き出し・見本の版偽装）で「337 は再計算で値を作れない」と判明し、古い版テンプレートの設計と両立しないため従来どおり落として言う。あわせて改訂履歴の番号衝突（3.0 の後に 2.8〜2.9 を再使用していた）を時系列順に振り直した。検体 <code>array-15.numbers</code> を追加</td></tr>
+    <tr><td>3.4 Draft</td><td>2026-08-27</td><td>株価・為替の関数 <strong>STOCK・STOCKH・CURRENCY・CURRENCYH・CURRENCYCONVERT・CURRENCYCODE</strong> の扱いを確定（付録 B.27）。Numbers へは式のまま書き（開封時に取り直される・審判合格）、Excel・ODS へは取得済みの値を書いて言う——Numbers 自身の Excel 書き出しが同じ置き換えをすることを実測し、それに合わせた。見本は保守者の手作り書類を種に AppleScript で属性の形を一通り足させた <code>stock-15.numbers</code>。機能表は 48 項目（株価・為替の関数の行を追加・Numbers 20 生存）</td></tr>
     <tr><td>3.5 Draft</td><td>2026-08-27</td><td>集計表の残りの形を確定（付録 B.28）。<strong>段は縦横とも複数</strong>——後置順の表示レーン・列接頭辞ごとの group-by（205, 206, …）・値経路で共有するノード UUID・"aggre names row/col" の定数レーン・部分合計を第 3 モデルへ、という置き方を 7 冊の見本から読み取り、17 形一括の書き出しがすべて完全描画・座標表明 0 を実測。<strong>値は 1 つまで</strong>を実験で確定——組の無い軸のレーンは共有の目印 (1,0) で引かれ、作り直される書類では区別が残らない（Numbers 自身の値 2 つの書類は作り直されないから無事、と版偽装で切り分け）。2 つ目以降の値は落として言う。検体 <code>pivot-mixed-15.numbers</code> を追加</td></tr>
-    <tr><td>3.6 Draft</td><td>2026-08-28</td><td>カテゴリ・フィルタ・株価セルの読みを確定（付録 B.29）。見本は保守者が UI で手作りした 3 冊。<strong>フィルタ</strong>は隠し行を保ち規則を数えて言う（Numbers 自身の Excel 書き出しと同じ取引・行単位で一致を実測）。<strong>カテゴリ</strong>は素の行を保ち組列の名前を挙げて言う（Numbers 自身の書き出しは見た目を焼き込みデータを変えるため複製しない）。<strong>株価セル</strong>は現行 Numbers では素の STOCK 式と判明し、B.27 が既に運んでいた。2026-08-26 の②一覧（読まずに黙る）はこれで空。検体 3 冊を追加、テスト 888 件</td></tr>
+    <tr><td>3.6 Draft</td><td>2026-08-28</td><td>カテゴリ・フィルタ・株価セルの読みを確定（付録 B.29）。見本は保守者が UI で手作りした 3 冊。<strong>フィルタ</strong>は隠し行を保ち規則を数えて言う（Numbers 自身の Excel 書き出しと同じ取引・行単位で一致を実測）。<strong>カテゴリ</strong>は素の行を保ち、組んだ列の名前を挙げて言う（Numbers 自身は Excel へ書き出すとき見出しだけの行を挟んで表の形を変えてしまう——5 行が 14 行になる——ので、そのやり方は採らなかった）。<strong>株価セル</strong>は現行 Numbers では素の STOCK 式と判明し、B.27 が既に運んでいた。2026-08-26 の②一覧（読まずに黙る）はこれで空。検体 3 冊を追加、テスト 888 件</td></tr>
     <tr><td>3.7 Draft</td><td>2026-08-28</td><td>B.29 の唯一の未計測——<strong>フィルタを無効にした書類</strong>——を、保守者が同じフィルタをオフにして作った 2 冊目の見本で解消。Numbers はオフで隠し状態を空にし（安全側の読みが正しかったと確定）、規則をオフのまま保持する。オフの規則はモデルに置き場が無く、数えて落として言うようにした（Numbers 自身の Excel 書き出しも跡形なく捨てる、を実測）。検体 <code>filter-off-15.numbers</code> を追加、テスト 889 件</td></tr>
-    <tr><td>3.8 Draft</td><td>2026-08-28</td><td><strong>カテゴリをオフにした書類</strong>も同じ方式の見本で実測（付録 B.29 続き）。切り替わるのは <code>is_enabled</code> だけで組列も木も残る——フィルタのオフと同じ形。残った設えは列名を挙げて落として言うようにし、Numbers 自身の Excel 書き出しがオフでは焼き込みをやめ跡形なく捨てることも実測。検体 <code>category-off-15.numbers</code> を追加、テスト 891 件</td></tr>
+    <tr><td>3.8 Draft</td><td>2026-08-28</td><td><strong>カテゴリをオフにした書類</strong>も同じ方式の見本で実測（付録 B.29 続き）。切り替わるのは <code>is_enabled</code> だけで組列も木も残る——フィルタのオフと同じ形。残った設えは列名を挙げて落として言うようにし、Numbers 自身の Excel 書き出しもオフのときは見出し行を挟まずカテゴリの跡を何も残さないことを実測。検体 <code>category-off-15.numbers</code> を追加、テスト 891 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3752,13 +3752,13 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
         generic 型のレコードに制御の鍵だけ</strong>を持つ（Numbers 自身の空ドロップダウンがこの形）</td></tr>
   </table></div>
 
-  <h4>写像の決め方 — 決めたのは Numbers である</h4>
+  <h4>置き換え方の決め方 — 決めたのは Numbers である</h4>
   <p>
     リスト型のうち<strong>選択肢を規則の中に書き並べた形</strong>（<code>"a,b,c"</code>）だけを書く。
     範囲参照のリスト（<code>Choices!$A$2:$A$4</code>）は、今日の参照先の値で凍らせると規則の意味が変わるので、
     従来どおり落として言う。厳格・空欄許可・入力メッセージの別は<strong>どのみち Numbers に残らない</strong>——
     3 通りの規則（緩い・数値・厳格）を取り込ませる実験で、Numbers は 3 つとも同一形のポップアップにした。
-    読み戻しはその逆写像で、Numbers 自身の書き戻しと同じ形
+    読み戻しはその逆向きで、Numbers 自身の書き戻しと同じ形
     （allowBlank・showInputMessage・showErrorMessage on）の <code>.list</code> にする。
     条件付き書式と同じく、規則は表ごとに読み、最初の表のものをシートに載せ、2 枚目以降の表のものは落として言う。
   </p>
@@ -3867,7 +3867,7 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     値の絞り込み（East だけ通す）と隠し行を持つ xlsx を取り込ませた結果:
     フィルタ一覧は空のまま（<code>FilterSetArchiveTypeAll</code>・<code>is_enabled: false</code>——
     どの表も持つ既定の空集合）で、<strong>隠し行さえ戻されていた</strong>。
-    Numbers 公認の写像が存在しないので、こちらが発明して書くこともしない（ピボットの「描けない形は書かない」と同じ線）。
+    Numbers 自身が認める置き換えが存在しないので、こちらが発明して書くこともしない（ピボットの「描けない形は書かない」と同じ線）。
     従来どおり落として言う。これで確定である。
   </p>
 
@@ -3940,10 +3940,10 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     セルの値を <code>"=STOCK(…)"</code> にするだけで Numbers が式として受け取り、実際に取得まで行う
     ことが分かったので、<strong>この族の見本作りに UI は要らない</strong>。
   </p>
-  <h4>写像は Numbers 自身に聞いた</h4>
+  <h4>置き換え方は Numbers 自身に聞いた</h4>
   <p>
     同じ書類を Numbers に Excel へ書き出させると、<strong>6 関数はすべて「取ってあった値」になり、
-    隣に置いた <code>=E2*2+1</code> は式のまま出て行った</strong>（実測）。つまり Numbers の公認の写像は
+    隣に置いた <code>=E2*2+1</code> は式のまま出て行った</strong>（実測）。つまり Numbers 自身が決めている置き換えは
     「普通の式は式のまま、相場の関数は値に」。こちらも同じにする：
   </p>
   <ul>
@@ -3960,7 +3960,7 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     <tr><th>審判</th><th>結果</th></tr>
     <tr><td>Numbers 本人（書き）</td><td>こちらが書いた書類を開き、7 セル全部が <code>=STOCK(…)</code> の形の
         式で答え、値を取り直した（照会は <code>formula of cell</code>）</td></tr>
-    <tr><td>Numbers 本人（写像）</td><td>Excel 書き出しで 6 関数が値になり、普通の式が式のまま残ることを実測</td></tr>
+    <tr><td>Numbers 本人（書き出しの手本）</td><td>Excel 書き出しで 6 関数が値になり、普通の式が式のまま残ることを実測</td></tr>
     <tr><td>参照実装</td><td><code>stock-15.numbers</code> の値・式（<code>#VALUE!</code> のエラーキャッシュ含む）を
         expected.json 照合</td></tr>
     <tr><td>全体</td><td>879 件が緑。機能表に「株価・為替の関数」の行を追加（48 項目・Numbers 20 生存・
@@ -4033,7 +4033,8 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
   <p>
     読み残していた 3 つは、どれも AppleScript に語彙が無く UI でしか作れないため見本が無かった。
     保守者が Numbers 15.3.1 の UI で 3 冊を手作りし（カテゴリ 2 段・フィルタ規則 2 つ・株価の
-    セルと表の両形）、それを見本に確定した。写像はいつもどおり Numbers 自身の Excel 書き出しに聞いた。
+    セルと表の両形）、それを見本に確定した。読み方の手本は、いつもどおり Numbers 自身に聞いた——
+    同じ書類を Numbers に Excel へ書き出させ、何が残り何が消えるかを見てから、こちらの読み方を決めている。
   </p>
   <ul>
     <li><strong>フィルタ</strong>——Numbers 自身の Excel 書き出しは規則を捨て、<strong>隠し行だけを渡す</strong>
@@ -4047,14 +4048,19 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
       （安全側の読みが意味どおり正しかった）、規則はオフのまま保持する。モデルに置き場が無いので、
       オフの規則は数えて落として言う（Numbers 自身の Excel 書き出しも跡形なく捨てることを実測）</li>
     <li><strong>カテゴリ</strong>——正体は集計表と同じ group-by 機構が普通の表の
-      <code>category_owner</code>（kind 8・組列つき）に載ったもの。Numbers 自身の Excel 書き出しは
-      グループの<strong>見た目を焼き込む</strong>（ラベル行を挟み、格子を 1 列ずらす）——データが変わるので
-      この写像は複製しない。読みは素の行を格納順のまま保ち、<strong>組んだ列の名前を挙げて</strong>落として言う。
+      <code>category_owner</code>（kind 8・組列つき）に載ったもの。読み方を決めるため、カテゴリ付きの
+      見本を Numbers 自身に Excel へ書き出させてみると、Numbers は<strong>画面に見えている姿を
+      そのままセルに書き出していた</strong>：5 行の表が、「関西」「大阪府」といった<strong>見出しだけの行が
+      間に挟まって 14 行</strong>になり、データ全体も 1 列右にずれる。人が眺める分には元の画面どおりだが、
+      行数も番地も変わるので、<strong>データとしては別の表</strong>になってしまう（この Excel を
+      プログラムで読むと、5 件のはずの一覧が 14 行に見える）。SwiftSheets の役目はデータを
+      忠実に運ぶことなので、この「見た目のまま書き出す」やり方は採らず、<strong>元の行をそのまま渡し、
+      「地域, 都道府県 でのカテゴリ分けを落とした」と列名を挙げて警告する</strong>方を選んだ。
       集計表の要約が持つ組列ゼロの group-by には発火しない（判別子は組列の有無）。
       <strong>カテゴリをオフにした書類</strong>も 2 冊目の見本で実測済み：切り替わるのは
-      <code>is_enabled</code> だけで、組列も木も丸ごと残る（フィルタと同じ形）。残った設えは
-      モデルに置き場が無く、列名を挙げて落として言う（Numbers 自身の Excel 書き出しも
-      焼き込みをやめて跡形なく捨てる、を実測）</li>
+      <code>is_enabled</code> だけで、組んだ列も木も丸ごと残る（フィルタと同じ形）。残った設えは
+      モデルに置き場が無く、列名を挙げて落として言う（Numbers 自身の Excel 書き出しも、オフのときは
+      見出し行を挟まず、カテゴリの跡を何も残さない——実測）</li>
     <li><strong>株価セル</strong>——現行 Numbers の「挿入 ▸ 株価情報」は<strong>特別なセルではなく素の
       STOCK 式</strong>を書く（セル形は <code>=STOCK("AAPL",0)</code>、表形は見出しセル参照の
       <code>IFERROR(STOCK($A2,B$1),"—")</code>＋属性ポップアップ）。つまり B.27 が既に運んでいて、
@@ -4064,8 +4070,8 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
   <h4>審判</h4>
   <div class="compare"><table>
     <tr><th>審判</th><th>結果</th></tr>
-    <tr><td>Numbers 本人（写像）</td><td>カテゴリ・フィルタ両見本の Excel 書き出しを採取。フィルタの隠し行は
-        こちらの読みと行単位で一致、カテゴリは見た目の焼き込みであることを確認</td></tr>
+    <tr><td>Numbers 本人（書き出しの手本）</td><td>カテゴリ・フィルタ両見本の Excel 書き出しを採取。フィルタの隠し行は
+        こちらの読みと行単位で一致。カテゴリは「見出し行が挟まって表の形が変わる」書き出しだと確認</td></tr>
     <tr><td>参照実装</td><td>新検体 3 冊（category-15・filter-15・stockcell-15）を expected.json 照合。
         全 21 検体の一斉照合が緑</td></tr>
     <tr><td>全体</td><td>888 件が緑（読み 3 件＋往復 1 件を新設）。②「読まずに黙る」一覧
