@@ -77,6 +77,24 @@ import SwiftSheets
         #expect(try Package.part("xl/worksheets/sheet1.xml", of: data).matches(of: #/<drawing /#).count == 1)
     }
 
+    /// Several charts and a picture on a fresh sheet share one generated drawing, relationships numbered in order.
+    @Test func manyChartsAndAPictureOnAFreshSheet() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].addImage(try ImageTests.image("tiny.png"), at: "A3")
+        for (i, kind) in [Chart.Kind.column, .line, .pie].enumerated() {
+            var chart = Chart(kind)
+            chart.addSeries(values: "A1:A2")
+            wb.sheets[0].addChart(chart, over: CellRange("C\(i * 12 + 1):J\(i * 12 + 10)")!)
+        }
+        let data = try wb.data(as: .xlsx)
+        let drawing = try Package.part("xl/drawings/drawing1.xml", of: data)
+        #expect(drawing.matches(of: #/<xdr:graphicFrame/#).count == 3 && drawing.contains("<xdr:pic>"))
+        let rels = try Package.part("xl/drawings/_rels/drawing1.xml.rels", of: data)
+        for n in 1...4 { #expect(rels.contains("Id=\"rId\(n)\""), "relationships run rId1…rId4 in order") }
+        for n in 1...3 { #expect(try Package.part("xl/charts/chart\(n).xml", of: data) != "", "chart\(n).xml exists") }
+    }
+
     /// The B.22 nail for charts: our own output, read and saved again, changes not a byte.
     @Test func theSecondSaveChangesNothing() throws {
         var wb = Workbook()
