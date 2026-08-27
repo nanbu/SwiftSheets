@@ -101,6 +101,34 @@ import SwiftSheets
                 "one drawing element — the schema allows no second")
     }
 
+    /// The B.22 lesson, applied here before it can bite: the second save of a file we drew into. Reading our own
+    /// output leaves `images` empty (the drawing is preserved bytes now), so writing again must repack the
+    /// drawing, its rels and the media byte for byte — no doubled anchors, no renumbered relationships.
+    @Test func theSecondSaveChangesNothing() throws {
+        // fresh-drawing path
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "x"
+        wb.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
+        let first = try wb.data(as: .xlsx)
+        let back = try Workbook(data: first)
+        #expect(back.sheets[0].images.isEmpty, "our own picture reads back as preserved bytes, not as a model image")
+        let second = try back.data(as: .xlsx)
+        for part in ["xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/media/image1.png"] {
+            #expect(try ZipInspection(data: second).entry(named: part) == ZipInspection(data: first).entry(named: part),
+                    "\(part) must survive the second save byte for byte")
+        }
+
+        // spliced-into-a-chart path
+        var chartWB = try XLSXCodec.read(try PreservationTests.fixture("charts-and-friends.xlsx")).workbook
+        chartWB.sheets[0].addImage(try Self.image("tiny.png"), at: "H2")
+        let spliced = try XLSXCodec.write(chartWB).data
+        let splicedAgain = try XLSXCodec.write(XLSXCodec.read(spliced).workbook).data
+        for part in ["xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/charts/chart1.xml"] {
+            #expect(try ZipInspection(data: splicedAgain).entry(named: part) == ZipInspection(data: spliced).entry(named: part),
+                    "\(part) must survive the second save byte for byte")
+        }
+    }
+
     /// The formats that cannot hold a picture say what they lost, counted, never in silence.
     @Test func formatsWithoutPicturesCountTheLoss() throws {
         var wb = Workbook()
