@@ -11,6 +11,15 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **Columns can size themselves to their content now** (spec Appendix B.33, the third step of the MIT-adoption
+  plan). `autofitColumns(maxWidth:)` / `autofitColumn(_:maxWidth:)` measure every cell the way Excel draws it —
+  text through XlsxWriter's per-character pixel table for Calibri 11 (BSD-2, translated — see NOTICE), numbers
+  seven pixels a digit, TRUE 31 px and FALSE 36, formulas by their cached value — add the 7 px padding and the
+  16 px filter button where one sits, and write the column width, capped at Excel's 255 characters. A column the
+  caller already made wider only ever grows. One departure from the source, documented: East Asian wide
+  characters measure 16 px, not the source's blanket 8, so Japanese text is not folded in half. An approximation
+  by nature — the true width depends on the default font — and says so in its documentation.
+
 - **Pictures can be placed on a sheet now** (spec Appendix B.32, the second step of the MIT-adoption plan).
   `SheetImage(data:)` reads the format (PNG, JPEG, GIF) and pixel size from the bytes; `addImage(_:at:sizing:)`
   pins one to a cell (`.original`, `.scaled`, `.fitCell`, or XLKit's `.resizeCellToFit`, which shapes the column

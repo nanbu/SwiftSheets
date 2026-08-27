@@ -1872,6 +1872,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.0 Draft</td><td>2026-08-28</td><td><strong>まとめて編集する API</strong> <code>Workbook.editSheet(named:_:)</code> / <code>(at:_:)</code> を採用し付録 B.30 に記録（保守者の提案を査読のうえ採用。動機②——連鎖代入でも複製が走る——は B.11 のインプレース編集で既に解決済みと訂正）。クロージャが返った時点で反映、throw なら全部破棄のトランザクション。無い名前はモデル層初の throws として新設の <code>SheetError.sheetNotFound(name:)</code>（照会は Optional・操作の不成立は throws、と線を引いた）。命名は同族に合わせ <code>named:</code> ラベルに変更。<code>~Copyable</code> セッション型は「古い編集が新しい構造を黙って上書きする」難点を挙げて見送り。§15.1 の使用例から自作エラーの 4 行が消えた。テスト 896 件</td></tr>
     <tr><td>4.1 Draft</td><td>2026-08-28</td><td><strong>新方式の保護の鍵の生成</strong>を実装し付録 B.31 に記録（MIT 採用計画の第 1 段）。ECMA-376 §18.2.29 の反復 SHA-512（塩 16 バイト・spinCount 既定 100,000・反復番号は 0 起点 LE32 後置）。<code>setModernPassword</code> / <code>modernPasswordMatches</code> を 3 つの保護型に対で追加、計算は <code>ModernPasswordHash</code> として公開。SHA-512 は CryptoKit（枠組み依存が「＋ CryptoKit」へ 1 つ広がる・SwiftPM 依存ゼロは不変）、塩は SystemRandomNumberGenerator。出自は XLKit（MIT・NOTICE 3 項）。検証は Python hashlib の独立実装による既知解 3 本＋往復。実機 Excel の開錠確認は未</td></tr>
     <tr><td>4.2 Draft</td><td>2026-08-28</td><td><strong>画像をマスに置く</strong> API を実装し付録 B.32 に記録（採用計画の第 2 段）。<code>SheetImage</code>（PNG / JPEG / GIF をバイトから判定・縦横をヘッダから読む）＋ <code>addImage(_:at:sizing:)</code> / <code>addImage(_:over:)</code>（原寸・fitCell・resizeCellToFit・範囲張り）。書き出しは 2 経路 — 絵の紙が無ければ一式生成、あれば既存の紙の末尾へ錨だけ追記（既存部分は byte のまま・rId は最大値の次から・名前空間は錨が自前で宣言）。F3 は「画像を足した紙は追記・他は byte 一致」に細分化。ODS / Numbers / CSV へは枚数を数えて落として言う。出自は XLKit と XlsxReaderWriter（MIT）。審判は openpyxl</td></tr>
+    <tr><td>4.3 Draft</td><td>2026-08-28</td><td><strong>列幅の自動調整</strong>を実装し付録 B.33 に記録（採用計画の第 3 段）。XlsxWriter（BSD-2）の autofit と CHAR_WIDTHS（Calibri 11 実測・ASCII 95 文字）を翻訳。文字は表引きの合算・数値は桁 × 7 px・TRUE 31 / FALSE 36・余白 7 px・フィルタ列 +16 px・上限 255 文字・手で広げた列は広がる方向のみ。逸脱 1 つ: 非 ASCII 一律 8 px の出典に対し東アジア全角域は 16 px とした</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4310,6 +4311,32 @@ sheet.addImage(img, over: <span class="st">"B2:D6"</span>)            <span clas
     <strong>グラフの部品が byte 一致のまま</strong>残ること、範囲アンカーの from/to、
     <code>.resizeCellToFit</code> の寸法反映、他形式の警告。外部の審判は openpyxl —
     こちらが書いた画像入りブックを読ませ、画像の存在と寸法が一致することを確認する。
+  </p>
+
+  <h3>B.33 列幅の自動調整 — 採用計画の第 3 段（Rev 4.3）</h3>
+  <p>
+    2026-08-28。機能採用計画の第 3 段。列幅を「測って決める」側がこれまで無かった
+    （<code>bestFit</code> の旗を運ぶだけだった）。XlsxWriter（Python・BSD-2・NOTICE 5 項）の
+    <code>autofit</code> と文字幅表 <code>CHAR_WIDTHS</code>（Excel の Calibri 11 実測・
+    ASCII 95 文字のピクセル幅）を Swift に翻訳して実装する。
+  </p>
+  <p>
+    <strong>測り方は出典どおり</strong>: 文字列は 1 文字ずつ表を引いて合算（改行があれば行ごとの最大）、
+    数値は表示文字数 × 7 px、日付は定幅、真偽値は TRUE = 31 / FALSE = 36 px、数式は計算済みの値で測り
+    値が無ければ飛ばす。列の最大に余白 7 px を足し、オートフィルタの列はボタンぶん 16 px を足し、
+    (px − 5) ÷ 7 で文字単位へ。既定の上限は Excel と同じ 255 文字。利用者が手で広げた列は
+    <strong>広がる方向にだけ</strong>動かす（出典と同じ規則）。
+    <strong>出典からの逸脱は 1 つ</strong>: 出典は非 ASCII を一律 8 px とするが、それでは和文が
+    半分に潰れるので、東アジアの全角域（CJK・かな・全角形など）は 16 px とした。近似であることは
+    API の説明に書く——正確な幅は既定書体に依存し、それはビューア自身も近似している。
+  </p>
+  <pre><code>sheet.autofitColumns()                <span class="cm">// 中身のある全列</span>
+sheet.autofitColumn(<span class="st">"A"</span>)              <span class="cm">// 1 列だけ</span>
+sheet.autofitColumns(maxWidth: <span class="nu">60</span>)    <span class="cm">// 上限つき（文字単位）</span></code></pre>
+  <p>
+    実装はモデル側の mutating API — 書き出しがモデルを黙って変えることはしない、の線（B.32 と同じ）。
+    検証は文字幅表の総和の一致（出典の Python 実装と同値になる既知ケース）、全角 16 px、
+    真偽値・数値・日付の測り、余白 7 px、上限、既に広い列を縮めないこと。
   </p>
 
 </section>

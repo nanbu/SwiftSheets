@@ -40,7 +40,28 @@ SwiftSheets itself is MIT-licensed (see LICENSE). The repository also carries ma
    anchors into a sheet's existing drawing part follow BRAWorksheet / BRADrawing (Objective-C); the Swift
    implementation in SheetXLSX is original. No XlsxReaderWriter code is included.
 
-4. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
+4. XlsxWriter (https://github.com/jmcnamara/XlsxWriter), BSD-2-Clause, Copyright 2013-2026 John McNamara.
+   The per-character pixel-width table (CHAR_WIDTHS, Calibri 11) and the autofit procedure in
+   Sources/SheetCore/Model/Autofit.swift are translated from xlsxwriter/utility.py and worksheet.py.
+   The BSD-2-Clause terms:
+
+     Redistribution and use in source and binary forms, with or without modification, are permitted
+     provided that the following conditions are met:
+     1. Redistributions of source code must retain the above copyright notice, this list of conditions
+        and the following disclaimer.
+     2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+        and the following disclaimer in the documentation and/or other materials provided with the distribution.
+     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+     WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+     PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+     ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (HOWEVER CAUSED AND ON ANY
+     THEORY OF LIABILITY) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+     POSSIBILITY OF SUCH DAMAGE.
+
+   libxlsxwriter (same author, same license) is consulted as a structural reference for future chart support;
+   no code from it is included.
+
+5. openpyxl (https://foss.heptapod.net/openpyxl/openpyxl), MIT License, © 2010-2024 openpyxl.
    - Tests/SwiftSheetsTests/Fixtures/openpyxl/ — test fixture files, unmodified (see NOTICE.md there)
    - Tests/OpenpyxlParity/openpyxl-3.1.5-tests.json — an enumeration of openpyxl's test function names
 

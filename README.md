@@ -205,7 +205,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ws.max_row` | `sheet.extent` (`CellRange?`, nil when empty) / `sheet.rowCount` |
 | `insert_rows`, `delete_rows`, `insert_cols`, `delete_cols` | `insertRows(at:count:)`, … — formula references follow (openpyxl's do not) |
 | `merge_cells`, `unmerge_cells`, `merged_cells.ranges` | `merge(_:)`, `unmerge(_:)`, `merges` |
-| `column_dimensions['A'].width = 18`, `row_dimensions[1].height = 24` | `setWidth(18, ofColumn: "A")`, `setHeight(24, ofRow: 0)` |
+| `column_dimensions['A'].width = 18`, `row_dimensions[1].height = 24` | `setWidth(18, ofColumn: "A")`, `setHeight(24, ofRow: 0)`. `autofitColumns()` sizes columns to their content (XlsxWriter's width table; East Asian text measured double) — openpyxl has no autofit |
 | `freeze_panes`, `auto_filter.ref`, print titles / area, page setup | `freezePanes` (`CellRef?`), `autoFilter`, `printTitleRows`, `printArea`, `pageSetup`, … |
 | `auto_filter.add_filter_column(...)`, `auto_filter.sortState` | `sheet.filterColumns`, `sheet.sortState` — value lists, comparisons, colour, icon, dynamic, top 10 and whole-month filters. Only the `<extLst>` extensions are kept as source XML (`sheet.hasUnmodelledFilters`) |
 | `ws.oddHeader.left.text`, `ws.row_breaks`, `ws.col_breaks` | `sheet.headerFooter` (Excel's `&L`/`&C`/`&R` string, undecomposed), `sheet.rowBreaks`, `sheet.columnBreaks` |
