@@ -101,8 +101,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <main>
 <h1>形式ごとの対応表</h1>
 <p class="lede">同じブックを <code>.xlsx</code>・<code>.ods</code>・<code>.numbers</code> に書いたとき、
-何がそのまま通り、何が形を変え、何が通らないのか。SwiftSheets 0.6.0 の実測です。</p>
-<p class="meta">2026-08-25 時点 / 検証環境: macOS 15・LibreOffice 26.2.3・numbers-parser 4.16.3・OASIS ODF 1.3 スキーマ</p>
+何がそのまま通り、何が形を変え、何が通らないのか。SwiftSheets の実測です（版は題名のとおり、数値は main の最新計測）。</p>
+<p class="meta">2026-08-27 時点 / 検証環境: macOS 15・LibreOffice 26.2.3・numbers-parser 4.16.3・OASIS ODF 1.3 スキーマ・Numbers 15.3.1</p>
 
 <hr class="rule">
 
@@ -110,29 +110,29 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>この表の作り方</h2>
 <p>
   「対応しています」と書いた表はすぐ嘘になります。そこでこの表は<strong>推測ではなく測定</strong>で作りました。
-  モデルが持てる 46 の項目をすべて詰め込んだブックを 1 つ用意し、各形式に<strong>書いて、読み戻して、
+  モデルが持てる 47 の項目をすべて詰め込んだブックを 1 つ用意し、各形式に<strong>書いて、読み戻して、
   元と比べる</strong>。○ は戻ってきたもの、× は戻らなかったもの、△ は形を変えて戻ってきたものです。
 </p>
 <p>
-  この計測そのものがリポジトリのテストです（<code>FormatSupportTests</code>）。46 項目の生存と、
+  この計測そのものがリポジトリのテストです（<code>FormatSupportTests</code>）。47 項目の生存と、
   各形式が返す警告の数を固定してあるので、<strong>コーデックを直してこの表が古くなったら、テストが先に赤くなります。</strong>
 </p>
 
 <div class="grid">
   <div class="card score">
-    <div class="num">41<small> / 46</small></div>
+    <div class="num">41<small> / 47</small></div>
     <div class="lab">Excel（.xlsx / .xlsm）</div>
-    <div class="sub">表計算の仕掛けは全部通ります。通らない 5 件は、Numbers か OpenDocument にしか無い考え方です。</div>
+    <div class="sub">表計算の仕掛けは全部通ります。通らない 6 件は、Numbers か OpenDocument にしか無い考え方です。</div>
   </div>
   <div class="card score">
-    <div class="num">41<small> / 46</small></div>
+    <div class="num">41<small> / 47</small></div>
     <div class="lab">ODS（OpenDocument）</div>
-    <div class="sub">Excel と<strong>同点</strong>。落とす 5 件と拾う 5 件が違うだけで、優劣ではありません。</div>
+    <div class="sub">Excel と<strong>同点</strong>。落とす 6 件と拾う 6 件が違うだけで、優劣ではありません。</div>
   </div>
   <div class="card score">
-    <div class="num">12<small> / 46</small></div>
+    <div class="num">19<small> / 47</small></div>
     <div class="lab">Numbers</div>
-    <div class="sub">値・セル書式・表示形式・結合・寸法まで。表計算の「仕掛け」は書けません（理由は後述）。</div>
+    <div class="sub">値・数式・書式・条件付き書式・入力規則・セルの制御・集計表・複数の表まで。印刷や保護の仕掛けは書けません（理由は後述）。</div>
   </div>
 </div>
 </section>
@@ -149,7 +149,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <!-- model -->
   <rect x="330" y="20" width="240" height="72" rx="14" class="sv-accent-soft"/>
   <text x="450" y="48" class="sv-tb" text-anchor="middle">SwiftSheets のモデル</text>
-  <text x="450" y="70" class="sv-t3" text-anchor="middle">形式に依らない 1 つの表現（46 項目）</text>
+  <text x="450" y="70" class="sv-t3" text-anchor="middle">形式に依らない 1 つの表現（47 項目）</text>
 
   <!-- arrows -->
   <path d="M 400 92 L 190 150" class="sv-arrow" marker-end="url(#a1)"/>
@@ -165,35 +165,35 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="40" y="150" width="290" height="200" rx="14" class="sv-card"/>
   <text x="185" y="178" class="sv-tb" text-anchor="middle">Excel</text>
   <rect x="60" y="192" width="250" height="18" rx="5" class="sv-soft"/>
-  <rect x="60" y="192" width="223" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="171" y="205" class="sv-inv" text-anchor="middle">41 / 46</text>
+  <rect x="60" y="192" width="218" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="169" y="205" class="sv-inv" text-anchor="middle">41 / 47</text>
   <text x="60" y="238" class="sv-t2">値・数式・書式・条件付き書式</text>
   <text x="60" y="260" class="sv-t2">入力規則・表・フィルタ・ピボット</text>
   <text x="60" y="282" class="sv-t2">保護・シナリオ・印刷設定・定義名</text>
-  <text x="60" y="312" class="sv-t3">通らない: 1 シートに複数の表・</text>
+  <text x="60" y="312" class="sv-t3">通らない: 複数の表・セルの制御・</text>
   <text x="60" y="332" class="sv-t3">ODF 固有の 4 件（下記）</text>
 
   <!-- ods -->
   <rect x="345" y="150" width="210" height="200" rx="14" class="sv-card"/>
   <text x="450" y="178" class="sv-tb" text-anchor="middle">ODS</text>
   <rect x="365" y="192" width="170" height="18" rx="5" class="sv-soft"/>
-  <rect x="365" y="192" width="152" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="441" y="205" class="sv-inv" text-anchor="middle">41 / 46</text>
+  <rect x="365" y="192" width="148" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="439" y="205" class="sv-inv" text-anchor="middle">41 / 47</text>
   <text x="365" y="238" class="sv-t2">Excel と同点（拾う物が違う）</text>
   <text x="365" y="260" class="sv-t2">条件付き書式は拡張名前空間</text>
   <text x="365" y="282" class="sv-t2">ピボット表 = データパイロット</text>
-  <text x="365" y="312" class="sv-t3">通らない: 保護範囲・シナリオ</text>
-  <text x="365" y="332" class="sv-t3">タブ色・ブック保護</text>
+  <text x="365" y="312" class="sv-t3">通らない: 保護範囲・シナリオ・</text>
+  <text x="365" y="332" class="sv-t3">タブ色・ブック保護・セルの制御</text>
 
   <!-- numbers -->
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
   <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
-  <rect x="590" y="192" width="98" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="700" y="205" class="sv-t2" font-weight="700">18 / 46</text>
+  <rect x="590" y="192" width="101" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="703" y="205" class="sv-t2" font-weight="700">19 / 47</text>
   <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
   <text x="590" y="260" class="sv-t2">リンク・メモ・結合・複数の表</text>
-  <text x="590" y="282" class="sv-t2">条件付き書式・集計表・入力規則</text>
+  <text x="590" y="282" class="sv-t2">条件付き書式・集計表・入力規則・制御</text>
   <text x="590" y="312" class="sv-t3">通らない: 色の階調・データバー・</text>
   <text x="590" y="332" class="sv-t3">印刷設定・定義名・フィルタ …</text>
 </svg>
@@ -254,6 +254,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <td>ODF は規則を文書の先頭に並べ、セルが名前で指します。Numbers では選択肢を書き並べたリスト型だけが
   ポップアップメニューになります（Numbers 自身も Excel の取り込みで同じ置き換えをします）。範囲参照のリストと
   数値条件は落として言います</td></tr>
+<tr><td>セルの制御（チェックボックス・ステッパー・スライダー・レート）</td><td class="m n">×</td><td class="m n">×</td><td class="m y">○</td>
+  <td>Numbers 固有。つまみの範囲（最小・最大・刻み）ごと読み書きします。Excel・ODS へは値だけ残し、
+  落としたことを言います</td></tr>
 <tr><td>名前付きの表</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
   <td>ODF の「データベース範囲」になります。名前と範囲は通り、縞模様のスタイルは落ちます</td></tr>
 <tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
@@ -509,7 +512,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 23 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 6 件・ODS 9 件・Numbers 23 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -595,7 +598,7 @@ for warning in result.warnings {
 <h2>この表を自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
 <pre><code>swift test                          # 839 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
-swift test --filter FormatSupport   # <strong>この表そのもの</strong>。46 項目の生存と警告の数を固定している
+swift test --filter FormatSupport   # <strong>この表そのもの</strong>。47 項目の生存と警告の数を固定している
 swift test --filter CrossFormat     # <strong>方向ごと</strong>の点検（相互運用ガイドの土台）と 3 世代テスト
 swift test --filter ODFOnly         # ODF にあって Excel に無い 6 件
 swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表
@@ -611,7 +614,7 @@ python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # 同じ 1 �
 </section>
 
 <footer>
-SwiftSheets — 形式ごとの対応表。数字は 2026-08-27 の実測（全 46 項目を書いて読み戻した結果）。<br>
+SwiftSheets — 形式ごとの対応表。数字は 2026-08-27 の実測（全 47 項目を書いて読み戻した結果）。<br>
 方向ごと（A → B）の挙動は <a href="interoperability.html">相互運用ガイド</a> に。<br>
 実装の決定記録は docs/implementation-spec.html 付録 B.16・B.17・B.22、保守手順は MAINTENANCE.md。
 </footer>

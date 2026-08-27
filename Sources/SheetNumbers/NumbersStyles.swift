@@ -517,6 +517,30 @@ struct NumbersStyleWriter {
     }
 
     /// The format-list key for a number-format code, or nil when Numbers cannot describe it.
+    /// The format entry a cell control draws through, measured from Numbers' own documents (Appendix B.25):
+    /// a checkbox cell wears `format_type` CHECKBOX (263), a rating cell RATING (267), and a stepper or slider
+    /// cell a plain automatic decimal when no other number format is asked for.
+    mutating func controlFormatKey(_ kind: CellControl.Kind) -> Int? {
+        let code = "\u{0}control-\(kind.rawValue)"   // a spelling no Excel format code can collide with
+        if let k = formatKeys[code] { return k >= 0 ? k : nil }
+        var archive = ProtoMessage(typeName: "TSK.FormatStructArchive")
+        switch kind {
+        case .checkbox: archive.set("format_type", int: NumbersFormat.type("CHECKBOX") ?? 263)
+        case .rating: archive.set("format_type", int: NumbersFormat.type("RATING") ?? 267)
+        case .stepper, .slider:
+            archive.set("format_type", int: NumbersFormat.type("DECIMAL") ?? 256)
+            archive.set("decimal_places", int: NumbersFormat.automaticDecimals)
+            archive.set("negative_style", int: 0)
+            archive.set("show_thousands_separator", bool: false)
+        }
+        let key = formatEntries.count + 1
+        var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+        entry.set("key", int: key); entry.set("refcount", int: 1); entry.set("format", message: archive)
+        formatEntries.append(entry)
+        formatKeys[code] = key
+        return key
+    }
+
     mutating func formatKey(for code: String) -> Int? {
         if let k = formatKeys[code] { return k >= 0 ? k : nil }
         guard let archive = NumbersFormat.archive(for: code) else {

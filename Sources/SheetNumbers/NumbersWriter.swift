@@ -29,6 +29,10 @@ struct NumbersWriter {
     /// `TSTControlCellSpec` interaction type of a pop-up menu.
     static let popupInteractionType = 7
 
+    /// The interaction types of the controls the model has a word for (measured from a document Numbers 15.3.1
+    /// built when its own AppleScript `format` property was set to each; Appendix B.25).
+    static let controlInteractionTypes: [CellControl.Kind: Int] = [.stepper: 4, .slider: 5, .rating: 6, .checkbox: 8]
+
     /// The choices of a validation that can go out as a Numbers pop-up menu: a `.list` whose choices are spelt in
     /// the rule itself (`"a,b,c"`). Anything else returns nil — a range-sourced list would have to be frozen into
     /// today's values, which changes what the rule means, and the other kinds have no control to become.
@@ -1337,9 +1341,10 @@ struct NumbersWriter {
         var controlEntries: [ProtoMessage] = []
         var controlKeys: [CellRef: Int] = [:]
         var clippedRules = 0
-        if !popupRules.isEmpty, controlList == nil {
+        let controlledCells = table.cells.filter { $0.value.control != nil && $0.key.row < rows && $0.key.col < cols && !covered.contains($0.key) }
+        if !popupRules.isEmpty || !controlledCells.isEmpty, controlList == nil {
             warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
-                                              message: "\(popupRules.count) data validation rule(s) dropped: the template's table has no control list"))
+                                              message: "\(popupRules.count + controlledCells.count) validation rule(s) / cell control(s) dropped: the template's table has no control list"))
         }
         if let listID = controlList {
             let controlFile = doc.locations[listID]?.0 ?? NumbersStyleWriter.stylesheetFile
@@ -1366,6 +1371,53 @@ struct NumbersWriter {
                 }
                 if clipped { clippedRules += 1 }
             }
+
+            // the cells' own controls: checkbox, stepper, slider, star rating (Appendix B.25). Cells wearing the
+            // same control share one entry, the way Numbers shares them. A control edits a value of its own kind —
+            // a checkbox a boolean, a dial a number — so a cell whose value is neither keeps the value and loses
+            // the control, out loud.
+            var controlEntryKeys: [CellControl: Int] = [:]
+            var overlappingControls = 0
+            var mismatchedControls: [CellRef] = []
+            for (ref, cell) in controlledCells.sorted(by: { ($0.key.row, $0.key.col) < ($1.key.row, $1.key.col) }) {
+                guard let control = cell.control else { continue }
+                let fits: Bool
+                switch cell.value {
+                case nil: fits = true
+                case .bool: fits = control.kind == .checkbox
+                case .integer, .number: fits = control.kind != .checkbox
+                default: fits = false
+                }
+                guard fits else { mismatchedControls.append(ref); continue }
+                if controlKeys[ref] != nil { overlappingControls += 1 }
+                let key: Int
+                if let existing = controlEntryKeys[control] {
+                    key = existing
+                } else {
+                    var spec = ProtoMessage(typeName: "TST.CellSpecArchive")
+                    spec.set("interaction_type", int: NumbersWriter.controlInteractionTypes[control.kind]!)
+                    if control.kind != .checkbox {
+                        spec.set("range_control_min", double: control.minimum)
+                        spec.set("range_control_max", double: control.maximum)
+                        spec.set("range_control_inc", double: control.increment)
+                    }
+                    key = controlEntries.count + 1
+                    var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+                    entry.set("key", int: key); entry.set("refcount", int: 0); entry.set("cell_spec", message: spec)
+                    controlEntries.append(entry)
+                    controlEntryKeys[control] = key
+                }
+                controlKeys[ref] = key
+            }
+            if let first = mismatchedControls.first {
+                warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: first,
+                                                  message: "\(mismatchedControls.count) cell control(s) dropped: a checkbox edits a boolean and a dial edits a number, and the cell's value is neither — the value wins"))
+            }
+            if overlappingControls > 0 {
+                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheetName,
+                                                  message: "a list rule and a cell control met on \(overlappingControls) cell(s); the cell's own control wins"))
+            }
+
             for i in controlEntries.indices {
                 let key = controlEntries[i].int("key") ?? 0
                 controlEntries[i].set("refcount", int: controlKeys.values.filter { $0 == key }.count)
@@ -1469,7 +1521,22 @@ struct NumbersWriter {
             let commentID = try cell.comment.map { try commentKey(for: $0) }
             let style = cell.style
             let keys = try styleWriter.keys(for: style)
-            let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
+            var formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
+            // A control cell draws through its own format, and always holds a value — Numbers itself fills an
+            // untouched checkbox with false, a dial with its minimum, a rating with 0 (Appendix B.25).
+            if let control = cell.control, controlKeys[ref] != nil {
+                switch control.kind {
+                case .checkbox, .rating: formatKey = styleWriter.controlFormatKey(control.kind)
+                case .stepper, .slider: if formatKey == nil { formatKey = styleWriter.controlFormatKey(control.kind) }
+                }
+                if value == nil {
+                    switch control.kind {
+                    case .checkbox: value = .bool(false)
+                    case .rating: value = .integer(0)
+                    case .stepper, .slider: value = .number(Decimal(control.minimum))
+                    }
+                }
+            }
             records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
                                                formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
                                                conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref],

@@ -139,7 +139,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
     <div class="num">9<small> 方向</small></div>
     <div class="lab">全部たどりました</div>
     <div class="sub">3 形式 × 3 形式。同じ形式に保存し直す 3 方向も含みます。
-      46 の機能それぞれについて、行き先で生き残ったかを見ています</div>
+      47 の機能それぞれについて、行き先で生き残ったかを見ています</div>
   </div>
   <div class="card score">
     <div class="num">7<small> 件</small></div>
@@ -248,7 +248,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
   約束するだけなら誰でもできます。ここでは<strong>機械に突き合わせさせて</strong>います。
 </p>
 <ol class="steps">
-  <li>46 の機能を全部入れた 1 冊を用意し、それぞれの形式で<em>本物のファイルとして一度保存</em>します。</li>
+  <li>47 の機能を全部入れた 1 冊を用意し、それぞれの形式で<em>本物のファイルとして一度保存</em>します。</li>
   <li>そのファイルを開き、別の形式で保存します。</li>
   <li>開き直して、<strong>消えた機能を数え上げます</strong>。</li>
   <li>消えた機能それぞれについて、<strong>その機能を名指しする言葉を含む警告があるか</strong>を確かめます。
@@ -379,7 +379,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 <section>
 <h2>9 方向、全部の実測</h2>
 <p class="lede2">
-  46 機能を全部入れた 1 冊を、それぞれの形式で一度保存して<strong>本物のファイル</strong>にし、
+  47 機能を全部入れた 1 冊を、それぞれの形式で一度保存して<strong>本物のファイル</strong>にし、
   そこから 3 形式に書き直した結果です。
 </p>
 
@@ -693,7 +693,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 <div class="tablewrap"><table>
 <thead><tr><th>この文書の主張</th><th>それを測っているもの</th><th class="m">件数</th></tr></thead>
 <tbody>
-<tr><td>46 の機能が、各形式でどこまで残るか</td><td><code>FormatSupportTests.matchesThePublishedTable</code></td><td class="m">3</td></tr>
+<tr><td>47 の機能が、各形式でどこまで残るか</td><td><code>FormatSupportTests.matchesThePublishedTable</code></td><td class="m">3</td></tr>
 <tr><td><strong>消えたものは必ず、それを名指しする警告を持つ</strong>（9 方向）</td>
   <td><code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code></td><td class="m">9</td></tr>
 <tr><td><strong>3 回保存しても部品は整形式で、何も落ちない</strong></td>
@@ -737,7 +737,7 @@ dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
 <pre><code>swift test                            # 839 件（全部）
 swift test --filter CrossFormat       # <strong>この文書そのもの</strong>。9 方向の点検と 3 世代テスト
-swift test --filter FormatSupport     # 46 項目の対応表（docs/format-support.html）
+swift test --filter FormatSupport     # 47 項目の対応表（docs/format-support.html）
 swift test --filter Preservation      # 1 セル直して保存したとき、他がバイト同一か
 swift test --filter ODFOnly           # OpenDocument にしか無い 6 件
 

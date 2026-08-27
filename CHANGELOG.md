@@ -11,6 +11,20 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **The four remaining Numbers cell controls — checkbox, stepper, slider and star rating — are a word in the
+  model now**: `CellControl` on `Cell.control`, read from and written to Numbers with the dial's bounds
+  (minimum / maximum / increment). The sample the wiring was measured from was built by Numbers 15.3.1 itself,
+  driven over AppleScript (`set format of range … to checkbox` and friends), since no Excel import can produce a
+  control; and the acceptance judge asks Numbers the same way — every control cell of a SwiftSheets-written
+  document answers `checkbox` / `stepper` / `slider` / `rating` to an AppleScript `format of cell` query.
+  Two rules of Numbers' own carry over: cells wearing the same control share one list entry, and **a control
+  cell always holds a value** — Numbers fills an untouched checkbox with false, a dial with its minimum, a
+  rating with 0, and the writer does the same, so a control put on an empty cell reads back with that resting
+  value rather than nil. A control on a value of the wrong kind (a checkbox on text) keeps the value and drops
+  the control with a warning; writing `.xlsx` or `.ods` keeps the value and names the lost control — neither
+  format has one. The format-support table grows its 47th row (セルの制御 — Numbers ○, Excel and ODS ×), and the
+  corpus gains `controls-15.numbers` (spec Appendix B.25).
+
 - **A list data validation and a Numbers pop-up menu are treated as the same thing**, because Numbers itself
   treats them so in both directions (measured: importing an Excel dropdown makes a pop-up menu, exporting a
   pop-up menu makes a strict inline-list dropdown). Reading a Numbers document turns each pop-up menu into a

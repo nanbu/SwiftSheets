@@ -27,8 +27,8 @@ struct CellStorage {
     var textFormatID: Int?
     var boolFormatID: Int?
     /// The cell's interactive control — a key into the table's `control_cell_spec_table` list. A pop-up menu
-    /// becomes a `.list` data validation; the other controls (checkbox, stepper, slider, star rating) have no
-    /// place in the model and are reported — see `NumbersReader.table`.
+    /// becomes a `.list` data validation; a checkbox, stepper, slider or star rating becomes `Cell.control`;
+    /// what is left (a stock quote) is reported — see `NumbersReader.table`.
     var controlID: Int?
     var extras: UInt16 = 0
 

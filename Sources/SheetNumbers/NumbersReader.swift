@@ -150,9 +150,20 @@ struct NumbersReader {
     /// table model id → the table's pop-up menus, read back as `.list` validations.
     private var validationsByTable: [Int: [DataValidation]] = [:]
 
+    /// A control spec as the model's own word, for the four kinds that have one. Nil for the rest — a pop-up
+    /// menu (which becomes a validation instead) and the kinds nobody models (a stock quote). The dial's bounds
+    /// are read as data, not normalised: Numbers itself writes a stepper whose maximum is the cell's own value.
+    static func control(fromSpec spec: ProtoMessage) -> CellControl? {
+        let kind = NumbersWriter.controlInteractionTypes.first { $0.value == spec.int("interaction_type") }?.key
+        guard let kind else { return nil }
+        return CellControl(kind: kind, minimum: spec.double("range_control_min") ?? 0,
+                           maximum: spec.double("range_control_max") ?? 0,
+                           increment: spec.double("range_control_inc") ?? 0)
+    }
+
     /// The pop-up menus among a table's cell controls, as list validations over the cells that wear them.
-    /// Cells whose control is anything else (checkbox, stepper, slider, rating — or a menu an inline list cannot
-    /// spell) come back in `unreadable`, for the caller to report.
+    /// Cells whose control is anything else the model has no word for (a stock quote, or a menu an inline list
+    /// cannot spell) come back in `unreadable`, for the caller to report.
     private func validations(controls: [Int: [CellRef]], store: ProtoMessage) -> (rules: [DataValidation], unreadable: [CellRef]) {
         guard !controls.isEmpty else { return ([], []) }
         let popup = NumbersWriter.popupInteractionType
@@ -292,10 +303,13 @@ struct NumbersReader {
     mutating func table(_ tid: Int, sheetName: String) -> Table? {
         guard let model = doc.object(tid), let store = model.message("base_data_store") else { return nil }
         var t = Table(name: model.string("table_name"))
-        /// Cells carrying an interactive control, by the control-list key they name. A pop-up menu comes back as a
-        /// `.list` validation; the rest (checkbox, stepper, slider, star rating) have no place in the model, so the
-        /// value is read and the control is reported rather than passed over in silence.
+        /// Cells carrying an interactive control, by the control-list key they name. A checkbox, stepper, slider
+        /// or star rating goes onto the cell as `Cell.control`; a pop-up menu comes back as a `.list` validation;
+        /// what is left (a stock quote, a menu an inline list cannot spell) is reported rather than passed over
+        /// in silence, so only those keys are collected here.
         var controlledCells: [Int: [CellRef]] = [:]
+        let controlSpecs = dataList(store.reference("control_cell_spec_table")) { $0.message("cell_spec") }
+        let modelledControls = controlSpecs.compactMapValues { NumbersReader.control(fromSpec: $0) }
         let rows = model.int("number_of_rows") ?? 0, cols = model.int("number_of_columns") ?? 0
         if let info = doc.identifiers(ofType: "TST.TableInfoArchive").first(where: { doc.object($0)?.reference("tableModel") == tid }),
            let geometry = doc.object(info)?.message("super")?.message("geometry"), let pos = geometry.message("position") {
@@ -380,14 +394,19 @@ struct NumbersReader {
                     do {
                         let s = try CellStorage.decode(record)
                         if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
-                        if let cid = s.controlID { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                        var control: CellControl?
+                        if let cid = s.controlID {
+                            if let modelled = modelledControls[cid] { control = modelled }
+                            else { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                        }
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
                         let rich = s.richID.flatMap { richTexts[$0] }
                         let note = s.commentID.flatMap { comments[$0] }
-                        if value != nil || style != .default || note != nil {
+                        if value != nil || style != .default || note != nil || control != nil {
                             var cell = Cell(value: value)
                             cell.comment = note
+                            cell.control = control
                             if let first = rich?.links.first {
                                 cell.hyperlink = Hyperlink(target: first)
                                 if rich!.links.count > 1 {
@@ -414,7 +433,7 @@ struct NumbersReader {
             let n = unreadableControls.count
             let subject = n == 1 ? "the cell at \(first.a1) carries" : "\(n) cells starting at \(first.a1) carry"
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName, location: first,
-                                              message: "\(subject) a Numbers control (checkbox, stepper, slider, rating, or a menu an inline list cannot spell); the value is kept, the control is not"))
+                                              message: "\(subject) a Numbers control the model has no word for (a stock quote, or a menu an inline list cannot spell); the value is kept, the control is not"))
         }
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)

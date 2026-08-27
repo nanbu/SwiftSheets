@@ -78,6 +78,13 @@ enum WorkbookWriter {
         if !sameFamily, !preserved.opaqueParts.isEmpty {
             sink.add(.dropped, subject: .objects, "\(preserved.opaqueParts.count) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
         }
+        // a Numbers word with no OOXML spelling: the value under the control is written, the control is named
+        for sheet in wb.sheets {
+            let controls = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.control != nil }.count }
+            if controls > 0 {
+                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(controls) cell control(s) (checkbox, stepper, slider, rating) dropped: Excel has no cell controls — the value is kept (write .numbers to keep the control)")
+            }
+        }
 
         // sheet part paths and workbook relationship ids: existing ones are immutable, new ones follow the maximum
         let wbRels = sameFamily ? (preserved.relationships["xl/workbook.xml"] ?? []).filter { r in !droppedRelTypes.contains { r.type.hasSuffix($0) } } : []

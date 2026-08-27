@@ -44,6 +44,7 @@ import SwiftSheets
         "ブック保護": "workbook protection",
         "文書の自由項目": "custom document propert",
         "隠しシート": "hidden sheet",
+        "セルの制御": "cell control",
         "1シート複数テーブル": "other table(s) not written",
         "ラベル範囲": "label range",
         "統合の定義": "consolidation",

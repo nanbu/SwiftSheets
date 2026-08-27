@@ -70,7 +70,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
 | ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
-| Numbers | ✅ values, formulas (as text, cross-table references included), cell formatting, number formats, conditional formats, pop-up menus as list validations, hyperlinks, formatting runs, notes, merges, sizes, several tables per sheet | ✅ values, formulas, cell formatting, number formats, conditional formats, inline-list validations as pop-up menus, pivot tables (one field per axis), hyperlinks, formatting runs, notes, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
+| Numbers | ✅ values, formulas (as text, cross-table references included), cell formatting, number formats, conditional formats, pop-up menus as list validations, cell controls (checkbox, stepper, slider, rating), hyperlinks, formatting runs, notes, merges, sizes, several tables per sheet | ✅ values, formulas, cell formatting, number formats, conditional formats, inline-list validations as pop-up menus, cell controls, pivot tables (one field per axis), hyperlinks, formatting runs, notes, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content. Numbers support is reverse-engineered (no public
 specification) — see [NOTICE](NOTICE) for the provenance of the schema and [MAINTENANCE.md](MAINTENANCE.md) for keeping
@@ -128,11 +128,14 @@ is reported, never dropped in silence.
   top-n, above-average, blanks, errors, dates and free formulas are reported as dropped — the same eleven Numbers
   itself drops when it imports an Excel file.
 - **A Numbers sheet is a canvas, not a grid.** Charts, images, shapes and text boxes stand on it beside the tables,
-  and a cell can carry an interactive control. A **pop-up menu** is the one control with a word in the model: it is
-  read back as a `.list` data validation, and a validation that spells its choices in the rule (`"a,b,c"`) is
-  written out as a real pop-up menu — the same substitution Numbers itself makes in both directions when it
-  imports and exports Excel files. The other controls (checkbox, stepper, slider, star rating) and the objects
-  have no place in the model: the value under them is read, the rest is reported as `dropped`.
+  and a cell can carry an interactive control. A **pop-up menu** is a `.list` data validation in the model's
+  vocabulary: read back as one, and written out as a real menu when the rule spells its choices (`"a,b,c"`) — the
+  same substitution Numbers itself makes in both directions when it imports and exports Excel files. The other
+  four controls are `Cell.control` (`CellControl`): a **checkbox**, a **stepper**, a **slider** and a **star
+  rating** are read with their dial's bounds and written back as real controls — Numbers, asked cell by cell over
+  AppleScript, answers with the control's own name for every one. A control cell always holds a value (Numbers
+  itself fills an untouched checkbox with false, a dial with its minimum, a rating with 0, and so does the
+  writer). The objects on the canvas have no place in the model: they are reported as `dropped`.
 - Everything else Numbers has no word for — range-sourced and numeric validations, named tables, auto-filters,
   sheet protection, scenarios, print setup, defined names, tab colours, outline grouping — is reported as a
   warning, and so is a pivot table beyond the one-field-per-axis shape Numbers pivots are written in. Nothing is

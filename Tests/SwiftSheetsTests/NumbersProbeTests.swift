@@ -120,6 +120,24 @@ import SwiftSheets
         ]
         popup.sheets[0] = p
         out.append(("17-popup-menus", popup))
+
+        var controls = Workbook()
+        var q = controls.sheets[0]
+        q.append([CellValue.text("kind"), .text("set"), .text("untouched")])
+        q.append([CellValue.text("checkbox"), .bool(true)])
+        q[cell: "B2"].control = .checkbox
+        q[cell: "C2"].control = .checkbox
+        q.append([CellValue.text("stepper"), .integer(4)])
+        q[cell: "B3"].control = .stepper(minimum: 2, maximum: 8, increment: 2)
+        q[cell: "C3"].control = .stepper()
+        q.append([CellValue.text("slider"), .integer(30)])
+        q[cell: "B4"].control = .slider(minimum: 0, maximum: 60, increment: 5)
+        q[cell: "C4"].control = .slider()
+        q.append([CellValue.text("rating"), .integer(3)])
+        q[cell: "B5"].control = .rating
+        q[cell: "C5"].control = .rating
+        controls.sheets[0] = q
+        out.append(("18-cell-controls", controls))
         return out
     }
 

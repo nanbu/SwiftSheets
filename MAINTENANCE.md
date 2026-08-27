@@ -7,11 +7,13 @@ therefore a recurring maintenance item, not a one-off.
 
 The documents in `Tests/SwiftSheetsTests/Fixtures/numbers/` are the verified corpus; their `Metadata/BuildVersionHistory.plist`
 entries name the Numbers versions they were produced by — Numbers 11–14 era files from numbers-parser's suite, plus
-four written by **Numbers 15.3.1** (`conditional-formats-15`, `links-notes-15` on 2026-08-25;
+five written by **Numbers 15.3.1** (`conditional-formats-15`, `links-notes-15` on 2026-08-25;
 `chart-and-control-15` on 2026-08-26; `popup-15` on 2026-08-27, from an openpyxl workbook holding three list
-validations — text, numeric and strict — each over a filled and an empty cell). Theme images and previews are
-stripped from those four, which Numbers does not need to open them and which would otherwise make each file half
-a megabyte.
+validations — text, numeric and strict — each over a filled and an empty cell; `controls-15` on 2026-08-27,
+built by driving Numbers itself over AppleScript — `set format of range … to checkbox/stepper/slider/rating` —
+with one set and one untouched cell per control, so the untouched cells record what Numbers fills them with).
+Theme images and previews are stripped from those five, which Numbers does not need to open them and which would
+otherwise make each file half a megabyte.
 
 **Keep at least one document in the corpus that is not all tables.** Until `chart-and-control-15` was added, every
 fixture held tables and nothing else, so the reader had never been shown a chart or a cell control — and the fact

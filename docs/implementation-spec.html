@@ -1854,6 +1854,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.6 Draft</td><td>2026-08-27</td><td>相互変換の全量点検を行い、付録 B.22 に記録。<strong>ピボット表を持つ Excel ファイルは 2 回目の保存で壊れていた</strong>（書き手が自分で書く属性を、読み手が「知らない属性」として覚え直し、次の保存で二重に書いていた——属性の重複は整形式ではない XML）。あわせて、Numbers への<strong>配列数式・保護範囲</strong>、ODS / Numbers への <strong>VBA</strong> が黙って落ちていた 3 件を直し、壊れた部品を黙って読み飛ばしていた読み手にも警告を出させた。方向ごとの点検（<code>CrossFormatConversionTests</code>）と世代テストを新設</td></tr>
     <tr><td>2.7 Draft</td><td>2026-08-27</td><td>B.22 で「先に方針を決めるべき」として残した 2 件を、方針を決めたうえで直した（付録 B.23）。<strong><code>Workbook.convert</code> が読み込みの警告を捨てていた</strong>——図とセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換して警告 0 件が返っていた。往路と復路の両方を返す。<strong>計算設定の警告が、ODS から変換するたびに必ず出ていた</strong>——モデルの既定と比べていたためで、LibreOffice が全ファイルに書く既定値がそれと食い違っていた。「<em>行き先が違う振る舞いをするか</em>」に基準を変え、効いていない設定は数えない</td></tr>
     <tr><td>2.8 Draft</td><td>2026-08-27</td><td>リスト型の入力規則を Numbers の<strong>ポップアップメニュー</strong>として読み書きする（付録 B.24）。根拠は Numbers 自身の双方向の置き換え（取り込みでドロップダウン→ポップアップ、書き出しでポップアップ→リスト型規則）を実測したこと。選択肢を書き並べた形だけを書き、範囲参照・数値条件は従来どおり落として言う。空の記入行を覆う規則は表を広げて置き、列全体の規則は Numbers 自身と同じく表の端で止める。検体 <code>popup-15.numbers</code> をコーパスに追加。機能表の Numbers 列は入力規則を × → △ に</td></tr>
+    <tr><td>2.9 Draft</td><td>2026-08-27</td><td>残る 4 つのセル制御——<strong>チェックボックス・ステッパー・スライダー・レート</strong>——をモデルの言葉 <code>CellControl</code> にして、Numbers と双方向に読み書きする（付録 B.25）。見本は AppleScript で Numbers 自身に作らせた（Excel 経由では制御を作れないため）。制御のセルは必ず値を持つという Numbers の決まりに合わせ、空セルには静止値（false・最小値・0）を書く。審判は開封に加え、書いた書類の各セルの <code>format</code> を Numbers に直接照会（8 セル全部が制御の名で答えた）。Excel・ODS の書き手には「制御を落とした」警告を追加。機能表は 47 項目（セルの制御の行を追加）</td></tr>
     <tr><td>2.8 Draft</td><td>2026-08-27</td><td>付録 B.19 の診断を<strong>実験で撤回</strong>した。「古い版の刻印なので読み込み時に作り直される」は誤りで、見本を 14.1 相当に刻印しても完全に描く。さらに、翻訳器が引く対応表は<strong>読み込み時に空から詰め直される</strong>ため（<code>TSTSummaryModel._columnRowUIDMap</code>）、<strong>保存された対応表を突き合わせた一致確認はすべて無効</strong>である。あわせてピボットの写しの足場を島ごと削除するようにし（整合性検査の 30 件の問題が消える）、形ごとの表明数の指紋を記録した</td></tr>
     <tr><td>2.9 Draft</td><td>2026-08-27</td><td>付録 B.19 に<strong>形式の決まりを 1 つ確定</strong>して書いた — Numbers はピボットの組を、書かれた UID ではなく<strong>「源の写しの所有者 UID ＋ 副所有者番号」で計算して</strong>引く。見本の組 UID を導出位置から外すだけで見本もこちらと同じ空の殻になる、という実験で裏を取った。書き手はこれを守るようにしたが<strong>描画はまだ直らない</strong>（指紋は不動）。あわせて haunted 所有者・ほかの所有者 UID 19 件・ヘッダ記録・凍結見出し・書式表・こちらの符号器を実験で無罪と確定した</td></tr>
     <tr><td>3.0 Draft</td><td>2026-08-27</td><td><strong>Numbers の集計表が描けた</strong>。読み込みの実際の振る舞いを観測して原因を特定 — 数え始める番号は<strong>表の <code>table_id</code></strong> であって計算エンジンの基底所有者 UID ではない（見本では両者が同じ値なので、見本の中だけを見ていては区別がつかない）。そこから本体のマスの数式・組の無いレーンの番兵・片軸の置き方を実測で直し、17 通りの見本のうち書ける 15 個が<strong>すべて正しく描かれ、表明は 0</strong>。既定を ON にし、書けない 2 形（段 2 つ・値 2 つ）は落として言う。公開表のピボット行を × → △</td></tr>
@@ -3778,8 +3779,74 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
   <p class="meta">
     B.18 の残件表はこの規則を「Numbers にそもそも無いもの」に数えていた。正しくは
     <em>リスト型に限り言葉がある</em>で、範囲チェック（整数・小数・日付・文字数・数式）については
-    従来どおり言葉が無い。チェックボックス・ステッパー・スライダー・レートの各制御も同じく言葉が無く、
-    値だけ読んで落としたことを言う線は変えていない。
+    従来どおり言葉が無い。チェックボックス・ステッパー・スライダー・レートの各制御は
+    この改訂の時点では言葉が無かったが、直後の B.25 でモデルに言葉を与えた。
+  </p>
+
+
+  <h3>B.25 残る 4 つの制御に、モデルの言葉を与える（Rev 2.9）</h3>
+  <p>
+    2026-08-27。B.24 で「値だけ読んで落としたと言う」に残していた 4 つのセル制御——
+    <strong>チェックボックス・ステッパー・スライダー・レート</strong>——を、モデルの一級の言葉
+    <code>CellControl</code>（<code>Cell.control</code>）にして、Numbers と双方向に読み書きする。
+    Excel・ODF に相当概念は無いので、そちらへ書くときは値だけ残して落としたことを言う（両書き手に警告を追加）。
+  </p>
+
+  <h4>見本の作り方 — AppleScript で Numbers 自身に作らせる</h4>
+  <p>
+    これまでの見本は「xlsx を取り込ませて保存させる」だったが、制御は Excel 側に無いのでその道が使えない。
+    代わりに Numbers の AppleScript 辞書がセルの <code>format</code> に
+    <code>checkbox / stepper / slider / rating</code> を持つことを使い、
+    <strong>Numbers 自身に 4 種の制御を作らせて保存させた</strong>（検体 <code>controls-15.numbers</code>、
+    各制御につき値を入れたセルと触っていないセルの 2 つずつ）。
+  </p>
+
+  <h4>置き方 — B.24 の配線の上に、種別が 4 つ増えるだけ</h4>
+  <div class="compare"><table>
+    <tr><th>制御</th><th>interaction_type</th><th>cell_spec の追加項目</th><th>セルの値と書式</th></tr>
+    <tr><td>チェックボックス</td><td>8</td><td>なし</td>
+        <td>真偽値（double 1/0）＋ 書式 <code>format_type: 263</code>（CHECKBOX）</td></tr>
+    <tr><td>ステッパー</td><td>4</td><td rowspan="2"><code>range_control_min / max / inc</code>（つまみの範囲）</td>
+        <td rowspan="2">数値（decimal128）＋ 自動小数の DECIMAL 書式（明示の表示形式があればそちら）</td></tr>
+    <tr><td>スライダー</td><td>5</td></tr>
+    <tr><td>レート</td><td>6</td><td><code>min 0 / max 5 / inc 1</code></td>
+        <td>数値 ＋ 書式 <code>format_type: 267</code>（RATING）</td></tr>
+  </table></div>
+  <p>
+    同じ制御を着るセルは一覧の項を共有する（見本でチェックボックス 2 セルが refcount 2 の 1 項。
+    書き手も <code>CellControl</code> の同値で項を共有する）。見本から分かった決まりがもう 1 つ——
+    <strong>制御のセルは必ず値を持つ</strong>。触っていないセルに Numbers 自身が値を入れていた
+    （チェックボックスは false・ステッパーは最小値・レートは 0）。書き手も同じ埋め方をするので、
+    値の無いセルに制御を置いて書き出すと、<em>読み戻しでは false／最小値／0 が返る</em>。
+    これは仕様であり CHANGELOG にも明記した。
+  </p>
+  <p>
+    型の合わないセル（文字列にチェックボックス等）は<strong>値が勝ち</strong>、制御を落として degraded で言う
+    （リンクのときの「値のほうが重い」と同じ線）。同じセルをリスト規則と制御が取り合ったら
+    <strong>セル自身の制御が勝ち</strong>、これも言う。読みでは、見本のステッパーが
+    「セルの値を最大値にした」変則的なつまみを持っていたが、<strong>正規化せずデータのまま</strong>読む。
+  </p>
+
+  <h4>審判 — 開くだけでは足りないので、Numbers に「何に見えるか」を聞いた</h4>
+  <p>
+    制御が黙って素のセルに退化しても「修復しますか」は出ない。そこで開封検査に加え、
+    こちらが書いた書類の各セルの <code>format</code> を AppleScript で Numbers に直接問い合わせた。
+  </p>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>Numbers 本人（開封）</td><td>段階検体 19 個（制御 4 種入りの <code>18-cell-controls</code> を含む）が
+        すべて「修復しますか」を出さずに開く</td></tr>
+    <tr><td>Numbers 本人（セルごとの照会）</td><td>こちらが書いた 8 つの制御セルすべてに
+        <code>checkbox / stepper / slider / rating</code> と答え、素のセルには <code>automatic</code> と答えた</td></tr>
+    <tr><td>参照実装</td><td>numbers-parser が一覧の項（種別・つまみ・共有 refcount）と静止値をそのまま読む。
+        検体 <code>controls-15</code> は <code>expected.json</code> のセル照合にも入れた</td></tr>
+    <tr><td>全体</td><td>871 件が緑。機能表は 47 項目に増え（セルの制御の行を追加・Numbers ○／Excel・ODS ×）、
+        全部入りの警告数は Excel 6 件・ODS 9 件・Numbers 23 件に追随</td></tr>
+  </table></div>
+  <p class="meta">
+    ついでに公開表の冒頭のカードが 0.6.0 時点の「12 / 46」のまま数セッション分置き去りになっていたのを
+    見つけ、実測（19 / 47）に直した。カードの数字はテストが見張っていない——見張られているのは
+    <code>expectedLosses</code> と警告数だけ——ことが原因なので、今後この表を触るときはカードも見ること。
   </p>
 
 </section>

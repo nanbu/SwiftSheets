@@ -45,6 +45,8 @@ import SwiftSheets
         d.sortState = SortState(range: CellRange("A2:D9")!, conditions: [SortCondition(range: CellRange("C2:C9")!, descending: true)])
         d.addExcelTable(named: "Sales", over: "A1:D9")
         d.dataValidations = [DataValidation.list("\"A,B\"", over: MultiCellRange("B2:B9")!, rejects: true)]
+        d["I2"] = true
+        d[cell: "I2"].control = .checkbox
         let red = DifferentialStyle.highlight(fill: Color(hex: "FFC7CE"), text: Color(hex: "9C0006"))
         d.addConditionalFormatting(.cellIs(.greaterThan, "5", paint: red, priority: 1), over: "C2:C9")
         d.addConditionalFormatting(.colorScale(.twoColor(from: .white, to: Color(hex: "63BE7B")), priority: 2), over: "D2:D9")
@@ -92,7 +94,7 @@ import SwiftSheets
         return wb
     }
 
-    /// The 46 rows of the published table, in its order. Each says whether the feature came home.
+    /// The 47 rows of the published table, in its order. Each says whether the feature came home.
     static func profile(of workbook: Workbook) -> [String: Bool] {
         let s = workbook.sheets["Data"] ?? workbook.sheets[0]
         let pivot = workbook.sheets["Pivot"]
@@ -120,6 +122,7 @@ import SwiftSheets
             "CF・データバー": rules.contains { $0.kind == .dataBar },
             "CF・アイコンセット": rules.contains { $0.kind == .iconSet },
             "入力規則": !s.dataValidations.isEmpty,
+            "セルの制御": s.cell("I2")?.control != nil,
             "名前付きの表": !s.excelTables.isEmpty,
             "オートフィルタ": s.autoFilter != nil,
             "絞り込み条件": !s.filterColumns.isEmpty,
@@ -152,8 +155,8 @@ import SwiftSheets
 
     /// What each format is *expected* to lose. Everything not named here has to survive.
     static let expectedLosses: [SheetFormat: Set<String>] = [
-        .xlsx: ["1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
-        .ods: ["保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
+        .xlsx: ["セルの制御", "1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
+        .ods: ["セルの制御", "保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
         .numbers: [
             "配列数式", "グループ化",
             "CF・カラースケール", "CF・データバー", "CF・アイコンセット",
@@ -166,7 +169,7 @@ import SwiftSheets
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 23]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 6, .ods: 9, .numbers: 23]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {
@@ -184,7 +187,7 @@ import SwiftSheets
             unexpectedly kept: \(expected.subtracting(lost).sorted()))
             docs/format-support.html has to be updated with the code.
             """)
-        #expect(survived.count == 46, "the published table has 46 rows")
+        #expect(survived.count == 47, "the published table has 47 rows")
 
         // nothing is dropped in silence: every loss is answered by a warning
         #expect(result.warnings.count == Self.expectedWarningCount[format]!,

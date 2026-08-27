@@ -8,12 +8,15 @@ package final class SharedStyle: Sendable {
     package init(_ style: CellStyle) { self.style = style }
 }
 
-/// A cell's hyperlink and note. Both are rare and together they are over a hundred bytes, so they live behind a
-/// reference and an ordinary cell stays three words wide.
+/// A cell's hyperlink, note and control. All three are rare and together they are over a hundred bytes, so they
+/// live behind a reference and an ordinary cell stays three words wide.
 package final class CellExtras: Sendable {
     package let hyperlink: Hyperlink?
     package let comment: CellNote?
-    package init(hyperlink: Hyperlink?, comment: CellNote?) { self.hyperlink = hyperlink; self.comment = comment }
+    package let control: CellControl?
+    package init(hyperlink: Hyperlink?, comment: CellNote?, control: CellControl? = nil) {
+        self.hyperlink = hyperlink; self.comment = comment; self.control = control
+    }
 }
 
 /// One cell: a value (nil when the cell only carries formatting) plus its style, hyperlink and note. A value type —
@@ -53,17 +56,27 @@ public struct Cell: Hashable, Sendable {
     }
     public var comment: CellNote? {
         get { extras?.comment }
-        set { setExtras(hyperlink: extras?.hyperlink, comment: newValue) }
+        set { setExtras(hyperlink: extras?.hyperlink, comment: newValue, control: extras?.control) }
     }
 
-    private mutating func setExtras(hyperlink: Hyperlink?, comment: CellNote?) {
-        extras = hyperlink == nil && comment == nil ? nil : CellExtras(hyperlink: hyperlink, comment: comment)
+    /// The interactive control the cell's value is edited through — a Numbers word (checkbox, stepper, slider,
+    /// star rating). Kept on the cell in every format's model; only the Numbers writer can put it into a file,
+    /// and the others report it.
+    public var control: CellControl? {
+        get { extras?.control }
+        set { setExtras(hyperlink: extras?.hyperlink, comment: extras?.comment, control: newValue) }
     }
 
-    public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, comment: CellNote? = nil) {
+    private mutating func setExtras(hyperlink: Hyperlink?, comment: CellNote?, control: CellControl? = nil) {
+        extras = hyperlink == nil && comment == nil && control == nil
+            ? nil : CellExtras(hyperlink: hyperlink, comment: comment, control: control)
+    }
+
+    public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, comment: CellNote? = nil,
+                control: CellControl? = nil) {
         storedValue = value
         self.style = style
-        setExtras(hyperlink: hyperlink, comment: comment)
+        setExtras(hyperlink: hyperlink, comment: comment, control: control)
         applyDateFormat()
         if let h = hyperlink, storedValue == nil { storedValue = .text(h.target) }
     }
@@ -71,6 +84,7 @@ public struct Cell: Hashable, Sendable {
     public static func == (a: Cell, b: Cell) -> Bool {
         a.storedValue == b.storedValue
             && a.extras?.hyperlink == b.extras?.hyperlink && a.extras?.comment == b.extras?.comment
+            && a.extras?.control == b.extras?.control
             && (a.styleRef === b.styleRef || a.style == b.style)
     }
 
@@ -79,6 +93,7 @@ public struct Cell: Hashable, Sendable {
         hasher.combine(style)
         hasher.combine(extras?.hyperlink)
         hasher.combine(extras?.comment)
+        hasher.combine(extras?.control)
     }
 
     /// Assigning a date / time / duration sets a matching number format unless the cell already has a date format
@@ -118,6 +133,34 @@ public struct Cell: Hashable, Sendable {
     public var isEmpty: Bool { storedValue == nil }
     /// True when nothing at all is set — such cells are not worth storing.
     public var isBlank: Bool { storedValue == nil && extras == nil && (styleRef == nil || styleRef!.style == .default) }
+}
+
+/// An interactive cell control — the value is edited through a widget rather than typed. The word is Numbers'
+/// (Excel and ODF have no equivalent): a **checkbox** holds a boolean, a **stepper** and a **slider** hold a
+/// number turned within a dial, a **star rating** holds 0…5. The dial's bounds are measured from Numbers' own
+/// defaults (an untouched stepper or slider is 1…100 by 1; a rating is fixed at 0…5 by 1; a checkbox has none).
+///
+/// A pop-up menu is *not* here: it is a `.list` data validation, the vocabulary both formats share (spec B.24).
+public struct CellControl: Hashable, Sendable {
+    public enum Kind: String, Hashable, Sendable, CaseIterable { case checkbox, stepper, slider, rating }
+    public var kind: Kind
+    /// The dial of a stepper or slider. Meaningless on a checkbox; 0…5 by 1 on a rating.
+    public var minimum: Double
+    public var maximum: Double
+    public var increment: Double
+
+    public init(kind: Kind, minimum: Double = 0, maximum: Double = 0, increment: Double = 0) {
+        self.kind = kind; self.minimum = minimum; self.maximum = maximum; self.increment = increment
+    }
+
+    public static let checkbox = CellControl(kind: .checkbox)
+    public static let rating = CellControl(kind: .rating, minimum: 0, maximum: 5, increment: 1)
+    public static func stepper(minimum: Double = 1, maximum: Double = 100, increment: Double = 1) -> CellControl {
+        CellControl(kind: .stepper, minimum: minimum, maximum: maximum, increment: increment)
+    }
+    public static func slider(minimum: Double = 1, maximum: Double = 100, increment: Double = 1) -> CellControl {
+        CellControl(kind: .slider, minimum: minimum, maximum: maximum, increment: increment)
+    }
 }
 
 public struct Hyperlink: Hashable, Sendable {
