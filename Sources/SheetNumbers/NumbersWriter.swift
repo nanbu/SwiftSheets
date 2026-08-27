@@ -785,8 +785,10 @@ struct NumbersWriter {
             }
             doc.remove(ghostOwnerID)
         }
-        // the TableInfo object itself stays: unreferenced garbage Numbers ignores, where a missing object behind
-        // its satellites' back-references is a package it refuses
+        // SPIKE: the clone's scaffolding — its TableInfo, caption, own summary model and category order — deleted
+        // as one island, so the data copy has a single owner the way the reference document's has. Measured to
+        // clear the integrity problems and the "table corruption" audit; it does not by itself make Numbers draw.
+        deleteCloneScaffolding(tableInfo: sourceInfo)
 
         // The formula spaces the reference registers on the pivot family and this writer had nowhere. Which UID
         // carries which kind was measured by searching the reference's models for every registered owner's UID
@@ -830,6 +832,47 @@ struct NumbersWriter {
         doc.update(sid) { m in
             let remaining = m.references("drawable_infos").filter { $0 != tableInfo }
             m.set("drawable_infos", references: remaining)
+        }
+    }
+
+    /// Deletes a clone's scaffolding once its model has been taken over as the pivot's data copy: the island of
+    /// objects reachable from `tableInfo` that nothing outside the island references. Membership is decided by
+    /// the document, not by a list of fields — an object the rest of the document still names (the model itself,
+    /// the sheet, a shared standin caption) leaves the island, and everything it reaches leaves with it, so no
+    /// survivor is left back-referencing a deleted object.
+    private mutating func deleteCloneScaffolding(tableInfo: Int) {
+        var reach: Set<Int> = []
+        var queue = [tableInfo]
+        while let id = queue.popLast() {
+            guard reach.insert(id).inserted, let obj = doc.object(id) else { continue }
+            queue.append(contentsOf: obj.allReferences())
+        }
+        var referrers: [Int: Set<Int>] = [:]
+        for id in doc.locations.keys {
+            for r in doc.object(id)?.allReferences() ?? [] where id != r { referrers[r, default: []].insert(id) }
+        }
+        var island = reach
+        var changed = true
+        while changed {
+            changed = false
+            for id in Array(island) where !(referrers[id] ?? []).isSubset(of: island) {
+                island.remove(id)
+                changed = true
+            }
+        }
+        for id in island { doc.remove(id) }
+        // components for these objects may still be queued — flushComponents runs after the pivots — and the
+        // clone machinery has already written identity-map entries for them; both would resurrect the deleted
+        pendingComponents.removeAll { island.contains($0.new) }
+        doc.update(NumbersDocument.packageID) { pkg in
+            var comps = pkg.messages("components")
+            for i in comps.indices {
+                let kept = comps[i].messages("object_uuid_map_entries").filter { !island.contains($0.int("identifier") ?? -1) }
+                guard kept.count != comps[i].messages("object_uuid_map_entries").count else { continue }
+                comps[i].remove("object_uuid_map_entries")
+                for e in kept { comps[i].append("object_uuid_map_entries", message: e) }
+            }
+            pkg.set("components", messages: comps)
         }
     }
 

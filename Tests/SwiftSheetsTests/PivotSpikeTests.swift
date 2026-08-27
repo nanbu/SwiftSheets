@@ -352,6 +352,60 @@ import SwiftSheets
         }
     }
 
+    /// SPIKE (B.19 shape ablation): the same rows, one document per pivot **shape**, so the judge can say which
+    /// part of the wiring Numbers refuses. Every session so far measured the hardest shape only — two group-bys,
+    /// a nested column tree and both total lanes. A shape that draws puts a floor under the defect.
+    @Test func writesOneDocumentPerPivotShape() throws {
+        func base() -> Workbook {
+            var wb = Workbook()
+            var data = wb.sheets[0]
+            data.name = "Data"
+            data.append([.text("Region"), .text("Product"), .text("Qty")])
+            for r in [("East", "A", 5), ("West", "B", 7), ("North", "A", 3), ("East", "B", 4),
+                      ("West", "A", 5), ("North", "B", 6), ("East", "A", 3), ("West", "B", 3)] {
+                data.append([.text(r.0), .text(r.1), .integer(r.2)])
+            }
+            wb.sheets[0] = data
+            wb.addSheet(named: "Pivot")
+            return wb
+        }
+        let source = CellRange("A1:C9")!
+        let header: [CellValue] = [.text("Region"), .text("Product"), .text("Qty")]
+
+        // rows and columns, but no grand-total lanes at all
+        var noTotals = base()
+        if var s = noTotals.sheets["Pivot"] {
+            _ = s.addPivotTable(named: "Summary", summarizing: source, on: "Data", headerRow: header,
+                                at: CellRef("A1")!, rows: ["Region"], columns: ["Product"], values: [("Qty", .sum)])
+            s.pivotTables[0].showRowGrandTotals = false
+            s.pivotTables[0].showColumnGrandTotals = false
+            noTotals.sheets["Pivot"] = s
+        }
+        // one axis only: a single group-by, no nested tree
+        var rowsOnly = base()
+        _ = rowsOnly.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A1")!, summarizing: source,
+                                   on: "Data", rows: ["Region"], values: [("Qty", .sum)])
+        var colsOnly = base()
+        _ = colsOnly.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A1")!, summarizing: source,
+                                   on: "Data", columns: ["Product"], values: [("Qty", .sum)])
+
+        for (label, wb) in [("shape-nototals", noTotals), ("shape-rowsonly", rowsOnly), ("shape-colsonly", colsOnly)] {
+            let result = try wb.write(as: .numbers)
+            try result.data.write(to: Self.dir.appending(path: "\(label).numbers"))
+            let doc = try NumbersDocument(data: result.data)
+            print("SPIKE \(label): integrity \(doc.integrityProblems().count) problem(s), "
+                  + "group-bys \(doc.identifiers(ofType: "TST.GroupByArchive").count), "
+                  + "warnings \(result.warnings.map(\.message))")
+            let back = try NumbersCodec.read(result.data).workbook
+            for s in back.sheets where s.name == "Pivot" {
+                for t in s.tables where t.rowCount > 0 {
+                    print("SPIKE \(label)   \(t.name ?? "?") \(t.rowCount)x\(t.columnCount): "
+                          + (0..<t.rowCount).map { r in (0..<t.columnCount).map { c in t[r, c]?.stringValue ?? "_" }.joined(separator: " ") }.joined(separator: " / "))
+                }
+            }
+        }
+    }
+
     /// Is our group tree the thing Numbers cannot read, or is the scaffolding around it? This puts **our** tree
     /// into the document that works — the trees name no column, only values and row numbers, so they transplant —
     /// and asks. If the ground truth still computes, the tree is sound and the fault is everything else.
