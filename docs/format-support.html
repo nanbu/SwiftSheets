@@ -257,9 +257,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>　└ 絞り込み条件・並べ替えの記録</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
   <td>値の一覧と比較条件は通ります。色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言います</td></tr>
-<tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m n">×</td>
-  <td>Excel / ODS は<strong>配置だけ</strong>書き、数字は開いた側に計算させます。Numbers へは落とし、警告で言います。
-    <strong>ここだけは Numbers 自身のほうが多く残します</strong> — 同じ Excel ファイルを Numbers に直接読ませると、
+<tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m h">△</td>
+  <td>Excel / ODS は<strong>配置だけ</strong>書き、数字は開いた側に計算させます。Numbers へは
+    <strong>本物の Numbers の集計表</strong>として書きます（生きた要約で、Numbers が元の行から数え直します）。
+    段は縦横それぞれ 1 つ・集計する値は 1 つまで。それを超える形は、これまでどおり落として言います。
+    読み戻すときは普通の表になります。
+    <strong>かつてはここだけ Numbers 自身のほうが多く残していました</strong> — 同じ Excel ファイルを Numbers に直接読ませると、
     集計後の値が並んだ表として入ります（実測・下記の掃引）。こちらを通すとその面は空のままです</td></tr>
 <tr><td>シート保護</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>保護範囲（保護シート内の編集可能な窓）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
@@ -504,7 +507,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 23 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 24 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -571,8 +574,8 @@ for warning in result.warnings {
   <tr><th>結果</th><th>中身</th></tr>
   <tr><td><strong>値と数式が食い違ったセル: 0 件</strong>（67 セル中）</td>
     <td>こちらの書き出しと Numbers 自身の輸入は、セルの中身について一致しています</td></tr>
-  <tr><td>Numbers 自身のほうが多く残したもの: <strong>ピボット表だけ</strong>（14 セル）</td>
-    <td>集計後の値が並んだ表として入る。こちらはピボット表を落とすので、その面は空のまま</td></tr>
+  <tr><td>Numbers 自身のほうが多く残したもの: <strong>もう無し</strong>（かつてはピボット表だけ・14 セル）</td>
+    <td>2026-08-27 から、こちらも本物の Numbers の集計表として書きます（段は縦横 1 つずつ・値 1 つまで）</td></tr>
   <tr><td>こちらのほうが多く残したもの: 2 件</td>
     <td><strong>結合</strong>（Numbers 自身の輸入は失う）と、<strong>1 シートに 2 つ目の表</strong></td></tr>
   <tr><td>配列数式の展開</td>

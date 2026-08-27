@@ -1854,6 +1854,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.6 Draft</td><td>2026-08-27</td><td>相互変換の全量点検を行い、付録 B.22 に記録。<strong>ピボット表を持つ Excel ファイルは 2 回目の保存で壊れていた</strong>（書き手が自分で書く属性を、読み手が「知らない属性」として覚え直し、次の保存で二重に書いていた——属性の重複は整形式ではない XML）。あわせて、Numbers への<strong>配列数式・保護範囲</strong>、ODS / Numbers への <strong>VBA</strong> が黙って落ちていた 3 件を直し、壊れた部品を黙って読み飛ばしていた読み手にも警告を出させた。方向ごとの点検（<code>CrossFormatConversionTests</code>）と世代テストを新設</td></tr>
     <tr><td>2.7 Draft</td><td>2026-08-27</td><td>B.22 で「先に方針を決めるべき」として残した 2 件を、方針を決めたうえで直した（付録 B.23）。<strong><code>Workbook.convert</code> が読み込みの警告を捨てていた</strong>——図とセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換して警告 0 件が返っていた。往路と復路の両方を返す。<strong>計算設定の警告が、ODS から変換するたびに必ず出ていた</strong>——モデルの既定と比べていたためで、LibreOffice が全ファイルに書く既定値がそれと食い違っていた。「<em>行き先が違う振る舞いをするか</em>」に基準を変え、効いていない設定は数えない</td></tr>
     <tr><td>2.8 Draft</td><td>2026-08-27</td><td>付録 B.19 の診断を<strong>実験で撤回</strong>した。「古い版の刻印なので読み込み時に作り直される」は誤りで、見本を 14.1 相当に刻印しても完全に描く。さらに、翻訳器が引く対応表は<strong>読み込み時に空から詰め直される</strong>ため（<code>TSTSummaryModel._columnRowUIDMap</code>）、<strong>保存された対応表を突き合わせた一致確認はすべて無効</strong>である。あわせてピボットの写しの足場を島ごと削除するようにし（整合性検査の 30 件の問題が消える）、形ごとの表明数の指紋を記録した</td></tr>
+    <tr><td>2.9 Draft</td><td>2026-08-27</td><td>付録 B.19 に<strong>形式の決まりを 1 つ確定</strong>して書いた — Numbers はピボットの組を、書かれた UID ではなく<strong>「源の写しの所有者 UID ＋ 副所有者番号」で計算して</strong>引く。見本の組 UID を導出位置から外すだけで見本もこちらと同じ空の殻になる、という実験で裏を取った。書き手はこれを守るようにしたが<strong>描画はまだ直らない</strong>（指紋は不動）。あわせて haunted 所有者・ほかの所有者 UID 19 件・ヘッダ記録・凍結見出し・書式表・こちらの符号器を実験で無罪と確定した</td></tr>
+    <tr><td>3.0 Draft</td><td>2026-08-27</td><td><strong>Numbers の集計表が描けた</strong>。読み込みの実際の振る舞いを観測して原因を特定 — 数え始める番号は<strong>表の <code>table_id</code></strong> であって計算エンジンの基底所有者 UID ではない（見本では両者が同じ値なので、見本の中だけを見ていては区別がつかない）。そこから本体のマスの数式・組の無いレーンの番兵・片軸の置き方を実測で直し、17 通りの見本のうち書ける 15 個が<strong>すべて正しく描かれ、表明は 0</strong>。既定を ON にし、書けない 2 形（段 2 つ・値 2 つ）は落として言う。公開表のピボット行を × → △</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3171,6 +3173,162 @@ wb.sheets[<span class="nm">0</span>] = sheet
     書き出しの既定は <code>writesPivotTables = false</code> のまま。既定 off なのでこの修正は
     利用者の出力を変えない。854 件のテストは緑。調査の道具（graft / refgraph / grids / subgraph_diff /
     value_diff / unknown_fields）と全知見は工房の <code>experiments/numbers-pivot/tools/</code> にある。
+  </p>
+
+  <h4>組の UID は読まれるのではなく、計算される（Rev 2.9）</h4>
+  <p>
+    2026-08-27 夕。前節が「次に見るべきは <code>insertRowsWithUIDs:</code> を駆動する側」と書いた 1 点を
+    逆アセンブルで追い、<strong>この形式の決まりを 1 つ確定させた</strong>。描画はまだ直っていないが、
+    決まり自体は実験で裏が取れている。
+  </p>
+  <p>
+    <strong>Numbers はピボットの group-by を、アーカイブに書かれた UID では引かない。</strong>
+    源の写し（pivot data table）の所有者 UID に<strong>副所有者番号を足して UID を計算し</strong>、
+    その UID をカテゴリ所有者に問い合わせる。見つからなければその枠は空のままになる。
+  </p>
+  <pre><code>-[TSTGroupBySet restoreFromPivotDataTable:…]   @ 0x6bd928   （TSTables arm64・15.3.1）
+  ループ 0x6bdbd4–0x6bdc50:
+      [categoryOwner groupByByUid:
+          formulaOwnerUIDForBaseUIDAndSubownerIndex(pivotDataTableUID, 205 + i)]
+      cbz x0 → その枠は nil のまま
+  groupByForRowGroups (0x6bee88) = _groupBys[columnGroupings.count]</code></pre>
+  <p>
+    組がゼロになると、<code>-[TSTPivotTranslator resetViewMap]</code>（0xb6b5c8）が
+    <code>replaceRowsWithUids:</code> / <code>replaceColumnsWithUids:</code> でビュー地図の中身を捨てて
+    詰め直すので、寸法は <code>見出し列数 + 1</code> × <code>見出し行数 + 1 + 総計行</code>＝
+    <strong>2 列 3 行</strong>になる。前節が「再保存でビュー地図が 4×6 から 2×3 に縮む」と記した現象は、
+    これである。座標の表明は、その縮んだ地図の帰結にすぎない。
+  </p>
+
+  <h4>規則 — 所有者の UID は「基底 ＋ 種別番号」</h4>
+  <p>
+    見本を検算すると<strong>例外がひとつもない</strong>。128 ビットの加算である。
+  </p>
+  <div class="compare"><table>
+    <tr><th>種別</th><th>基底</th><th>所有者</th><th>検算</th></tr>
+    <tr><td>1（表そのもの）</td><td>—</td><td><code>…49451aa0c1a872e3</code></td><td>基底</td></tr>
+    <tr><td>8</td><td><code>…872e3</code></td><td><code>…872eb</code></td><td>+0x08</td></tr>
+    <tr><td>17</td><td><code>…872e3</code></td><td><code>…872f4</code></td><td>+0x11</td></tr>
+    <tr><td>35</td><td><code>…872e3</code></td><td><code>…87306</code></td><td>+0x23</td></tr>
+    <tr><td><strong>100</strong>（源の写し）</td><td><code>…872e3</code></td><td><code>…87347</code></td><td>+0x64</td></tr>
+    <tr><td><strong>205</strong>（列側の組）</td><td><code>…87347</code></td><td><code>…87414</code></td><td>+0xCD</td></tr>
+    <tr><td><strong>206</strong>（行側の組）</td><td><code>…87347</code></td><td><code>…87415</code></td><td>+0xCE</td></tr>
+  </table></div>
+  <p>
+    <code>TST.GroupByArchive</code> の <code>group_by_uid</code> は 205 / 206 の所有者 UID と同一。
+    検算は工房の <code>tools/ownercheck.py</code>：1 対 1 の見本で <strong>33 件中 33 件</strong>、
+    17 通りの見本で <strong>381 件中 381 件</strong>。偶然ではなく、形式の不変条件である。
+  </p>
+  <p>
+    <strong>実験で必要条件だと確かめた。</strong>見本の組 UID 2 本を導出位置から外すだけで
+    （ほかは 1 バイトも変えない）、見本は<strong>こちらとまったく同じ空の殻になる</strong>
+    ——20 バイトの <code>Pivot-Summary.csv</code> と、座標の表明。
+    つまりこの決まりは本物で、守らなければ描かれない。
+  </p>
+
+  <h4>なぜ 3 セッション見つからなかったか — 方法の盲点</h4>
+  <p>
+    UID は本来どれも乱数に見える。だから役割で対応づけた値の全数比較は、この差を
+    <strong>「uid が乱数であることに由来する並び順」として無罪に分類していた</strong>。
+    差は<em>値</em>ではなく<strong>値どうしの算術関係</strong>にあり、
+    1 対 1 に対応づけて突き合わせる方法では原理的に見えない。
+    見落としではなく方法の盲点である。<strong>以後、UID は値ではなく関係を見る。</strong>
+  </p>
+
+  <h4>それでも描かれない — 必要だが十分ではない</h4>
+  <p>
+    <code>NumbersUUID.subowner(of:kind:)</code> を足し、源の写し＝要約の基底 + 100、
+    第一の組＝写し + 205、第二の組＝写し + 206 を導出するようにした。書き出した文書の連鎖は
+    見本と同型になった。<strong>それでも Numbers は描かない。</strong>
+    しかも表明の指紋は修正前と<strong>1 も動かない</strong>——全部入り 7・行だけ 5・列だけ 4。
+    こちらが引っかかる関門は、組 UID の照合<strong>より手前</strong>にある。
+  </p>
+
+  <h4>この日に無罪と確定したもの（すべて見本を壊す実験・実測）</h4>
+  <div class="compare"><table>
+    <tr><th>容疑者</th><th>壊し方</th><th>結果</th></tr>
+    <tr><td>源の写しの haunted 所有者 UID</td><td>乱数へ（3 か所）</td><td>完全描画・<strong>無罪</strong></td></tr>
+    <tr><td>種別 100/205/206 <em>以外</em>の所有者 UID 19 件</td><td>すべて乱数へ（68 か所）</td><td>完全描画・<strong>無罪</strong></td></tr>
+    <tr><td>要約モデルのヘッダ記録（こちらは空）</td><td>見本の 4 件を空に</td><td>完全描画・<strong>無罪</strong></td></tr>
+    <tr><td><code>header_columns_frozen</code>（こちらは削除している）</td><td>見本から削除</td><td>完全描画・<strong>無罪</strong></td></tr>
+    <tr><td>数値書式表（こちらは持たない）</td><td>見本から削除（5 か所）</td><td>完全描画・<strong>無罪</strong></td></tr>
+  </table></div>
+  <p>
+    こちら側で試して効かなかったもの——ピボットのシートに残る<strong>空の表</strong>（見本には無い）の除去。
+    そして<strong>こちらの符号器の疑いも晴れた</strong>: こちらの文書を numbers-parser で
+    無改変に再符号化しても症状は同じで、我々の protobuf / IWA の書き方は無罪である。
+  </p>
+  <p class="meta">
+    <strong>この時点では</strong>書き出しの既定は <code>writesPivotTables = false</code> のままだった。同じ日の夜に判定が通り、次節で解いた。
+    次に掘るなら実行時観測——番地は判明している
+    （<code>groupByByUid:</code> 0x69b868、<code>restoreFromPivotDataTable:</code> 0x6bd928、
+    <code>insertRowsWithUIDs:atIndex:</code> 0x449948）。
+    道具と全経過は工房の <code>experiments/numbers-pivot/tools/</code>（<code>ownercheck.py</code>・
+    <code>edit_breakgb.py</code>・<code>judge.sh</code> ほか）にある。
+  </p>
+
+  <h4>描けた — 実行時に見て、残り 4 つを直した（Rev 3.0）</h4>
+  <p>
+    2026-08-27 夜。前節までで静的な突き合わせは尽きていた。書類どうしを見比べるのをやめ、
+    <strong>読み込みが実際に何を要求しているか</strong>を確かめたところ、原因は 1 つの観測で判明し、
+    そこから 4 つの誤りが順に落ちた。
+    <strong>いま Numbers 15.3.1 は、書ける 15 個の集計表をすべて正しく描く。表明は 1 つも出ない。</strong>
+  </p>
+
+  <h4>観測 1 — 数え始める番号は、表の <code>table_id</code> だった</h4>
+  <p>
+    <code>-[TSTCategoryOwner groupByByUid:]</code>（0x69b868）が読み込み中に要求する UID を、実際に確かめた。
+  </p>
+  <div class="compare"><table>
+    <tr><th>文書</th><th>Numbers が要求した UID</th><th>結果</th></tr>
+    <tr><td>見本</td><td><code>…49451aa0c1a87414</code>（+205）→ <code>…87415</code>（+206）→ <code>…87416</code></td>
+      <td>見つかる・見つかる・打ち止め</td></tr>
+    <tr><td>こちら</td><td><code>…734160be216f995b</code> から順に 79 回</td><td><strong>すべて見つからない</strong></td></tr>
+  </table></div>
+  <p>
+    要求された番号を検算すると、両方とも<strong>その表の <code>table_id</code> ＋305</strong> ちょうどだった
+    （305 ＝ 100 + 205）。前節は数え始めを<strong>計算エンジンの基底所有者 UID</strong> と読んでいたが、
+    それは誤りである。見本では <code>table_id</code> と基底所有者 UID が<strong>同じ値</strong>なので、
+    見本の中だけを見ていては区別がつかない。こちらは両者が無関係な乱数だった。
+  </p>
+  <p class="meta">
+    直し方: <code>NumbersUUID.uuid(fromString:)</code> で <code>table_id</code> を UID にし、
+    源の写し ＝ それ + 100、組 ＝ 写し + 205 / + 206。これで<strong>組が採用され、表明は 7 回から 0 回になった</strong>。
+  </p>
+
+  <h4>残り 3 つ（すべて実測で確定）</h4>
+  <div class="compare"><table>
+    <tr><th>誤り</th><th>症状</th><th>直し方</th></tr>
+    <tr><td><strong>本体のマスに数式を書いていた</strong></td>
+      <td>組・行合計・列合計・総計は出るのに、本体のマスだけ空</td>
+      <td>書かない。Numbers 自身は <code>CATEGORY_REF</code> を置くし、こちらも同じ形
+        （同じ group-by・同じ段・同じ節・同じ集計種別）で書いていたが、こちらのものは<strong>空に評価され</strong>、
+        すでに入っている値を消していた。書かなければ計算済みの値がそのまま出る。
+        なぜ同じ数式が向こうで計算できてこちらでできないかは<strong>未解明</strong></td></tr>
+    <tr><td><strong>組の無いレーンに乱数の UID を振っていた</strong></td>
+      <td>片方の軸しか無い集計表で、その軸の値がすべて空</td>
+      <td>組に属さないレーンは<strong>番兵 UID</strong>（1,0）を持つ。値が 2 つなら番兵が 2 つ並ぶ。
+        総計の番兵は<strong>組のある軸にだけ</strong>付ける（行だけの集計表は 2 列であって 3 列ではない）</td></tr>
+    <tr><td><strong>行の分けが無いときの置き方</strong></td>
+      <td>列だけの集計表に、値の行そのものが無い</td>
+      <td>見出し行 1・見出し列 1・本体 1 行。見出し行 2・本体 0 行で書いていた</td></tr>
+  </table></div>
+
+  <h4>いま書ける形と、書かない形</h4>
+  <p>
+    書けるのは<strong>縦の段 1 つまで・横の段 1 つまで・集計する値 1 つまで</strong>。
+    17 通りの見本一冊のうち 15 個がこれに当たり、<strong>集計 11 種すべてを含めて全部正しく描かれる</strong>。
+  </p>
+  <p>
+    残る 2 つは書かずに落として言う（<code>NumbersWriter.writes(_:)</code>）。見本を読むと、
+    段が 2 つある集計表は<strong>組ごとに小計行</strong>が入り（縦 9 行＋総計）、値が 2 つある集計表は
+    組の無い軸に<strong>同じ番兵が 2 つ並ぶ</strong>。後者は Numbers が何かで区別しているが、
+    こちらの対応表にはその区別が書けない。落とす形の分は<strong>複製の表も作らない</strong> — 作ると
+    余った表のせいで文書自体が開けなくなる。
+  </p>
+  <p class="meta">
+    書き出しの既定は <code>writesPivotTables = true</code>。読み戻すと普通の表になるので、
+    その片道の劣化は警告で言う。テスト 855 件すべて緑。公開表のピボット行を × から △ に直した。
   </p>
 
   <h3>B.20 値を持たないセルが消えていた（Rev 2.4）</h3>

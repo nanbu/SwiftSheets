@@ -9,6 +9,24 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Added
+
+- **A pivot table is written to Numbers as a real Numbers pivot** — a live summary Numbers recomputes from the
+  rows it is given — instead of being dropped with a warning. Measured against Numbers 15.3.1 on a workbook of
+  seventeen pivots: all fifteen writable ones draw with every number right and not one assertion. What made it
+  work was establishing what Numbers actually asks for as it loads, rather than comparing archives against one
+  another: Numbers does not look a pivot's group-by up by the UUID written down, it **computes one from the
+  table's own `table_id`** plus a sub-owner index, and ours were unrelated random UUIDs, so nothing was ever found
+  and the summary drew as an empty shell. Three smaller faults followed from the same reading — the body cells
+  carried formulas that evaluated to nothing and wiped their own values, a lane belonging to no group needs the
+  sentinel UUID rather than a fresh one, and a pivot with no row fields lays out as one heading row over one body
+  row (spec Appendix B.19).
+
+  Written are pivots with **at most one row field, one column field and one summarised value**. Beyond that a
+  Numbers pivot grows a sub-total row under every group, or two lanes on an axis that carries no group; those are
+  dropped and named, as every pivot was before. Reading a Numbers file back gives the summary as an ordinary
+  table, and that one-way loss is named in a warning too.
+
 ### Fixed
 
 - **A workbook with a pivot table came out broken the second time it was saved — and the first time, if Excel had
