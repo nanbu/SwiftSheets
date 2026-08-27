@@ -62,6 +62,14 @@ import SwiftSheets
         #expect(table.rowDimensions[5]?.hidden != true)
     }
 
+    /// The discriminator the category warning stands on: a pivot summary's own group-by names no columns, so a
+    /// pivot document must not be mistaken for a categorised table.
+    @Test func aPivotIsNotMistakenForACategoryGrouping() throws {
+        let result = try NumbersCodec.read(try Self.fixture("pivot-mixed-15.numbers"))
+        #expect(!result.warnings.contains { $0.message.contains("category grouping") },
+                Comment(rawValue: "\(result.warnings.map(\.message))"))
+    }
+
     @Test func aStockQuoteCellIsAStockFormula() throws {
         let result = try NumbersCodec.read(try Self.fixture("stockcell-15.numbers"))
         let s = result.workbook.sheets[0]

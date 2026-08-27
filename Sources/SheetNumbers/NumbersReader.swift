@@ -484,6 +484,11 @@ struct NumbersReader {
         for state in owner.messages("hidden_states") {
             for (extentName, isRow) in [("row_hidden_state_extent", true), ("column_hidden_state_extent", false)] {
                 guard let extent = state.message(extentName) else { continue }
+                // A disabled filter hides nothing, whatever its state list holds. No specimen with a switched-off
+                // filter has been measured (Appendix B.29 names the gap); reading it as "no hiding" is right
+                // either way — that is what a disabled filter means.
+                let set = extent.reference("filter_set").flatMap { doc.object($0) }
+                guard set?.bool("is_enabled") != false else { continue }
                 let lanes = laneIndexes(of: model, rows: isRow)
                 for hidden in extent.messages("base_hidden_states") where hidden.bool("filtered") == true {
                     guard let hex = NumbersUUID.hex(hidden.message("row_or_column_uid")), let index = lanes[hex] else { continue }
@@ -498,10 +503,7 @@ struct NumbersReader {
                         t.columnDimensions[index] = d
                     }
                 }
-                if let setID = extent.reference("filter_set"), let set = doc.object(setID),
-                   set.bool("is_enabled") != false {
-                    ruleCount += set.messages("filter_rules").count
-                }
+                ruleCount += set?.messages("filter_rules").count ?? 0
             }
         }
         if ruleCount > 0 {

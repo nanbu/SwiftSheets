@@ -4039,7 +4039,9 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
       <code>hidden_states_owner → row_hidden_state_extent → base_hidden_states</code> の
       <code>filtered</code> な行 UID を <code>base_column_row_uids</code> で行番号に解いて隠し行に写し、
       <code>filter_set</code> の規則数を数えて落として言う。読んだ隠し行は Excel にも Numbers への
-      書き戻しにも生き残る（往復テストで固定）。実測では Numbers 自身の書き出しと<strong>行単位で一致</strong></li>
+      書き戻しにも生き残る（往復テストで固定）。実測では Numbers 自身の書き出しと<strong>行単位で一致</strong>。
+      未計測が 1 つ：<strong>フィルタを無効にした書類</strong>は見本が無い。無効な集合の隠し状態は
+      写さない（無効＝何も隠さない、という意味どおりの安全側）に倒してある</li>
     <li><strong>カテゴリ</strong>——正体は集計表と同じ group-by 機構が普通の表の
       <code>category_owner</code>（kind 8・組列つき）に載ったもの。Numbers 自身の Excel 書き出しは
       グループの<strong>見た目を焼き込む</strong>（ラベル行を挟み、格子を 1 列ずらす）——データが変わるので
