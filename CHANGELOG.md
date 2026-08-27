@@ -11,6 +11,15 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **The quote functions — `STOCK`, `STOCKH`, `CURRENCY`, `CURRENCYH`, `CURRENCYCONVERT`, `CURRENCYCODE` — have a
+  settled mapping now** (spec Appendix B.27). Reading a Numbers document keeps the formula with the fetched value
+  as its cache (an error stays an error); writing Numbers keeps the formula, and Numbers fetches a fresh quote on
+  open (judged on 15.3.1). Excel and OpenFormula have no spelling for any of the six, so the XLSX and ODS writers
+  now put the fetched value in the formula's place and say so — the same substitution Numbers itself applies when
+  it exports to Excel (measured: the six flattened, `=E2*2+1` beside them kept). A quote formula with no cached
+  value goes out as an empty cell rather than a wrong one. The corpus gains `stock-15.numbers`, seeded from the
+  maintainer's own hand-made STOCK document.
+
 - **An array formula in a Numbers document comes home with its range.** Numbers spreads an imported Excel array
   formula as the anchor's own formula plus an unnamed spill function (`337(anchor)`) on every covered cell; the
   reader now recognises that shape structurally, reads the covered cells as their values, and reconstructs

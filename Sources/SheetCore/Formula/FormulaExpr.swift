@@ -76,6 +76,28 @@ public indirect enum FormulaExpr: Hashable, Sendable {
         }
     }
 
+    /// The first stock-or-currency call in the tree, or nil. STOCK, STOCKH, CURRENCY, CURRENCYH,
+    /// CURRENCYCONVERT and CURRENCYCODE are Numbers' quote functions: their answers come from Apple's quote
+    /// service, not from the sheet. Excel and OpenFormula have no spelling for any of the six, and Numbers'
+    /// own Excel export writes the fetched value in their place (measured on 15.3.1 — every other formula in
+    /// the same document went out as a formula). Writers to those formats do the same, and use the name this
+    /// returns to say which function it was.
+    public var remoteDataFunction: String? {
+        switch self {
+        case .call(let name, let args):
+            let upper = name.uppercased()
+            if ["STOCK", "STOCKH", "CURRENCY", "CURRENCYH", "CURRENCYCONVERT", "CURRENCYCODE"].contains(upper) {
+                return upper
+            }
+            return args.lazy.compactMap(\.remoteDataFunction).first
+        case .range(let a, let b), .binary(_, let a, let b):
+            return a.remoteDataFunction ?? b.remoteDataFunction
+        case .unary(_, let e): return e.remoteDataFunction
+        case .array(let rows): return rows.lazy.flatMap { $0 }.compactMap(\.remoteDataFunction).first
+        default: return nil
+        }
+    }
+
     // MARK: - Walking
 
     /// Rebuilds the tree bottom-up through `transform`.

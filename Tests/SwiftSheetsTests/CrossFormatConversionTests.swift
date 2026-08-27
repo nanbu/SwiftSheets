@@ -45,6 +45,7 @@ import SwiftSheets
         "文書の自由項目": "custom document propert",
         "隠しシート": "hidden sheet",
         "セルの制御": "cell control",
+        "株価・為替の関数": "fetches live data",
         "1シート複数テーブル": "other table(s) not written",
         "ラベル範囲": "label range",
         "統合の定義": "consolidation",

@@ -13,7 +13,11 @@ validations — text, numeric and strict — each over a filled and an empty cel
 built by driving Numbers itself over AppleScript — `set format of range … to checkbox/stepper/slider/rating` —
 with one set and one untouched cell per control, so the untouched cells record what Numbers fills them with;
 `array-15` on 2026-08-27, from an openpyxl workbook holding `=A1:A5*2` as an array formula over B1:B5 — the record
-of the spill shape Numbers spreads one with). Theme images and previews are stripped from those six, which Numbers
+of the spill shape Numbers spreads one with; `stock-15` on 2026-08-27, seeded from the maintainer's hand-made
+document holding `STOCK("VEEV",2)` and extended over AppleScript with every attribute shape — numeric, none, a
+string (which Numbers answers with `#VALUE!`) — plus `STOCKH` with a nested `DATE`: setting a cell's value to
+`"=STOCK(…)"` is enough for Numbers to take it as a formula and fetch the quote, so no UI work is needed for this
+family). Theme images and previews are stripped from the earlier six, which Numbers
 does not need to open them and which would otherwise make each file half a megabyte.
 
 **Keep at least one document in the corpus that is not all tables.** Until `chart-and-control-15` was added, every

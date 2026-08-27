@@ -744,8 +744,16 @@ enum WorkbookWriter {
                 switch c.value {
                 case nil: s += "<c r=\"\(a1)\"\(st)/>"
                 case .formula(let f, let cached)?:
+                    var flattened: String?
                     if case .unparsed(_, let dialect) = f, dialect != .xlsx {
-                        sink.add(.degraded, subject: .formulas, sheet: ws.name, at: ref, "formula in \(dialect.rawValue) dialect could not be translated; cached value written")
+                        flattened = "formula in \(dialect.rawValue) dialect could not be translated; cached value written"
+                    } else if let fn = f.remoteDataFunction {
+                        // the mapping Numbers itself applies on Excel export: a quote function becomes the
+                        // value it last fetched, because Excel has no function to recompute one with
+                        flattened = "\(fn) fetches live data and Excel has no such function; the cached value is written, the way Numbers itself exports it"
+                    }
+                    if let flattened {
+                        sink.add(.degraded, subject: .formulas, sheet: ws.name, at: ref, flattened)
                         if let cached {
                             let (t, body) = valueXML(cached, epoch: epoch, strings: strings, inline: false)
                             s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"

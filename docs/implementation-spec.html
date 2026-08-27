@@ -1859,6 +1859,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>3.1 Draft</td><td>2026-08-27</td><td>リスト型の入力規則を Numbers の<strong>ポップアップメニュー</strong>として読み書きする（付録 B.24）。根拠は Numbers 自身の双方向の置き換え（取り込みでドロップダウン→ポップアップ、書き出しでポップアップ→リスト型規則）を実測したこと。選択肢を書き並べた形だけを書き、範囲参照・数値条件は従来どおり落として言う。空の記入行を覆う規則は表を広げて置き、列全体の規則は Numbers 自身と同じく表の端で止める。検体 <code>popup-15.numbers</code> をコーパスに追加。機能表の Numbers 列は入力規則を × → △ に</td></tr>
     <tr><td>3.2 Draft</td><td>2026-08-27</td><td>残る 4 つのセル制御——<strong>チェックボックス・ステッパー・スライダー・レート</strong>——をモデルの言葉 <code>CellControl</code> にして、Numbers と双方向に読み書きする（付録 B.25）。見本は AppleScript で Numbers 自身に作らせた（Excel 経由では制御を作れないため）。制御のセルは必ず値を持つという Numbers の決まりに合わせ、空セルには静止値（false・最小値・0）を書く。審判は開封に加え、書いた書類の各セルの <code>format</code> を Numbers に直接照会（8 セル全部が制御の名で答えた）。Excel・ODS の書き手には「制御を落とした」警告を追加。機能表は 47 項目（セルの制御の行を追加）</td></tr>
     <tr><td>3.3 Draft</td><td>2026-08-27</td><td>積み残し 2 件を Numbers 自身に答えさせて確定（付録 B.26）。<strong>オートフィルタ</strong>は Numbers 自身が取り込みで捨てる（規則も隠し行も残らない）と実測し、写像を発明しない線で確定。<strong>配列数式</strong>は置き方（起点の式＋覆うセルの関数 337）が判明し、<strong>読みを実装</strong>——Numbers 産の展開を範囲として <code>Table.arrayFormulas</code> に復元し、xlsx への変換で本物の配列数式として渡る。書きは 2 つの実験（同形書き出し・見本の版偽装）で「337 は再計算で値を作れない」と判明し、古い版テンプレートの設計と両立しないため従来どおり落として言う。あわせて改訂履歴の番号衝突（3.0 の後に 2.8〜2.9 を再使用していた）を時系列順に振り直した。検体 <code>array-15.numbers</code> を追加</td></tr>
+    <tr><td>3.4 Draft</td><td>2026-08-27</td><td>株価・為替の関数 <strong>STOCK・STOCKH・CURRENCY・CURRENCYH・CURRENCYCONVERT・CURRENCYCODE</strong> の扱いを確定（付録 B.27）。Numbers へは式のまま書き（開封時に取り直される・審判合格）、Excel・ODS へは取得済みの値を書いて言う——Numbers 自身の Excel 書き出しが同じ置き換えをすることを実測して写像に採用。見本は保守者の手作り書類を種に AppleScript で属性の形を一通り足させた <code>stock-15.numbers</code>。機能表は 48 項目（株価・為替の関数の行を追加・Numbers 20 生存）</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -3917,6 +3918,50 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
         注記に読み書きの非対称と理由を書いた</td></tr>
   </table></div>
 
+</section>
+
+<section>
+  <h3>B.27 株価・為替の関数 — Numbers だけが計算し直せる式（Rev 3.4）</h3>
+  <p>
+    Numbers には<strong>相場をインターネットから取ってくる関数</strong>が 6 つある——
+    <code>STOCK</code>・<code>STOCKH</code>・<code>CURRENCY</code>・<code>CURRENCYH</code>・
+    <code>CURRENCYCONVERT</code>・<code>CURRENCYCODE</code>（関数表 298〜303）。答えがシートの中に無く、
+    Apple の相場サービスから来るという点で、他のどの関数とも違う。Excel にも OpenFormula にも
+    同名の関数は無い。
+  </p>
+  <p>
+    見本は保守者の手作りの書類（<code>STOCK("VEEV",2)</code> 入り）を種に、AppleScript で
+    Numbers 15.3.1 自身に属性の形を一通り足させて作った——数値の属性・属性なし・文字列の属性
+    （Numbers 自身が <code>#VALUE!</code> と答える形）・<code>STOCKH</code>＋入れ子の <code>DATE</code>。
+    セルの値を <code>"=STOCK(…)"</code> にするだけで Numbers が式として受け取り、実際に取得まで行う
+    ことが分かったので、<strong>この族の見本作りに UI は要らない</strong>。
+  </p>
+  <h4>写像は Numbers 自身に聞いた</h4>
+  <p>
+    同じ書類を Numbers に Excel へ書き出させると、<strong>6 関数はすべて「取ってあった値」になり、
+    隣に置いた <code>=E2*2+1</code> は式のまま出て行った</strong>（実測）。つまり Numbers の公認の写像は
+    「普通の式は式のまま、相場の関数は値に」。こちらも同じにする：
+  </p>
+  <ul>
+    <li><strong>読み</strong>——式と取得済みの値（キャッシュ）をそのまま読む。エラーはエラーのまま。
+      修正は不要だった（既存の数式読みがそのまま通る）。検体 <code>stock-15.numbers</code> をコーパスに追加</li>
+    <li><strong>Numbers への書き</strong>——式のまま書く。開いたときに Numbers が取り直す
+      （審判で全式が生き残り、値も取得された）</li>
+    <li><strong>Excel・ODS への書き</strong>——<code>FormulaExpr.remoteDataFunction</code> が族を見つけ、
+      取ってあった値を書いて <code>degraded</code> で言う。キャッシュが無ければ空セル
+      （間違った値を書くより空）</li>
+  </ul>
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>Numbers 本人（書き）</td><td>こちらが書いた書類を開き、7 セル全部が <code>=STOCK(…)</code> の形の
+        式で答え、値を取り直した（照会は <code>formula of cell</code>）</td></tr>
+    <tr><td>Numbers 本人（写像）</td><td>Excel 書き出しで 6 関数が値になり、普通の式が式のまま残ることを実測</td></tr>
+    <tr><td>参照実装</td><td><code>stock-15.numbers</code> の値・式（<code>#VALUE!</code> のエラーキャッシュ含む）を
+        expected.json 照合</td></tr>
+    <tr><td>全体</td><td>879 件が緑。機能表に「株価・為替の関数」の行を追加（48 項目・Numbers 20 生存・
+        Excel / ODS は △ で警告 1 件ずつ増）</td></tr>
+  </table></div>
 </section>
 
 </div><!-- /.container -->

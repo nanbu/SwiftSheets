@@ -25,6 +25,8 @@ import SwiftSheets
                       .integer(i + 1), .number(Decimal(i) + Decimal(string: "0.5")!)])
         }
         d["F1"] = Formula("=SUM(C2:C9)")
+        // a quote function: only Numbers can recompute one, so only Numbers keeps the formula (Appendix B.27)
+        d["F2"] = .formula(FormulaExpr.parse("STOCK(\"AAPL\",0)"), cached: .number(313.45))
         d.table.arrayFormulas[CellRef("G1")!] = CellRange("G1:G8")!
         d["G1"] = Formula("=C2:C9*2")
         d["H1"] = "リンク"
@@ -94,7 +96,7 @@ import SwiftSheets
         return wb
     }
 
-    /// The 47 rows of the published table, in its order. Each says whether the feature came home.
+    /// The 48 rows of the published table, in its order. Each says whether the feature came home.
     static func profile(of workbook: Workbook) -> [String: Bool] {
         let s = workbook.sheets["Data"] ?? workbook.sheets[0]
         let pivot = workbook.sheets["Pivot"]
@@ -104,6 +106,7 @@ import SwiftSheets
         return [
             "値": s["A2"] == .text("East"),
             "数式": s["F1"]?.formula != nil,
+            "株価・為替の関数": s["F2"]?.formula?.remoteDataFunction != nil,
             "配列数式": !s.table.arrayFormulas.isEmpty,
             "結合": s.merges.contains(CellRange("A11:B12")!),
             "書式・太字": s.style("A1").font.bold,
@@ -155,8 +158,8 @@ import SwiftSheets
 
     /// What each format is *expected* to lose. Everything not named here has to survive.
     static let expectedLosses: [SheetFormat: Set<String>] = [
-        .xlsx: ["セルの制御", "1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
-        .ods: ["セルの制御", "保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
+        .xlsx: ["株価・為替の関数", "セルの制御", "1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
+        .ods: ["株価・為替の関数", "セルの制御", "保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
         .numbers: [
             "配列数式", "グループ化",
             "CF・カラースケール", "CF・データバー", "CF・アイコンセット",
@@ -169,7 +172,7 @@ import SwiftSheets
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 6, .ods: 9, .numbers: 23]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 7, .ods: 10, .numbers: 23]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {
@@ -187,7 +190,7 @@ import SwiftSheets
             unexpectedly kept: \(expected.subtracting(lost).sorted()))
             docs/format-support.html has to be updated with the code.
             """)
-        #expect(survived.count == 47, "the published table has 47 rows")
+        #expect(survived.count == 48, "the published table has 48 rows")
 
         // nothing is dropped in silence: every loss is answered by a warning
         #expect(result.warnings.count == Self.expectedWarningCount[format]!,

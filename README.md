@@ -120,6 +120,10 @@ is reported, never dropped in silence.
   one that reaches into another table (spec Appendix B.18). What has no example in the corpus is not invented: a
   **defined name**, a **function Numbers does not have**, a range over **whole columns** (`A:C`), and the
   **intersection / union** operators fall back to the cached value with a `degraded` warning naming what stopped it.
+- The **quote functions** (`STOCK`, `STOCKH`, `CURRENCY`, `CURRENCYH`, `CURRENCYCONVERT`, `CURRENCYCODE`) round-trip
+  with Numbers — written as formulas, fetched anew when the document opens. Excel and OpenFormula have no spelling
+  for them, so those writers put the fetched value in the formula's place and say so, the same substitution Numbers
+  itself applies when it exports to Excel (spec Appendix B.27).
 - **Conditional formatting** is read and written (spec Appendix B.18). A rule's condition is a `predicate_type`
   integer Apple left unnamed in the Protobuf, so the fourteen values were *observed*: a workbook with one rule kind
   per column, each carrying a parameter no other rule uses, was written as `.xlsx`, imported by Numbers 15.3.1 and

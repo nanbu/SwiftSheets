@@ -12,7 +12,7 @@ import SwiftSheets
     /// (MAINTENANCE.md, spec Appendix B.18).
     static let names = ["issue-3", "issue-18", "simple-func", "test-empty-rows", "test-xref-coverage", "test-2",
                         "test-10", "test-1", "test-formats", "test-hlinks", "issue-17",
-                        "conditional-formats-15", "links-notes-15", "popup-15", "controls-15", "array-15"]
+                        "conditional-formats-15", "links-notes-15", "popup-15", "controls-15", "array-15", "stock-15"]
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
