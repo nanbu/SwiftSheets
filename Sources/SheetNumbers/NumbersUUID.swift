@@ -41,6 +41,40 @@ enum NumbersUUID {
         return m
     }
 
+    /// The UUID a **sub-owner** of `base` has: the base counted on by the sub-owner's kind. Every owner in a
+    /// document Numbers wrote is its base plus its kind — the pivot's copy of the source is its summary's base
+    /// plus 100, and that copy's two group-bys are the copy plus 205 and 206.
+    ///
+    /// This is not decoration. Numbers does not look a pivot's group-by up by the UUID in the archive: it
+    /// *computes* one from the copy's UUID and the sub-owner index and asks the category owner for that
+    /// (`-[TSTGroupBySet restoreFromPivotDataTable:…]`). A group-by carrying any other UUID is not found, its
+    /// slot stays empty, and the pivot is rebuilt with no groups at all — which is what left the summary an
+    /// empty shell for three sessions (Appendix B.19).
+    static func subowner(of base: ProtoMessage?, kind: Int) -> ProtoMessage? {
+        guard let base, let lo = base.uint("lower"), let hi = base.uint("upper") else { return nil }
+        let (sum, carried) = lo.addingReportingOverflow(UInt64(kind))
+        var m = ProtoMessage(typeName: "TSP.UUID")
+        m.set("lower", uint: sum)
+        m.set("upper", uint: carried ? hi &+ 1 : hi)
+        return m
+    }
+
+    /// A table's `table_id` string as a `TSP.UUID` — the same sixteen bytes the cross-table form reads, in the
+    /// spelling the owner UUIDs use. **This is the number a pivot's sub-owners are counted from**: Numbers derives
+    /// them from the table's own identifier, not from whatever the calculation engine registered as its base owner.
+    /// In a document Numbers wrote the two are the same value, so the difference is invisible there (Appendix B.19).
+    static func uuid(fromString string: String) -> ProtoMessage? {
+        guard let u = UUID(uuidString: string) else { return nil }
+        let t = u.uuid
+        let bytes = [t.0, t.1, t.2, t.3, t.4, t.5, t.6, t.7, t.8, t.9, t.10, t.11, t.12, t.13, t.14, t.15]
+        var lo: UInt64 = 0, hi: UInt64 = 0
+        for i in 0..<8 { lo |= UInt64(bytes[i]) << (8 * UInt64(i)) }
+        for i in 0..<8 { hi |= UInt64(bytes[8 + i]) << (8 * UInt64(i)) }
+        var m = ProtoMessage(typeName: "TSP.UUID")
+        m.set("lower", uint: lo); m.set("upper", uint: hi)
+        return m
+    }
+
     /// A fresh random UUID as `TSP.UUID` / `TSP.CFUUIDArchive` messages and as the `table_id` string form.
     static func random() -> (uuid: ProtoMessage, cfuuid: ProtoMessage, string: String) {
         let u = UUID().uuid

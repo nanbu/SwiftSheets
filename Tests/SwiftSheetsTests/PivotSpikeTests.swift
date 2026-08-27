@@ -321,6 +321,20 @@ import SwiftSheets
         print("SPIKE wrote pivot-shapes.xlsx with \(wb.sheets.count - 1) pivot sheet(s)")
     }
 
+    /// SPIKE (B.19): the seventeen-pivot probe workbook, written as Numbers. One document, every aggregate
+    /// function and every shape the model can ask for, so the judge sweeps them all in one open.
+    @Test func writesTheShapeProbeWorkbookAsNumbers() throws {
+        let xlsx = Self.dir.appending(path: "pivot-shapes.xlsx")
+        guard FileManager.default.fileExists(atPath: xlsx.path) else { return }
+        let wb = try Workbook(data: try Data(contentsOf: xlsx))
+        let result = try wb.write(as: .numbers)
+        try result.data.write(to: Self.dir.appending(path: "shapes-all.numbers"))
+        let doc = try NumbersDocument(data: result.data)
+        print("SPIKE shapes-all: \(wb.sheets.count) sheet(s), "
+              + "pivot owners \(doc.identifiers(ofType: "TST.PivotOwnerArchive").count), "
+              + "integrity \(doc.integrityProblems().count) problem(s)")
+    }
+
     /// The first thing our own writer makes of a pivot: one sheet of rows, one pivot over them.
     @Test func writesAPivotOfOurOwn() throws {
         var wb = Workbook()

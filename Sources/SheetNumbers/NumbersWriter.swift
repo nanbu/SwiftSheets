@@ -11,11 +11,20 @@ struct NumbersWriter {
     static let defaultRowHeight = 20.0
     static let defaultColumnWidth = 98.0
     static let tableGap = 80.0
-    /// Whether a pivot table is written as a Numbers pivot (Appendix B.19). **Off**: the archives are built and
-    /// the summary is computed, but Numbers 15.3.1 still opens the result with the summary's cells in error, so
-    /// what a reader would get is a broken pivot rather than none. Until the judge passes it, a pivot is reported
-    /// as dropped, as it was before — this project does not let a broken document through quietly.
-    static let writesPivotTables = false
+    /// Whether a pivot table is written as a **Numbers pivot** — a live summary Numbers recomputes from the rows
+    /// it is given — rather than dropped with a warning (Appendix B.19). On since the judge passed it: Numbers
+    /// 15.3.1 draws all fifteen of the probe workbook's writable pivots with every number right and not one
+    /// assertion. What is not written is named instead — see `writes(_:)`.
+    static let writesPivotTables = true
+
+    /// Whether this writer draws `pivot` the way Numbers draws it: one field on each axis at most, and one
+    /// summarised value. Beyond that a Numbers pivot grows parts we have no reading for — a second row field puts
+    /// a **sub-total row under every group**, and a second value puts two lanes on an axis that carries no group,
+    /// which Numbers tells apart by something our maps do not say. Those come out blank, so they are dropped and
+    /// named, the way every pivot was before any of this was written (Appendix B.19).
+    static func writes(_ pivot: PivotTable) -> Bool {
+        pivot.rowFields.count <= 1 && pivot.columnFields.count <= 1 && pivot.dataFields.count <= 1
+    }
 
     let doc: NumbersDocument
     let workbook: Workbook
@@ -89,8 +98,9 @@ struct NumbersWriter {
             // …plus two per pivot table: a Numbers pivot is a summary table and a copy of the rows it summarises
             // (Appendix B.19). They are cloned here, with the sheet's own tables, so that every copy comes from
             // the template's untouched table rather than from one already filled in.
+            let writablePivots = sheet.pivotTables.filter { NumbersWriter.writes($0) }
             let wanted = Swift.max(1, sheet.tables.count)
-                + (NumbersWriter.writesPivotTables ? 2 * sheet.pivotTables.count : 0)
+                + (NumbersWriter.writesPivotTables ? 2 * writablePivots.count : 0)
             while infos.count < wanted { infos.append(try cloneTable(from: infos[0], intoSheet: sid)) }
             tableInfos[sid] = infos
             firstTableInfo[sheet.name] = infos.first
@@ -174,7 +184,11 @@ struct NumbersWriter {
                 warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                                   message: "\(sheet.pivotTables.count) pivot table(s) dropped: Numbers pivot tables are not written"))
             }
-            for pivot in sheet.pivotTables where NumbersWriter.writesPivotTables {
+            for pivot in sheet.pivotTables where NumbersWriter.writesPivotTables && !NumbersWriter.writes(pivot) {
+                warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                  message: "pivot table \(pivot.name) dropped: a Numbers pivot is written with at most one row field, one column field and one summarised value, and this one has more"))
+            }
+            for pivot in sheet.pivotTables where NumbersWriter.writesPivotTables && NumbersWriter.writes(pivot) {
                 let size = try writePivot(pivot, summaryInfo: infos[spare], sourceInfo: infos[spare + 1],
                                           onSheet: sid, sheetName: sheet.name, at: y)
                 spare += 2
@@ -543,7 +557,6 @@ struct NumbersWriter {
         let firstFieldsList = columnFields.isEmpty ? rowFields : columnFields + rowFields
         let firstTree = tree(firstFieldsList)
         let rowTree = columnFields.isEmpty ? firstTree : tree(rowFields)
-        let firstFields = columnFields.isEmpty ? rowFields : columnFields + rowFields
         guard let sourceCategoryID = doc.object(sourceModel)?.reference("category_owner"),
               let existing = doc.object(sourceCategoryID)?.references("group_by").first else {
             throw SheetError.malformedPart(path: "empty.numbers", detail: "the template's table has no category owner to make a pivot from")
@@ -551,8 +564,14 @@ struct NumbersWriter {
         // In a document Numbers wrote, the copy of the source is not a table in its own right: its dependency
         // owner is a **child of the pivot's own** (kind 100, based on the summary's base owner), and its group-bys
         // hang off that. Ours arrives as an independent clone, so it is re-parented here (Appendix B.19).
-        let summaryBase = baseOwnerUUID(ofTableInfo: summaryInfo)
-        let sourceBase = NumbersUUID.random().uuid
+        // The number the whole family is counted from is the summary table's **own identifier** — the `table_id`
+        // a cross-table reference names it by — and not the base owner the calculation engine happens to hold.
+        // In a document Numbers wrote those are the same value; in one this writer builds they are two unrelated
+        // random UUIDs, and every UUID derived from the wrong one points nowhere: what Numbers looks for while
+        // it loads is `table_id + 305`, and in ours nothing was there (Appendix B.19).
+        let summaryBase = (doc.object(summaryModel)?.string("table_id")).flatMap { NumbersUUID.uuid(fromString: $0) }
+            ?? baseOwnerUUID(ofTableInfo: summaryInfo)
+        let sourceBase = NumbersUUID.subowner(of: summaryBase, kind: 100) ?? NumbersUUID.random().uuid
         try registerOwner(uid: sourceBase, kind: 100, base: summaryBase)
 
         // The label lanes of the summary grid, minted before the group-bys because both sides name them: a row
@@ -570,12 +589,15 @@ struct NumbersWriter {
         let firstPairs = columnFields.isEmpty ? rowPairs : columnPairs + rowPairs
 
         var firstOutermost: [ProtoMessage] = []
-        var firstGroupByUID = NumbersUUID.random().uuid
+        // The UUID is the copy's plus the sub-owner index, because that is the UUID Numbers *computes* when it
+        // looks the group-by up; the one the clone came with is discarded (Appendix B.19, `NumbersUUID.subowner`).
+        var firstGroupByUID = NumbersUUID.subowner(of: sourceBase, kind: 205) ?? NumbersUUID.random().uuid
+        let firstUID = firstGroupByUID
         doc.update(existing) { m in
             let built = NumbersPivot.groupBy(columns: firstPairs,
                                              nodes: firstTree, allRows: allRows,
                                              ownerIndex: 205,
-                                             uid: m.message("group_by_uid") ?? NumbersUUID.random().uuid,
+                                             uid: firstUID,
                                              aggregate: summing, rowUIDs: uids.rows)
             firstGroupByUID = built.archive.message("group_by_uid") ?? firstGroupByUID
             m = built.archive
@@ -589,7 +611,7 @@ struct NumbersWriter {
         var rowAxisGroupByUID = firstGroupByUID
         if !columnFields.isEmpty {
             // …and a second one, which needs an owner of its own before Numbers will read it
-            let uid = NumbersUUID.random().uuid
+            let uid = NumbersUUID.subowner(of: sourceBase, kind: 206) ?? NumbersUUID.random().uuid
             rowAxisGroupByUID = uid
             let second = NumbersPivot.groupBy(columns: rowPairs, nodes: rowTree,
                                               allRows: allRows, ownerIndex: 206, uid: uid,
@@ -622,17 +644,10 @@ struct NumbersWriter {
         // is asking Numbers which to believe.
         doc.update(sourceModel) { $0.remove("category_owner_deprecated") }
         // The clone comes with the template's summary group-by, whose kind is 8. On the copy of a source the two
-        // group-bys are kinds 205 and 206 — measured off a document Numbers made from the same workbook.
-        //
-        // Registered, not rebased: the clone machinery copies a table's *base* and *haunted* owners and nothing
-        // else, so there is no owner here to rebase — and an unregistered group-by is the one failure that leaves
-        // everything computing and nothing drawing. Numbers binds the display's axes through the engine's owner
-        // for the group-by's UUID; when the binding fails it draws the pivot with no groups at all, while the
-        // summary totals still come out right (measured on a resave: Numbers kept our trees, computed 総計 36,
-        // and put an empty group-by where the unbound one should have been) (Appendix B.19).
-        if let firstUID = doc.object(existing)?.message("group_by_uid") {
-            try registerOwner(uid: firstUID, kind: 205, base: sourceBase, replacingExisting: true)
-        }
+        // group-bys are kinds 205 and 206 — measured off a document Numbers made from the same workbook — and
+        // their UUIDs are the copy's counted on by those numbers, which is the whole of why the summary now
+        // draws: Numbers computes the UUID it expects rather than reading the one written down (Appendix B.19).
+        try registerOwner(uid: firstUID, kind: 205, base: sourceBase, replacingExisting: true)
 
         // The summary keeps the empty, disabled group-by its clone came with — which is exactly what the summary
         // of a pivot carries in a document Numbers wrote.
@@ -691,13 +706,17 @@ struct NumbersWriter {
         // The summary's grid: the label lanes carry the pre-minted UIDs the rules point at, and the lane that
         // draws a group carries **that group's own UUID** — the join Numbers reads the pivot through. With
         // several summarised values a leaf spans that many lanes; the group's UUID goes on the first.
+        // A lane that draws a group carries that group's UUID; **a lane that belongs to no group carries the
+        // sentinel**, as many times as there are such lanes — a pivot Numbers wrote with rows only and two
+        // summarised values has the sentinel twice over in its columns. A fresh UUID there is a lane nothing owns,
+        // and everything on that axis draws blank (Appendix B.19).
         var gridColumns = labelColumnUIDs
         for i in 0..<Swift.max(0, laid.table.columnCount - laid.headerColumns) {
-            gridColumns.append(i < columnAxis.count ? columnAxis[i] : NumbersUUID.random().uuid)
+            gridColumns.append(i < columnAxis.count ? columnAxis[i] : NumbersPivot.axisSentinel)
         }
         var gridRows = labelRowUIDs
         for i in 0..<Swift.max(0, laid.table.rowCount - laid.headerRows) {
-            gridRows.append(i < rowAxis.count ? rowAxis[i] : NumbersUUID.random().uuid)
+            gridRows.append(i < rowAxis.count ? rowAxis[i] : NumbersPivot.axisSentinel)
         }
         let summaryUIDsID = try doc.add(NumbersPivot.uidMap(columns: gridColumns, rows: gridRows),
                                         file: doc.locations[summaryModel]?.0 ?? "Index/Tables/Tile.iwa")
@@ -709,7 +728,6 @@ struct NumbersWriter {
         // total its group in the first tree, and the grand total the root sentinel.
         let aggregateColumnUID = summing?.uid ?? NumbersPivot.axisSentinel
         let aggregateType = summing.map { NumbersPivot.aggType($0.function) } ?? 2
-        let bodyLevel = columnFields.isEmpty ? rowFields.count : columnFields.count + rowFields.count
         func totalFormula(_ cell: NumbersPivot.TotalCell) -> ProtoMessage? {
             switch cell.kind {
             case .caption: return nil
@@ -731,12 +749,17 @@ struct NumbersWriter {
         // the third model: the grand-total lane, and the two maps that let Numbers place it (Appendix B.19)
         try fillSummaryModel(tableInfo: summaryInfo, tableModel: summaryModel, base: summaryBase,
                              totals: laid.totals, gridColumns: gridColumns, gridRows: gridRows,
+                             totalColumnLane: !columnFields.isEmpty, totalRowLane: !rowFields.isEmpty,
                              formula: totalFormula)
 
-        try writeBodyAggregateFormulas(summaryModel: summaryModel, laid: laid,
-                                       firstTree: firstTree, rowTree: rowTree, firstGroupByUID: firstGroupByUID,
-                                       bodyLevel: bodyLevel, columnFieldsEmpty: columnFields.isEmpty,
-                                       dataFields: dataFields, columnUIDs: uids.columns, source: columns)
+        // **The body cells keep their computed values and carry no formula.** A document Numbers wrote puts a
+        // `CATEGORY_REF` formula in each of them, and this writer used to as well — byte-for-byte the same shape,
+        // naming the same group-by, the same level and the same leaf. In ours they evaluate to nothing, and a cell
+        // whose formula evaluates to nothing draws blank, wiping out the value that was already there: every body
+        // cell came up empty while the totals were right. Written without them, the summary draws in full and every
+        // number matches (measured on Numbers 15.3.1). Why the same formula computes there and not here is not
+        // settled; what is settled is that the value is what a reader needs and the formula is what loses it
+        // (Appendix B.19).
 
         let orderMapID = try doc.add(NumbersPivot.orderMap(columns: columnAxis, rows: rowAxis), file: summaryFile)
         registerComponent(orderMapID, like: summaryModel)
@@ -938,14 +961,20 @@ struct NumbersWriter {
     private mutating func fillSummaryModel(tableInfo: Int, tableModel: Int, base: ProtoMessage?,
                                            totals: [NumbersPivot.TotalCell],
                                            gridColumns: [ProtoMessage], gridRows: [ProtoMessage],
+                                           totalColumnLane: Bool, totalRowLane: Bool,
                                            formula: (NumbersPivot.TotalCell) -> ProtoMessage?) throws {
         guard let info = doc.object(tableInfo), let summaryID = info.reference("summary_model"),
               var summary = doc.object(summaryID), var store = summary.message("data_store") else { return }
         let file = doc.locations[summaryID]?.0 ?? "Index/Tables/Tile.iwa"
 
-        // the two maps: stored order (grid + sentinel last) and display order (ours are the same)
-        let columns = gridColumns + [NumbersPivot.axisSentinel]
-        let rows = gridRows + [NumbersPivot.axisSentinel]
+        // The two maps: stored order (grid + sentinel last) and display order (ours are the same). **An axis with
+        // no group fields has no total lane, and so no sentinel**: a pivot Numbers wrote with rows only draws two
+        // columns, not three, and one with columns only draws two rows. Appending the sentinel to the bare axis
+        // put a lane in the display that nothing feeds, and every value on that axis came up empty
+        // (Appendix B.19). This is not the same question as `showRowGrandTotals` — a pivot with both axes and its
+        // totals switched off still keeps both lanes.
+        let columns = gridColumns + (totalColumnLane ? [NumbersPivot.axisSentinel] : [])
+        let rows = gridRows + (totalRowLane ? [NumbersPivot.axisSentinel] : [])
         let map = NumbersPivot.uidMap(columns: columns, rows: rows)
         if let existing = summary.reference("column_row_uids") {
             doc.replace(existing, with: map)
@@ -1072,110 +1101,6 @@ struct NumbersWriter {
         store.set("tiles", message: tileStorage)
         summary.set("data_store", message: store)
         doc.replace(summaryID, with: summary)
-    }
-
-    /// Rewrites the summary grid's body cells as the aggregate formulas Numbers draws a pivot through: each body
-    /// cell keeps its cached value and gains a `CATEGORY_REF` formula naming the leaf group it stands for. The
-    /// reference document writes every body cell this way, and a body of plain numbers is a pivot Numbers shows
-    /// with no groups at all (Appendix B.19).
-    private mutating func writeBodyAggregateFormulas(summaryModel: Int, laid: (table: Table, headerRows: Int, headerColumns: Int, totals: [NumbersPivot.TotalCell]),
-                                                     firstTree: [NumbersPivot.GroupNode], rowTree: [NumbersPivot.GroupNode],
-                                                     firstGroupByUID: ProtoMessage,
-                                                     bodyLevel: Int, columnFieldsEmpty: Bool,
-                                                     dataFields: [PivotDataField], columnUIDs: [ProtoMessage],
-                                                     source: [NumbersPivot.SourceColumn]) throws {
-        guard let model = doc.object(summaryModel), var store = model.message("base_data_store") else { return }
-        // each leaf, addressable by the set of source rows it owns — the join between the laid-out grid and the tree
-        var leafByRows: [Set<Int>: ProtoMessage] = [:]
-        for leaf in NumbersPivot.leafNodes(firstTree) { leafByRows[Set(leaf.rows)] = leaf.uid }
-        let allRows = Array(1...Swift.max(1, source.first?.values.count ?? 1))
-        let rowLeaves = NumbersPivot.leafNodes(rowTree)
-
-        var formulaEntries: [ProtoMessage] = []
-        var byCell: [Int: [Int: Int]] = [:]      // row -> col -> formula key
-        let table = laid.table
-        for row in laid.headerRows..<table.rowCount {
-            for col in laid.headerColumns..<table.columnCount {
-                guard case .number? = table[row, col] ?? nil else { continue }
-                let leafIndex = columnFieldsEmpty ? 0 : (col - laid.headerColumns) / Swift.max(1, dataFields.count)
-                let dataIndex = columnFieldsEmpty ? (col - laid.headerColumns) : (col - laid.headerColumns) % Swift.max(1, dataFields.count)
-                guard dataFields.indices.contains(dataIndex) else { continue }
-                // the leaf's rows: the same intersection the layout used. One column field is the measured
-                // case; with more, the outer level of the first tree is no longer the body's column leaves and
-                // the formula is left off (the cached value still stands).
-                let rowIndex = row - laid.headerRows
-                guard rowLeaves.indices.contains(rowIndex) else { continue }
-                let rowLeafRows = Set(rowLeaves[rowIndex].rows)
-                let colLeafRows = columnFieldsEmpty ? Set(allRows) : rowsOfColumnLeaf(leafIndex, firstTree: firstTree)
-                let cellRows = rowLeafRows.intersection(colLeafRows)
-                guard let leafUID = leafByRows[cellRows] else { continue }
-                let field = dataFields[dataIndex]
-                let f = NumbersPivot.categoryFormula(groupByUID: firstGroupByUID,
-                                                     columnUID: columnUIDs.indices.contains(field.field) ? columnUIDs[field.field] : NumbersPivot.axisSentinel,
-                                                     aggregateType: NumbersPivot.aggType(field.function),
-                                                     level: bodyLevel, groupUID: leafUID)
-                let key = formulaEntries.count + 1
-                var e = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
-                e.set("key", int: key); e.set("refcount", int: 1); e.set("formula", message: f)
-                formulaEntries.append(e)
-                byCell[row, default: [:]][col] = key
-            }
-        }
-        guard !formulaEntries.isEmpty else { return }
-        if let fid = store.reference("formula_table") {
-            let entries = formulaEntries
-            doc.update(fid) { list in
-                list.set("entries", messages: entries)
-                list.set("nextListID", int: entries.count + 1)
-            }
-        }
-        // re-encode the body cells with their formula ids, leaving every other field as it was
-        for tileRef in store.message("tiles")?.messages("tiles") ?? [] {
-            guard let tid = tileRef.reference("tile") else { continue }
-            doc.update(tid) { tile in
-                var infos = tile.messages("rowInfos")
-                for i in infos.indices {
-                    let row = infos[i].int("tile_row_index") ?? 0
-                    guard let keys = byCell[row],
-                          let storage = infos[i].bytes("cell_storage_buffer"),
-                          let offsetData = infos[i].bytes("cell_offsets") else { continue }
-                    let offsets = NumbersReader.offsets(offsetData, wide: infos[i].bool("has_wide_offsets") ?? false)
-                    var records: [Int: Data] = [:]
-                    for col in 0..<offsets.count {
-                        let start = offsets[col]
-                        guard start >= 0, start < storage.count else { continue }
-                        var end = storage.count
-                        for k in (col + 1)..<offsets.count where offsets[k] >= 0 { end = offsets[k]; break }
-                        guard end > start else { continue }
-                        var record = storage.subdata(in: (storage.startIndex + start)..<(storage.startIndex + end))
-                        if let key = keys[col], let cs = try? CellStorage.decode(record) {
-                            record = CellStorage.encode(type: cs.cellType, decimal: cs.decimal, double: cs.double,
-                                                        seconds: cs.seconds, stringID: cs.stringID, richID: cs.richID,
-                                                        commentID: cs.commentID, cellStyleID: cs.cellStyleID,
-                                                        textStyleID: cs.textStyleID, conditionalStyleID: cs.conditionalStyleID,
-                                                        formulaID: key, numFormatID: cs.numFormatID,
-                                                        currencyFormatID: cs.currencyFormatID, dateFormatID: cs.dateFormatID,
-                                                        durationFormatID: cs.durationFormatID, textFormatID: cs.textFormatID,
-                                                        boolFormatID: cs.boolFormatID)
-                        }
-                        records[col] = record
-                    }
-                    var newStorage = Data(), newOffsets = [Int16](repeating: -1, count: offsets.count), count = 0
-                    for col in 0..<offsets.count {
-                        guard let record = records[col] else { continue }
-                        newOffsets[col] = Int16(newStorage.count >> 2)
-                        newStorage.append(record)
-                        count += 1
-                    }
-                    var offsetBytes = Data()
-                    for o in newOffsets { let u = UInt16(bitPattern: o); offsetBytes.append(UInt8(u & 0xFF)); offsetBytes.append(UInt8(u >> 8)) }
-                    infos[i].set("cell_offsets", bytes: offsetBytes)
-                    infos[i].set("cell_storage_buffer", bytes: newStorage)
-                    infos[i].set("cell_count", int: count)
-                }
-                tile.set("rowInfos", messages: infos)
-            }
-        }
     }
 
     private func rowsOfColumnLeaf(_ index: Int, firstTree: [NumbersPivot.GroupNode]) -> Set<Int> {

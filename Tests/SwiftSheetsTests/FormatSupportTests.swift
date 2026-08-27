@@ -166,7 +166,7 @@ import SwiftSheets
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 23]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 5, .ods: 8, .numbers: 24]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {

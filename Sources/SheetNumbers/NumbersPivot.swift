@@ -169,8 +169,11 @@ enum NumbersPivot {
         let allRows = Array(1...(source.first?.values.count ?? 0))
         let rowGroups = group(allRows, by: rowFields.map { source[$0] })
         let columnGroups = group(allRows, by: columnFields.map { source[$0] })
-        let headerRows = columnFields.isEmpty ? 1 : 2
-        let headerColumns = rowFields.isEmpty ? 0 : 1
+        // A pivot with no row fields still draws a heading column and **one body row** — the row of totals per
+        // column group, captioned in that column — which is how Numbers lays the same pivot out. Written as two
+        // heading rows and no body, that row had nothing in it (Appendix B.19).
+        let headerRows = (columnFields.isEmpty || rowFields.isEmpty) ? 1 : 2
+        let headerColumns = 1
 
         // the leaves of each side, each with the rows it owns — one column of the body per column leaf per value
         func leaves(_ nodes: [GroupNode]) -> [(label: CellValue?, rows: [Int])] {
@@ -181,7 +184,12 @@ enum NumbersPivot {
             nodes.forEach(walk)
             return out
         }
-        let rowLeaves = leaves(rowGroups)
+        let caption = dataFields.first.map { f in
+            f.name ?? "\(source[f.field].name)（\(f.function.caption)）"
+        }
+        // with no row fields there is one implicit row over everything, and the caption is its heading
+        let rowLeaves: [(label: CellValue?, rows: [Int])] =
+            rowFields.isEmpty ? [(caption.map { CellValue.text($0) }, allRows)] : leaves(rowGroups)
         let columnLeaves = leaves(columnGroups)
 
         // heading row(s)
@@ -195,7 +203,7 @@ enum NumbersPivot {
         }
         let captionRow = headerRows - 1
         if !rowFields.isEmpty { table[captionRow, 0] = .text(source[rowFields[0]].name) }
-        for (d, field) in dataFields.enumerated() {
+        for (d, field) in dataFields.enumerated() where !rowFields.isEmpty {
             let caption = field.name ?? "\(source[field.field].name)（\(field.function.caption)）"
             if columnFields.isEmpty {
                 table[captionRow, headerColumns + d] = .text(caption)
@@ -755,6 +763,12 @@ enum NumbersPivot {
     /// What the model can say and a Numbers pivot cannot. None of it is dropped in silence.
     static func warnings(for pivot: PivotTable, sheet: String) -> [ConversionWarning] {
         var out: [ConversionWarning] = []
+        // Written as a live pivot, and not read back as one: Numbers recomputes the summary from the copy of the
+        // source rows it is given, while this library's reader takes that summary for an ordinary table. The
+        // conversion keeps the pivot for Numbers and loses it for the model, and that is a loss with a name — the
+        // same shape of warning the ODF data pilot carries.
+        out.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet,
+                                     message: "pivot table \(pivot.name) is written as a Numbers pivot: Numbers recomputes it from the source rows, and reading the file back gives its summary as an ordinary table"))
         if !pivot.pageFields.isEmpty {
             out.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet,
                                          message: "pivot table \(pivot.name): \(pivot.pageFields.count) report filter(s) dropped — a Numbers pivot has no filter field, and Numbers drops them too when it imports the same file"))
