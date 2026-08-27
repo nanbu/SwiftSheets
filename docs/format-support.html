@@ -189,13 +189,13 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
   <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
-  <rect x="590" y="192" width="92" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="694" y="205" class="sv-t2" font-weight="700">17 / 46</text>
+  <rect x="590" y="192" width="98" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="700" y="205" class="sv-t2" font-weight="700">18 / 46</text>
   <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
-  <text x="590" y="260" class="sv-t2">リンク・メモ・セル内書式・結合</text>
-  <text x="590" y="282" class="sv-t2">条件付き書式・複数の表・集計表</text>
+  <text x="590" y="260" class="sv-t2">リンク・メモ・結合・複数の表</text>
+  <text x="590" y="282" class="sv-t2">条件付き書式・集計表・入力規則</text>
   <text x="590" y="312" class="sv-t3">通らない: 色の階調・データバー・</text>
-  <text x="590" y="332" class="sv-t3">入力規則・印刷設定・定義名 …</text>
+  <text x="590" y="332" class="sv-t3">印刷設定・定義名・フィルタ …</text>
 </svg>
 <figcaption>青い帯が「そのまま通る範囲」。Numbers だけ帯が短いのは能力差ではなく、公開仕様が無いことの帰結です。</figcaption>
 </figure>
@@ -250,8 +250,10 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>アイコンセット</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 
 <tr class="group"><td colspan="5">仕掛け</td></tr>
-<tr><td>入力規則（ドロップダウン・範囲チェック）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
-  <td>ODF は規則を文書の先頭に並べ、セルが名前で指します</td></tr>
+<tr><td>入力規則（ドロップダウン・範囲チェック）</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
+  <td>ODF は規則を文書の先頭に並べ、セルが名前で指します。Numbers では選択肢を書き並べたリスト型だけが
+  ポップアップメニューになります（Numbers 自身も Excel の取り込みで同じ置き換えをします）。範囲参照のリストと
+  数値条件は落として言います</td></tr>
 <tr><td>名前付きの表</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
   <td>ODF の「データベース範囲」になります。名前と範囲は通り、縞模様のスタイルは落ちます</td></tr>
 <tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
@@ -507,7 +509,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 24 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 5 件・ODS 8 件・Numbers 23 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -536,7 +538,7 @@ for warning in result.warnings {
 
 <p>
   さらに <code>WriteResult.suggestion</code> が「この内容なら別の形式のほうが損が少ない」と提案します。
-  たとえば色の階調の条件付き書式と入力規則の入ったブックを Numbers に書こうとすると、xlsx か ods を勧めます。
+  たとえば色の階調の条件付き書式とデータバーの入ったブックを Numbers に書こうとすると、xlsx か ods を勧めます。
 </p>
 </section>
 

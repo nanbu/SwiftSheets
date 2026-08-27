@@ -11,6 +11,19 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **A list data validation and a Numbers pop-up menu are treated as the same thing**, because Numbers itself
+  treats them so in both directions (measured: importing an Excel dropdown makes a pop-up menu, exporting a
+  pop-up menu makes a strict inline-list dropdown). Reading a Numbers document turns each pop-up menu into a
+  `.list` rule on `Sheet.dataValidations` — the choices as an inline list, spelt the way Numbers itself exports
+  them — instead of a "control dropped" warning. Writing a `.list` rule whose choices are spelt in the rule
+  (`"a,b,c"`) produces a real pop-up menu: Numbers opens the document without repair, offers the choices, and
+  exports the rule back to Excel. A rule over empty entry rows grows the table to hold its menus; a whole-column
+  rule stops at the table's edge, the way Numbers cuts one on import (measured), and the cut is reported.
+  Range-sourced lists and the other validation kinds are dropped with a warning, as before — freezing a range
+  into today's values would change what the rule means. Strictness and blank-allowance do not survive the trip
+  because Numbers keeps every pop-up in one shape (measured with three differing rules). The corpus gains
+  `popup-15.numbers`, made by Numbers 15.3.1 (spec Appendix B.24).
+
 - **A pivot table is written to Numbers as a real Numbers pivot** — a live summary Numbers recomputes from the
   rows it is given — instead of being dropped with a warning. Measured against Numbers 15.3.1 on a workbook of
   seventeen pivots: all fifteen writable ones draw with every number right and not one assertion. What made it

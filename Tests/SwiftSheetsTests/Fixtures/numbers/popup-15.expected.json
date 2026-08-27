@@ -1,0 +1,50 @@
+{
+ "sheets": [
+  {
+   "name": "Choices",
+   "tables": [
+    {
+     "cells": {
+      "0,0": {
+       "v": "kind"
+      },
+      "0,1": {
+       "v": "value"
+      },
+      "1,0": {
+       "v": "text list"
+      },
+      "1,1": {
+       "v": "one"
+      },
+      "2,0": {
+       "v": "text list"
+      },
+      "3,0": {
+       "v": "number list"
+      },
+      "3,1": {
+       "v": 2.0
+      },
+      "4,0": {
+       "v": "number list"
+      },
+      "5,0": {
+       "v": "strict list"
+      },
+      "5,1": {
+       "v": "red"
+      },
+      "6,0": {
+       "v": "strict list"
+      }
+     },
+     "cols": 5,
+     "merges": [],
+     "name": "表1",
+     "rows": 10
+    }
+   ]
+  }
+ ]
+}

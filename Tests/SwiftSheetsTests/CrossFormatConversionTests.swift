@@ -159,7 +159,8 @@ import SwiftSheets
         try Data(contentsOf: Bundle.module.resourceURL!.appending(path: "Fixtures/numbers/chart-and-control-15.numbers"))
             .write(to: source)
         let read = try Workbook.read(contentsOf: source)
-        #expect(read.warnings.count == 2, Comment(rawValue: "\(read.warnings.map(\.message))"))
+        // one warning: the chart. The document's pop-up menu is read as a validation, not warned about.
+        #expect(read.warnings.count == 1, Comment(rawValue: "\(read.warnings.map(\.message))"))
 
         let converted = try Workbook.convert(source, to: .xlsx, output: directory.appending(path: "canvas.xlsx"))
         for warning in read.warnings {

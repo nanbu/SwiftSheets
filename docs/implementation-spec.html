@@ -1853,6 +1853,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>2.5 Draft</td><td>2026-08-27</td><td>B.20 で「1.0 の破壊的変更の候補」として残した<strong>書体の同種欠陥を直した</strong>（付録 B.21）。<code>font_name</code> も <code>Font.default</code>（Calibri）と比べて省いていたため、Calibri を指定したセルがテンプレートの HelveticaNeue で描かれていた。モデルが述べた書体は常に書く。あわせて、この Mac の Calibri が <strong>Microsoft Office 専用フォルダにしか無い</strong>にもかかわらず Numbers が正しく描くことを実測（Numbers の PDF に本物の Calibri が埋め込まれる）</td></tr>
     <tr><td>2.6 Draft</td><td>2026-08-27</td><td>相互変換の全量点検を行い、付録 B.22 に記録。<strong>ピボット表を持つ Excel ファイルは 2 回目の保存で壊れていた</strong>（書き手が自分で書く属性を、読み手が「知らない属性」として覚え直し、次の保存で二重に書いていた——属性の重複は整形式ではない XML）。あわせて、Numbers への<strong>配列数式・保護範囲</strong>、ODS / Numbers への <strong>VBA</strong> が黙って落ちていた 3 件を直し、壊れた部品を黙って読み飛ばしていた読み手にも警告を出させた。方向ごとの点検（<code>CrossFormatConversionTests</code>）と世代テストを新設</td></tr>
     <tr><td>2.7 Draft</td><td>2026-08-27</td><td>B.22 で「先に方針を決めるべき」として残した 2 件を、方針を決めたうえで直した（付録 B.23）。<strong><code>Workbook.convert</code> が読み込みの警告を捨てていた</strong>——図とセル制御を持つ Numbers 文書を <code>.xlsx</code> に変換して警告 0 件が返っていた。往路と復路の両方を返す。<strong>計算設定の警告が、ODS から変換するたびに必ず出ていた</strong>——モデルの既定と比べていたためで、LibreOffice が全ファイルに書く既定値がそれと食い違っていた。「<em>行き先が違う振る舞いをするか</em>」に基準を変え、効いていない設定は数えない</td></tr>
+    <tr><td>2.8 Draft</td><td>2026-08-27</td><td>リスト型の入力規則を Numbers の<strong>ポップアップメニュー</strong>として読み書きする（付録 B.24）。根拠は Numbers 自身の双方向の置き換え（取り込みでドロップダウン→ポップアップ、書き出しでポップアップ→リスト型規則）を実測したこと。選択肢を書き並べた形だけを書き、範囲参照・数値条件は従来どおり落として言う。空の記入行を覆う規則は表を広げて置き、列全体の規則は Numbers 自身と同じく表の端で止める。検体 <code>popup-15.numbers</code> をコーパスに追加。機能表の Numbers 列は入力規則を × → △ に</td></tr>
     <tr><td>2.8 Draft</td><td>2026-08-27</td><td>付録 B.19 の診断を<strong>実験で撤回</strong>した。「古い版の刻印なので読み込み時に作り直される」は誤りで、見本を 14.1 相当に刻印しても完全に描く。さらに、翻訳器が引く対応表は<strong>読み込み時に空から詰め直される</strong>ため（<code>TSTSummaryModel._columnRowUIDMap</code>）、<strong>保存された対応表を突き合わせた一致確認はすべて無効</strong>である。あわせてピボットの写しの足場を島ごと削除するようにし（整合性検査の 30 件の問題が消える）、形ごとの表明数の指紋を記録した</td></tr>
     <tr><td>2.9 Draft</td><td>2026-08-27</td><td>付録 B.19 に<strong>形式の決まりを 1 つ確定</strong>して書いた — Numbers はピボットの組を、書かれた UID ではなく<strong>「源の写しの所有者 UID ＋ 副所有者番号」で計算して</strong>引く。見本の組 UID を導出位置から外すだけで見本もこちらと同じ空の殻になる、という実験で裏を取った。書き手はこれを守るようにしたが<strong>描画はまだ直らない</strong>（指紋は不動）。あわせて haunted 所有者・ほかの所有者 UID 19 件・ヘッダ記録・凍結見出し・書式表・こちらの符号器を実験で無罪と確定した</td></tr>
     <tr><td>3.0 Draft</td><td>2026-08-27</td><td><strong>Numbers の集計表が描けた</strong>。読み込みの実際の振る舞いを観測して原因を特定 — 数え始める番号は<strong>表の <code>table_id</code></strong> であって計算エンジンの基底所有者 UID ではない（見本では両者が同じ値なので、見本の中だけを見ていては区別がつかない）。そこから本体のマスの数式・組の無いレーンの番兵・片軸の置き方を実測で直し、17 通りの見本のうち書ける 15 個が<strong>すべて正しく描かれ、表明は 0</strong>。既定を ON にし、書けない 2 形（段 2 つ・値 2 つ）は落として言う。公開表のピボット行を × → △</td></tr>
@@ -3715,6 +3716,71 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
             同じく、直す前の実装で 4 つの表明が赤くなる</td></tr>
     <tr><td>全体</td><td>839 件が緑</td></tr>
   </table></div>
+
+
+  <h3>B.24 入力規則とポップアップメニューは、同じものの 2 つの名前だった（Rev 2.8）</h3>
+  <p>
+    2026-08-27。Numbers の対応表で「Numbers に言葉が無い」と数えていた入力規則のうち、
+    <strong>リスト型（ドロップダウン）には言葉があった</strong>——ポップアップメニューである。
+    根拠は Numbers 自身の振る舞いで、<strong>双方向に実測</strong>した。Excel のリスト型入力規則を取り込ませると
+    ポップアップメニューにする（B.18 の頃から観測済み）。逆にポップアップを持つ書類を Excel に書き出させると、
+    選択肢を書き並べた <code>type="list"</code> の入力規則
+    （<code>allowBlank</code>・<code>showInputMessage</code>・<code>showErrorMessage</code> がすべて on、
+    <code>errorStyle</code> 無指定 = stop）に戻す。同じ置き換えを、読み書きの両方でこちらもする。
+  </p>
+
+  <h4>置き方 — Numbers 自身の書類から読み取った配線</h4>
+  <div class="compare"><table>
+    <tr><th>層</th><th>実体</th></tr>
+    <tr><td>表の一覧</td><td><code>TST.DataStore.control_cell_spec_table</code> —
+        <code>TST.TableDataList</code>（listType <code>CONTROL_CELL_SPEC</code> = 12）。テンプレートの表も空のものを持っている</td></tr>
+    <tr><td>一覧の項</td><td><code>cell_spec</code>（<code>TST.CellSpecArchive</code>）:
+        <code>interaction_type: 7</code>（ポップアップ）・<code>chooser_control_popup_model</code> が
+        <code>TST.PopUpMenuModel</code> を指す・<code>chooser_control_start_w_first: true</code>。
+        メニュー本体は<strong>一覧と同じ部品ファイル</strong>に置かれる</td></tr>
+    <tr><td>メニューの選択肢</td><td><code>tsce_item</code>（<code>TSCE.CellValueArchive</code>）の並び。
+        <strong>先頭は必ず NIL_TYPE</strong>（空欄の選択肢）。文字列は STRING_TYPE（format_type 260）、
+        数値は NUMBER_TYPE（format_type 256・decimal_places 253・double と decimal128 の両表現）</td></tr>
+    <tr><td>セル側</td><td>セル格納の旗 <code>0x400</code> で一覧の鍵を名指す。<strong>値の無いセルは
+        generic 型のレコードに制御の鍵だけ</strong>を持つ（Numbers 自身の空ドロップダウンがこの形）</td></tr>
+  </table></div>
+
+  <h4>写像の決め方 — 決めたのは Numbers である</h4>
+  <p>
+    リスト型のうち<strong>選択肢を規則の中に書き並べた形</strong>（<code>"a,b,c"</code>）だけを書く。
+    範囲参照のリスト（<code>Choices!$A$2:$A$4</code>）は、今日の参照先の値で凍らせると規則の意味が変わるので、
+    従来どおり落として言う。厳格・空欄許可・入力メッセージの別は<strong>どのみち Numbers に残らない</strong>——
+    3 通りの規則（緩い・数値・厳格）を取り込ませる実験で、Numbers は 3 つとも同一形のポップアップにした。
+    読み戻しはその逆写像で、Numbers 自身の書き戻しと同じ形
+    （allowBlank・showInputMessage・showErrorMessage on）の <code>.list</code> にする。
+    条件付き書式と同じく、規則は表ごとに読み、最初の表のものをシートに載せ、2 枚目以降の表のものは落として言う。
+  </p>
+  <p>
+    <strong>格子との関係も Numbers に合わせた。</strong>ポップアップは実在するセルにしか置けないので、
+    空の記入行を覆う規則（記入フォームの形）は表をそこまで広げる——ただし 10,000 行・256 列に収まる規則だけ。
+    Excel によくある「列全体」（100 万行）の規則は表の端で止め、degraded で言う。
+    C2:C1048576 を Numbers に取り込ませる実験では、Numbers も自分の格子（10 行）で止めた。
+  </p>
+
+  <h4>審判</h4>
+  <div class="compare"><table>
+    <tr><th>審判</th><th>結果</th></tr>
+    <tr><td>Numbers 本人（開封）</td><td>段階検体 18 個（ポップアップ 3 種入りの <code>17-popup-menus</code> を含む）が
+        すべて「修復しますか」を出さずに開く</td></tr>
+    <tr><td>Numbers 本人（往復）</td><td>こちらが書いた書類を Numbers に <code>.xlsx</code> へ書き出させると、
+        3 つの規則（文字列・数値・空セルのみの列）が <code>type="list"</code> としてすべて戻る。
+        Numbers 形式への保存でも <code>menu-choices</code> が残る</td></tr>
+    <tr><td>参照実装</td><td>numbers-parser がこちらの書いたメニュー 3 つと選択肢をそのまま読む。
+        新検体 <code>popup-15.numbers</code>（Numbers 15.3.1 産・MAINTENANCE.md）は
+        <code>expected.json</code> のセル照合にも入れた</td></tr>
+    <tr><td>全体</td><td>863 件が緑。機能表の実測テストは Numbers の生存 17 → 18 項目・警告 24 → 23 件に追随</td></tr>
+  </table></div>
+  <p class="meta">
+    B.18 の残件表はこの規則を「Numbers にそもそも無いもの」に数えていた。正しくは
+    <em>リスト型に限り言葉がある</em>で、範囲チェック（整数・小数・日付・文字数・数式）については
+    従来どおり言葉が無い。チェックボックス・ステッパー・スライダー・レートの各制御も同じく言葉が無く、
+    値だけ読んで落としたことを言う線は変えていない。
+  </p>
 
 </section>
 

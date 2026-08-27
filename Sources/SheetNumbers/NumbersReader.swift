@@ -64,6 +64,12 @@ struct NumbersReader {
                 warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
                                                   message: "conditional formats on a second table are dropped: the model keeps them per sheet"))
             }
+            // pop-up menus, read back as list validations, live per table the same way
+            if let first = ids.first { sheet.dataValidations = validationsByTable[first] ?? [] }
+            for extra in ids.dropFirst() where !(validationsByTable[extra] ?? []).isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
+                                                  message: "pop-up menus on a second table are dropped: the model keeps data validations per sheet"))
+            }
             // header rows / columns of the first table behave like frozen panes
             if let tid = tableModels(inSheet: sid).first, let model = doc.object(tid) {
                 let rows = model.bool("header_rows_frozen") == true ? (model.int("number_of_header_rows") ?? 0) : 0
@@ -140,6 +146,55 @@ struct NumbersReader {
 
     /// table model id → what its conditional-style list said, read back into the model's own vocabulary.
     private var conditionalFormats: [Int: [ConditionalFormatting]] = [:]
+
+    /// table model id → the table's pop-up menus, read back as `.list` validations.
+    private var validationsByTable: [Int: [DataValidation]] = [:]
+
+    /// The pop-up menus among a table's cell controls, as list validations over the cells that wear them.
+    /// Cells whose control is anything else (checkbox, stepper, slider, rating — or a menu an inline list cannot
+    /// spell) come back in `unreadable`, for the caller to report.
+    private func validations(controls: [Int: [CellRef]], store: ProtoMessage) -> (rules: [DataValidation], unreadable: [CellRef]) {
+        guard !controls.isEmpty else { return ([], []) }
+        let popup = NumbersWriter.popupInteractionType
+        let specs = dataList(store.reference("control_cell_spec_table")) { $0.message("cell_spec") }
+        var rules: [DataValidation] = []
+        var unreadable: [CellRef] = []
+        for (key, refs) in controls.sorted(by: { $0.key < $1.key }) {
+            guard let spec = specs[key], spec.int("interaction_type") == popup,
+                  let menu = spec.reference("chooser_control_popup_model"), let items = popupItems(menu) else {
+                unreadable.append(contentsOf: refs)
+                continue
+            }
+            // The shape Numbers itself gives a pop-up when it exports to Excel: a strict inline list that
+            // allows blank (every menu carries the blank choice) and shows its messages.
+            rules.append(DataValidation(kind: .list, ranges: NumbersReader.condense(refs),
+                                        formula1: "\"\(items.joined(separator: ","))\"",
+                                        allowBlank: true, showInputMessage: true, showErrorMessage: true))
+        }
+        return (rules, unreadable.sorted { ($0.row, $0.col) < ($1.row, $1.col) })
+    }
+
+    /// The choices of a pop-up menu, spelt the way Numbers itself exports them: text as it is, a whole number
+    /// without its decimal point. A menu holding what an inline list cannot spell — a date, a boolean, text with
+    /// a comma or quote in it, or no choices at all — returns nil, and the control is reported instead.
+    private func popupItems(_ id: Int) -> [String]? {
+        guard let menu = doc.object(id), menu.typeName == "TST.PopUpMenuModel" else { return nil }
+        let kinds = { NumbersSchema.shared.enumValue("TSCE.CellValueArchive.CellValueType", $0) }
+        var out: [String] = []
+        for item in menu.messages("tsce_item") {
+            switch item.int("cell_value_type") {
+            case kinds("NIL_TYPE"): continue    // the blank choice every menu carries
+            case kinds("STRING_TYPE"):
+                guard let s = item.message("string_value")?.string("value"), !s.contains(","), !s.contains("\"") else { return nil }
+                out.append(s)
+            case kinds("NUMBER_TYPE"):
+                guard let v = item.message("number_value")?.double("value") else { return nil }
+                out.append(v == v.rounded() && abs(v) < 1e15 ? String(Int64(v)) : "\(v)")
+            default: return nil
+            }
+        }
+        return out.isEmpty ? nil : out
+    }
 
     /// The cells that named each entry of the table's conditional-style list, as rules over ranges. Numbers keeps
     /// one *set* of rules per cell; the model keeps rules over ranges, so cells naming the same set become one block.
@@ -237,9 +292,10 @@ struct NumbersReader {
     mutating func table(_ tid: Int, sheetName: String) -> Table? {
         guard let model = doc.object(tid), let store = model.message("base_data_store") else { return nil }
         var t = Table(name: model.string("table_name"))
-        /// Cells carrying an interactive control (pop-up menu, checkbox, stepper, slider, star rating). The value is
-        /// read; the control itself has no place in the model, so it is reported rather than passed over in silence.
-        var controlledCells: [CellRef] = []
+        /// Cells carrying an interactive control, by the control-list key they name. A pop-up menu comes back as a
+        /// `.list` validation; the rest (checkbox, stepper, slider, star rating) have no place in the model, so the
+        /// value is read and the control is reported rather than passed over in silence.
+        var controlledCells: [Int: [CellRef]] = [:]
         let rows = model.int("number_of_rows") ?? 0, cols = model.int("number_of_columns") ?? 0
         if let info = doc.identifiers(ofType: "TST.TableInfoArchive").first(where: { doc.object($0)?.reference("tableModel") == tid }),
            let geometry = doc.object(info)?.message("super")?.message("geometry"), let pos = geometry.message("position") {
@@ -324,7 +380,7 @@ struct NumbersReader {
                     do {
                         let s = try CellStorage.decode(record)
                         if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
-                        if s.controlID != nil { controlledCells.append(CellRef(row: row, col: col)) }
+                        if let cid = s.controlID { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
                         let value = cellValue(s, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
                         let style = styles.style(s, row: row, col: col)
                         let rich = s.richID.flatMap { richTexts[$0] }
@@ -352,11 +408,13 @@ struct NumbersReader {
             }
         }
         for p in decoder.problems.prefix(20) { warnings.append(ConversionWarning(.degraded, sheet: sheetName, message: "formula: \(p)")) }
-        if let first = controlledCells.first {
-            let n = controlledCells.count
+        let (rules, unreadableControls) = validations(controls: controlledCells, store: store)
+        validationsByTable[tid] = rules
+        if let first = unreadableControls.first {
+            let n = unreadableControls.count
             let subject = n == 1 ? "the cell at \(first.a1) carries" : "\(n) cells starting at \(first.a1) carry"
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName, location: first,
-                                              message: "\(subject) a Numbers control (pop-up menu, checkbox, stepper, slider or rating); the value is kept, the control is not"))
+                                              message: "\(subject) a Numbers control (checkbox, stepper, slider, rating, or a menu an inline list cannot spell); the value is kept, the control is not"))
         }
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)

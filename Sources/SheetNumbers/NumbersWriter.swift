@@ -26,6 +26,56 @@ struct NumbersWriter {
         pivot.rowFields.count <= 1 && pivot.columnFields.count <= 1 && pivot.dataFields.count <= 1
     }
 
+    /// `TSTControlCellSpec` interaction type of a pop-up menu.
+    static let popupInteractionType = 7
+
+    /// The choices of a validation that can go out as a Numbers pop-up menu: a `.list` whose choices are spelt in
+    /// the rule itself (`"a,b,c"`). Anything else returns nil — a range-sourced list would have to be frozen into
+    /// today's values, which changes what the rule means, and the other kinds have no control to become.
+    static func popupItems(of v: DataValidation) -> [String]? {
+        guard v.kind == .list, let f = v.formula1, f.count >= 2, f.hasPrefix("\""), f.hasSuffix("\"") else { return nil }
+        let items = f.dropFirst().dropLast().split(separator: ",").map(String.init).filter { !$0.isEmpty }
+        return items.isEmpty ? nil : items
+    }
+
+    /// One choice of a pop-up menu, the way Numbers itself writes one (`TSCE.CellValueArchive`): nil is the blank
+    /// choice every menu carries first, a numeric spelling keeps both its binary and decimal forms, text is text.
+    static func popupChoice(_ item: String?) -> ProtoMessage {
+        var value = ProtoMessage(typeName: "TSCE.CellValueArchive")
+        let kind = { NumbersSchema.shared.enumValue("TSCE.CellValueArchive.CellValueType", $0) ?? 1 }
+        guard let item else { value.set("cell_value_type", int: kind("NIL_TYPE")); return value }
+        var format = ProtoMessage(typeName: "TSK.FormatStructArchive")
+        if let number = Decimal(string: item), "\(number)" == item {
+            value.set("cell_value_type", int: kind("NUMBER_TYPE"))
+            var archive = ProtoMessage(typeName: "TSCE.NumberCellValueArchive")
+            archive.set("value", double: (number as NSDecimalNumber).doubleValue)
+            archive.set("unit_index", int: 0)
+            format.set("format_type", int: NumbersFormat.type("DECIMAL") ?? 256)
+            format.set("decimal_places", int: NumbersFormat.automaticDecimals)
+            format.set("negative_style", int: 0)
+            format.set("show_thousands_separator", bool: false)
+            archive.set("format", message: format)
+            archive.set("format_is_explicit", bool: false)
+            let bytes = CellStorage.encodeDecimal128(number)
+            var low: UInt64 = 0, high: UInt64 = 0
+            for k in 0..<8 { low |= UInt64(bytes[k]) << (8 * UInt64(k)); high |= UInt64(bytes[8 + k]) << (8 * UInt64(k)) }
+            archive.set("decimal_low", uint: low)
+            archive.set("decimal_high", uint: high)
+            value.set("number_value", message: archive)
+        } else {
+            value.set("cell_value_type", int: kind("STRING_TYPE"))
+            var archive = ProtoMessage(typeName: "TSCE.StringCellValueArchive")
+            archive.set("value", string: item)
+            format.set("format_type", int: NumbersFormat.type("TEXT") ?? 260)
+            archive.set("format", message: format)
+            archive.set("format_is_explicit", bool: false)
+            archive.set("is_regex", bool: false)
+            archive.set("is_case_sensitive_regex", bool: false)
+            value.set("string_value", message: archive)
+        }
+        return value
+    }
+
     let doc: NumbersDocument
     let workbook: Workbook
     let options: WriteOptions
@@ -115,8 +165,16 @@ struct NumbersWriter {
             let sid = sheetIDs[i]
             doc.update(sid) { $0.set("name", string: sheet.name) }
             if sheet.state != .visible { warnings.append(ConversionWarning(.degraded, sheet: sheet.name, message: "Numbers has no hidden sheets; the sheet is visible")) }
-            if !sheet.dataValidations.isEmpty || sheet.hasUnmodelledValidations {
-                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "data validation dropped: Numbers rules are not written"))
+            // a list rule that spells its choices becomes a pop-up menu (in `patch`); the rest have no control to become
+            let popupRules = sheet.dataValidations.compactMap { rule in NumbersWriter.popupItems(of: rule).map { (rule: rule, items: $0) } }
+            let unwritableRules = sheet.dataValidations.count - popupRules.count
+            if unwritableRules > 0 || sheet.hasUnmodelledValidations {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
+                                                  message: "\(Swift.max(unwritableRules, 1)) data validation rule(s) dropped: only a list whose choices are spelt in the rule becomes a Numbers pop-up menu"))
+            }
+            if sheet.tables.count > 1, !popupRules.isEmpty {
+                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
+                                                  message: "the sheet's pop-up menus are written onto its first table: the model keeps data validations per sheet, Numbers per table"))
             }
             if sheet.hasUnmodelledConditionalFormats {
                 warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
@@ -166,7 +224,8 @@ struct NumbersWriter {
                 let info = infos[t]
                 let name = table.name ?? "Table \(t + 1)"
                 let size = try patch(tableInfo: info, with: table, name: name, sheetName: sheet.name,
-                                     conditionalFormats: t == 0 ? sheet.conditionalFormatting : [])
+                                     conditionalFormats: t == 0 ? sheet.conditionalFormatting : [],
+                                     popupRules: t == 0 ? popupRules : [])
                 doc.update(info) { m in
                     var d = m.message("super") ?? ProtoMessage(typeName: "TSD.DrawableArchive")
                     var g = d.message("geometry") ?? ProtoMessage(typeName: "TSD.GeometryArchive")
@@ -1148,12 +1207,21 @@ struct NumbersWriter {
     // MARK: - Patching one table's data
 
     private mutating func patch(tableInfo: Int, with table: Table, name: String, sheetName: String,
-                                conditionalFormats: [ConditionalFormatting] = []) throws -> (width: Double, height: Double) {
+                                conditionalFormats: [ConditionalFormatting] = [],
+                                popupRules: [(rule: DataValidation, items: [String])] = []) throws -> (width: Double, height: Double) {
         guard let modelID = doc.object(tableInfo)?.reference("tableModel"), var model = doc.object(modelID), var store = model.message("base_data_store") else {
             throw SheetError.malformedPart(path: "empty.numbers", detail: "table model missing")
         }
-        let rows = Swift.max(1, Swift.max(table.rowCount, table.nextAppendRow, (table.rowDimensions.keys.max() ?? -1) + 1, (table.merges.map(\.maxRow).max() ?? -1) + 1))
-        let cols = Swift.max(1, Swift.max(table.columnCount, (table.columnDimensions.keys.max() ?? -1) + 1, (table.merges.map(\.maxCol).max() ?? -1) + 1))
+        // A pop-up menu exists only on cells the table has, so the grid grows to carry a rule over empty entry
+        // rows — that is what a dropdown on a form is. Only a rule of a *form's* size does that: the common Excel
+        // shape is a dropdown over a whole column, a million rows, and a table that answers it draws a million
+        // rows. Anything reaching past 10,000 rows or 256 columns stops at the table's edge instead, the way
+        // Numbers itself cuts a whole-column rule when it imports one (measured), and the cut is reported below.
+        let formRanges = popupRules.flatMap(\.rule.ranges.ranges).filter { $0.maxRow < 10_000 && $0.maxCol < 256 }
+        let rows = Swift.max(1, Swift.max(table.rowCount, table.nextAppendRow, (table.rowDimensions.keys.max() ?? -1) + 1,
+                                          (table.merges.map(\.maxRow).max() ?? -1) + 1, (formRanges.map(\.maxRow).max() ?? -1) + 1))
+        let cols = Swift.max(1, Swift.max(table.columnCount, (table.columnDimensions.keys.max() ?? -1) + 1,
+                                          (table.merges.map(\.maxCol).max() ?? -1) + 1, (formRanges.map(\.maxCol).max() ?? -1) + 1))
         guard rows <= 1_000_000, cols <= 1000 else { throw SheetError.unsupportedFeature("Numbers tables are limited to 1,000,000 rows × 1,000 columns (\(rows)×\(cols) requested)") }
         model.set("number_of_rows", int: rows)
         model.set("number_of_columns", int: cols)
@@ -1262,6 +1330,52 @@ struct NumbersWriter {
             conditionalEntries[i].set("refcount", int: conditionalKeys.values.filter { $0 == key }.count)
         }
 
+        // pop-up menus: each inline list rule becomes one menu, an entry of the table's control list, and a key on
+        // every covered cell. The menu lives in the list's own component, the way Numbers places it. The grid was
+        // grown above to carry a form-sized rule; what still reaches past it is cut at the edge, and reported.
+        let controlList = store.reference("control_cell_spec_table")
+        var controlEntries: [ProtoMessage] = []
+        var controlKeys: [CellRef: Int] = [:]
+        var clippedRules = 0
+        if !popupRules.isEmpty, controlList == nil {
+            warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
+                                              message: "\(popupRules.count) data validation rule(s) dropped: the template's table has no control list"))
+        }
+        if let listID = controlList {
+            let controlFile = doc.locations[listID]?.0 ?? NumbersStyleWriter.stylesheetFile
+            for (rule, items) in popupRules {
+                var menu = ProtoMessage(typeName: "TST.PopUpMenuModel")
+                menu.set("tsce_item", messages: [NumbersWriter.popupChoice(nil)] + items.map { NumbersWriter.popupChoice($0) })
+                let menuID = try doc.add(menu, file: controlFile)
+                var spec = ProtoMessage(typeName: "TST.CellSpecArchive")
+                spec.set("interaction_type", int: NumbersWriter.popupInteractionType)
+                spec.set("chooser_control_popup_model", reference: menuID)
+                spec.set("chooser_control_start_w_first", bool: true)
+                let key = controlEntries.count + 1
+                var entry = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+                entry.set("key", int: key); entry.set("refcount", int: 0); entry.set("cell_spec", message: spec)
+                controlEntries.append(entry)
+                var clipped = false
+                for range in rule.ranges.ranges {
+                    if range.maxRow >= rows || range.maxCol >= cols { clipped = true }
+                    for r in range.minRow...range.maxRow where r < rows {
+                        for c in range.minCol...range.maxCol where c < cols {
+                            controlKeys[CellRef(row: r, col: c)] = key
+                        }
+                    }
+                }
+                if clipped { clippedRules += 1 }
+            }
+            for i in controlEntries.indices {
+                let key = controlEntries[i].int("key") ?? 0
+                controlEntries[i].set("refcount", int: controlKeys.values.filter { $0 == key }.count)
+            }
+        }
+        if clippedRules > 0 {
+            warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheetName,
+                                              message: "\(clippedRules) pop-up menu rule(s) reach past the table and stop at its edge (Numbers cuts an imported whole-column rule the same way)"))
+        }
+
         // a link, formatting that changes part-way through the text, and a note: three things a cell keeps
         // outside its value, each in a list of its own (Appendix B.18)
         let richList = store.reference("rich_text_table")
@@ -1358,16 +1472,18 @@ struct NumbersWriter {
             let formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
             records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
                                                formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
-                                               conditionalStyleID: conditionalKeys[ref], richID: richID, commentID: commentID)
+                                               conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref],
+                                               richID: richID, commentID: commentID)
         }
         for i in formulaEntries.indices {
             let k = formulaEntries[i].int("key") ?? 0
             formulaEntries[i].set("refcount", int: formulaRefcounts[k] ?? 1)
         }
         // an empty cell inside a rule's range still names the rule — otherwise the rule stops at the last cell
-        // that happened to hold something
-        for (ref, key) in conditionalKeys where records[ref.row][ref.col] == nil {
-            records[ref.row][ref.col] = CellStorage.encode(type: .generic, conditionalStyleID: key)
+        // that happened to hold something. The same for a pop-up menu: an empty cell wearing one is what a
+        // dropdown on an entry form is.
+        for ref in Set(conditionalKeys.keys).union(controlKeys.keys) where records[ref.row][ref.col] == nil {
+            records[ref.row][ref.col] = CellStorage.encode(type: .generic, conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref])
         }
         for code in styleWriter.unexpressibleFormats {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
@@ -1424,6 +1540,16 @@ struct NumbersWriter {
         } else if !conditionalEntries.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
                                               message: "conditional formats dropped: the template's table has no conditional-style list"))
+        }
+
+        // control list (the pop-up menus; their entries reference menus in the list's own component, so there
+        // is no crossing to declare)
+        if let cid = controlList, !controlEntries.isEmpty {
+            let entries = controlEntries
+            doc.update(cid) { list in
+                list.set("entries", messages: entries)
+                list.set("nextListID", int: entries.count + 1)
+            }
         }
 
         // rich-text and comment lists
@@ -1582,7 +1708,7 @@ struct NumbersWriter {
     /// in the slot the *value* asks for — Numbers has one per kind, not one per cell.
     private mutating func record(for value: CellValue?, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
                                  formatKey: Int? = nil, code: String = NumberFormat.general, formulaID: Int? = nil,
-                                 conditionalStyleID: Int? = nil, richID: Int? = nil, commentID: Int? = nil) -> Data? {
+                                 conditionalStyleID: Int? = nil, controlID: Int? = nil, richID: Int? = nil, commentID: Int? = nil) -> Data? {
         let isCurrency = code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£")
         func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil,
                     stringID: Int? = nil) -> Data {
@@ -1597,7 +1723,8 @@ struct NumbersWriter {
             return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, double: double,
                                       seconds: seconds, stringID: stringID, richID: richID, commentID: commentID,
                                       cellStyleID: cellStyleID, textStyleID: textStyleID,
-                                      conditionalStyleID: conditionalStyleID, formulaID: formulaID, numFormatID: number, currencyFormatID: currency, dateFormatID: date,
+                                      conditionalStyleID: conditionalStyleID, formulaID: formulaID, controlID: controlID,
+                                      numFormatID: number, currencyFormatID: currency, dateFormatID: date,
                                       durationFormatID: duration, textFormatID: text, boolFormatID: boolean)
         }
         switch value {
@@ -1608,7 +1735,7 @@ struct NumbersWriter {
             // generic record already carries a conditional style below, so the format expresses it; what it may
             // not carry is nothing at all, which is what an untouched cell is (Appendix B.20).
             let saysSomething = formulaID != nil || commentID != nil || cellStyleID != nil || textStyleID != nil
-                || conditionalStyleID != nil || formatKey != nil
+                || conditionalStyleID != nil || controlID != nil || formatKey != nil
             return saysSomething ? encode(.generic) : nil
         case .text(let s): return encode(.text, stringID: key(s))
         case .richText(let runs): return encode(.text, stringID: key(runs.map(\.text).joined()))

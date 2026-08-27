@@ -24,15 +24,19 @@ import SwiftSheets
         #expect(charts.first?.sheet == result.workbook.sheets[0].name)
     }
 
-    @Test func aCellControlIsReported() throws {
+    /// A pop-up menu is no longer reported as a loss: it comes back as a `.list` validation instead. The warning
+    /// stays for the controls the model has no word for (checkbox, stepper, slider, rating).
+    @Test func aPopUpMenuIsAValidationNotAWarning() throws {
         let result = try NumbersCodec.read(try Self.fixture("chart-and-control-15.numbers"))
         let controls = result.warnings.filter { $0.message.contains("control") }
-        #expect(controls.count == 1, Comment(rawValue: "expected exactly one control warning, got \(result.warnings.map(\.message))"))
-        #expect(controls.first?.kind == .dropped)
-        #expect(controls.first?.location != nil, "the warning should say which cell")
+        #expect(controls.isEmpty, Comment(rawValue: "a pop-up menu is read, not warned about: \(controls.map(\.message))"))
+        let rules = result.workbook.sheets[0].dataValidations
+        #expect(rules.count == 1)
+        #expect(rules.first?.kind == .list)
+        #expect(rules.first?.formula1 == "\"one,two,three\"")
     }
 
-    /// The value under a control is still read — the control is what goes, not the contents.
+    /// The value under a control is still read — with the pop-up, not instead of it.
     @Test func theValueUnderAControlSurvives() throws {
         let wb = try Workbook(data: try Self.fixture("chart-and-control-15.numbers"), format: .numbers)
         let sheet = wb.sheets[0]

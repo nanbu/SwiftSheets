@@ -26,8 +26,9 @@ struct CellStorage {
     var durationFormatID: Int?
     var textFormatID: Int?
     var boolFormatID: Int?
-    /// The cell's interactive control (a pop-up menu, checkbox, stepper, slider or star rating). The model has
-    /// no word for one, so this is kept only to be able to say the cell had it — see `NumbersReader.table`.
+    /// The cell's interactive control — a key into the table's `control_cell_spec_table` list. A pop-up menu
+    /// becomes a `.list` data validation; the other controls (checkbox, stepper, slider, star rating) have no
+    /// place in the model and are reported — see `NumbersReader.table`.
     var controlID: Int?
     var extras: UInt16 = 0
 
@@ -136,6 +137,7 @@ struct CellStorage {
     static func encode(type: CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil, stringID: Int? = nil,
                        richID: Int? = nil, commentID: Int? = nil,
                        cellStyleID: Int? = nil, textStyleID: Int? = nil, conditionalStyleID: Int? = nil, formulaID: Int? = nil,
+                       controlID: Int? = nil,
                        numFormatID: Int? = nil, currencyFormatID: Int? = nil, dateFormatID: Int? = nil,
                        durationFormatID: Int? = nil, textFormatID: Int? = nil, boolFormatID: Int? = nil) -> Data {
         var flags = 0
@@ -152,6 +154,7 @@ struct CellStorage {
         if let textStyleID { flags |= 0x40; int32(textStyleID) }
         if let conditionalStyleID { flags |= 0x80; int32(conditionalStyleID) }
         if let formulaID { flags |= 0x200; int32(formulaID) }
+        if let controlID { flags |= 0x400; int32(controlID) }
         if let numFormatID { flags |= 0x2000; int32(numFormatID); extras |= 1 }
         if let currencyFormatID { flags |= 0x4000; int32(currencyFormatID); extras |= 2 }
         if let dateFormatID { flags |= 0x8000; int32(dateFormatID); extras |= 8 }

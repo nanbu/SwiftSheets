@@ -108,6 +108,18 @@ import SwiftSheets
         for r in 0..<300 { b[CellRef(row: r, col: 0)] = .integer(r) }
         big.sheets[0] = b
         out.append(("16-two-tiles", big))
+
+        var popup = Workbook()
+        var p = popup.sheets[0]
+        p.append([CellValue.text("fruit"), .text("count"), .text("entry")])
+        p.append([CellValue.text("apple"), .integer(2)])
+        p.dataValidations = [
+            .list("\"apple,banana,cherry\"", over: MultiCellRange("A2:A4")!),   // text menu, chosen and empty cells
+            .list("\"1,2,3\"", over: MultiCellRange("B2:B4")!),                 // numeric menu
+            .list("\"yes,no\"", over: MultiCellRange("C2:C4")!)                 // a menu on nothing but empty cells
+        ]
+        popup.sheets[0] = p
+        out.append(("17-popup-menus", popup))
         return out
     }
 
@@ -133,18 +145,19 @@ import SwiftSheets
         let url = Self.dir.deletingLastPathComponent().appending(path: "ground/kitchen-sink-by-numbers.numbers")
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let result = try NumbersCodec.read(try Data(contentsOf: url))
-        // Numbers turns the Excel list validation on B2:B9 into a pop-up menu — the substitution it makes for a
-        // rule it has no other word for. Our reader keeps the chosen value and reports the control, so the warning
-        // is expected here; asserting it is the record of what Numbers itself does with a data validation.
-        let controls = result.warnings.filter { $0.message.contains("carry a Numbers control") }
-        #expect(controls.count == 1, "\(result.warnings.map(\.message))")
-        #expect(controls.first?.sheet == "Data" && controls.first?.location == CellRef("B2"))
+        // Numbers turns the Excel list validation on B2:B9 into a pop-up menu — the same substitution our writer
+        // makes. The reader turns it back into a `.list` rule, so no control warning is expected any more;
+        // asserting the rule is the record of what Numbers itself does with a data validation.
+        let controls = result.warnings.filter { $0.message.contains("Numbers control") }
+        #expect(controls.isEmpty, "\(result.warnings.map(\.message))")
+        let rules = result.workbook.sheets["Data"]?.dataValidations ?? []
+        #expect(rules.count == 1 && rules.first?.kind == .list, "\(rules)")
+        #expect(rules.first?.formula1 == "\"A,B\"")
         // The remaining warnings are about the pivot table Numbers rendered for itself: its cells hold formulas
         // built out of category references and an unnamed spill function, which the model has no word for. The
         // values are kept, and the warning says which cells.
         let unexpected = result.warnings.filter {
             !$0.message.contains("337") && !$0.message.contains("CATEGORY_REF") && !$0.message.contains("could not be decoded")
-                && !$0.message.contains("carry a Numbers control")
         }
         #expect(unexpected.isEmpty, "\(unexpected.map(\.message))")
         let wb = result.workbook
