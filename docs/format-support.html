@@ -193,9 +193,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <text x="694" y="205" class="sv-t2" font-weight="700">17 / 46</text>
   <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
   <text x="590" y="260" class="sv-t2">リンク・メモ・セル内書式・結合</text>
-  <text x="590" y="282" class="sv-t2">条件付き書式・1 シートに複数の表</text>
+  <text x="590" y="282" class="sv-t2">条件付き書式・複数の表・集計表</text>
   <text x="590" y="312" class="sv-t3">通らない: 色の階調・データバー・</text>
-  <text x="590" y="332" class="sv-t3">入力規則・ピボット・印刷設定 …</text>
+  <text x="590" y="332" class="sv-t3">入力規則・印刷設定・定義名 …</text>
 </svg>
 <figcaption>青い帯が「そのまま通る範囲」。Numbers だけ帯が短いのは能力差ではなく、公開仕様が無いことの帰結です。</figcaption>
 </figure>
@@ -262,8 +262,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
     <strong>本物の Numbers の集計表</strong>として書きます（生きた要約で、Numbers が元の行から数え直します）。
     段は縦横それぞれ 1 つ・集計する値は 1 つまで。それを超える形は、これまでどおり落として言います。
     読み戻すときは普通の表になります。
-    <strong>かつてはここだけ Numbers 自身のほうが多く残していました</strong> — 同じ Excel ファイルを Numbers に直接読ませると、
-    集計後の値が並んだ表として入ります（実測・下記の掃引）。こちらを通すとその面は空のままです</td></tr>
+    <strong>かつてはここだけ Numbers 自身のほうが多く残していました</strong>が、2026-08-27 に埋まりました
+    （17 通りの見本を Numbers 15.3.1 に開かせ、書ける 15 個すべてが正しく描かれることを実測）</td></tr>
 <tr><td>シート保護</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>保護範囲（保護シート内の編集可能な窓）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
   <td>ODF は表全体を守り、その中に窓を持ちません</td></tr>
@@ -536,7 +536,7 @@ for warning in result.warnings {
 
 <p>
   さらに <code>WriteResult.suggestion</code> が「この内容なら別の形式のほうが損が少ない」と提案します。
-  たとえば条件付き書式とピボット表の入ったブックを Numbers に書こうとすると、xlsx か ods を勧めます。
+  たとえば色の階調の条件付き書式と入力規則の入ったブックを Numbers に書こうとすると、xlsx か ods を勧めます。
 </p>
 </section>
 
