@@ -7,7 +7,7 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.9.0] — 2026-08-28
 
 ### Added
 
