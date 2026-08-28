@@ -1,0 +1,56 @@
+# AGENTS.md — conventions for coding agents
+
+Rules for anyone (human or agent) changing this repository. This file points at the documents that own each rule;
+it does not replace them. Read the one that covers what you are about to touch:
+
+- [README.md](README.md) — what the library promises, the Limits table, formats and status.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — what is useful to send, the spec-first rule, the AI-assisted development bar.
+- [MAINTENANCE.md](MAINTENANCE.md) — keeping Numbers support current; **cutting a release** (version bump and tag
+  in one commit; the manual pre-release checklist).
+- [SECURITY.md](SECURITY.md) — handling untrusted files.
+- The implementation spec (Japanese, linked from the README) is revised **first**, then the code. A change that
+  contradicts it revises the spec in the same pull request.
+
+## Build and test
+
+```bash
+swift build
+swift test                          # full suite — definitive, run before calling anything done
+swift test --filter ODSCodecTests   # narrow while iterating
+```
+
+- Parity suites (`Tests/OpenpyxlParity`, `Tests/NumbersParity`) need Python packages (`openpyxl`,
+  `numbers-parser`) and are skipped without them. Run them if your change touches XLSX or Numbers.
+- Tests that depend on local tools or fixtures (LibreOffice, generated ground-truth documents) must skip
+  **visibly** via `.enabled(if:)` with a reason — never `guard … else { return }`, which counts a test that did
+  nothing as a pass.
+- Never skip, weaken, or delete a failing test to get green. If a test is wrong, say so and fix the test as its
+  own change, with the reason in the commit message.
+
+## The numeric floors (APIContractTests)
+
+Numbers in the README are checked by tests, not remembered:
+
+- **Version**: `SwiftSheetsInfo.version`, the README status line, the `from:` pin under Installation, and a
+  CHANGELOG section must all agree.
+- **Test count**: the README's "N+ tests" claim must equal the number of `@Test` declarations under `Tests/`,
+  rounded down to the nearest hundred.
+
+If `APIContractTests` goes red after your change, update the README or CHANGELOG to match reality — do not
+weaken the test.
+
+## The openpyxl parity ledger (Tests/OpenpyxlParity)
+
+openpyxl's test suite is the yardstick for XLSX behaviour. Every ported or adapted test carries a
+`// openpyxl: <file>::<test>` comment; `parity.json` records the status of every openpyxl test with a reason;
+`check.py` cross-checks the two and must exit 0. When you port, adapt, or remove such a test, update the ledger
+in the same change. Details in `Tests/OpenpyxlParity/README.md`.
+
+## Commits and releases
+
+- Conventional Commits (`feat:` `fix:` `docs:` `refactor:` `test:` `perf:` `chore:`), English, one logical
+  change per commit.
+- A release bumps the version and tags **that same commit** — the full procedure and the reasons are in
+  MAINTENANCE.md ("Cutting a release"). Never leave a bumped version untagged.
+- Warnings are part of the API: anything a format cannot carry is reported, never dropped silently. New
+  behaviour arrives with a test that fails without it.
