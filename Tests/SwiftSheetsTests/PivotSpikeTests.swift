@@ -18,8 +18,14 @@ import SwiftSheets
         .deletingLastPathComponent().deletingLastPathComponent()
         .appending(path: ".build/numbers-judge/ground/kitchen-sink-by-numbers.numbers")
 
-    @Test func roundTripsAPivotDocument() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    /// The measurements need artifacts no fresh clone carries — the ground truth Numbers saved, and documents
+    /// earlier tests in this suite write. Without them a test must **skip**, visibly, never pass having measured
+    /// nothing (the ODSCodecTests / LibreOffice precedent).
+    static var hasGround: Bool { FileManager.default.fileExists(atPath: ground.path) }
+    static func hasArtifact(_ name: String) -> Bool { FileManager.default.fileExists(atPath: dir.appending(path: name).path) }
+
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func roundTripsAPivotDocument() throws {
         let original = try Data(contentsOf: Self.ground)
         let doc = try NumbersDocument(data: original)
         let out = doc.encoded()
@@ -35,8 +41,8 @@ import SwiftSheets
 
     /// `agg_type` is a bare uint32 Apple left unnamed. One document per value, opened by Numbers, says what each
     /// number means — the same way the fourteen `predicate_type` values were read (Appendix B.18).
-    @Test func writesOneDocumentPerAggType() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesOneDocumentPerAggType() throws {
         let original = try Data(contentsOf: Self.ground)
         for n in 0...12 {
             let doc = try NumbersDocument(data: original)
@@ -58,8 +64,8 @@ import SwiftSheets
 
     /// The same sweep, but telling Numbers the **rules** changed: the three change tokens are re-minted and the
     /// group-by's cached accumulators are thrown away, so nothing is left for Numbers to believe but the rule.
-    @Test func writesOneDocumentPerAggTypeWithAFreshRule() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesOneDocumentPerAggTypeWithAFreshRule() throws {
         let original = try Data(contentsOf: Self.ground)
         for n in 0...12 {
             let doc = try NumbersDocument(data: original)
@@ -90,8 +96,8 @@ import SwiftSheets
     /// (Appendix B.18). If the same holds for a pivot, then a writer owes Numbers the *rules* and the source rows,
     /// and Numbers does the summing. The ground truth is stamped 15.3.1; here it is stamped as the template is,
     /// with every cached accumulation removed, so anything on screen has to have been recomputed.
-    @Test func asksWhetherAnOlderDocumentIsRecomputed() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func asksWhetherAnOlderDocumentIsRecomputed() throws {
         let templateDoc = try NumbersDocument(data: try Data(contentsOf: NumbersCodec.templateURL))
         guard let oldHistory = templateDoc.blob("Metadata/BuildVersionHistory.plist") else {
             print("SPIKE the template has no BuildVersionHistory"); return
@@ -111,8 +117,8 @@ import SwiftSheets
 
     /// The `agg_type` sweep, now in the arrangement Numbers actually recomputes: the template's version history,
     /// no cached accumulation, one document per value. What the caption says is what the number means.
-    @Test func writesTheAggTypeSweepThatIsRecomputed() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesTheAggTypeSweepThatIsRecomputed() throws {
         let templateDoc = try NumbersDocument(data: try Data(contentsOf: NumbersCodec.templateURL))
         guard let oldHistory = templateDoc.blob("Metadata/BuildVersionHistory.plist") else { return }
         for n in 0...12 {
@@ -139,8 +145,8 @@ import SwiftSheets
     /// tree, no cached accumulation, as a writer that has never summed anything would leave it — does Numbers
     /// build the pivot? Everything else in the document is the ground truth's, so a difference is this and
     /// nothing else.
-    @Test func writesAPivotWithNothingCached() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesAPivotWithNothingCached() throws {
         let templateDoc = try NumbersDocument(data: try Data(contentsOf: NumbersCodec.templateURL))
         let oldHistory = templateDoc.blob("Metadata/BuildVersionHistory.plist")
 
@@ -177,8 +183,8 @@ import SwiftSheets
     /// Does Numbers believe the group tree, or rebuild it? One label in the cached tree is renamed to a word the
     /// source does not contain — same length, so the bytes can be swapped without touching any framing. If the
     /// document shows `EAST`, the cache is what Numbers draws; if it shows `East`, Numbers rebuilt from source.
-    @Test func writesAPivotWhoseCachedLabelIsWrong() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesAPivotWhoseCachedLabelIsWrong() throws {
         let templateDoc = try NumbersDocument(data: try Data(contentsOf: NumbersCodec.templateURL))
         let oldHistory = templateDoc.blob("Metadata/BuildVersionHistory.plist")
         for (label, old) in [("liar-15", false), ("liar-old", true)] {
@@ -201,8 +207,8 @@ import SwiftSheets
 
     /// Which of the two cached things must be there for Numbers to rebuild the rest: the group tree, or the
     /// aggregators? One document drops each, on the old version stamp that makes Numbers recalculate.
-    @Test func writesAPivotMissingOneCachedPartAtATime() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesAPivotMissingOneCachedPartAtATime() throws {
         let templateDoc = try NumbersDocument(data: try Data(contentsOf: NumbersCodec.templateURL))
         guard let oldHistory = templateDoc.blob("Metadata/BuildVersionHistory.plist") else { return }
         for (label, drop) in [("noroot-old", ["group_node_root", "group_node_root_ref"]),
@@ -227,8 +233,8 @@ import SwiftSheets
     /// The tree has to be there. Does what is *in* it have to be right? One document keeps only the root node —
     /// no children, so none of the source's distinct values is named anywhere — and one keeps only its first
     /// child. If Numbers grows them back, a writer owes it a stump and no grouping of its own.
-    @Test func writesAPivotWhoseGroupTreeIsAStump() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func writesAPivotWhoseGroupTreeIsAStump() throws {
         let templateDoc = try NumbersDocument(data: try Data(contentsOf: NumbersCodec.templateURL))
         guard let oldHistory = templateDoc.blob("Metadata/BuildVersionHistory.plist") else { return }
         for (label, keepFirstChild) in [("stump-old", false), ("onechild-old", true)] {
@@ -323,9 +329,10 @@ import SwiftSheets
 
     /// SPIKE (B.19): the seventeen-pivot probe workbook, written as Numbers. One document, every aggregate
     /// function and every shape the model can ask for, so the judge sweeps them all in one open.
-    @Test func writesTheShapeProbeWorkbookAsNumbers() throws {
+    @Test(.enabled(if: PivotSpikeTests.hasArtifact("pivot-shapes.xlsx"),
+                   "pivot-shapes.xlsx has not been written yet — run writesTheShapeProbeWorkbook first"))
+    func writesTheShapeProbeWorkbookAsNumbers() throws {
         let xlsx = Self.dir.appending(path: "pivot-shapes.xlsx")
-        guard FileManager.default.fileExists(atPath: xlsx.path) else { return }
         let wb = try Workbook(data: try Data(contentsOf: xlsx))
         let result = try wb.write(as: .numbers)
         try result.data.write(to: Self.dir.appending(path: "shapes-all.numbers"))
@@ -423,10 +430,11 @@ import SwiftSheets
     /// Is our group tree the thing Numbers cannot read, or is the scaffolding around it? This puts **our** tree
     /// into the document that works — the trees name no column, only values and row numbers, so they transplant —
     /// and asks. If the ground truth still computes, the tree is sound and the fault is everything else.
-    @Test func transplantsOurTreeIntoTheDocumentThatWorks() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"),
+          .enabled(if: PivotSpikeTests.hasArtifact("ours-pivot.numbers"),
+                   "ours-pivot.numbers has not been written yet — run writesAPivotOfOurOwn first"))
+    func transplantsOurTreeIntoTheDocumentThatWorks() throws {
         let ours = Self.dir.appending(path: "ours-pivot.numbers")
-        guard FileManager.default.fileExists(atPath: ours.path) else { return }
         let ourDoc = try NumbersDocument(data: try Data(contentsOf: ours))
         var ourRoots: [ProtoMessage] = []
         for g in ourDoc.identifiers(ofType: "TST.GroupByArchive") {
@@ -459,8 +467,8 @@ import SwiftSheets
 
     /// The control the transplant needs: the ground truth's **own** tree, taken out and put straight back through
     /// the same re-encoding. If this breaks too, the fault is in how we write a tree, not in what is in ours.
-    @Test func transplantsTheGroundTruthsOwnTreeBackIntoItself() throws {
-        guard FileManager.default.fileExists(atPath: Self.ground.path) else { return }
+    @Test(.enabled(if: PivotSpikeTests.hasGround, "the Numbers ground truth is not at \(PivotSpikeTests.ground.path)"))
+    func transplantsTheGroundTruthsOwnTreeBackIntoItself() throws {
         let doc = try NumbersDocument(data: try Data(contentsOf: Self.ground))
         guard let info = doc.identifiers(ofType: "TST.TableInfoArchive").first(where: { doc.object($0)?.bool("is_a_pivot_table") == true }),
               let sourceModel = doc.object(info)?.reference("pivot_data_model"),
