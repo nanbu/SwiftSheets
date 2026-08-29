@@ -7,6 +7,19 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **Excel itself now judges sheet protection** (spec Appendix B.31). The modern SHA-512 password shipped in
+  0.9.0 was verified against an independent Python implementation; it has now been verified against the
+  application that has to accept it. `Tests/ExcelParity/verify_with_excel_app.py` drives Microsoft Excel
+  (16.112.2) over AppleScript and reads each document's state: protected on open, **still protected after a
+  wrong password**, unlocked after the right one. Three probes pass — an ASCII password, a Japanese one (the
+  UTF-16LE path) and one on the workbook's structure — each carrying the modern hash alone, so no pass can be
+  credited to the legacy sixteen-bit hash. No library code changed; this is the measurement the appendix was
+  waiting for.
+
 ## [0.10.0] — 2026-08-28
 
 ### Added

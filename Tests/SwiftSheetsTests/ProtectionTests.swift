@@ -108,6 +108,40 @@ import SwiftSheets
         #expect(again.sheets[0].protectedRanges.first?.modernPasswordMatches("range") == true)
     }
 
+    /// The probe workbooks the real-Excel judge opens (`Tests/ExcelParity/verify_with_excel_app.py`, spec
+    /// Appendix B.31). Each carries the **modern hash only** — a legacy `password=` alongside it would leave the
+    /// judge unable to say which of the two Excel actually checked.
+    @Test func writesTheProtectionProbeWorkbooks() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swiftsheets-protection-\(ProcessInfo.processInfo.processIdentifier)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        func sheetProbe(_ name: String, password: String, text: String) throws {
+            var wb = Workbook()
+            wb.sheets[0].name = "Locked"
+            wb.sheets[0]["A1"] = CellValue.text(text)
+            var p = SheetProtection.on
+            p.setModernPassword(password)                    // default spin count: what Excel itself writes
+            wb.sheets[0].protection = p
+            let data = try wb.data(as: .xlsx)
+            let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
+            #expect(xml.contains("algorithmName=\"SHA-512\"") && !xml.contains(" password=\""),
+                    "the probe must carry the modern hash and no legacy one")
+            try data.write(to: dir.appendingPathComponent(name))
+        }
+        try sheetProbe("protect-ascii.xlsx", password: "secret", text: "この用紙は保護されています")
+        try sheetProbe("protect-japanese.xlsx", password: "秘密", text: "合言葉は日本語")
+
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = CellValue.text("ブックの構造が保護されています")
+        wb.protection.lockStructure = true
+        wb.protection.setModernPassword("book")
+        let data = try wb.data(as: .xlsx)
+        let xml = try Package.part("xl/workbook.xml", of: data)
+        #expect(xml.contains("workbookAlgorithmName=\"SHA-512\"") && !xml.contains("workbookPassword=\""))
+        try data.write(to: dir.appendingPathComponent("protect-workbook.xlsx"))
+    }
+
     /// A sheet with no protection writes no element.
     @Test func noProtectionNoElement() throws {
         var wb = Workbook()

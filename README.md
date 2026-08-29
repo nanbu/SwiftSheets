@@ -288,6 +288,7 @@ python3 Tests/OpenpyxlParity/check.py                                      # led
 python3 Tests/OpenpyxlParity/verify_with_openpyxl.py                       # SwiftSheets ⇄ openpyxl round trips (needs openpyxl)
 python3 Tests/NumbersParity/dump_with_numbers_parser.py                    # refresh <fixture>.expected.json from numbers-parser
 python3 Tests/NumbersParity/verify_with_numbers_parser.py                  # numbers-parser reads what SwiftSheets wrote
+python3 Tests/ExcelParity/verify_with_excel_app.py                         # Excel itself unlocks what SwiftSheets locked (Appendix B.31)
 python3 scripts/extract-numbers-schema.py                                 # regenerate the Numbers schema resources from numbers-parser
 /Applications/LibreOffice.app/Contents/MacOS/soffice --headless --convert-to pdf out.xlsx   # the machine judge for "opens cleanly"
 ```

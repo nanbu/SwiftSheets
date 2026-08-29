@@ -21,6 +21,9 @@ swift test --filter ODSCodecTests   # narrow while iterating
 
 - Parity suites (`Tests/OpenpyxlParity`, `Tests/NumbersParity`) need Python packages (`openpyxl`,
   `numbers-parser`) and are skipped without them. Run them if your change touches XLSX or Numbers.
+- `Tests/ExcelParity/verify_with_excel_app.py` drives Microsoft Excel itself over AppleScript to check sheet
+  protection (Appendix B.31). It needs Excel, an unlocked screen and Automation permission, and reports
+  "cannot judge" rather than a failure when it lacks them.
 - Tests that depend on local tools or fixtures (LibreOffice, generated ground-truth documents) must skip
   **visibly** via `.enabled(if:)` with a reason — never `guard … else { return }`, which counts a test that did
   nothing as a pass.

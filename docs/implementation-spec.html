@@ -1874,6 +1874,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.2 Draft</td><td>2026-08-28</td><td><strong>画像をマスに置く</strong> API を実装し付録 B.32 に記録（採用計画の第 2 段）。<code>SheetImage</code>（PNG / JPEG / GIF をバイトから判定・縦横をヘッダから読む）＋ <code>addImage(_:at:sizing:)</code> / <code>addImage(_:over:)</code>（原寸・fitCell・resizeCellToFit・範囲張り）。書き出しは 2 経路 — 絵の紙が無ければ一式生成、あれば既存の紙の末尾へ錨だけ追記（既存部分は byte のまま・rId は最大値の次から・名前空間は錨が自前で宣言）。F3 は「画像を足した紙は追記・他は byte 一致」に細分化。ODS / Numbers / CSV へは枚数を数えて落として言う。出自は XLKit と XlsxReaderWriter（MIT）。審判は openpyxl</td></tr>
     <tr><td>4.3 Draft</td><td>2026-08-28</td><td><strong>列幅の自動調整</strong>を実装し付録 B.33 に記録（採用計画の第 3 段）。XlsxWriter（BSD-2）の autofit と CHAR_WIDTHS（Calibri 11 実測・ASCII 95 文字）を翻訳。文字は表引きの合算・数値は桁 × 7 px・TRUE 31 / FALSE 36・余白 7 px・フィルタ列 +16 px・上限 255 文字・手で広げた列は広がる方向のみ。逸脱 1 つ: 非 ASCII 一律 8 px の出典に対し東アジア全角域は 16 px とした</td></tr>
     <tr><td>4.4 Draft</td><td>2026-08-28</td><td><strong>グラフを作る</strong>を実装し付録 B.34 に記録（採用計画の最終段）。縦棒・横棒・折れ線・円の 4 種。<code>Chart</code> / <code>addSeries</code> / <code>addChart(_:over:)</code>。chart 部品＋graphicFrame 錨で書き、紙の扱いは B.32 の機構を共有（無ければ生成・あれば追記・採番は最大値の次）。範囲はシート名で修飾し絶対参照へ。円は軸なし。他形式は数えて落とす。構造の参考は libxlsxwriter chart.c（BSD-2・コードは写していない）。審判は openpyxl（型・系列・参照・表題）と LibreOffice</td></tr>
+    <tr><td>4.5 Draft</td><td>2026-08-29</td><td>計測のみ。<strong>B.31 の保護の鍵を実機の Excel（16.112.2）が開錠した</strong>——付録 B.31 の検証欄を更新。審判 <code>Tests/ExcelParity/verify_with_excel_app.py</code> を新設し、AppleScript で Excel を駆動して「保護されている／誤った合言葉では解けない／正しい合言葉で解ける」を状態で読む。検体は ASCII・日本語（UTF-16LE の経路）・ブック構造の 3 つで、いずれも新方式の鍵のみ。実測で分かった 2 点を仕様書に固定した: Excel は誤った合言葉をエラーで断らず黙って解かないだけであること、<code>unprotect</code> は解除済みに対して何もしないので誤った合言葉を先に試す順序でなければ偽合格すること。ProtectedRange は実機で試す手立てがなく対象外</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4249,11 +4250,34 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     （<code>AAECAwQFBgcICQoLDA0ODw==</code> = 00…0F の 16 バイト）で作った既知解 3 本
     （"secret"×spinCount 10・"secret"×100,000・"秘密"×100,000 — 非 ASCII の UTF-16LE 経路を含む）を
     テストに釘打つ。往復（書いて読み戻して 4 属性一致）と照合の成否、旧方式の不変も見る。
-    <strong>実機 Excel での開錠確認は未実施</strong>。LibreOffice を審判に立てる試み
-    （保護つき ODS を変換させて LO 自身の SHA-512 を検体に採る）は、LO が平文を知らないため
-    鍵を作り直せず落とすと判明して不成立。UNO 経由で平文から掛けさせる試みも 3 回で断念
-    （同梱 Python の包みがスクリプトを実行しない）。実機の Excel か Numbers での開錠が
-    確認できたら、この欄を更新する。
+    <strong>2026-08-29、実機の Excel が開錠した</strong>（Microsoft Excel 16.112.2）。
+    審判は <code>Tests/ExcelParity/verify_with_excel_app.py</code>——目視ではなく AppleScript で
+    Excel を駆動し、検体 3 つそれぞれについて「開いた直後は保護されている」「<strong>誤った合言葉では
+    解けない</strong>」「正しい合言葉で解ける」の 3 点を状態で読む。3 つは
+    ASCII の合言葉・<strong>日本語の合言葉</strong>（UTF-16LE の経路）・<strong>ブック構造の保護</strong>
+    （属性名が違う別経路）で、いずれも<strong>新方式の鍵だけ</strong>を持たせた——旧方式の 4 桁を
+    併記すると、Excel がどちらを見たのか言えなくなるからである。3 検体とも合格。
+    これで反復番号の位置（付ける側か前置か）まで含めて実装が Excel と一致していることが確定した。
+  </p>
+  <p>
+    <strong>誤った合言葉を先に試す順序には理由がある</strong>: <code>unprotect</code> は解除済みの
+    シートに対しては何もしない。正しい方を先に通してしまうと、後から試す誤った合言葉も
+    「エラーにならない」ので、どんな合言葉でも受かる実装が合格してしまう。
+    そしてもう一つ実測で分かったこと——<strong>Excel は誤った合言葉をエラーで断らない</strong>。
+    何も言わずに戻り、保護を解かないだけである。だから判定は例外の有無ではなく状態を読む。
+    <code>ProtectedRange</code>（保護シートの中の編集できる窓）だけは、実機で開錠を試す
+    素直な手立てがないため対象外とした。
+  </p>
+  <p>
+    到達までの空振りも記録しておく。LibreOffice を審判に立てる試み（保護つき ODS を変換させて
+    LO 自身の SHA-512 を検体に採る）は、LO が平文を知らないため鍵を作り直せず落とすと判明して不成立。
+    UNO 経由で平文から掛けさせる試みも、同梱 Python の包みがスクリプトを実行せず断念した。
+    実機 Excel を駆動する側でも 3 つ躓いた（いずれも審判スクリプトの冒頭に作法として書いてある）:
+    AppleScript の <code>open POSIX file</code> はサンドボックスのファイル選択ダイアログを呼んで
+    Excel を黙らせる（<code>open -a</code> なら LaunchServices がそのファイルだけを渡す）、
+    強制終了はマイクロソフトのエラー報告ダイアログというもう一枚の障壁を生む
+    （<code>quit saving no</code> だけを使う）、書類が 1 つも開いていない Excel は
+    テンプレート選択画面を出していて、これも Apple event に答えない。
   </p>
 
   <h3>B.32 画像をマスに置く — 採用計画の第 2 段（Rev 4.2）</h3>
@@ -4386,8 +4410,8 @@ sheet.addChart(chart, over: <span class="st">"D2:K16"</span>)     <span class="c
     参照の文字列・表題が一致すること。LibreOffice の PDF 変換が通ること。
     グラフ入り fixture への追記で既存のグラフと画像が byte のまま残ること。2 回目の保存の byte 一致。
     <strong>実機 Excel でも確認済み</strong>——保守者が 2026-08-28、4 種入りの書き出しファイルを
-    実機の Excel（読み取り専用ライセンス）で開き、問題ないことを確認した。
-    B.31 の保護の鍵の<strong>開錠</strong>だけは据え置き（開錠の試行には編集できる Excel が要る）。
+    実機の Excel で開き、問題ないことを確認した（B.31 の保護の鍵の開錠も 2026-08-29 に実機で確認され、
+    採用計画の 4 段はすべて実機まで届いた）。
   </p>
 
 </section>
