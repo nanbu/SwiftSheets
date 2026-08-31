@@ -1,0 +1,8 @@
+// zlib is on every machine this library runs on: Apple's SDKs carry it and so does every Linux
+// distribution. Mapping it in costs no package dependency — SwiftPM resolves nothing for this target,
+// it only tells the compiler where the header is and that `libz` must be linked.
+module CZlib [system] {
+    header "shim.h"
+    link "z"
+    export *
+}

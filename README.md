@@ -7,7 +7,9 @@
 
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
 workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
-as they went in. Foundation + the Compression and CryptoKit frameworks only; no external dependencies. **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+ (Apple platforms only — see [Limits](#limits)).
+as they went in. Foundation only; no package dependencies — bytes are folded by whichever DEFLATE the machine already
+has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+; the Linux
+build is new and its CI judge has not ruled yet — see [Limits](#limits).
 
 The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
 (Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
@@ -65,7 +67,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Cell budget | A read stops at `ReadOptions.cellLimit` cells (default 1,000,000) and says so. ODS run-length compression can otherwise describe seventeen billion cells in a kilobyte of XML. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | ZIP64 | Not supported: packages over 4 GB, or with more than 65,535 parts, are reported as `corruptedContainer`. |
-| Apple platforms only | The ZIP layer uses Apple's Compression framework, so there is no Linux or visionOS build today (the spec's §1.1 goal; recorded as a deviation in Appendix B.1). |
+| Linux, not yet claimed | Nothing Apple-only is left in the library: DEFLATE comes from the system zlib where Apple's Compression framework is absent, and SHA-512 is written out rather than taken from CryptoKit. The whole suite passes over the zlib route on macOS, and a Linux CI job is in place — but until that job has run green, Linux is supported in the code and unproven in fact, so the badge above still says Apple only (spec §1.1; Appendix B.1). |
 | Encrypted files | Not decrypted. A password-protected package is recognised for what it is and throws `unsupportedFeature`, not `corruptedContainer` — as does a legacy `.xls`, which is a different format, not a broken one. |
 
 ## Formats

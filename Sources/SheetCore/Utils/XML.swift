@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML   // where Foundation is split, the XML parser lives in its own module
+#endif
 
 /// OOXML's `_xHHHH_` escaping for control characters (openpyxl.utils.escape). Mirrors the reference exactly: `escape`
 /// encodes U+0001…U+0019, `unescape` decodes any `_xHHHH_`.

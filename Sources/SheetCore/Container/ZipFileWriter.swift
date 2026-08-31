@@ -1,5 +1,4 @@
 import Foundation
-import Compression
 
 /// A ZIP writer that puts its bytes straight into a file, one chunk at a time.
 ///
@@ -29,8 +28,7 @@ package final class ZipFileWriter {
     private var currentUncompressed = 0
     private var currentCompressed = 0
     private var crc = CRC32.Running()
-    private var stream: UnsafeMutablePointer<compression_stream>?
-    private var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+    private var encoder: DeflateEncoder?
 
     package init(url: URL) throws {
         FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -65,59 +63,24 @@ package final class ZipFileWriter {
         header.append(contentsOf: nameBytes)
         try append(header)
 
-        let s = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
-        guard compression_stream_init(s, COMPRESSION_STREAM_ENCODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_OK else {
-            s.deallocate()
-            throw SheetError.ioFailure(detail: "cannot start the compressor")
-        }
-        s.pointee.src_size = 0
-        stream = s
+        encoder = try DeflateEncoder()
     }
 
     package func write(_ data: Data) throws {
-        guard currentName != nil, let s = stream else { return }
+        guard currentName != nil, let encoder else { return }
         guard !data.isEmpty else { return }
         currentUncompressed += data.count
         crc.update(data)
-        var produced = Data()
-        try data.withUnsafeBytes { raw in
-            let base = raw.bindMemory(to: UInt8.self).baseAddress!
-            s.pointee.src_ptr = base
-            s.pointee.src_size = data.count
-            while s.pointee.src_size > 0 {
-                try buffer.withUnsafeMutableBufferPointer { out in
-                    s.pointee.dst_ptr = out.baseAddress!
-                    s.pointee.dst_size = out.count
-                    let status = compression_stream_process(s, 0)
-                    guard status != COMPRESSION_STATUS_ERROR else { throw SheetError.ioFailure(detail: "compression failed") }
-                    let written = out.count - s.pointee.dst_size
-                    if written > 0 { produced.append(out.baseAddress!, count: written) }
-                }
-            }
-        }
+        let produced = try encoder.encode(data)
         if !produced.isEmpty { currentCompressed += produced.count; try append(produced) }
     }
 
     package func write(_ text: String) throws { try write(Data(text.utf8)) }
 
     package func endEntry() throws {
-        guard let nameBytes = currentName, let s = stream else { return }
-        var produced = Data()
-        s.pointee.src_size = 0
-        var status = COMPRESSION_STATUS_OK
-        repeat {
-            try buffer.withUnsafeMutableBufferPointer { out in
-                s.pointee.dst_ptr = out.baseAddress!
-                s.pointee.dst_size = out.count
-                status = compression_stream_process(s, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
-                guard status != COMPRESSION_STATUS_ERROR else { throw SheetError.ioFailure(detail: "compression failed") }
-                let written = out.count - s.pointee.dst_size
-                if written > 0 { produced.append(out.baseAddress!, count: written) }
-            }
-        } while status == COMPRESSION_STATUS_OK
-        compression_stream_destroy(s)
-        s.deallocate()
-        stream = nil
+        guard let nameBytes = currentName, let encoder else { return }
+        let produced = try encoder.finish()
+        self.encoder = nil
         if !produced.isEmpty { currentCompressed += produced.count; try append(produced) }
 
         // stamp the sizes into the local header now that they are known
@@ -159,7 +122,8 @@ package final class ZipFileWriter {
 
     /// Abandons the archive — for a writer that is thrown away without being closed.
     package func abandon() {
-        if let s = stream { compression_stream_destroy(s); s.deallocate(); stream = nil }
+        encoder?.cancel()
+        encoder = nil
         try? handle.close()
     }
 

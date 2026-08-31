@@ -7,6 +7,20 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **Nothing Apple-only is left in the library** (spec Appendix B.38). DEFLATE — ZIP's method 8 — now goes through
+  one seam, `Deflate`, with two implementations behind it: Apple's Compression framework where it exists, and the
+  system zlib otherwise (`Sources/CZlib` is a module map over the `zlib.h` that is already on the machine; SwiftPM
+  resolves nothing new). SHA-512, which sheet protection needs, is written out in `SheetCore` rather than taken from
+  CryptoKit — Excel's default hundred thousand iterations cost 0.29 s in a release build, and the digests are checked
+  against FIPS 180-4's published vectors and against CryptoKit itself. `XMLParser` is imported from `FoundationXML`
+  where Foundation is split. The ZIP container code itself is unchanged.
+- CI runs the whole suite twice on macOS — once over each DEFLATE — and a Linux job has been added. **Linux is not
+  claimed yet**: the code no longer stands in its way, but the badge and the README wait for that job to run green.
+
 ## [0.11.1] — 2026-08-31
 
 ### Fixed

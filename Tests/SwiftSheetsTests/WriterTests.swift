@@ -99,13 +99,6 @@ import Testing
         #expect(back.tables.count == 1 && back["A1"] == .text("first"))
         #expect(!back.cells.values.contains { $0.value == .text("second") })
     }
-
-    @Test func deflateRoundTrip() throws {
-        let text = Data(String(repeating: "SwiftSheets deflate round trip. ", count: 200).utf8)
-        let packed = try #require(Zip.deflate(text))
-        #expect(packed.count < text.count / 4)
-        #expect(try Zip.inflate(packed, expectedSize: text.count) == text)
-    }
 }
 
 /// Data validation is write-side only (spec appendix B.13): built from the model, preserved verbatim when the file

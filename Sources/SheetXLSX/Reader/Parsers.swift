@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML   // where Foundation is split, the XML parser lives in its own module
+#endif
 import SheetCore
 
 final class RelsParser: SAXHandler {

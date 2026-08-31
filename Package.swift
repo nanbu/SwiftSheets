@@ -2,7 +2,9 @@
 import PackageDescription
 
 // SwiftSheets — a pure Swift spreadsheet library with one format-neutral model (SheetCore) and one codec per file
-// format. Foundation + the Compression and CryptoKit frameworks only; no external dependencies.
+// format. Foundation only; no package dependencies. Bytes are folded by whichever DEFLATE the machine already has —
+// Apple's Compression framework where it exists, the system zlib otherwise (CZlib below maps the header, it resolves
+// nothing).
 //
 //   SheetCore   model, styles, formula AST, codec contract, ZIP / XML plumbing, CSV options   (no dependencies)
 //   SheetXLSX   .xlsx / .xlsm codec (ECMA-376 SpreadsheetML) with round-trip preservation
@@ -27,7 +29,11 @@ let package = Package(
         .library(name: "SwiftSheets", targets: ["SwiftSheets"])
     ],
     targets: [
-        .target(name: "SheetCore"),
+        // Not a dependency in the SwiftPM sense: zlib ships with every Apple SDK and every Linux distribution, and
+        // this target is a module map over the header that is already there. It is what `Deflate` falls back to
+        // where Apple's Compression framework does not exist.
+        .systemLibrary(name: "CZlib", path: "Sources/CZlib"),
+        .target(name: "SheetCore", dependencies: ["CZlib"]),
         .target(name: "SheetXLSX", dependencies: ["SheetCore"]),
         .target(name: "SheetCSV", dependencies: ["SheetCore"]),
         .target(name: "SheetODS", dependencies: ["SheetCore"]),

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   test:
-    name: build and test
+    name: build and test (macOS)
     # macOS 26 ships Xcode 26 by default, which is where Swift 6.2 (the package's tools version) lives.
     runs-on: macos-26
     steps:
@@ -35,5 +35,37 @@ jobs:
 
       # The suites that need LibreOffice, Numbers.app, or a Python with openpyxl / numbers-parser
       # skip themselves when those are absent (`.enabled(if:)`), so a bare runner is enough.
+      - name: Test
+        run: swift test --skip-build
+
+      # The same suite again over the other DEFLATE. macOS has both toolboxes, so the zlib route can be put
+      # under every round trip here — the Linux job would catch a break in it too, but this one catches it
+      # without waiting on a second machine, and it fails for one reason only.
+      - name: Test the zlib route
+        run: swift test -Xswiftc -DSWIFTSHEETS_ZLIB
+
+  linux:
+    name: build and test (Linux)
+    # The judge for the half of the library that is not Apple's: Foundation is a different implementation here,
+    # and DEFLATE comes from the system zlib rather than Apple's Compression framework. A green macOS run says
+    # nothing about either, which is why this job exists rather than a line in the README.
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: swift --version
+
+      # zlib is what `Deflate` folds bytes with here. The runtime library is already installed; the header is
+      # what a build needs, and the Swift image does not promise to carry it.
+      - name: zlib headers
+        run: apt-get update && apt-get install -y --no-install-recommends zlib1g-dev
+
+      - name: Build
+        run: swift build --build-tests
+
+      # Same as macOS: the suites that need LibreOffice, Numbers.app or a Python with openpyxl / numbers-parser
+      # skip themselves visibly when those are absent.
       - name: Test
         run: swift test --skip-build
