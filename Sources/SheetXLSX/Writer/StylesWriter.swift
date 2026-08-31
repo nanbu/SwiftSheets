@@ -325,11 +325,16 @@ final class StyleRegistry {
         }
         sections["cellXfs"] = xfXML + "</cellXfs>"
         let styleList = namedStyles.isEmpty ? [NamedStyle.normal] : namedStyles
-        sections["cellStyles"] = "<cellStyles count=\"\(styleList.count)\">" + styleList.map { named in
-            "<cellStyle name=\"\(XML.esc(named.name))\" xfId=\"\(xfIDOfName[named.name] ?? 0)\""
-                + (named.builtinID.map { " builtinId=\"\($0)\"" } ?? "")
-                + (named.hidden ? " hidden=\"1\"" : "") + "/>"
-        }.joined() + "</cellStyles>"
+        // one statement at a time rather than one expression: the same concatenation written inline is more
+        // than some toolchains will type-check
+        var cellStyles = "<cellStyles count=\"\(styleList.count)\">"
+        for named in styleList {
+            cellStyles += "<cellStyle name=\"\(XML.esc(named.name))\" xfId=\"\(xfIDOfName[named.name] ?? 0)\""
+            if let builtin = named.builtinID { cellStyles += " builtinId=\"\(builtin)\"" }
+            if named.hidden { cellStyles += " hidden=\"1\"" }
+            cellStyles += "/>"
+        }
+        sections["cellStyles"] = cellStyles + "</cellStyles>"
         if !dxfs.isEmpty { sections["dxfs"] = "<dxfs count=\"\(dxfs.count)\">" + dxfXML.joined() + "</dxfs>" }
         if !indexedColors.isEmpty {
             sections["colors"] = "<colors><indexedColors>" + indexedColors.map { "<rgbColor rgb=\"\(XML.esc($0))\"/>" }.joined() + "</indexedColors></colors>"
