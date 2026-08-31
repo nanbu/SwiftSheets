@@ -1,4 +1,4 @@
-# 形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応
+﻿# 形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応
 # 生成物。scripts/spec-feature-matrix.json を直して
 # scripts/build-spec-feature-matrix.py を走らせること（手で編集しない）。
 meta:

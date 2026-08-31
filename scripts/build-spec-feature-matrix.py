@@ -51,6 +51,15 @@ def q(s):
     return json.dumps(s, ensure_ascii=False)
 
 
+# UTF-8 の印（BOM）を YAML の先頭に置く。理由は表示側にある: HTML なら <meta charset> で名乗れるが、
+# HTML でないテキストには名乗る場所が無く、ブラウザはサーバーの Content-Type を見る。GitHub Pages は
+# .yaml を「text/yaml」（文字コードの指定なし）で返すので、ブラウザは Latin-1 と推測し、日本語が化ける。
+# 先頭の BOM があればブラウザは UTF-8 と判定する。YAML 1.2 は先頭の BOM を明示的に許しており
+# （§5.2 Character Encodings）、libyaml 系の実装は読み飛ばす（Ruby/Psych で確認済み）。
+# **消さないこと** — 消すと公開ページから開いた読み手には文字化けして見える。
+BOM = "\ufeff"
+
+
 def emit_yaml(d):
     meta, out = d["meta"], []
     w = out.append
@@ -108,7 +117,7 @@ def emit_yaml(d):
                 w("            warning: %s" % (q(r["warning"]) if r["warning"] else "null"))
                 w("            evidence: %s" % q(r["evidence"]))
                 w("            note: %s" % (q(r["note"]) if r["note"] else "null"))
-    return "\n".join(out) + "\n"
+    return BOM + "\n".join(out) + "\n"
 
 
 # ------------------------------------------------------------------ HTML
@@ -301,9 +310,10 @@ def emit_html(d):
     w("<p>表を直すときは <code>scripts/spec-feature-matrix.json</code> を直し、"
       "<code>python3 scripts/build-spec-feature-matrix.py</code> を走らせてください。"
       "この HTML と <a href=\"spec-feature-matrix.yaml\">同じ内容の YAML</a> は生成物です。</p>")
-    w("<p class=\"meta\">YAML はブラウザで直接開くと日本語が化けて見えます — 中身は UTF-8 ですが、"
-      "GitHub Pages が <code>text/yaml</code> を文字コードなしで返すためです。"
-      "保存してから開くか、<code>curl</code> やプログラムから読めば正しく読めます。</p>")
+    w("<p class=\"meta\">YAML の先頭には UTF-8 の印（BOM）が入っています。HTML と違って文字コードを"
+      "名乗る場所が無く、GitHub Pages は <code>text/yaml</code> を文字コードなしで返すため、"
+      "印が無いとブラウザが日本語を化けさせるからです。YAML 1.2 が先頭の印を認めているので、"
+      "読み込む側は今までどおりで構いません。</p>")
     w("</section>")
 
     w("<footer>")
