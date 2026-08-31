@@ -11,6 +11,18 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Fixed
 
+- **A Numbers form is no longer dropped in silence** (spec Appendix B.36). A form is Numbers' data-entry view —
+  built on an iPhone or an iPad, sitting in the tab bar beside the sheets, and filling in a table that already
+  exists somewhere else. The reader kept only the tabs whose archive was a plain sheet and passed over everything
+  else without a word, so a two-tab document came back as one sheet and no warning. The form is still not turned
+  into a sheet — it holds no values of its own, and an empty sheet in the model is a lie the writer would copy —
+  but it is now reported, naming **the form and the table typing into it fills in**, so a reader knows both what
+  went and what did not. A tab of any other kind is named by its archive type on the same path.
+  The fixture (`Fixtures/numbers/form-15.numbers`) is the maintainer's own, made on an iPhone: a form cannot be
+  made on a Mac, and this project does not invent specimens.
+  **The feature matrix now has no `unverified` rows** — all 191 are backed by a measurement or by the code.
+
+
 - **The published documents no longer keep their numbers by remembering** — three had already drifted.
   `docs/format-support.html` and `docs/interoperability.html` still named SwiftSheets **0.7.2** in their titles,
   three releases behind; `docs/index.html` said the format support table covers 47 features when it covers 48;

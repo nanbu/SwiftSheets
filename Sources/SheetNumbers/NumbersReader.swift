@@ -28,7 +28,8 @@ struct NumbersReader {
         wb.preserved.sourceFormat = .numbers
         if let engine = doc.identifiers(ofType: "TSCE.CalculationEngineArchive").first, doc.object(engine)?.bool("base_date_1904") == true { wb.epoch = .mac1904 }
 
-        let sheetIDs = document.references("sheets").filter { doc.typeName($0) == "TN.SheetArchive" }
+        let allSheetIDs = document.references("sheets")
+        let sheetIDs = allSheetIDs.filter { doc.typeName($0) == "TN.SheetArchive" }
         // name every table first so cross-table references can be rendered
         for sid in sheetIDs {
             let sheetName = doc.object(sid)?.string("name") ?? "Sheet"
@@ -45,6 +46,28 @@ struct NumbersReader {
             guard let f = doc.object(fid), let owner = NumbersUUID.hex(f.message("formula_owner_uid")), let base = NumbersUUID.hex(f.message("base_owner_uid")),
                   let name = tableUUIDToName[owner] else { continue }
             tableUUIDToName[base] = name
+        }
+
+        // A tab in Numbers is not always a sheet of cells. A **form** — built on iPhone or iPad — is a
+        // data-entry view of a table that already exists on another tab, so it holds no values of its own; it is
+        // omitted rather than turned into an empty sheet, which would be a lie the writer would then copy. What is
+        // not omitted is the telling: until this was added, the filter above dropped the tab without a word
+        // (spec Appendix B.36).
+        for sid in allSheetIDs where !sheetIDs.contains(sid) {
+            guard let archive = doc.object(sid) else { continue }
+            let kind = doc.typeName(sid) ?? "an unknown kind of sheet"
+            let name = archive.message("super")?.string("name") ?? archive.string("name") ?? "?"
+            if kind == "TN.FormBasedSheetArchive" {
+                let feeds = NumbersUUID.hex(archive.message("table_id")).flatMap { tableUUIDToName[$0] }
+                warnings.append(ConversionWarning(.dropped, subject: .sheets,
+                                                  message: "the form \"\(name)\" is dropped: a Numbers form is a way of typing into "
+                                                  + (feeds.map { "the table \($0)" } ?? "a table")
+                                                  + ", not a sheet of its own, and the model has no word for it — "
+                                                  + "the table it fills in is read as usual"))
+            } else {
+                warnings.append(ConversionWarning(.dropped, subject: .sheets,
+                                                  message: "the tab \"\(name)\" is dropped: it is a \(kind), which the model has no word for"))
+            }
         }
 
         var sheets: [Sheet] = []

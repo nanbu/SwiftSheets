@@ -1633,8 +1633,8 @@ formats:
       public: false
       note: "Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。"
     totals:
-      read: {full: 21, partial: 11, preserved: 0, none: 9, na: 15, unverified: 1}
-      write: {full: 18, partial: 8, preserved: 0, none: 27, na: 3, unverified: 1}
+      read: {full: 21, partial: 11, preserved: 0, none: 10, na: 15, unverified: 0}
+      write: {full: 18, partial: 8, preserved: 0, none: 28, na: 3, unverified: 0}
       rows: 57
     areas:
       - id: "package"
@@ -1749,14 +1749,15 @@ formats:
             evidence: "code"
             note: "保管庫の型としては実在するが、モデルに写す先が無い。読み書きの対象にしていない。"
           - id: "num.sheet.form"
-            name: "入力フォーム（iPhone / iPad のフォーム）"
+            name: "入力フォーム（iPhone / iPad で作るデータ入力用のタブ）"
             spec_anchor: "TN.FormBasedSheetArchive"
-            read: "unverified"
-            write: "unverified"
-            api: []
-            warning: "未確認"
-            evidence: "code"
-            note: "型は書類の名簿に実在するが、コーデックは触っていない。フォームを含む書類の検体が無く、実測していないので未検証のままにする。"
+            read: "none"
+            write: "none"
+            api:
+              - "wb.readWarnings"
+            warning: "「the form \"<名前>\" is dropped: a Numbers form is a way of typing into the table <表>, not a sheet of its own …」——フォームの名前と、それが書き込む先の表の名前を挙げる"
+            evidence: "measured"
+            note: "フォームは表そのものではなく、既にある表へ入力するための画面。値を持たないので、空のシートに仕立てず落とし、名前と行き先の表を挙げて言う（書き手がその嘘を写さないように）。フォームを埋めた表は普通どおり読める。検体は iPhone でしか作れないため保守者の手作り（Fixtures/numbers/form-15.numbers）。付録 B.36。"
       - id: "table"
         name: "表（テーブル）"
         features:

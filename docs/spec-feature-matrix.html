@@ -110,7 +110,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <div class="grid">
 <div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○45 △9 ▣17 ×4 ／ 書き ○46 △9 ▣16 ×3<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">56<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○35 △10 ▣1 ×4 ／ 書き ○30 △9 ▣0 ×16<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">57<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △11 ▣0 ×9 ／ 書き ○18 △8 ▣0 ×27<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
+<div class="card score"><div class="num">57<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △11 ▣0 ×10 ／ 書き ○18 △8 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
 <section>
@@ -177,7 +177,6 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>文書</td><td>README / 実装仕様書 付録 B の記述</td></tr>
 <tr><td>実機の審判</td><td>外部の実装が読めたこと（openpyxl・LibreOffice・numbers-parser・Numbers.app・Excel）</td></tr>
 </tbody></table></div>
-<p><strong>正直な残り物</strong>: 実測していない行が 1 件あります（Apple Numbers の入力フォーム（iPhone / iPad のフォーム））。検体が手元に無いため、推測で ○ × を書かず <code>?</code> のままにしてあります。</p>
 </section>
 <section>
 <h2>どの行にも共通する入口</h2>
@@ -194,8 +193,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">46</td><td class="m">9</td><td class="m">16</td><td class="m">3</td><td class="m">4</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">35</td><td class="m">10</td><td class="m">1</td><td class="m">4</td><td class="m">6</td><td class="m">0</td><td class="m">56</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">30</td><td class="m">9</td><td class="m">0</td><td class="m">16</td><td class="m">1</td><td class="m">0</td><td class="m">56</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">11</td><td class="m">0</td><td class="m">9</td><td class="m">15</td><td class="m">1</td><td class="m">57</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">8</td><td class="m">0</td><td class="m">27</td><td class="m">3</td><td class="m">1</td><td class="m">57</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">11</td><td class="m">0</td><td class="m">10</td><td class="m">15</td><td class="m">0</td><td class="m">57</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">8</td><td class="m">0</td><td class="m">28</td><td class="m">3</td><td class="m">0</td><td class="m">57</td></tr>
 </tbody></table></div>
 <p class="meta">「—」はその形式に概念が無い行です。Numbers に「—」が多いのは能力差ではなく、Excel・OpenDocument 側の機能を並べた行に Numbers 側の対応物が無い、という意味です。</p>
 </section>
@@ -394,7 +393,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>シートを隠す</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.isHidden</code></td><td><strong>言うこと</strong>: 「Numbers has no hidden sheets; the sheet is visible」 <span class="chip">実測</span></td></tr>
 <tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: Numbers tabs have no colour」 <span class="chip">実測</span></td></tr>
 <tr><td>シートの背景色・向き</td><td class="m n">×</td><td class="m n">×</td><td><code>TN.SheetStyleArchive, TN.CommandSetSheetDirectionArchive</code></td><td>—</td><td><strong>言うこと</strong>: なし（モデルに対応物が無い） 保管庫の型としては実在するが、モデルに写す先が無い。読み書きの対象にしていない。 <span class="chip">コード確認</span></td></tr>
-<tr><td>入力フォーム（iPhone / iPad のフォーム）</td><td class="m h">?</td><td class="m h">?</td><td><code>TN.FormBasedSheetArchive</code></td><td>—</td><td><strong>言うこと</strong>: 未確認 型は書類の名簿に実在するが、コーデックは触っていない。フォームを含む書類の検体が無く、実測していないので未検証のままにする。 <span class="chip">コード確認</span></td></tr>
+<tr><td>入力フォーム（iPhone / iPad で作るデータ入力用のタブ）</td><td class="m n">×</td><td class="m n">×</td><td><code>TN.FormBasedSheetArchive</code></td><td><code>wb.readWarnings</code></td><td><strong>言うこと</strong>: 「the form &quot;&lt;名前&gt;&quot; is dropped: a Numbers form is a way of typing into the table &lt;表&gt;, not a sheet of its own …」——フォームの名前と、それが書き込む先の表の名前を挙げる フォームは表そのものではなく、既にある表へ入力するための画面。値を持たないので、空のシートに仕立てず落とし、名前と行き先の表を挙げて言う（書き手がその嘘を写さないように）。フォームを埋めた表は普通どおり読める。検体は iPhone でしか作れないため保守者の手作り（Fixtures/numbers/form-15.numbers）。付録 B.36。 <span class="chip">実測</span></td></tr>
 <tr class="group"><td colspan="6">表（テーブル）</td></tr>
 <tr><td>表の名前</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.TableModelArchive.table_name</code></td><td><code>Table.name</code></td><td><span class="chip">コード確認</span></td></tr>
 <tr><td>表の位置（キャンバス上の置き場所）</td><td class="m y">○</td><td class="m h">△</td><td><code>TST.TableInfoArchive の幾何</code></td><td><code>Table.anchor</code></td><td>読むときは位置を Table.anchor に写す。 <span class="chip">文書</span></td></tr>
