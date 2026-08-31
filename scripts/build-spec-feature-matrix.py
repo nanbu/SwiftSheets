@@ -301,6 +301,9 @@ def emit_html(d):
     w("<p>表を直すときは <code>scripts/spec-feature-matrix.json</code> を直し、"
       "<code>python3 scripts/build-spec-feature-matrix.py</code> を走らせてください。"
       "この HTML と <a href=\"spec-feature-matrix.yaml\">同じ内容の YAML</a> は生成物です。</p>")
+    w("<p class=\"meta\">YAML はブラウザで直接開くと日本語が化けて見えます — 中身は UTF-8 ですが、"
+      "GitHub Pages が <code>text/yaml</code> を文字コードなしで返すためです。"
+      "保存してから開くか、<code>curl</code> やプログラムから読めば正しく読めます。</p>")
     w("</section>")
 
     w("<footer>")

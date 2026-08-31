@@ -462,6 +462,7 @@ swift test                          # 全部
 
 python3 scripts/build-spec-feature-matrix.py --check   # この表が出所と一致しているか</code></pre>
 <p>表を直すときは <code>scripts/spec-feature-matrix.json</code> を直し、<code>python3 scripts/build-spec-feature-matrix.py</code> を走らせてください。この HTML と <a href="spec-feature-matrix.yaml">同じ内容の YAML</a> は生成物です。</p>
+<p class="meta">YAML はブラウザで直接開くと日本語が化けて見えます — 中身は UTF-8 ですが、GitHub Pages が <code>text/yaml</code> を文字コードなしで返すためです。保存してから開くか、<code>curl</code> やプログラムから読めば正しく読めます。</p>
 </section>
 <footer>
 SwiftSheets — 形式ごとの機能対応表。SwiftSheets 0.10.0（commit 1d5f531）時点の実測とコード確認。<br>
