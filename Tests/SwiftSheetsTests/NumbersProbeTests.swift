@@ -58,6 +58,16 @@ import SwiftSheets
         twoSheets.addSheet(named: "Second"); twoSheets.sheets[1]["A1"] = "two"
         out.append(("09-two-sheets", twoSheets))
 
+        // The gap the corpus had until 2026-08-31: 05 styles a cell and 09 has two sheets, but nothing put a
+        // style on a sheet after the first — and that is the one combination Numbers refuses to open. Written
+        // out so the judge says so rather than the corpus staying quiet about it.
+        var styleOnSecond = Workbook()
+        styleOnSecond.sheets[0]["A1"] = "one"
+        styleOnSecond.addSheet(named: "Second")
+        styleOnSecond.sheets[1]["A1"] = "two"
+        styleOnSecond.sheets[1].style("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) }
+        out.append(("19-style-on-second-sheet", styleOnSecond))
+
         var twoTables = Workbook()
         var s = twoTables.sheets[0]
         s["A1"] = "first"

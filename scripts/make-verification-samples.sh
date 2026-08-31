@@ -4,17 +4,32 @@
 #   openpyxl → seed .xlsx → LibreOffice → .ods (the source SwiftSheets reads) → SwiftSheets → .ods / .xlsx / .numbers
 #
 # Usage: scripts/make-verification-samples.sh [output directory]
-# Requires: a Python with openpyxl, LibreOffice.app, Swift.
+# Requires: LibreOffice.app, Swift, and openpyxl — which it will fetch through uv if the Python on PATH lacks it,
+# so nothing has to be installed first.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 OUT="${1:-$HOME/Desktop/SwiftSheets-verification-samples}"
-PYTHON="${PYTHON:-python3}"
 SOFFICE="${SOFFICE:-/Applications/LibreOffice.app/Contents/MacOS/soffice}"
 mkdir -p "$OUT"
 
+# A Python that can import openpyxl. Whatever is on PATH if it already can; otherwise uv, which fetches openpyxl
+# into a throwaway environment and installs nothing. This used to say "any Python with openpyxl" and point at
+# another project's virtual environment, which is a thing this repository cannot promise anyone has.
+PY=("${PYTHON:-python3}")
+if ! "${PY[@]}" -c 'import openpyxl' >/dev/null 2>&1; then
+  if command -v uv >/dev/null 2>&1; then
+    PY=(uv run --quiet --with openpyxl python)
+    echo "0. openpyxl via uv (nothing installed)"
+  else
+    echo "openpyxl is not importable from ${PY[*]}, and uv is not installed to fetch it." >&2
+    echo "Install either one, or set PYTHON to an interpreter that has openpyxl." >&2
+    exit 2
+  fi
+fi
+
 echo "1. seed workbook (openpyxl)"
-"$PYTHON" Tests/FixtureGenerator/make_verification_samples.py "$OUT/00-seed-openpyxl.xlsx"
+"${PY[@]}" Tests/FixtureGenerator/make_verification_samples.py "$OUT/00-seed-openpyxl.xlsx"
 
 echo "2. LibreOffice → ODF"
 [[ -x "$SOFFICE" ]] || { echo "LibreOffice not found at $SOFFICE"; exit 2; }

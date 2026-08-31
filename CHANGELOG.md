@@ -7,6 +7,25 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Fixed
+
+- `scripts/make-verification-samples.sh` fetches openpyxl through **uv** when the Python on PATH lacks it, instead
+  of requiring a virtual environment belonging to another project. The release checklist's sample workbook could
+  not be built on this machine, and that is how the defect below went unnoticed.
+
+### Known issues
+
+- **A cell style on any sheet after the first produces a `.numbers` document Numbers.app will not open**
+  (found 2026-08-31, not yet fixed, and not new in 0.11.0 — the Numbers writer has not changed since 0.10.0).
+  Two sheets with one styled cell on the second is the whole reproducer; a style on the first sheet alone is fine,
+  and unstyled sheets are fine at any count. numbers-parser and LibreOffice read the file, so only Numbers itself
+  objects, which is the signature of a cross-component reference the package metadata does not declare — the
+  mechanism is **not yet confirmed**, only the condition. The 19-probe corpus the Numbers judge runs had no styled
+  non-first sheet, which is how it survived; `19-style-on-second-sheet` is now that probe, and it fails today.
+  Workaround: keep the formatting on the first sheet, or write `.xlsx`.
+
 ## [0.11.0] — 2026-08-31
 
 ### Fixed

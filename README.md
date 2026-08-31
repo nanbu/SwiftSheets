@@ -155,6 +155,12 @@ is reported, never dropped in silence.
   warning, and so is the second and every further summarised value of a pivot table (the value lanes of a rebuilt
   Numbers pivot share one placeholder id, so only the first survives the trip — spec Appendix B.28). Nothing is
   dropped in silence.
+- **Known defect (found 2026-08-31, not yet fixed): a cell style on any sheet after the first produces a
+  document Numbers.app will not open.** Two sheets and one styled cell on the second is enough; a style on the
+  first sheet alone is fine, and so is any number of unstyled sheets. numbers-parser and LibreOffice read the
+  file, so only Numbers itself objects. The probe corpus had no styled non-first sheet, which is how it survived
+  — `19-style-on-second-sheet` is that probe, and it fails today. Until it is fixed, put the formatting on the
+  first sheet, or write `.xlsx`.
 - Judges: round trip through our own reader, numbers-parser reading our output
   (`Tests/NumbersParity/verify_with_numbers_parser.py`), LibreOffice's Numbers importer — and, since 2026-08-25,
   **Numbers.app itself** (`Tests/NumbersParity/verify_with_numbers_app.py`): it opens what we wrote, is asked what
