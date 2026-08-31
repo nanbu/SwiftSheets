@@ -1877,6 +1877,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.5 Draft</td><td>2026-08-29</td><td>計測のみ。<strong>B.31 の保護の鍵を実機の Excel（16.112.2）が開錠した</strong>——付録 B.31 の検証欄を更新。審判 <code>Tests/ExcelParity/verify_with_excel_app.py</code> を新設し、AppleScript で Excel を駆動して「保護されている／誤った合言葉では解けない／正しい合言葉で解ける」を状態で読む。検体は ASCII・日本語（UTF-16LE の経路）・ブック構造の 3 つで、いずれも新方式の鍵のみ。実測で分かった 2 点を仕様書に固定した: Excel は誤った合言葉をエラーで断らず黙って解かないだけであること、<code>unprotect</code> は解除済みに対して何もしないので誤った合言葉を先に試す順序でなければ偽合格すること。ProtectedRange は実機で試す手立てがなく対象外</td></tr>
     <tr><td>4.6 Draft</td><td>2026-08-31</td><td><strong>ワークシートではないシート</strong>を付録 B.35 に記録。グラフシートを読むとワークシートとして解析され、書き戻すと <code>&lt;chartsheet&gt;</code> の部品が <code>&lt;worksheet&gt;</code> に置き換わり、コンテンツタイプと関係の種別まで worksheet になっていた——警告も無しに。<code>SheetPreservation.foreignSheet</code>（<code>ForeignSheet</code>）を足し、部品・コンテンツタイプ・関係の種別をそのまま運ぶ。読みで <code>degraded</code>、そのシートにセルを書いた場合は書き出しで <code>dropped</code>。検体は実機 Excel に作らせ、審判は LibreOffice の描いたページ数（直す前は 2 対 3 だった）</td></tr>
     <tr><td>4.7 Draft</td><td>2026-08-31</td><td><strong>フォームというタブ</strong>を付録 B.36 に記録。読み込みが <code>TN.SheetArchive</code> 以外のタブを無言で捨てていた（B.35 と同じ形の欠陥）。フォームは既存の表への入力画面で値を持たないため、空のシートに仕立てず落とし、<strong>フォーム名と書き込み先の表名</strong>を挙げて言う。検体は iPhone でしか作れないため保守者の手作り。これで対応表の「未検証」は 0 件になった</td></tr>
+    <tr><td>4.11 Draft</td><td>2026-08-31</td><td>「実装せずに残したもの」の一覧が<strong>実装に追い越されていた 4 行</strong>を直した。Numbers の<strong>数式生成</strong>（Rev 2.3・B.18 で実装済み）と<strong>書式読み</strong>（Rev 2.1・B.16 で実装済み）は、Numbers.app が審判に立って前提が変わったのに未実装のまま書かれていた。<strong>暗号化判定</strong>はもともと状態を取り違えており、実際は <code>.iwph</code> を見て <code>unsupportedFeature</code> で断っている（復号しないのは変わらない）。<strong>実機での開封確認</strong>は Numbers.app・Excel とも AppleScript の審判になっている。あわせて Numbers の <strong>F3 パッチ書き戻し</strong>を独立の行に分け、テンプレートを土台にする理由を書いた。機械検査つきの対応表（191 行）と散文の一覧が食い違っていた形で、<strong>正しいのは対応表のほう</strong>だった</td></tr>
     <tr><td>4.10 Draft</td><td>2026-08-31</td><td><strong>Linux 達成</strong>（付録 B.38 に追記）。審判が 3 回赤を出し、最後に残ったのは <strong>Foundation 自身の XML 部品</strong>だった —— 要素名に UTF-8 として不正なバイトがあると <code>_NSXMLParserStartElementNs</code> でプロセスごと落ちる。検体（fuzz seed 1・round 174・4131 バイト）を 1 バイト違わず再現し、<strong>渡す前に UTF-8 として成立しているかを確かめる守り</strong>を入れた（別符号化を名乗る部品は素通し・走査は写さない）。Linux 944 件・macOS 945 件すべて緑、fuzz も除外なし。§1.1 の「Linux 上で動作する」を達成とし、B.1 の未達を解いた。visionOS は審判が無いため未達のまま</td></tr>
     <tr><td>4.9 Draft</td><td>2026-08-31</td><td><strong>圧縮の差し替え口</strong>を付録 B.38 に記録。Linux を塞いでいたのは自前 ZIP ではなく、その中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった —— <code>Compression</code> と <code>CryptoKit</code>。畳む道具を <code>Deflate</code> の向こうへ移し、Compression の無い機械では system zlib が答えるようにした（<code>Sources/CZlib</code> はモジュールマップ 1 枚・SwiftPM 依存は増えない）。SHA-512 は自前へ戻す（10 万回反復が release で 0.29 秒）。<code>XMLParser</code> は Linux では <code>FoundationXML</code> にあるので条件つき import を 8 ファイルに追加。審判は <code>-DSWIFTSHEETS_ZLIB</code> —— <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>。Linux 対応は CI が緑になるまで名乗らない</td></tr>
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
@@ -2248,20 +2249,34 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>visionOS</td><td>未達（B.38 で Linux は達成）</td>
       <td>Apple 専用の部品はもう無く、塞いでいるものは何も無い。ただし全件を走らせる審判がこの環境に無い。
         <strong>誰も走らせていない platform は名乗らない</strong>。</td></tr>
-    <tr><td>Numbers の数式生成（TSCE アーカイブ）</td><td>キャッシュ値＋<code>degraded</code> 警告（B.8）</td>
-      <td>参照実装 numbers-parser 自身が書けず、この Mac に Numbers.app が無い。
-        <strong>検証できない生成物を出荷しない</strong>のがこのリポジトリの規律。</td></tr>
-    <tr><td>Numbers の書式読み（F2）・読んだ文書を土台にした F3 パッチ書き戻し</td><td>F1（値・数式・結合・寸法）</td>
-      <td>同上。Numbers 実機で開いて確かめられない変更を積み増すと、壊れたときに切り分けられない。</td></tr>
-    <tr><td>Numbers の暗号化判定</td><td><code>corruptedContainer</code> で失敗する</td>
-      <td>OOXML（複合ファイル署名）と ODF（マニフェスト）は公開仕様で判定できるが、
-        パスワード付き iWork 文書の目印は仕様が無く、フィクスチャも作れない（Numbers.app が無い）。
-        推測で「暗号化です」と言うのは、壊れたファイルを取り違える分だけ有害。</td></tr>
+    <tr><td>Numbers の数式生成（TSCE アーカイブ）</td><td><strong>Rev 2.3 で実装（B.18）</strong> — 式の木を
+      <code>TSCE.ASTNodeArrayArchive</code> に変換して書く</td>
+      <td>（かつての理由: 参照実装 numbers-parser 自身が書けず、この Mac に Numbers.app が無い）。
+        2026-08-25 に <strong>Numbers.app が審判に立った</strong>ことで前提が変わった —— 書いた式が実機で本物の式として
+        計算されることを確かめられる。<strong>写す先の見本が無い形</strong>（定義名・Numbers に無い関数・<code>A:C</code> の
+        列範囲・交差／合併）はいまもキャッシュ値に落として理由を言う。</td></tr>
+    <tr><td>Numbers の書式読み（F2）</td><td><strong>Rev 2.1 で実装（B.16）</strong> — セル書式・表示形式・リンク</td>
+      <td>同上、審判が立ったことで前提が変わった。</td></tr>
+    <tr><td>Numbers の F3 —— <strong>読んだ文書を土台にしたパッチ書き戻し</strong></td>
+      <td>未実装。書き出しは §11.1 のとおり<strong>同梱の空テンプレートを土台に patch する</strong></td>
+      <td>読んだ書類そのものを土台にすると、こちらが解釈していない部品との整合まで全部引き受けることになる。
+        テンプレートなら土台が既知で、壊れたときにどちらが原因か切り分けられる。F2 が実装されても、この判断は変わらない。</td></tr>
+    <tr><td>Numbers の暗号化<strong>判定</strong></td>
+      <td><strong>できている</strong> —— パッケージに <code>.iwph</code> があれば
+        <code>unsupportedFeature("encrypted Numbers documents are not supported")</code> で断る（復号はしない）</td>
+      <td>この行はもともと状態を取り違えて書かれていた。3 形式とも「壊れたファイル」ではなく
+        <strong>「暗号化されている」と名指しして断る</strong>——OOXML は複合ファイル署名、ODF はマニフェスト、
+        Numbers は <code>.iwph</code> パートで見分ける。<strong>復号は引き続きしない</strong>（§1.3 の非スコープ）。</td></tr>
     <tr><td>ISO 8601 日付での書き出し（openpyxl の <code>iso_dates</code>）</td><td>常にシリアル値</td>
       <td>Excel が読めるのはシリアル値。ISO テキストは openpyxl 独自の互換モードで、
         両方の経路を持つと日付の往復が二通りになる。</td></tr>
-    <tr><td>Excel 実機・Numbers 実機での開封確認</td><td>MAINTENANCE.md のリリース前チェックリスト</td>
-      <td>開発環境に無い。LibreOffice・openpyxl・numbers-parser を機械の審判に据えている（B.6・B.8）。</td></tr>
+    <tr><td>Excel 実機・Numbers 実機での開封確認</td>
+      <td><strong>機械の審判になった</strong> —— <code>Tests/NumbersParity/verify_with_numbers_app.py</code>（Rev 2.3）と
+        <code>Tests/ExcelParity/verify_with_excel_app.py</code>（Rev 4.5・Excel 16.112.2）。
+        残る手作業は MAINTENANCE.md のリリース前チェックリスト</td>
+      <td>（かつての理由: 開発環境に無い）。両方とも使えるようになったので AppleScript で駆動している。
+        <strong>全部は自動化していない</strong> —— 実機が出すダイアログ（「問題が見つかりました」）だけは人が見る。
+        画面の状態・自動化権限が要るものは、無いときに<strong>「判定できない」と言って失敗にはしない</strong>。</td></tr>
   </table></div>
 
   <p>
