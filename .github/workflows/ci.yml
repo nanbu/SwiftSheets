@@ -67,5 +67,10 @@ jobs:
 
       # Same as macOS: the suites that need LibreOffice, Numbers.app or a Python with openpyxl / numbers-parser
       # skip themselves visibly when those are absent.
+      #
+      # `--no-parallel` is under investigation, not a settled choice: the first Linux run died with an illegal
+      # instruction inside `swift_retain`, in a thread unrelated to the work it was doing, while several suites
+      # ran at once. Running them one at a time says whether that is a concurrency fault or something in the
+      # library itself — and if it is the latter, the report comes back single-threaded and readable.
       - name: Test
-        run: swift test --skip-build
+        run: swift test --skip-build --no-parallel
