@@ -68,9 +68,11 @@ jobs:
       # Same as macOS: the suites that need LibreOffice, Numbers.app or a Python with openpyxl / numbers-parser
       # skip themselves visibly when those are absent.
       #
-      # `--no-parallel` is under investigation, not a settled choice: the first Linux run died with an illegal
-      # instruction inside `swift_retain`, in a thread unrelated to the work it was doing, while several suites
-      # ran at once. Running them one at a time says whether that is a concurrency fault or something in the
-      # library itself — and if it is the latter, the report comes back single-threaded and readable.
+      # Still under investigation, and neither flag is a settled choice. Serially, the crash reported itself
+      # cleanly: it is inside Foundation's own XML parser (`_NSXMLParserStartElementNs`, called from libxml2),
+      # on the deliberately malformed XML the fuzz suite feeds it — no code of ours in the frames above it.
+      # That kills the process at test 198 of 941, so nothing after it has ever run here. Skipping that one
+      # suite says how much of the rest of the library works on this platform, which is the thing worth knowing
+      # before deciding what to do about the parser.
       - name: Test
-        run: swift test --skip-build --no-parallel
+        run: swift test --skip-build --no-parallel --skip FuzzTests
