@@ -18,8 +18,19 @@ writes, so the constant, the README's status line and the tag always name the sa
   CryptoKit — Excel's default hundred thousand iterations cost 0.29 s in a release build, and the digests are checked
   against FIPS 180-4's published vectors and against CryptoKit itself. `XMLParser` is imported from `FoundationXML`
   where Foundation is split. The ZIP container code itself is unchanged.
-- CI runs the whole suite twice on macOS — once over each DEFLATE — and a Linux job has been added. **Linux is not
-  claimed yet**: the code no longer stands in its way, but the badge and the README wait for that job to run green.
+- **Linux is supported.** CI runs the whole suite on it — 944 tests, nothing excluded — as well as twice on macOS,
+  once over each DEFLATE. Getting there took the Linux job three verdicts: two expressions its type checker would not
+  solve, and then a crash that was not ours to make but was ours to avoid (below). visionOS stays unclaimed: nothing
+  blocks it, but nobody runs the suite on it.
+
+### Fixed
+
+- **XML whose bytes are not valid UTF-8 is reported as a malformed part, instead of costing the caller their process**
+  (spec Appendix B.38). Where Foundation's XML parser is the one built on libxml2, an element name carrying such bytes
+  does not come back as a parse error — the process traps inside the parser while that name is turned into a `String`.
+  Parts are now checked before the parser sees them, and the error names the byte. A part that says it is something
+  else — by a byte-order mark, or by naming an encoding in its declaration — goes through untouched. The specimen a
+  fuzz campaign found is kept as a fixture.
 
 ## [0.11.1] — 2026-08-31
 

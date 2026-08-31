@@ -2,14 +2,14 @@
 
 [![CI](https://github.com/nanbu/SwiftSheets/actions/workflows/ci.yml/badge.svg)](https://github.com/nanbu/SwiftSheets/actions/workflows/ci.yml)
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-macOS%2014%2B%20%7C%20iOS%2017%2B-1d1d1f)](https://github.com/nanbu/SwiftSheets#limits)
+[![Platforms](https://img.shields.io/badge/Platforms-macOS%2014%2B%20%7C%20iOS%2017%2B%20%7C%20Linux-1d1d1f)](https://github.com/nanbu/SwiftSheets#limits)
 [![License: MIT](https://img.shields.io/badge/License-MIT-248a3d)](https://github.com/nanbu/SwiftSheets/blob/main/LICENSE)
 
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
 workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
 as they went in. Foundation only; no package dependencies — bytes are folded by whichever DEFLATE the machine already
-has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+; the Linux
-build is new and its CI judge has not ruled yet — see [Limits](#limits).
+has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+ and Linux —
+the same suite runs on all of them, on every push.
 
 The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
 (Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
@@ -67,7 +67,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Cell budget | A read stops at `ReadOptions.cellLimit` cells (default 1,000,000) and says so. ODS run-length compression can otherwise describe seventeen billion cells in a kilobyte of XML. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | ZIP64 | Not supported: packages over 4 GB, or with more than 65,535 parts, are reported as `corruptedContainer`. |
-| Linux, not yet claimed | Nothing Apple-only is left in the library: DEFLATE comes from the system zlib where Apple's Compression framework is absent, and SHA-512 is written out rather than taken from CryptoKit. The whole suite passes over the zlib route on macOS, and a Linux CI job is in place — but until that job has run green, Linux is supported in the code and unproven in fact, so the badge above still says Apple only (spec §1.1; Appendix B.1). |
+| visionOS | Not built or tested. Nothing in the library is Apple-only any more — DEFLATE comes from the system zlib where Apple's Compression framework is absent, and SHA-512 is written out rather than taken from CryptoKit — but a platform nobody runs the suite on is not a platform this README claims (spec Appendix B.1). Linux is claimed because CI runs the whole suite there on every push. |
 | Encrypted files | Not decrypted. A password-protected package is recognised for what it is and throws `unsupportedFeature`, not `corruptedContainer` — as does a legacy `.xls`, which is a different format, not a broken one. |
 
 ## Formats
