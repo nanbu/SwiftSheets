@@ -1,5 +1,4 @@
 import Foundation
-import Compression
 
 /// Minimal ZIP container reader: central directory → entries; stored (0) and deflate (8); no ZIP64, no encryption.
 package struct ZipArchive: Sendable {
@@ -64,13 +63,13 @@ package struct ZipArchive: Sendable {
         let payload = data.subdata(in: (base + start)..<(base + start + e.compressedSize))
         switch e.method {
         case 0: return payload
-        case 8: return try Zip.inflate(payload, expectedSize: e.uncompressedSize)
+        case 8: return try Deflate.decompress(payload, expectedSize: e.uncompressedSize)
         default: throw SheetError.corruptedContainer(detail: "unsupported compression method \(e.method) for \(name)")
         }
     }
 }
 
-/// ZIP writer: deflate (method 8) via the Compression framework, falling back to stored when that does not shrink.
+/// ZIP writer: deflate (method 8), falling back to stored when folding the bytes does not shrink them.
 package struct ZipWriter {
     private struct Entry { let name: [UInt8]; let method: UInt16; let crc: UInt32; let csize: Int; let usize: Int; let offset: Int }
     private var entries: [Entry] = []
@@ -86,7 +85,7 @@ package struct ZipWriter {
         let crc = CRC32.checksum(data)
         var method: UInt16 = 0
         var payload = data
-        if !stored, data.count > 64, let deflated = Zip.deflate(data), deflated.count < data.count { method = 8; payload = deflated }
+        if !stored, data.count > 64, let deflated = Deflate.compress(data), deflated.count < data.count { method = 8; payload = deflated }
         let offset = body.count
         var h = Data()
         h.append(Zip.le32(0x0403_4b50)); h.append(Zip.le16(20)); h.append(Zip.le16(0x0800)); h.append(Zip.le16(method))
@@ -125,34 +124,6 @@ package enum Zip {
     }
     static func le16(_ v: UInt16) -> Data { Data([UInt8(v & 0xff), UInt8(v >> 8)]) }
     static func le32(_ v: UInt32) -> Data { Data([UInt8(v & 0xff), UInt8((v >> 8) & 0xff), UInt8((v >> 16) & 0xff), UInt8(v >> 24)]) }
-
-    /// `COMPRESSION_ZLIB` in the Compression framework is the raw DEFLATE stream — exactly ZIP method 8.
-    static func inflate(_ src: Data, expectedSize: Int) throws -> Data {
-        guard expectedSize >= 0 else { throw SheetError.corruptedContainer(detail: "negative uncompressed size") }
-        guard expectedSize > 0 else { return Data() }
-        var dst = Data(count: expectedSize)
-        let written = dst.withUnsafeMutableBytes { (d: UnsafeMutableRawBufferPointer) -> Int in
-            src.withUnsafeBytes { (s: UnsafeRawBufferPointer) -> Int in
-                compression_decode_buffer(d.bindMemory(to: UInt8.self).baseAddress!, expectedSize,
-                                          s.bindMemory(to: UInt8.self).baseAddress!, src.count, nil, COMPRESSION_ZLIB)
-            }
-        }
-        guard written == expectedSize else { throw SheetError.corruptedContainer(detail: "inflate produced \(written) of \(expectedSize) bytes") }
-        return dst
-    }
-
-    static func deflate(_ src: Data) -> Data? {
-        let capacity = src.count + 64
-        var dst = Data(count: capacity)
-        let written = dst.withUnsafeMutableBytes { (d: UnsafeMutableRawBufferPointer) -> Int in
-            src.withUnsafeBytes { (s: UnsafeRawBufferPointer) -> Int in
-                compression_encode_buffer(d.bindMemory(to: UInt8.self).baseAddress!, capacity,
-                                          s.bindMemory(to: UInt8.self).baseAddress!, src.count, nil, COMPRESSION_ZLIB)
-            }
-        }
-        guard written > 0 else { return nil }
-        return dst.prefix(written)
-    }
 }
 
 /// CRC-32 (IEEE, poly 0xEDB88320).

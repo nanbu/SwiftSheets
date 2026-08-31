@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// What a protected sheet still lets people do (`<sheetProtection>`).
@@ -287,9 +286,9 @@ public enum ModernPasswordHash {
     public static func hash(_ plaintext: String, salt: Data, spinCount: Int = defaultSpinCount) -> Data {
         precondition(spinCount > 0, "spinCount must be positive")
         let password = Data(plaintext.utf16.flatMap { [UInt8($0 & 0xFF), UInt8($0 >> 8)] })   // UTF-16LE
-        var key = Data(SHA512.hash(data: salt + password))
+        var key = SHA512.hash(salt + password)
         for i in 0..<UInt32(spinCount) {
-            key = Data(SHA512.hash(data: key + withUnsafeBytes(of: i.littleEndian) { Data($0) }))
+            key = SHA512.hash(key + withUnsafeBytes(of: i.littleEndian) { Data($0) })
         }
         return key
     }

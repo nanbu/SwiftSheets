@@ -1877,6 +1877,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.5 Draft</td><td>2026-08-29</td><td>計測のみ。<strong>B.31 の保護の鍵を実機の Excel（16.112.2）が開錠した</strong>——付録 B.31 の検証欄を更新。審判 <code>Tests/ExcelParity/verify_with_excel_app.py</code> を新設し、AppleScript で Excel を駆動して「保護されている／誤った合言葉では解けない／正しい合言葉で解ける」を状態で読む。検体は ASCII・日本語（UTF-16LE の経路）・ブック構造の 3 つで、いずれも新方式の鍵のみ。実測で分かった 2 点を仕様書に固定した: Excel は誤った合言葉をエラーで断らず黙って解かないだけであること、<code>unprotect</code> は解除済みに対して何もしないので誤った合言葉を先に試す順序でなければ偽合格すること。ProtectedRange は実機で試す手立てがなく対象外</td></tr>
     <tr><td>4.6 Draft</td><td>2026-08-31</td><td><strong>ワークシートではないシート</strong>を付録 B.35 に記録。グラフシートを読むとワークシートとして解析され、書き戻すと <code>&lt;chartsheet&gt;</code> の部品が <code>&lt;worksheet&gt;</code> に置き換わり、コンテンツタイプと関係の種別まで worksheet になっていた——警告も無しに。<code>SheetPreservation.foreignSheet</code>（<code>ForeignSheet</code>）を足し、部品・コンテンツタイプ・関係の種別をそのまま運ぶ。読みで <code>degraded</code>、そのシートにセルを書いた場合は書き出しで <code>dropped</code>。検体は実機 Excel に作らせ、審判は LibreOffice の描いたページ数（直す前は 2 対 3 だった）</td></tr>
     <tr><td>4.7 Draft</td><td>2026-08-31</td><td><strong>フォームというタブ</strong>を付録 B.36 に記録。読み込みが <code>TN.SheetArchive</code> 以外のタブを無言で捨てていた（B.35 と同じ形の欠陥）。フォームは既存の表への入力画面で値を持たないため、空のシートに仕立てず落とし、<strong>フォーム名と書き込み先の表名</strong>を挙げて言う。検体は iPhone でしか作れないため保守者の手作り。これで対応表の「未検証」は 0 件になった</td></tr>
+    <tr><td>4.9 Draft</td><td>2026-08-31</td><td><strong>圧縮の差し替え口</strong>を付録 B.38 に記録。Linux を塞いでいたのは自前 ZIP ではなく、その中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった —— <code>Compression</code> と <code>CryptoKit</code>。畳む道具を <code>Deflate</code> の向こうへ移し、Compression の無い機械では system zlib が答えるようにした（<code>Sources/CZlib</code> はモジュールマップ 1 枚・SwiftPM 依存は増えない）。SHA-512 は自前へ戻す（10 万回反復が release で 0.29 秒）。<code>XMLParser</code> は Linux では <code>FoundationXML</code> にあるので条件つき import を 8 ファイルに追加。審判は <code>-DSWIFTSHEETS_ZLIB</code> —— <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>。Linux 対応は CI が緑になるまで名乗らない</td></tr>
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
@@ -1897,11 +1898,12 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <ul>
     <li><strong>名称は SwiftSheets</strong>（2026-08-22 に確定。本文中の SwiftSheets は、それ以前の仮称のまま残っている箇所がある）。上位アプリの一部だったものを、履歴ごと独立したリポジトリへ切り出した。</li>
     <li>ターゲットは <code>SheetCore</code> / <code>SheetXLSX</code> / <code>SheetCSV</code> / 全部入り <code>SwiftSheets</code>。未実装の <code>SheetODS</code> / <code>SheetNumbers</code> は空ターゲットを作らない（P3・P4 で追加）。CSV は §9 の方針どおり独立ターゲット。</li>
-    <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ Compression による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。
-      <strong>代償として §1.1 の「Linux 上で動作する」は未達</strong>: Compression は Apple のフレームワークで、Linux にも
-      visionOS の宣言にも無い（<code>Package.swift</code> の platforms は macOS 14 / iOS 17）。§12.2 が外部審判に据えた
-      Linux CI も同じ理由で成立しない。README の Limits に明記した。復帰するなら ZIP の deflate を自前実装するか、
-      <code>#if canImport(Compression)</code> で zlib を呼ぶ経路を足す。</li>
+    <li><strong>外部依存ゼロ</strong>。ZIPFoundation は使わず、Foundation ＋ その機械にある DEFLATE による自前 ZIP（読み: stored / deflate、書き: deflate、ODS 用に stored 指定あり）。§2.2 の「SheetCore と SheetFormula は依存ゼロ」を全ターゲットに広げた形。数式サブシステムは独立ターゲットにせず SheetCore 内のモジュール（<code>Formula/</code>）。
+      <strong>Rev 4.9 で Apple 専用の部品を 2 つとも外した</strong>（B.38）: 畳む道具は <code>Deflate</code> の差し替え口の
+      向こうへ移り、Compression が無い機械では system zlib が答える（<code>Sources/CZlib</code> はモジュールマップ 1 枚で、
+      SwiftPM が解決する依存は増えない）。SHA-512 も CryptoKit から自前へ戻した。
+      §1.1 の「Linux 上で動作する」は<strong>経路としては通ったが、まだ名乗らない</strong> —— §12.2 が外部審判に据えた
+      Linux CI が緑になるまでが条件で、README の Limits にもそう書いた。</li>
     <li>ZIP / XML の基盤は SheetCore に置き、<code>package</code> アクセスでコーデックへ公開する（L1 を別ターゲットにしない — 利用者に見せる必要がない）。</li>
   </ul>
 
@@ -2241,9 +2243,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>openpyxl も作り直す。自由項目（<code>custom.xml</code>）は Rev 2.0 でモデル化した（B.15）。</td></tr>
     <tr><td>ZIP64</td><td>4 GB / 65,535 パートを超えると <code>corruptedContainer</code></td>
       <td>全載せモデルの上限（数百 MB）の方が先に来る。ストリーミングと同時に考えるべき項目。</td></tr>
-    <tr><td>Linux / visionOS</td><td>未達（B.1）</td>
-      <td>ZIP の deflate に Apple の Compression を使っているため。復帰には自前 deflate か zlib 経路が要る。
-        開発環境に Linux CI が無く、審判を立てられない。</td></tr>
+    <tr><td>Linux / visionOS</td><td>まだ名乗らない（B.38）</td>
+      <td>Apple 専用の部品は外した（zlib 経路・自前 SHA-512）。zlib 経路は macOS の上で全件走らせて緑。
+        残るのは Linux 版 Foundation の振る舞いで、これは Linux CI が緑になるまで分からない。それまで主張しない。</td></tr>
     <tr><td>Numbers の数式生成（TSCE アーカイブ）</td><td>キャッシュ値＋<code>degraded</code> 警告（B.8）</td>
       <td>参照実装 numbers-parser 自身が書けず、この Mac に Numbers.app が無い。
         <strong>検証できない生成物を出荷しない</strong>のがこのリポジトリの規律。</td></tr>
@@ -4230,6 +4232,8 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     （B.1 の外部依存ゼロは不変 — CryptoKit は Compression と同格の Apple 付属品で、
     SwiftPM の依存は増えない。Linux 未達の状況も変わらない — swift-crypto へ差し替えれば
     Linux でも同 API という点はむしろ将来の復帰に有利）。
+    <strong>（Rev 4.9 で自前実装に差し替えた — B.38。CryptoKit があるだけで、Linux では保護の鍵ごと失われるため。
+    swift-crypto は初めての SwiftPM 依存になるので採らなかった。審判は FIPS 180-4 の既知解と CryptoKit 自身。）</strong>
     <strong>塩の乱数は <code>SystemRandomNumberGenerator</code></strong> — Apple プラットフォームでは
     暗号学的に安全と文書化されており、XLKit が使う Security フレームワークまでは増やさない。
     API は 3 つの保護型に対で足す:
@@ -4578,6 +4582,47 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     始まるため走っていなかった。<strong>穴が 2 つ重なると誰も見ない。</strong>
     見本 <code>19-style-on-second-sheet</code> を足し、実機を要さない <code>NumbersCrossingTests</code> も置いたので、
     CI が再発を捕まえる。
+  </p>
+
+  <h3>B.38 圧縮の差し替え口 — Apple 専用の部品を 2 つとも外す（Rev 4.9）</h3>
+  <p>
+    2026-08-31。B.1 が「代償として §1.1 の『Linux 上で動作する』は未達」と記した状態を解いた。
+    そもそも<strong>置き換えるべき外部の ZIP ライブラリは無い</strong> —— 封筒を開け閉めする処理は自前の 371 行で、
+    塞いでいたのはその中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった:
+    <code>Compression</code>（ZIP の読み書き 2 ファイル）と <code>CryptoKit</code>（B.31 の保護の鍵 1 ファイル）。
+    封筒の処理そのものは 1 行も動かしていない。
+  </p>
+  <h4>決めたこと</h4>
+  <ul>
+    <li><strong>畳む道具は差し替え口の向こうへ</strong>。<code>SheetCore/Container/Deflate.swift</code> に
+      一括の <code>compress</code> / <code>decompress</code> と逐次の <code>DeflateEncoder</code> を集め、
+      実装は <code>#if canImport(Compression) &amp;&amp; !SWIFTSHEETS_ZLIB</code> で 2 通り。
+      ZIP の method 8 は生の DEFLATE で、<code>COMPRESSION_ZLIB</code> はそれそのもの、zlib は
+      <code>windowBits = -15</code> で同じ流れになる。</li>
+    <li><strong>zlib は SwiftPM の依存ではない</strong>。<code>Sources/CZlib</code> は既にある <code>zlib.h</code> への
+      モジュールマップ 1 枚で、SwiftPM が取りに行く先が無い。Apple の SDK にも Linux にも最初から入っているので、
+      両方で無条件に依存させてよい（B.1 の「外部依存ゼロ」は不変）。</li>
+    <li><strong>SHA-512 は自前へ戻す</strong> —— B.31 の「暗号プリミティブを手書きしない」を改める。
+      理由は 2 つ: CryptoKit があるというだけで Linux では<strong>保護の鍵ごと失われる</strong>こと、
+      そして swift-crypto を入れると<strong>初めての SwiftPM 依存</strong>になること。
+      60 行の算術で、Excel 既定の 10 万回反復が release ビルドで <strong>0.29 秒</strong>（実測）。</li>
+    <li><strong>Foundation の分割に合わせる</strong>。<code>XMLParser</code> は Linux では <code>FoundationXML</code> に
+      いるので、使う 8 ファイルに <code>#if canImport(FoundationXML)</code> を足した。</li>
+  </ul>
+  <h4>審判 —— Mac の上で zlib 経路を丸ごと走らせる</h4>
+  <p>
+    Linux CI が無いままでは「zlib 経路が正しい」と言えない。そこで <code>-DSWIFTSHEETS_ZLIB</code> を足し、
+    <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>（CI の手順に入れた）。
+    xlsx / ods / numbers の往復がすべて zlib で通る。加えて <code>CompressionTests</code> には
+    <strong>どちらの実装も作っていない</strong> DEFLATE の塊（zlib 自身の圧縮器が作った 57 バイト）を置き、
+    コンパイルされた側がそれを読めることを確かめる。SHA-512 の審判は FIPS 180-4 の既知解 3 本と、
+    Apple 上での CryptoKit との突き合わせ（境界 10 通り）。
+  </p>
+  <p>
+    それでも <strong>Linux 版 Foundation の振る舞い</strong>は Mac では測れない
+    （日付・小数・<code>String(data:encoding:)</code> の対応表 —— CSV の Shift_JIS がとくに怪しい）。
+    したがって <strong>Linux 対応はまだ名乗らない</strong>: CI に Linux ジョブ（<code>swift:6.2-noble</code>）を置き、
+    それが緑になるまで README のバッジも §1.1 の達成も据え置く。<strong>審判の無い主張は載せない</strong>。
   </p>
 
 </section>

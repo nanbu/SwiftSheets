@@ -53,6 +53,7 @@ and all symbol names are English.
 
 ## Scope
 
-Apple platforms only (the ZIP layer uses Apple's Compression framework), no external dependencies, and no format that
-cannot be verified against an independent implementation. Proposals that change any of those three are worth
-discussing in an issue, but expect the bar to be high — they are the reasons the library stays small.
+Apple platforms are what the library claims today (a Linux build exists and is waiting on its CI judge), no package
+dependencies, and no format that cannot be verified against an independent implementation. Proposals that change any of
+those three are worth discussing in an issue, but expect the bar to be high — they are the reasons the library stays
+small.
