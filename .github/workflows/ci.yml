@@ -68,17 +68,10 @@ jobs:
       # Same as macOS: the suites that need LibreOffice, Numbers.app or a Python with openpyxl / numbers-parser
       # skip themselves visibly when those are absent.
       #
-      # Still under investigation, and neither flag is a settled choice. Serially, the crash reported itself
-      # cleanly: it is inside Foundation's own XML parser (`_NSXMLParserStartElementNs`, called from libxml2),
-      # on the deliberately malformed XML the fuzz suite feeds it — no code of ours in the frames above it.
-      # That kills the process at test 198 of 941, so nothing after it has ever run here. Skipping that one
-      # suite says how much of the rest of the library works on this platform, which is the thing worth knowing
-      # before deciding what to do about the parser.
-      - name: Test
+      # `--skip FuzzTests` is not a settled choice — it is what this job runs while a decision is pending.
+      # The fuzz suite takes the process down here, and not through any code of ours: Foundation's own XML
+      # parser traps on an element name whose bytes are not valid UTF-8 (`_NSXMLParserStartElementNs`, called
+      # from libxml2). Everything else passes — 938 of 941, Shift_JIS and all. Spec Appendix B.38 holds the
+      # specimen and the reasoning; whatever is decided there, this line changes with it.
+      - name: Test (all but the fuzz suite — see Appendix B.38)
         run: swift test --skip-build --no-parallel --skip FuzzTests
-
-      # TEMPORARY: run the one suite that dies, from one seed, with each mutant announced on stderr before it is
-      # opened. The last line printed names the file that takes Foundation's parser down, so it can be rebuilt
-      # here and sent upstream. Allowed to fail — the crash is the point.
-      - name: Locate the mutant that crashes Foundation's XML parser
-        run: SWIFTSHEETS_FUZZ_SEEDS=1 swift test --skip-build --no-parallel --filter mutatedCorpusAlwaysLandsOnASheetError || true
