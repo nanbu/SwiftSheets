@@ -51,6 +51,60 @@ import SwiftSheets
 
     static let oneCell = "<sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c></row></sheetData>"
 
+    // MARK: - Bytes that are not text
+
+    /// A handler that wants no events — the question in these tests is whether the bytes are accepted at all.
+    final class SilentSAX: SAXHandler {
+        var driver: SAXDriver?
+        var rootAttributes: [String: String] = [:]
+    }
+
+    /// The one the Linux CI found. `[Content_Types].xml` has four bytes of a corrupted download landing inside
+    /// the word `Default`, so an element name carries bytes that are not valid UTF-8. Foundation's libxml2-backed
+    /// parser does not report that — it takes the process down while turning the name into a `String`. The bytes
+    /// never reach it now.
+    @Test func aPartWhoseBytesAreNotUTF8IsReportedRatherThanParsed() throws {
+        let url = Bundle.module.resourceURL!.appendingPathComponent("Fixtures/malformed/content-types-invalid-utf8.xlsx")
+        let data = try Data(contentsOf: url)
+        #expect(throws: SheetError.self) { try Workbook(data: data) }
+    }
+
+    /// The same fault built by hand, so the test still says something if the fixture ever goes missing: the
+    /// error names the part and the byte, as every malformed part does.
+    @Test func theByteThatIsNotTextIsNamed() throws {
+        let good = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types><De"
+        var xml = Data(good.utf8)
+        xml.append(contentsOf: [0xFF, 0xFF, 0xFF, 0xFF])
+        xml.append(Data("t/></Types>".utf8))
+        #expect(throws: SheetError.self) { try SilentSAX().run(xml, part: "[Content_Types].xml") }
+        do { try SilentSAX().run(xml, part: "[Content_Types].xml") } catch let error as SheetError {
+            #expect(error.description.contains("[Content_Types].xml"))
+            #expect(error.description.contains("byte \(good.utf8.count)"), Comment(rawValue: error.description))
+        }
+    }
+
+    /// The check is about bytes nobody can decode, not about encodings. A part that says it is UTF-16 — by its
+    /// byte-order mark — still goes to the parser, which is the thing that knows how to read it.
+    @Test func aPartThatSaysItIsUTF16StillGoesToTheParser() throws {
+        let text = "<?xml version=\"1.0\"?><Types/>"
+        var xml = Data([0xFF, 0xFE])
+        for unit in text.utf16 { xml.append(UInt8(unit & 0xFF)); xml.append(UInt8(unit >> 8)) }
+        // it parses, or the parser says why — either way the bytes were not turned away unread
+        do { try SilentSAX().run(xml, part: "p.xml") } catch let error as SheetError {
+            #expect(!error.description.contains("not valid UTF-8"))
+        }
+    }
+
+    /// And one that names an encoding of its own in the declaration.
+    @Test func aPartThatNamesItsOwnEncodingStillGoesToTheParser() throws {
+        var xml = Data("<?xml version=\"1.0\" encoding=\"Shift_JIS\"?><Types name=\"".utf8)
+        xml.append(contentsOf: [0x93, 0xFA, 0x96, 0x7B])   // 日本 in Shift_JIS: not valid UTF-8
+        xml.append(Data("\"/>".utf8))
+        do { try SilentSAX().run(xml, part: "p.xml") } catch let error as SheetError {
+            #expect(!error.description.contains("not valid UTF-8"))
+        }
+    }
+
     // MARK: - Coordinates
 
     /// The accumulators in `CellRef` are bounded while they are being filled, not after: 20 letters or 20 digits

@@ -65,6 +65,39 @@ public enum TextEncodingSniffer {
         return nil
     }
 
+    /// Byte offset of the first sequence that is not valid UTF-8; nil when the whole buffer is.
+    ///
+    /// Reads the buffer where it lies — a part can be tens of megabytes, and copying it to check it would cost
+    /// more than the check.
+    package static func firstInvalidUTF8Offset(in data: Data) -> Int? {
+        data.withUnsafeBytes { raw -> Int? in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            var i = 0
+            let n = bytes.count
+            while i < n {
+                let b = bytes[i]
+                if b < 0x80 { i += 1; continue }
+                let length: Int
+                var minSecond: UInt8 = 0x80, maxSecond: UInt8 = 0xBF
+                switch b {
+                case 0xC2...0xDF: length = 2
+                case 0xE0: length = 3; minSecond = 0xA0
+                case 0xE1...0xEC, 0xEE...0xEF: length = 3
+                case 0xED: length = 3; maxSecond = 0x9F          // no surrogates
+                case 0xF0: length = 4; minSecond = 0x90
+                case 0xF1...0xF3: length = 4
+                case 0xF4: length = 4; maxSecond = 0x8F          // ≤ U+10FFFF
+                default: return i
+                }
+                guard i + length <= n else { return i }
+                guard bytes[i + 1] >= minSecond, bytes[i + 1] <= maxSecond else { return i }
+                for k in 2..<length where bytes[i + k] < 0x80 || bytes[i + k] > 0xBF { return i }
+                i += length
+            }
+            return nil
+        }
+    }
+
     /// True when the bytes decode as UTF-8 / UTF-16 text without control characters other than tab / newlines.
     public static func looksLikeText(_ data: Data) -> Bool {
         guard !data.isEmpty else { return true }
