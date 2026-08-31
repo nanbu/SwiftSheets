@@ -481,8 +481,12 @@ final class ContentParser: SAXHandler {
             cfPriority += 1
             let style = catalog.differentialStyle(named: a["calcext:apply-style-name"])
             sheetHasCalcextFormats = true
-            let anchor = a["calcext:base-cell-address"].map { ContentParser.internalTarget($0) }
-                .flatMap { $0.split(separator: "!").last.map(String.init) } ?? (cfRanges.sorted.first?.topLeft.a1 ?? "A1")
+            // spelled out rather than chained: one expression here is more than some toolchains will type-check
+            var anchor = cfRanges.sorted.first?.topLeft.a1 ?? "A1"
+            if let address = a["calcext:base-cell-address"],
+               let cell = ContentParser.internalTarget(address).split(separator: "!").last {
+                anchor = String(cell)
+            }
             if let rule = ODSCondition.rule(from: value, style: style, priority: cfPriority, anchor: anchor) { cfRules.append(rule) }
             else { unreadableConditionalFormat = true }
         case "date-is":
