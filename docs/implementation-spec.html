@@ -1877,6 +1877,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.5 Draft</td><td>2026-08-29</td><td>計測のみ。<strong>B.31 の保護の鍵を実機の Excel（16.112.2）が開錠した</strong>——付録 B.31 の検証欄を更新。審判 <code>Tests/ExcelParity/verify_with_excel_app.py</code> を新設し、AppleScript で Excel を駆動して「保護されている／誤った合言葉では解けない／正しい合言葉で解ける」を状態で読む。検体は ASCII・日本語（UTF-16LE の経路）・ブック構造の 3 つで、いずれも新方式の鍵のみ。実測で分かった 2 点を仕様書に固定した: Excel は誤った合言葉をエラーで断らず黙って解かないだけであること、<code>unprotect</code> は解除済みに対して何もしないので誤った合言葉を先に試す順序でなければ偽合格すること。ProtectedRange は実機で試す手立てがなく対象外</td></tr>
     <tr><td>4.6 Draft</td><td>2026-08-31</td><td><strong>ワークシートではないシート</strong>を付録 B.35 に記録。グラフシートを読むとワークシートとして解析され、書き戻すと <code>&lt;chartsheet&gt;</code> の部品が <code>&lt;worksheet&gt;</code> に置き換わり、コンテンツタイプと関係の種別まで worksheet になっていた——警告も無しに。<code>SheetPreservation.foreignSheet</code>（<code>ForeignSheet</code>）を足し、部品・コンテンツタイプ・関係の種別をそのまま運ぶ。読みで <code>degraded</code>、そのシートにセルを書いた場合は書き出しで <code>dropped</code>。検体は実機 Excel に作らせ、審判は LibreOffice の描いたページ数（直す前は 2 対 3 だった）</td></tr>
     <tr><td>4.7 Draft</td><td>2026-08-31</td><td><strong>フォームというタブ</strong>を付録 B.36 に記録。読み込みが <code>TN.SheetArchive</code> 以外のタブを無言で捨てていた（B.35 と同じ形の欠陥）。フォームは既存の表への入力画面で値を持たないため、空のシートに仕立てず落とし、<strong>フォーム名と書き込み先の表名</strong>を挙げて言う。検体は iPhone でしか作れないため保守者の手作り。これで対応表の「未検証」は 0 件になった</td></tr>
+    <tr><td>4.10 Draft</td><td>2026-08-31</td><td><strong>Linux 達成</strong>（付録 B.38 に追記）。審判が 3 回赤を出し、最後に残ったのは <strong>Foundation 自身の XML 部品</strong>だった —— 要素名に UTF-8 として不正なバイトがあると <code>_NSXMLParserStartElementNs</code> でプロセスごと落ちる。検体（fuzz seed 1・round 174・4131 バイト）を 1 バイト違わず再現し、<strong>渡す前に UTF-8 として成立しているかを確かめる守り</strong>を入れた（別符号化を名乗る部品は素通し・走査は写さない）。Linux 944 件・macOS 945 件すべて緑、fuzz も除外なし。§1.1 の「Linux 上で動作する」を達成とし、B.1 の未達を解いた。visionOS は審判が無いため未達のまま</td></tr>
     <tr><td>4.9 Draft</td><td>2026-08-31</td><td><strong>圧縮の差し替え口</strong>を付録 B.38 に記録。Linux を塞いでいたのは自前 ZIP ではなく、その中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった —— <code>Compression</code> と <code>CryptoKit</code>。畳む道具を <code>Deflate</code> の向こうへ移し、Compression の無い機械では system zlib が答えるようにした（<code>Sources/CZlib</code> はモジュールマップ 1 枚・SwiftPM 依存は増えない）。SHA-512 は自前へ戻す（10 万回反復が release で 0.29 秒）。<code>XMLParser</code> は Linux では <code>FoundationXML</code> にあるので条件つき import を 8 ファイルに追加。審判は <code>-DSWIFTSHEETS_ZLIB</code> —— <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>。Linux 対応は CI が緑になるまで名乗らない</td></tr>
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
   </table></div>
@@ -1902,8 +1903,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <strong>Rev 4.9 で Apple 専用の部品を 2 つとも外した</strong>（B.38）: 畳む道具は <code>Deflate</code> の差し替え口の
       向こうへ移り、Compression が無い機械では system zlib が答える（<code>Sources/CZlib</code> はモジュールマップ 1 枚で、
       SwiftPM が解決する依存は増えない）。SHA-512 も CryptoKit から自前へ戻した。
-      §1.1 の「Linux 上で動作する」は<strong>経路としては通ったが、まだ名乗らない</strong> —— §12.2 が外部審判に据えた
-      Linux CI が緑になるまでが条件で、README の Limits にもそう書いた。</li>
+      <strong>§1.1 の「Linux 上で動作する」は達成した</strong>（2026-08-31・B.38）—— §12.2 が外部審判に据えた
+      Linux CI が全件緑になったので、README のバッジと Limits を書き換えた。visionOS は未達のまま残る:
+      塞いでいたものはもう無いが、<strong>誰も全件を走らせていない platform を README は名乗らない</strong>。</li>
     <li>ZIP / XML の基盤は SheetCore に置き、<code>package</code> アクセスでコーデックへ公開する（L1 を別ターゲットにしない — 利用者に見せる必要がない）。</li>
   </ul>
 
@@ -2243,9 +2245,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td>openpyxl も作り直す。自由項目（<code>custom.xml</code>）は Rev 2.0 でモデル化した（B.15）。</td></tr>
     <tr><td>ZIP64</td><td>4 GB / 65,535 パートを超えると <code>corruptedContainer</code></td>
       <td>全載せモデルの上限（数百 MB）の方が先に来る。ストリーミングと同時に考えるべき項目。</td></tr>
-    <tr><td>Linux / visionOS</td><td>まだ名乗らない（B.38）</td>
-      <td>Apple 専用の部品は外した（zlib 経路・自前 SHA-512）。zlib 経路は macOS の上で全件走らせて緑。
-        残るのは Linux 版 Foundation の振る舞いで、これは Linux CI が緑になるまで分からない。それまで主張しない。</td></tr>
+    <tr><td>visionOS</td><td>未達（B.38 で Linux は達成）</td>
+      <td>Apple 専用の部品はもう無く、塞いでいるものは何も無い。ただし全件を走らせる審判がこの環境に無い。
+        <strong>誰も走らせていない platform は名乗らない</strong>。</td></tr>
     <tr><td>Numbers の数式生成（TSCE アーカイブ）</td><td>キャッシュ値＋<code>degraded</code> 警告（B.8）</td>
       <td>参照実装 numbers-parser 自身が書けず、この Mac に Numbers.app が無い。
         <strong>検証できない生成物を出荷しない</strong>のがこのリポジトリの規律。</td></tr>
@@ -4657,8 +4659,33 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     渡す前に部品が UTF-8 として成立しているかを確かめ、成立しなければ従来どおり
     <code>malformedPart</code> を投げる案を検討中（BOM つき・宣言が UTF-8 以外の部品は素通し）。
     <strong>ただしそれで壊れ方の全種類が塞がるかは不明で、審判に聞きながら繰り返すほかない。</strong>
-    決まるまでの仮置きとして、Linux ジョブは <code>FuzzTests</code> を除外して走らせている——
-    ジョブ名と CI の注記に「外している」と書いてある。
+  </p>
+  <h4>守りを足した —— そして Linux は全件緑になった</h4>
+  <p>
+    2026-08-31、方針は「渡す前に守りを足し、そのうえで Linux を名乗る」。
+    <strong>XML の部品は、Foundation に渡す前に UTF-8 として成立しているかを確かめる</strong>
+    （<code>SAXDriver.rejectUndecodableBytes</code>）。成立しなければ従来どおり
+    <code>malformedPart</code> にバイト位置を添えて投げる —— <strong>落ちる原因は外側にあるが、
+    落ちないように渡すのはこちらの仕事</strong>という整理である。
+    BOM で別の符号化を名乗る部品・XML 宣言が UTF-8 以外を名乗る部品は<strong>素通し</strong>する
+    （それらは parser 自身が復号するので、この問いは当てはまらない）。
+    走査は <code>withUnsafeBytes</code> でその場を読む —— 数十 MB の部品を検査のために写さない。
+    <code>firstInvalidUTF8Offset</code> は SheetCSV から SheetCore（<code>TextEncodingSniffer</code>）へ移し、
+    両者で共有する。
+  </p>
+  <p>
+    検体は <code>Fixtures/malformed/content-types-invalid-utf8.xlsx</code> として取り込み、
+    手作りの同型（バイト位置を名乗ることの確認）と、素通しの 2 件（UTF-16 の BOM・Shift_JIS 宣言）を
+    <code>MalformedInputTests</code> に置いた。
+  </p>
+  <p>
+    結果: <strong>Linux で 944 件・macOS で 945 件、いずれも緑</strong>（差の 1 件は CryptoKit と突き合わせる
+    Apple 専用の検査）。<strong>fuzz スイートも除外していない。</strong>手元では 6,000 周の fuzz も無事。
+    これで §1.1 の「Linux 上で動作する」は達成 —— README のバッジ・Limits・<code>docs/index.html</code>・
+    CONTRIBUTING を書き換えた。
+    なお<strong>「壊れ方の全種類を塞いだ」とは言えない</strong>: 塞いだのは実際に落ちた 1 種類で、
+    別の種類が残っている可能性は fuzz を回し続けて初めて減る。上流（swift-corelibs-foundation）への
+    報告はまだ出していない。
   </p>
 
 </section>
