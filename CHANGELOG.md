@@ -7,7 +7,7 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.11.1] — 2026-08-31
 
 ### Fixed
 
@@ -15,16 +15,24 @@ writes, so the constant, the README's status line and the tag always name the sa
   of requiring a virtual environment belonging to another project. The release checklist's sample workbook could
   not be built on this machine, and that is how the defect below went unnoticed.
 
-### Known issues
+### Fixed
 
-- **A cell style on any sheet after the first produces a `.numbers` document Numbers.app will not open**
-  (found 2026-08-31, not yet fixed, and not new in 0.11.0 — the Numbers writer has not changed since 0.10.0).
-  Two sheets with one styled cell on the second is the whole reproducer; a style on the first sheet alone is fine,
-  and unstyled sheets are fine at any count. numbers-parser and LibreOffice read the file, so only Numbers itself
-  objects, which is the signature of a cross-component reference the package metadata does not declare — the
-  mechanism is **not yet confirmed**, only the condition. The 19-probe corpus the Numbers judge runs had no styled
-  non-first sheet, which is how it survived; `19-style-on-second-sheet` is now that probe, and it fails today.
-  Workaround: keep the formatting on the first sheet, or write `.xlsx`.
+- **A cell style on any sheet after the first no longer produces a `.numbers` document Numbers.app refuses to
+  open** (spec Appendix B.37). Numbers follows a reference into another component through the package metadata,
+  so a crossing the metadata does not declare is one it cannot follow — and it refuses the document without
+  saying why. The styles a copied sheet's table names live in the stylesheet component, and their crossings were
+  never recorded: a copied sheet's own component is only *queued* while that sheet is written
+  (`flushComponents` runs once, at the end, because re-walking the metadata per object turned a one-second write
+  into a two-minute one), so `componentID(forObject:)` answered nil and the registration was skipped altogether.
+  The first sheet is patched into the template, whose component already exists — which is exactly why a style on
+  sheet 1 was fine and the same style on sheet 2 was not. Crossings are now collected while the sheets are
+  written and registered once every component exists, and one that still has nowhere to go is reported instead
+  of dropped.
+  Found by running MAINTENANCE.md's release checklist end to end for the first time, which became possible in
+  this release because the sample script now fetches openpyxl through uv. Every other reader — numbers-parser,
+  LibreOffice, our own — read the broken document happily; only Numbers objected, which is why nineteen probes
+  and four judges had not caught it. `19-style-on-second-sheet` is the probe that would have, and
+  `NumbersCrossingTests` pins the invariant without needing Numbers.app, so CI catches a repeat.
 
 ## [0.11.0] — 2026-08-31
 
@@ -454,6 +462,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.11.1]: https://github.com/nanbu/SwiftSheets/compare/0.11.0...0.11.1
 [0.11.0]: https://github.com/nanbu/SwiftSheets/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/nanbu/SwiftSheets/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/nanbu/SwiftSheets/compare/0.8.0...0.9.0

@@ -1877,6 +1877,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.5 Draft</td><td>2026-08-29</td><td>計測のみ。<strong>B.31 の保護の鍵を実機の Excel（16.112.2）が開錠した</strong>——付録 B.31 の検証欄を更新。審判 <code>Tests/ExcelParity/verify_with_excel_app.py</code> を新設し、AppleScript で Excel を駆動して「保護されている／誤った合言葉では解けない／正しい合言葉で解ける」を状態で読む。検体は ASCII・日本語（UTF-16LE の経路）・ブック構造の 3 つで、いずれも新方式の鍵のみ。実測で分かった 2 点を仕様書に固定した: Excel は誤った合言葉をエラーで断らず黙って解かないだけであること、<code>unprotect</code> は解除済みに対して何もしないので誤った合言葉を先に試す順序でなければ偽合格すること。ProtectedRange は実機で試す手立てがなく対象外</td></tr>
     <tr><td>4.6 Draft</td><td>2026-08-31</td><td><strong>ワークシートではないシート</strong>を付録 B.35 に記録。グラフシートを読むとワークシートとして解析され、書き戻すと <code>&lt;chartsheet&gt;</code> の部品が <code>&lt;worksheet&gt;</code> に置き換わり、コンテンツタイプと関係の種別まで worksheet になっていた——警告も無しに。<code>SheetPreservation.foreignSheet</code>（<code>ForeignSheet</code>）を足し、部品・コンテンツタイプ・関係の種別をそのまま運ぶ。読みで <code>degraded</code>、そのシートにセルを書いた場合は書き出しで <code>dropped</code>。検体は実機 Excel に作らせ、審判は LibreOffice の描いたページ数（直す前は 2 対 3 だった）</td></tr>
     <tr><td>4.7 Draft</td><td>2026-08-31</td><td><strong>フォームというタブ</strong>を付録 B.36 に記録。読み込みが <code>TN.SheetArchive</code> 以外のタブを無言で捨てていた（B.35 と同じ形の欠陥）。フォームは既存の表への入力画面で値を持たないため、空のシートに仕立てず落とし、<strong>フォーム名と書き込み先の表名</strong>を挙げて言う。検体は iPhone でしか作れないため保守者の手作り。これで対応表の「未検証」は 0 件になった</td></tr>
+    <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4520,6 +4521,63 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     フォームが埋める表の値が普通に読めること、警告が 1 件だけでフォーム名と表名の両方を挙げること、
     書き戻すと表が残りフォームは戻らないこと。
     <strong>これで対応表の「未検証」は 0 になった</strong>（191 行すべてに実測かコード確認の裏づけがある）。
+  </p>
+
+  <h3>B.37 申告されていない越境 — Numbers だけが黙って断っていた（Rev 4.8）</h3>
+  <p>
+    2026-08-31。openpyxl を uv 経由で用意し、<strong>MAINTENANCE.md の公開前チェックを初めて最後まで
+    走らせた</strong>ところ、Numbers.app が開かない書類が出た。
+  </p>
+  <h4>絞り込み — 条件は 1 つだった</h4>
+  <p>
+    1 枚もの（書式あり・なし問わず）… 開く／2〜3 枚・書式なし… 開く／2 枚・<strong>1 枚目だけ</strong>書式… 開く／
+    2 枚・<strong>2 枚目に</strong>書式（塗り・表示形式・書体のいずれでも）… <strong>開かない</strong>。
+    見本ブックの 5 シートは 1 枚ずつなら全部開き、どの 2 枚組も開かない。
+  </p>
+  <p>
+    numbers-parser も LibreOffice もこちらの読み手も、壊れた書類を平気で読む。異議を唱えるのは Numbers だけ——
+    付録 B.18 で一度見た形である。
+  </p>
+  <h4>原因 — 部品をまたぐ参照は、目録に申告しなければ辿れない</h4>
+  <p>
+    Numbers は<strong>部品（component）をまたぐ参照</strong>を、書類の目録
+    （<code>TSP.ComponentInfo.external_references</code>）を通して辿る。申告の無い越境は<strong>辿れない参照</strong>であり、
+    Numbers は理由を言わずに書類を断る。
+  </p>
+  <p>
+    表のスタイル一覧が名指しするスタイル物は<strong>スタイルシートの部品</strong>に住むので、越境の申告が要る。
+    ところが<strong>複製したシート</strong>の部品は、そのシートを書いている最中はまだ<em>予約</em>されているだけで、
+    目録には入っていない（<code>flushComponents</code> は最後に 1 回だけ走る——物ごとに目録を歩き直すと
+    書き出しが 1 秒から 2 分になるため）。そのため <code>componentID(forObject:)</code> が nil を返し、
+    <strong>申告そのものが丸ごと飛ばされていた</strong>。
+  </p>
+  <p>
+    1 枚目はテンプレートの表をその場で書き換えるので部品が既にあり、申告は成立する——
+    <strong>「1 枚目の書式は平気、2 枚目の書式で壊れる」の理由はここ</strong>である。
+  </p>
+  <h4>直し方</h4>
+  <p>
+    越境は<strong>集めておき、部品が出揃ってから登録する</strong>（<code>pendingCrossings</code> →
+    <code>registerPendingCrossings()</code>、<code>flushComponents()</code> の直後）。
+    それでも行き場の無い越境は <code>degraded</code> の警告で言う——黙って落とさない。
+    <code>NumbersDocument.addExternalReferences</code> も、知らない部品に対して黙って何もしないのをやめ、
+    部品が現れるまで保留するようにした。
+  </p>
+  <h4>やらなかったこと</h4>
+  <p>
+    「すべての越境は申告されていなければならない」という一般の不変条件は<strong>入れていない</strong>。
+    測ったところ、<strong>Numbers 自身が作った書類にも申告のない越境が 47 件あった</strong>（テンプレートにも 42 件）。
+    Numbers が何を要求し何を要求しないのかの線は分かっていないので、推測で不変条件にはしない。
+    代わりに<strong>スタイル一覧の越境に限った検査</strong>を <code>NumbersCrossingTests</code> に置いた——
+    実測で裏づけのある範囲だけを釘打つ。
+  </p>
+  <h4>なぜ 19 通りの見本をすり抜けたか</h4>
+  <p>
+    見本 05 は書式つきだが 1 枚もの、09 は 2 枚だが書式なし、4 枚ある総合見本 15 は<strong>書式が全部 1 枚目</strong>。
+    <strong>「1 枚目以外に書式を付けた書類」が 1 つも無かった</strong>。加えて公開前チェックは openpyxl から
+    始まるため走っていなかった。<strong>穴が 2 つ重なると誰も見ない。</strong>
+    見本 <code>19-style-on-second-sheet</code> を足し、実機を要さない <code>NumbersCrossingTests</code> も置いたので、
+    CI が再発を捕まえる。
   </p>
 
 </section>

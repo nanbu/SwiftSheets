@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>形式ごとの対応表 — Excel / ODS / Numbers で何がどこまで通るか（SwiftSheets 0.11.0）</title>
+<title>形式ごとの対応表 — Excel / ODS / Numbers で何がどこまで通るか（SwiftSheets 0.11.1）</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -379,18 +379,6 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </section>
 
 <section>
-<div class="card tint">
-<h3>いま分かっている不具合（2026-08-31・未修正）</h3>
-<p>
-  <strong>2 枚目以降のシートにセル書式を付けると、Numbers.app がその書類を開きません。</strong>
-  シート 2 枚・2 枚目に書式つきのセル 1 個で再現します。1 枚目だけに書式を付けるぶんには問題なく、
-  書式の無いシートは何枚あっても開きます。numbers-parser と LibreOffice は読めるので、
-  異議を唱えるのは Numbers 自身だけです。見本の一式に「1 枚目以外に書式を付けた書類」が
-  無かったため、ここまで気づかれませんでした（その見本を足したので、いまは審判が赤く出ます）。
-  直るまでは<strong>書式を 1 枚目に寄せる</strong>か、<strong>.xlsx で書く</strong>のが回避策です。
-</p>
-</div>
-
 <h2>Numbers だけ、なぜここまで違うのか</h2>
 <p>
   Numbers の対応が薄いのは、機能を作らなかったからではありません。

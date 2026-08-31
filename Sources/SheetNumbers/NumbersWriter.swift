@@ -101,6 +101,12 @@ struct NumbersWriter {
     /// Component entries waiting to go into the package metadata. Registering them one at a time meant walking
     /// the whole metadata once per object — with four sheets that was most of the time the write took.
     private var pendingComponents: [(new: Int, like: Int?, locator: String)] = []
+    /// Crossings a table's own lists make into objects that live elsewhere — the stylesheet, mostly. They are
+    /// recorded by object id and resolved after `flushComponents()`, never while a sheet is being written: a
+    /// **copied** sheet's component is only queued at that point, so `componentID(forObject:)` answers nil and
+    /// the crossing used to be skipped altogether. The document that came out was one Numbers refused to open,
+    /// and nothing said so (spec Appendix B.37).
+    private var pendingCrossings: [(from: Int, to: [Int])] = []
 
     init(workbook: Workbook, options: WriteOptions) throws {
         self.workbook = workbook
@@ -272,6 +278,7 @@ struct NumbersWriter {
             }
         }
         flushComponents()
+        registerPendingCrossings()
         doc.update(NumbersDocument.documentID) { $0.set("sheets", references: sheetIDs) }
         doc.setBlob("Metadata/DocumentIdentifier", Data(UUID().uuidString.utf8))
         return doc.encoded()
@@ -418,6 +425,30 @@ struct NumbersWriter {
         doc.update(storage) { $0.append("annotation_author", reference: id) }
         authorIDs[name] = id
         return id
+    }
+
+    /// Every crossing collected while the sheets were written, now that `flushComponents()` has put every
+    /// component into the package metadata and `componentID(forObject:)` can answer for all of them.
+    private mutating func registerPendingCrossings() {
+        let waiting = pendingCrossings
+        pendingCrossings = []
+        for entry in waiting {
+            guard let from = doc.componentID(forObject: entry.from) else {
+                warnings.append(ConversionWarning(.degraded, subject: .formatting,
+                                                  message: "object \(entry.from) is in no component, so \(entry.to.count) "
+                                                  + "cross-component reference(s) could not be recorded; Numbers may refuse the document"))
+                continue
+            }
+            let crossings = entry.to.compactMap { object in
+                doc.componentID(forObject: object).flatMap { $0 == from ? nil : (object: object, component: $0) }
+            }
+            doc.addExternalReferences(from: from, to: crossings)
+        }
+        for entry in doc.flushPendingExternalReferences() {
+            warnings.append(ConversionWarning(.degraded, subject: .formatting,
+                                              message: "\(entry.objects.count) cross-component reference(s) could not be recorded "
+                                              + "for component \(entry.component); Numbers may refuse the document"))
+        }
     }
 
     private mutating func registerComponent(_ new: Int, like old: Int) {
@@ -1562,12 +1593,7 @@ struct NumbersWriter {
                 list.set("nextListID", int: entries.count + 1)
             }
             // the list names objects of the stylesheet component; Numbers keeps that crossing in the metadata
-            if let listComponent = doc.componentID(forObject: sid) {
-                let crossings = styleWriter.styleObjects.compactMap { object in
-                    doc.componentID(forObject: object).map { (object: object, component: $0) }
-                }
-                doc.addExternalReferences(from: listComponent, to: crossings)
-            }
+            pendingCrossings.append((from: sid, to: styleWriter.styleObjects))
         }
         if let fid = store.reference("format_table") {
             let entries = styleWriter.formatEntries
@@ -1584,15 +1610,12 @@ struct NumbersWriter {
                 list.set("entries", messages: entries)
                 list.set("nextListID", int: entries.count + 1)
             }
-            if !entries.isEmpty, let listComponent = doc.componentID(forObject: cid) {
+            if !entries.isEmpty {
                 // every style a rule names, minted or borrowed. The table's own defaults stand in for the half a
                 // rule does not vary, and they live in the stylesheet component just as the minted ones do — an
                 // undeclared crossing is a reference Numbers cannot resolve, and it refuses the document.
                 let named = styleWriter.allStyleObjects + [styleWriter.defaultCellStyle, styleWriter.defaultTextStyle].compactMap { $0 }
-                let crossings = Set(named).compactMap { object in
-                    doc.componentID(forObject: object).map { (object: object, component: $0) }
-                }
-                doc.addExternalReferences(from: listComponent, to: crossings)
+                pendingCrossings.append((from: cid, to: Array(Set(named))))
             }
         } else if !conditionalEntries.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
@@ -1616,16 +1639,11 @@ struct NumbersWriter {
                 list.set("entries", messages: entries)
                 list.set("nextListID", int: entries.count + 1)
             }
-            if let component = doc.componentID(forObject: rid) {
-                // everything the storage names and does not live beside it: the stylesheet, the styles a run
-                // wears, the paragraph and list styles. An undeclared crossing is a document Numbers will not open.
-                let named = styleWriter.allStyleObjects
-                    + [plainRun, linkRun, listStyle, styleWriter.stylesheetID, styleWriter.defaultTextStyle].compactMap { $0 }
-                let crossings = Set(named).compactMap { object in
-                    doc.componentID(forObject: object).map { (object: object, component: $0) }
-                }
-                doc.addExternalReferences(from: component, to: crossings)
-            }
+            // everything the storage names and does not live beside it: the stylesheet, the styles a run
+            // wears, the paragraph and list styles. An undeclared crossing is a document Numbers will not open.
+            let named = styleWriter.allStyleObjects
+                + [plainRun, linkRun, listStyle, styleWriter.stylesheetID, styleWriter.defaultTextStyle].compactMap { $0 }
+            pendingCrossings.append((from: rid, to: Array(Set(named))))
         }
         if let cid = commentList, !commentEntries.isEmpty {
             let entries = commentEntries
@@ -1633,12 +1651,7 @@ struct NumbersWriter {
                 list.set("entries", messages: entries)
                 list.set("nextListID", int: entries.count + 1)
             }
-            if let component = doc.componentID(forObject: cid) {
-                let crossings = authorIDs.values.compactMap { object in
-                    doc.componentID(forObject: object).map { (object: object, component: $0) }
-                }
-                doc.addExternalReferences(from: component, to: crossings)
-            }
+            pendingCrossings.append((from: cid, to: Array(authorIDs.values)))
         }
 
         // formula list

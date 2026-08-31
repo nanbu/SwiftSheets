@@ -43,14 +43,14 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.11.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.11.1")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
 ]
 ```
 
-Status: **0.11.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
+Status: **0.11.1** — all five formats are usable; the API may still change before 1.0. What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
 test keeps the constant, this line and the pin above in step.
 
@@ -155,12 +155,6 @@ is reported, never dropped in silence.
   warning, and so is the second and every further summarised value of a pivot table (the value lanes of a rebuilt
   Numbers pivot share one placeholder id, so only the first survives the trip — spec Appendix B.28). Nothing is
   dropped in silence.
-- **Known defect (found 2026-08-31, not yet fixed): a cell style on any sheet after the first produces a
-  document Numbers.app will not open.** Two sheets and one styled cell on the second is enough; a style on the
-  first sheet alone is fine, and so is any number of unstyled sheets. numbers-parser and LibreOffice read the
-  file, so only Numbers itself objects. The probe corpus had no styled non-first sheet, which is how it survived
-  — `19-style-on-second-sheet` is that probe, and it fails today. Until it is fixed, put the formatting on the
-  first sheet, or write `.xlsx`.
 - Judges: round trip through our own reader, numbers-parser reading our output
   (`Tests/NumbersParity/verify_with_numbers_parser.py`), LibreOffice's Numbers importer — and, since 2026-08-25,
   **Numbers.app itself** (`Tests/NumbersParity/verify_with_numbers_app.py`): it opens what we wrote, is asked what

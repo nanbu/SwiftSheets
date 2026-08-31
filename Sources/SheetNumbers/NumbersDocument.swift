@@ -176,10 +176,24 @@ final class NumbersDocument {
         return componentsByLocator?[locator]
     }
 
+    /// Crossings whose component is not in the package metadata yet. A copied sheet's component is only *queued*
+    /// while that sheet's styles are being written (`flushComponents` runs once, at the end, because re-walking the
+    /// metadata per object turned a one-second write into a two-minute one), so a crossing recorded during the
+    /// copy has nowhere to go. It used to be dropped here without a word, and the document that came out was one
+    /// Numbers refused to open — see `flushPendingExternalReferences` (spec Appendix B.37).
+    private var pendingExternalReferences: [(component: Int, objects: [(object: Int, component: Int)])] = []
+
     /// Records that one component now names objects living in another. Numbers keeps this list itself, and a
     /// document whose cross-component references are missing from it is one it offers to repair.
+    ///
+    /// A component the metadata does not know yet is not an error and not a no-op: the crossing waits in
+    /// `pendingExternalReferences` until `flushPendingExternalReferences()` can place it.
     func addExternalReferences(from component: Int, to objects: [(object: Int, component: Int)]) {
         guard !objects.isEmpty else { return }
+        if object(NumbersDocument.packageID)?.messages("components").contains(where: { $0.int("identifier") == component }) != true {
+            pendingExternalReferences.append((component: component, objects: objects))
+            return
+        }
         update(NumbersDocument.packageID) { pkg in
             var comps = pkg.messages("components")
             guard let i = comps.firstIndex(where: { $0.int("identifier") == component }) else { return }
@@ -195,6 +209,23 @@ final class NumbersDocument {
             }
             pkg.set("components", messages: comps)
         }
+    }
+
+    /// Places every crossing that had to wait for its component. Returns the ones that still have nowhere to go —
+    /// each is a reference Numbers cannot resolve, so the caller reports rather than shipping the document quietly.
+    @discardableResult
+    func flushPendingExternalReferences() -> [(component: Int, objects: [(object: Int, component: Int)])] {
+        let waiting = pendingExternalReferences
+        pendingExternalReferences = []
+        var stillWaiting: [(component: Int, objects: [(object: Int, component: Int)])] = []
+        for entry in waiting {
+            if object(NumbersDocument.packageID)?.messages("components").contains(where: { $0.int("identifier") == entry.component }) == true {
+                addExternalReferences(from: entry.component, to: entry.objects)
+            } else {
+                stillWaiting.append(entry)
+            }
+        }
+        return stillWaiting
     }
 
     func setBlob(_ path: String, _ data: Data) { if files[path] == nil { order.append(path) }; files[path] = .blob(data) }
