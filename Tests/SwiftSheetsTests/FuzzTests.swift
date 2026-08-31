@@ -132,9 +132,6 @@ import SwiftSheets
             let mutant = Bool.random(using: &rng)
                 ? Self.mutate(source.data, using: &rng)
                 : (Self.mutateInsidePackage(source.data, using: &rng) ?? Self.mutate(source.data, using: &rng))
-            // TEMPORARY (diagnosis of the Linux crash): straight to stderr, which is unbuffered, so the last
-            // line survives a trap. Removed once the offending mutant has been identified.
-            FileHandle.standardError.write(Data("FUZZ seed \(seed) round \(round) \(source.name) \(mutant.count)B crc \(CRC32.checksum(mutant))\n".utf8))
             do {
                 let wb = try Workbook(data: mutant, options: ReadOptions(cellLimit: 50_000))
                 opened += 1
