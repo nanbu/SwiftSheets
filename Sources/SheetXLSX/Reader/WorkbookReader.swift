@@ -113,6 +113,31 @@ enum WorkbookReader {
             let sheetRelsPath = relsPath(of: part)
             let sheetRels = (try? parseRels(zip, sheetRelsPath)) ?? []
             consumed.insert(part); consumed.insert(sheetRelsPath)
+
+            // Not every sheet is a grid: SpreadsheetML also has chart sheets, dialog sheets and macro sheets, and
+            // the workbook lists them beside the worksheets. Parsing one as a worksheet would find no cells and,
+            // worse, writing it back would replace `<chartsheet>` with `<worksheet>` under the same content type —
+            // a package that says one thing and holds another. So the part is kept as bytes and reported
+            // (spec Appendix B.35).
+            if !rel.type.hasSuffix(relWorksheet) {
+                let body = try zip.read(part)
+                var sheet = Sheet(name: info.name)
+                sheet.state = info.state
+                sheet.preserved.partPath = part
+                sheet.preserved.relationshipId = info.rId
+                sheet.preserved.sheetId = info.sheetId
+                sheet.preserved.relationships = sheetRels.filter { !$0.type.hasSuffix(relHyperlink) }
+                sheet.preserved.foreignSheet = ForeignSheet(
+                    root: rootElement(of: body) ?? "sheet", relationshipType: rel.type,
+                    contentType: ct.overrides[part] ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+                    body: body)
+                warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
+                                                  message: "\(sheet.preserved.foreignSheet!.description) has no grid the model can read; "
+                                                  + "it has no cells here and is written back to .xlsx exactly as it arrived"))
+                sheets.append(sheet)
+                continue
+            }
+
             let p = SheetParser(name: info.name, sst: sst.strings, styles: styles, epoch: wb.epoch, dataOnly: options.dataOnly, rels: sheetRels)
             try p.run(try zip.read(part), part: part)
             var sheet = p.sheet
@@ -246,6 +271,25 @@ enum WorkbookReader {
     }
 
     /// Resolves a relationship target against the directory of its source part: absolute targets drop the leading
+    /// The name of a part's root element, read from the bytes without a full parse — enough to tell a
+    /// `<chartsheet>` from a `<worksheet>` when the relationship type has already said it is not a worksheet.
+    static func rootElement(of data: Data) -> String? {
+        guard let text = String(data: data.prefix(4096), encoding: .utf8) else { return nil }
+        var rest = Substring(text)
+        while let open = rest.firstIndex(of: "<") {
+            let after = rest.index(after: open)
+            guard after < rest.endIndex else { return nil }
+            if rest[after] == "?" || rest[after] == "!" {          // declaration, comment, doctype
+                guard let close = rest[after...].firstIndex(of: ">") else { return nil }
+                rest = rest[rest.index(after: close)...]
+                continue
+            }
+            let name = rest[after...].prefix { !$0.isWhitespace && $0 != ">" && $0 != "/" }
+            return name.isEmpty ? nil : String(name)
+        }
+        return nil
+    }
+
     /// "/", relative ones are joined and `..` segments collapsed ("xl/chartsheets" + "../drawings/d.xml" → "xl/drawings/d.xml").
     static func resolvePart(_ target: String, relativeTo base: String) -> String {
         if target.hasPrefix("/") { return String(target.dropFirst()) }

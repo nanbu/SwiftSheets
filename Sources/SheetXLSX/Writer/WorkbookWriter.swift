@@ -333,6 +333,21 @@ enum WorkbookWriter {
             }
         }
 
+        // A sheet that is not a grid is written back verbatim, so anything put into it here has nowhere to go.
+        for sheet in wb.sheets {
+            guard let foreign = sheet.preserved.foreignSheet else { continue }
+            guard sameFamily else {
+                sink.add(.dropped, subject: .objects, sheet: sheet.name,
+                         "\(foreign.description) cannot be rebuilt from the model; the sheet is written as an empty worksheet")
+                continue
+            }
+            if !sheet.cells.isEmpty {
+                sink.add(.dropped, subject: .objects, sheet: sheet.name,
+                         "\(sheet.cells.count) cell(s) written into \(foreign.description) are not saved: it has no grid, "
+                         + "and the sheet is written back as it arrived")
+            }
+        }
+
         // sheets first: they register styles and strings
         var sheetParts: [(xml: String, rels: String?, parts: [(path: String, data: Data)])] = []
         for (i, sheet) in wb.sheets.enumerated() {
@@ -355,7 +370,10 @@ enum WorkbookWriter {
         if sameFamily { for (k, v) in preserved.contentTypeDefaults where defaults[k] == nil { defaults[k] = v } }
         var overrides: [String: String] = [:]
         overrides["xl/workbook.xml"] = format == .xlsm ? ctWorkbookMacro : ctWorkbook
-        for p in plans { overrides[p.path] = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml" }
+        for (sheet, p) in zip(wb.sheets, plans) {
+            overrides[p.path] = (sameFamily ? sheet.preserved.foreignSheet?.contentType : nil)
+                ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
+        }
         overrides["xl/styles.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"
         if !strings.isEmpty { overrides["xl/sharedStrings.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" }
         overrides[themePath] = Theme.contentType
@@ -448,7 +466,10 @@ enum WorkbookWriter {
 
         // xl/_rels/workbook.xml.rels
         var rels = XMLWriter.header + "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\">"
-        for plan in plans { rels += "<Relationship Id=\"\(plan.rId)\" Type=\"\(XMLWriter.nsRel)/worksheet\" Target=\"\(XML.esc(relativeTarget(plan.path, from: "xl")))\"/>" }
+        for (sheet, plan) in zip(wb.sheets, plans) {
+            let type = (sameFamily ? sheet.preserved.foreignSheet?.relationshipType : nil) ?? "\(XMLWriter.nsRel)/worksheet"
+            rels += "<Relationship Id=\"\(plan.rId)\" Type=\"\(XML.esc(type))\" Target=\"\(XML.esc(relativeTarget(plan.path, from: "xl")))\"/>"
+        }
         if let themeId { rels += "<Relationship Id=\"\(themeId)\" Type=\"\(XMLWriter.nsRel)\(Theme.relationshipType)\" Target=\"\(XML.esc(relativeTarget(themePath, from: "xl")))\"/>" }
         rels += "<Relationship Id=\"\(stylesId)\" Type=\"\(XMLWriter.nsRel)/styles\" Target=\"styles.xml\"/>"
         if let sstId { rels += "<Relationship Id=\"\(sstId)\" Type=\"\(XMLWriter.nsRel)/sharedStrings\" Target=\"sharedStrings.xml\"/>" }
@@ -460,8 +481,12 @@ enum WorkbookWriter {
         rels += "</Relationships>"
         archive.add("xl/_rels/workbook.xml.rels", Data(rels.utf8))
 
-        for (part, plan) in zip(sheetParts, plans) {
-            archive.add(plan.path, Data((XMLWriter.header + part.xml).utf8))
+        for ((sheet, part), plan) in zip(zip(wb.sheets, sheetParts), plans) {
+            if sameFamily, let foreign = sheet.preserved.foreignSheet {
+                archive.add(plan.path, foreign.body)      // not a grid: it leaves as the bytes it arrived as
+            } else {
+                archive.add(plan.path, Data((XMLWriter.header + part.xml).utf8))
+            }
             if let r = part.rels { archive.add(WorkbookReader.relsPath(of: plan.path), Data((XMLWriter.header + r).utf8)) }
         }
         for part in generatedNoteParts { archive.add(part.path, part.data) }

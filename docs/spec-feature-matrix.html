@@ -108,7 +108,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。形式ごとの対応表（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。</p>
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
-<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○45 △9 ▣16 ×4 ／ 書き ○46 △9 ▣15 ×3<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○45 △9 ▣17 ×4 ／ 書き ○46 △9 ▣16 ×3<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">56<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○35 △10 ▣1 ×4 ／ 書き ○30 △9 ▣0 ×16<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">57<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △11 ▣0 ×9 ／ 書き ○18 △8 ▣0 ×27<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
@@ -177,7 +177,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>文書</td><td>README / 実装仕様書 付録 B の記述</td></tr>
 <tr><td>実機の審判</td><td>外部の実装が読めたこと（openpyxl・LibreOffice・numbers-parser・Numbers.app・Excel）</td></tr>
 </tbody></table></div>
-<p><strong>正直な残り物</strong>: 実測していない行が 2 件あります（Excel のグラフシート・ダイアログシート・マクロシート、Apple Numbers の入力フォーム（iPhone / iPad のフォーム））。検体が手元に無いため、推測で ○ × を書かず <code>?</code> のままにしてあります。</p>
+<p><strong>正直な残り物</strong>: 実測していない行が 1 件あります（Apple Numbers の入力フォーム（iPhone / iPad のフォーム））。検体が手元に無いため、推測で ○ × を書かず <code>?</code> のままにしてあります。</p>
 </section>
 <section>
 <h2>どの行にも共通する入口</h2>
@@ -190,8 +190,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>件数</h2>
 <div class="tablewrap"><table>
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">45</td><td class="m">9</td><td class="m">16</td><td class="m">4</td><td class="m">3</td><td class="m">1</td><td class="m">78</td></tr>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">46</td><td class="m">9</td><td class="m">15</td><td class="m">3</td><td class="m">4</td><td class="m">1</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">45</td><td class="m">9</td><td class="m">17</td><td class="m">4</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">46</td><td class="m">9</td><td class="m">16</td><td class="m">3</td><td class="m">4</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">35</td><td class="m">10</td><td class="m">1</td><td class="m">4</td><td class="m">6</td><td class="m">0</td><td class="m">56</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">30</td><td class="m">9</td><td class="m">0</td><td class="m">16</td><td class="m">1</td><td class="m">0</td><td class="m">56</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">11</td><td class="m">0</td><td class="m">9</td><td class="m">15</td><td class="m">1</td><td class="m">57</td></tr>
@@ -292,7 +292,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>リッチ値（株価・地理などのデータ型）</td><td class="m n">×</td><td class="m n">×</td><td><code>c@cm, c@vm, xl/richData/</code></td><td>—</td><td><strong>言うこと</strong>: なし（README の既知の限界） cm / vm 属性は保全の対象外。ここは正直な穴で、README に書いてある。 <span class="chip">文書</span></td></tr>
 <tr><td>カスタム XML パート</td><td class="m">▣</td><td class="m">▣</td><td><code>customXml/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped <span class="chip">コード確認</span></td></tr>
 <tr class="group"><td colspan="6">ワークシート以外のシート</td></tr>
-<tr><td>グラフシート・ダイアログシート・マクロシート</td><td class="m h">?</td><td class="m h">?</td><td><code>xl/chartsheets/, &lt;chartsheet&gt;</code></td><td>—</td><td><strong>言うこと</strong>: 未確認 読み込みはブックの &lt;sheet&gt; をすべてワークシートとして解析する。グラフシートを含むファイルはテストコーパスに無く、実測していない。推測で ○ × を書かないため未検証のままにする。 <span class="chip">コード確認</span></td></tr>
+<tr><td>グラフシート・ダイアログシート・マクロシート</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/chartsheets/, &lt;chartsheet&gt;</code></td><td><code>sheet.preserved.foreignSheet</code> <code>ForeignSheet</code></td><td><strong>言うこと</strong>: 読むと「a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived」。そのシートにセルを書き込むと「N cell(s) … are not saved」。他形式へ変換すると dropped ワークシートではないシート。ブックはワークシートと並べて挙げるが、部品の根は &lt;chartsheet&gt; で、モデルには中身を言う言葉がない。だから解釈せずに運ぶ——部品はバイトのまま出入りし、コンテンツタイプと関係の種別も元のまま。検体は Excel 16.112.2 自身に作らせ（Tests/FixtureGenerator/make_chartsheet_fixture.py）、書き戻した結果は LibreOffice が元と同じページ数に描くことで確かめている（付録 B.35）。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>
 <tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>xl/worksheets/sheetN.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>forEachRow(inSheet:)</code> <code>StreamedRow</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 75 万セルで +54MB（モデル全体は +190MB）。結合・メモ・保全は運ばない。 <span class="chip">文書</span></td></tr>
 <tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>同上</code></td><td><code>StreamingWriter(url:sheetName:)</code> <code>append(_:)</code> <code>close()</code></td><td><strong>言うこと</strong>: なし 行数によらず +3MB。値と書式だけ。 <span class="chip">文書</span></td></tr>

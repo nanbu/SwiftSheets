@@ -1192,12 +1192,15 @@
        "id": "xlsx.sheettype.chartsheet",
        "name": "グラフシート・ダイアログシート・マクロシート",
        "spec_anchor": "xl/chartsheets/, <chartsheet>",
-       "read": "unverified",
-       "write": "unverified",
-       "api": [],
-       "warning": "未確認",
-       "evidence": "code",
-       "note": "読み込みはブックの <sheet> をすべてワークシートとして解析する。グラフシートを含むファイルはテストコーパスに無く、実測していない。推測で ○ × を書かないため未検証のままにする。"
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "sheet.preserved.foreignSheet",
+        "ForeignSheet"
+       ],
+       "warning": "読むと「a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived」。そのシートにセルを書き込むと「N cell(s) … are not saved」。他形式へ変換すると dropped",
+       "evidence": "judge",
+       "note": "ワークシートではないシート。ブックはワークシートと並べて挙げるが、部品の根は <chartsheet> で、モデルには中身を言う言葉がない。だから解釈せずに運ぶ——部品はバイトのまま出入りし、コンテンツタイプと関係の種別も元のまま。検体は Excel 16.112.2 自身に作らせ（Tests/FixtureGenerator/make_chartsheet_fixture.py）、書き戻した結果は LibreOffice が元と同じページ数に描くことで確かめている（付録 B.35）。"
       }
      ]
     },

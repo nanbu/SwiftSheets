@@ -129,6 +129,42 @@ public struct SheetPreservation: Sendable, Hashable {
     /// The cell notes as the file had them. The writer compares the sheet's notes against this: unchanged, the
     /// source `comments` and VML parts are re-packed byte for byte; changed, both are regenerated.
     public var comments: [CellRef: CellNote] = [:]
+    /// Set when the sheet's part is not a `<worksheet>` — a chart sheet, a dialog sheet, a macro sheet. See
+    /// `ForeignSheet`.
+    public var foreignSheet: ForeignSheet?
     public init() {}
-    public var isEmpty: Bool { fragments.isEmpty && relationships.isEmpty }
+    public var isEmpty: Bool { fragments.isEmpty && relationships.isEmpty && foreignSheet == nil }
+}
+
+/// A sheet the workbook declares that is not a worksheet: SpreadsheetML also has chart sheets, dialog sheets and
+/// macro sheets, and a workbook may mix them with ordinary ones. None of them is a grid, so the model has no
+/// vocabulary for what they hold — but they are still sheets, in the sheet order, with a name a formula may use.
+///
+/// So they are carried rather than interpreted: the part arrives as bytes and leaves as the same bytes, keeping
+/// the content type and the relationship type the package gave it. Reading one is reported (`degraded`), because
+/// a caller iterating `Workbook.sheets` finds a sheet with no cells, and without the warning that reads as
+/// "the sheet was empty" rather than "this sheet is not a grid" (spec Appendix B.35).
+public struct ForeignSheet: Sendable, Hashable {
+    /// The root element of the part — "chartsheet", "dialogsheet", "macrosheet".
+    public var root: String
+    /// The relationship type the workbook part used to point at it.
+    public var relationshipType: String
+    /// The content type `[Content_Types].xml` gave the part.
+    public var contentType: String
+    /// The part exactly as it arrived.
+    public var body: Data
+
+    public init(root: String, relationshipType: String, contentType: String, body: Data) {
+        self.root = root; self.relationshipType = relationshipType; self.contentType = contentType; self.body = body
+    }
+
+    /// What to call it in a message: "a chart sheet", "a dialog sheet".
+    public var description: String {
+        switch root {
+        case "chartsheet": return "a chart sheet"
+        case "dialogsheet": return "a dialog sheet"
+        case "macrosheet": return "a macro sheet"
+        default: return "a <\(root)> sheet"
+        }
+    }
 }

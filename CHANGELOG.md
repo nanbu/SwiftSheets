@@ -9,6 +9,24 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Fixed
+
+- **A chart sheet is no longer turned into a worksheet, silently** (spec Appendix B.35). SpreadsheetML lets a
+  workbook carry a chart sheet — a chart that owns a whole tab — beside its worksheets. The reader parsed every
+  sheet the workbook declared as a worksheet, so a chart sheet arrived as a sheet with no cells and **no
+  warning**; writing the workbook back then put a `<worksheet>` root into the chart sheet's part, changed its
+  content type to worksheet and changed the workbook relationship to `/worksheet`, while the part path still said
+  `chartsheets/`. A package that contradicted itself, produced without a word. LibreOffice opened it and drew
+  three pages where Excel's original drew two.
+  `SheetPreservation.foreignSheet` (`ForeignSheet`) now carries such a sheet as it arrived — the part byte for
+  byte, with the content type and relationship type the package gave it — and reading one is reported
+  (`degraded`), because "no cells" without a warning reads as "the sheet was empty" rather than "this sheet is
+  not a grid". Cells written into one are reported as dropped, since the part is written back unchanged. Dialog
+  sheets and macro sheets take the same path. The fixture is Microsoft Excel's own work, built over AppleScript
+  by `Tests/FixtureGenerator/make_chartsheet_fixture.py`, and LibreOffice is the judge: it now draws the same
+  number of pages for what we wrote as for Excel's original.
+  Found while filling in a row the new spec feature matrix had deliberately left marked `unverified`.
+
 ### Added
 
 - **A feature matrix read from the specifications** —
