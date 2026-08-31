@@ -30,7 +30,9 @@ writes, so the constant, the README's status line and the tag always name the sa
   does not come back as a parse error — the process traps inside the parser while that name is turned into a `String`.
   Parts are now checked before the parser sees them, and the error names the byte. A part that says it is something
   else — by a byte-order mark, or by naming an encoding in its declaration — goes through untouched. The specimen a
-  fuzz campaign found is kept as a fixture.
+  fuzz campaign found is kept as a fixture. Reported upstream as
+  [swiftlang/swift-corelibs-foundation#5536](https://github.com/swiftlang/swift-corelibs-foundation/pull/5536); the
+  check stays regardless, since a machine with an older Swift keeps the fault.
 
 ## [0.11.1] — 2026-08-31
 

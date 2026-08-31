@@ -132,6 +132,9 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     /// A part that says it is something other than UTF-8 — by a byte-order mark, or by naming an encoding in
     /// its XML declaration — is handed over untouched, as before. The parser decodes those itself, and this
     /// question does not apply to them.
+    ///
+    /// Reported upstream as swiftlang/swift-corelibs-foundation#5536 (2026-09-01). This check stays either way:
+    /// a machine with an older Swift on it will keep the fault long after the fix lands.
     static func rejectUndecodableBytes(_ data: Data, part: String) throws {
         var body = data
         if let (encoding, length) = TextEncodingSniffer.bom(in: data) {

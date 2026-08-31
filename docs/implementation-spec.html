@@ -4699,8 +4699,10 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     これで §1.1 の「Linux 上で動作する」は達成 —— README のバッジ・Limits・<code>docs/index.html</code>・
     CONTRIBUTING を書き換えた。
     なお<strong>「壊れ方の全種類を塞いだ」とは言えない</strong>: 塞いだのは実際に落ちた 1 種類で、
-    別の種類が残っている可能性は fuzz を回し続けて初めて減る。上流（swift-corelibs-foundation）への
-    報告はまだ出していない。
+    別の種類が残っている可能性は fuzz を回し続けて初めて減る。
+    上流には <a href="https://github.com/swiftlang/swift-corelibs-foundation/pull/5536">swiftlang/swift-corelibs-foundation#5536</a>
+    として報告した（2026-09-01・1 行の修正＋回帰テスト）。<strong>直っても、この守りは外さない</strong> ——
+    古い Swift が載った機械では欠陥が残り続けるため。
   </p>
 
 </section>
