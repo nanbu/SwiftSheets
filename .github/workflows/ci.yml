@@ -76,3 +76,9 @@ jobs:
       # before deciding what to do about the parser.
       - name: Test
         run: swift test --skip-build --no-parallel --skip FuzzTests
+
+      # TEMPORARY: run the one suite that dies, from one seed, with each mutant announced on stderr before it is
+      # opened. The last line printed names the file that takes Foundation's parser down, so it can be rebuilt
+      # here and sent upstream. Allowed to fail — the crash is the point.
+      - name: Locate the mutant that crashes Foundation's XML parser
+        run: SWIFTSHEETS_FUZZ_SEEDS=1 swift test --skip-build --no-parallel --filter mutatedCorpusAlwaysLandsOnASheetError || true
