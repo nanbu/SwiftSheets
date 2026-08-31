@@ -11,6 +11,18 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Fixed
 
+- **The published documents no longer keep their numbers by remembering** — three had already drifted.
+  `docs/format-support.html` and `docs/interoperability.html` still named SwiftSheets **0.7.2** in their titles,
+  three releases behind; `docs/index.html` said the format support table covers 47 features when it covers 48;
+  and the format support page said the kitchen-sink workbook returns **6** warnings for Excel and **9** for ODS
+  when the measurement says 7 and 10. All four are corrected, and none of them can drift again:
+  `APIContractTests.everyPublishedDocumentNamesTheCurrentVersion` checks the version in every `docs/*.html`
+  title, and `FormatSupportTests.thePublishedTableSaysWhatTheMeasurementSays` reads the published table itself —
+  every ○ and every × in its 44 rows must agree with what the 48-feature measurement found, along with the three
+  scores and the three warning counts. △ ("goes through in another shape") is left to the page, since a binary
+  probe cannot adjudicate it. Both checks were confirmed to go red when a mark or a version is edited by hand.
+
+
 - **A chart sheet is no longer turned into a worksheet, silently** (spec Appendix B.35). SpreadsheetML lets a
   workbook carry a chart sheet — a chart that owns a whole tab — beside its worksheets. The reader parsed every
   sheet the workbook declared as a worksheet, so a chart sheet arrived as a sheet with no cells and **no

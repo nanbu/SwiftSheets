@@ -198,6 +198,141 @@ import SwiftSheets
         if !expected.isEmpty { #expect(!result.warnings.isEmpty) }
     }
 
+    // MARK: - The published table
+
+    /// The rows of `docs/format-support.html`, in its order, against the profile keys each one stands for.
+    /// Four of the published rows carry two features apiece (the page merges what the measurement keeps apart),
+    /// which is why 44 rows cover 48 keys.
+    static let publishedRows: [(label: String, keys: [String])] = [
+        ("値（数値・文字・日付・真偽・経過時間・エラー）", ["値"]),
+        ("数式", ["数式"]),
+        ("└ 株価・為替の関数（STOCK・CURRENCY など 6 種）", ["株価・為替の関数"]),
+        ("配列数式（範囲つき）", ["配列数式"]),
+        ("セル内の書式差（リッチテキスト）", ["リッチテキスト"]),
+        ("ハイパーリンク", ["ハイパーリンク"]),
+        ("メモ（セルのコメント）", ["メモ"]),
+        ("結合", ["結合"]),
+        ("セル書式（フォント・太字・色・罫線）", ["書式・太字"]),
+        ("塗り（単色・階調）", ["書式・塗り"]),
+        ("配置・折り返し", ["配置"]),
+        ("表示形式（#,##0.00 など）", ["表示形式"]),
+        ("列幅・行高・非表示", ["列幅", "行高"]),
+        ("行・列のグループ化（アウトライン）", ["グループ化"]),
+        ("ウィンドウ枠の固定", ["ウィンドウ枠固定"]),
+        ("タブ色", ["タブ色"]),
+        ("比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間", ["条件付き書式"]),
+        ("カラースケール（2 色・3 色）", ["CF・カラースケール"]),
+        ("データバー", ["CF・データバー"]),
+        ("アイコンセット", ["CF・アイコンセット"]),
+        ("入力規則（ドロップダウン・範囲チェック）", ["入力規則"]),
+        ("セルの制御（チェックボックス・ステッパー・スライダー・レート）", ["セルの制御"]),
+        ("名前付きの表", ["名前付きの表"]),
+        ("オートフィルタ（範囲）", ["オートフィルタ"]),
+        ("└ 絞り込み条件・並べ替えの記録", ["絞り込み条件", "並べ替えの記録"]),
+        ("ピボット表", ["ピボット表"]),
+        ("シート保護", ["シート保護"]),
+        ("保護範囲（保護シート内の編集可能な窓）", ["保護範囲"]),
+        ("シナリオ", ["シナリオ"]),
+        ("ヘッダ／フッタ", ["印刷・ヘッダフッタ"]),
+        ("向き・用紙・拡大率・余白・中央寄せ", ["印刷・向き"]),
+        ("印刷範囲・タイトル行／列", ["印刷・範囲", "印刷・タイトル行"]),
+        ("改ページ", ["改ページ"]),
+        ("定義名（ブック・シート）", ["定義名・ブック", "定義名・シート"]),
+        ("ブック保護（シート構成の固定）", ["ブック保護"]),
+        ("文書の自由項目（部署・案件番号など）", ["文書の自由項目"]),
+        ("隠しシート", ["隠しシート"]),
+        ("1 シートに複数の表", ["1シート複数テーブル"]),
+        ("ラベル範囲（見出しを数式でそのまま使う）", ["ラベル範囲"]),
+        ("統合の定義", ["統合の定義"]),
+        ("探偵の矢印（参照元・参照先のトレース）", ["探偵の矢印"]),
+        ("計算設定（正規表現・ワイルドカード・大小文字・二桁年）", ["計算設定"]),
+        ("日付の原点", ["日付の原点"]),
+        ("通貨のセル種別", ["通貨のセル種別"]),
+    ]
+
+    /// The page is the measurement, written out for people. Until this test existed, that was a promise kept by
+    /// remembering — and it had already slipped: the page said the kitchen-sink workbook returns 6 warnings for
+    /// Excel and 9 for ODS when the measurement says 7 and 10. Now the page cannot drift without going red.
+    ///
+    /// Two of the three marks carry a fact this measurement owns, and one does not:
+    ///
+    /// * **○** — came home unchanged. The probe must have found it.
+    /// * **×** — did not go through at all. The probe must have missed it.
+    /// * **△** — went through in another shape. The probe is binary, so it may say either and be right: a quote
+    ///   function written as its cached value *is* a loss to `formula?.remoteDataFunction` and *is* a △ on the
+    ///   page. Pinning △ would be pinning the page's editorial judgement, so those cells are left to the page.
+    ///
+    /// That still leaves the great majority of the cells checked against the code.
+    @Test func thePublishedTableSaysWhatTheMeasurementSays() throws {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let page = try String(contentsOf: root.appending(path: "docs/format-support.html"), encoding: .utf8)
+
+        // the rows of the one table under <h2>対応表</h2>
+        guard let start = page.range(of: "<h2>対応表</h2>"), let end = page.range(of: "</table>", range: start.upperBound..<page.endIndex)
+        else { Issue.record("docs/format-support.html has no 対応表 table"); return }
+        var published: [String: [String]] = [:]     // label → the three marks
+        for chunk in page[start.upperBound..<end.lowerBound].components(separatedBy: "<tr").dropFirst() {
+            let cells = Self.cells(of: chunk)
+            guard cells.count >= 4 else { continue }
+            let marks = Array(cells[1...3])
+            guard marks.allSatisfy({ ["○", "△", "×"].contains($0) }) else { continue }
+            published[cells[0]] = marks
+        }
+
+        let formats: [SheetFormat] = [.xlsx, .ods, .numbers]
+        var covered = Set<String>()
+        for (label, keys) in Self.publishedRows {
+            guard let marks = published[label] else {
+                Issue.record(Comment(rawValue: "the published table has no row \"\(label)\" (it was renamed, or removed)"))
+                continue
+            }
+            for (mark, format) in zip(marks, formats) {
+                for key in keys {
+                    covered.insert(key)
+                    guard mark != "△" else { continue }        // "changed shape": the binary probe cannot judge it
+                    let measured = Self.expectedLosses[format]?.contains(key) ?? false
+                    #expect((mark == "×") == measured, Comment(rawValue:
+                        "docs/format-support.html prints \(mark) for \(format.rawValue) on \"\(label)\" "
+                        + "but the measurement says it \(measured ? "does not come home" : "comes home") "
+                        + "— update the page with the code"))
+                }
+            }
+        }
+        #expect(published.count == Self.publishedRows.count,
+                Comment(rawValue: "the page has \(published.count) rows, the mapping names \(Self.publishedRows.count)"))
+        #expect(covered.count == 48, "every one of the 48 measured features must appear in the published table")
+
+        // the three scores, and the three warning counts, are arithmetic on the same measurement
+        for format in formats {
+            let kept = 48 - (Self.expectedLosses[format]?.count ?? 0)
+            #expect(page.contains("<div class=\"num\">\(kept)<small> / 48</small></div>"),
+                    Comment(rawValue: "the page must show \(kept) / 48 for \(format.rawValue)"))
+        }
+        let counts = formats.map { Self.expectedWarningCount[$0]! }
+        #expect(page.contains("Excel \(counts[0]) 件・ODS \(counts[1]) 件・Numbers \(counts[2]) 件"),
+                Comment(rawValue: "the page must say Excel \(counts[0]) 件・ODS \(counts[1]) 件・Numbers \(counts[2]) 件"))
+    }
+
+    /// The text of a row's `<td>`s, tags and entities removed — enough to read a label and a mark.
+    static func cells(of row: String) -> [String] {
+        var out: [String] = []
+        var rest = Substring(row)
+        while let open = rest.range(of: "<td"), let gt = rest.range(of: ">", range: open.upperBound..<rest.endIndex),
+              let close = rest.range(of: "</td>", range: gt.upperBound..<rest.endIndex) {
+            var text = ""
+            var inTag = false
+            for character in rest[gt.upperBound..<close.lowerBound] {
+                if character == "<" { inTag = true } else if character == ">" { inTag = false } else if !inTag { text.append(character) }
+            }
+            for (entity, character) in [("&lt;", "<"), ("&gt;", ">"), ("&amp;", "&"), ("&quot;", "\"")] {
+                text = text.replacingOccurrences(of: entity, with: character)
+            }
+            out.append(text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "　└ ", with: "└ "))
+            rest = rest[close.upperBound...]
+        }
+        return out
+    }
+
     /// The one feature Excel cannot hold is the one Numbers exists for, and the other way round.
     @Test func theFormatsAreNotOrderedByStrength() throws {
         let wb = Self.kitchenSink()

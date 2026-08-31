@@ -151,10 +151,13 @@ thirty-nine commits of ODS and Numbers work landed on top of it, so anyone follo
 1. `SwiftSheetsInfo.version` — the constant the library stamps into every file it writes;
 2. `README.md` — the `Status: **x.y.z**` line **and** the `from: "x.y.z"` pin under Installation;
 3. `CHANGELOG.md` — a `## [x.y.z]` section and its compare link at the bottom;
-4. `docs/format-support.html` — the version in its `<title>`. Not covered by the test below, and it was missed once.
+4. `docs/*.html` — the version in the `<title>` of every page that names one (`format-support.html`,
+   `interoperability.html`, `spec-feature-matrix.html`). This was a hand step, and it was missed for three
+   releases: two pages sat at 0.7.2 until 2026-08-31.
 
-`APIContractTests.theReadmeSaysTheVersionTheLibraryWrites` fails if any of the three disagrees, so this is checked
-rather than remembered. Then, once CI is green on that commit:
+`APIContractTests.theReadmeSaysTheVersionTheLibraryWrites` fails if the constant, the README or the CHANGELOG
+disagree, and `APIContractTests.everyPublishedDocumentNamesTheCurrentVersion` fails if a published page does — so
+all four are checked rather than remembered. Then, once CI is green on that commit:
 
 ```bash
 git tag -a x.y.z -m "x.y.z"

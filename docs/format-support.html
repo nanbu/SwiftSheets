@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>形式ごとの対応表 — Excel / ODS / Numbers で何がどこまで通るか（SwiftSheets 0.7.2）</title>
+<title>形式ごとの対応表 — Excel / ODS / Numbers で何がどこまで通るか（SwiftSheets 0.10.0）</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -102,7 +102,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h1>形式ごとの対応表</h1>
 <p class="lede">同じブックを <code>.xlsx</code>・<code>.ods</code>・<code>.numbers</code> に書いたとき、
 何がそのまま通り、何が形を変え、何が通らないのか。SwiftSheets の実測です（版は題名のとおり、数値は main の最新計測）。</p>
-<p class="meta">2026-08-27 時点 / 検証環境: macOS 15・LibreOffice 26.2.3・numbers-parser 4.16.3・OASIS ODF 1.3 スキーマ・Numbers 15.3.1</p>
+<p class="meta">2026-08-31 時点 / 検証環境: macOS 15・LibreOffice 26.2.3・numbers-parser 4.16.3・OASIS ODF 1.3 スキーマ・Numbers 15.3.1</p>
 
 <hr class="rule">
 
@@ -523,7 +523,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 6 件・ODS 9 件・Numbers 23 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 7 件・ODS 10 件・Numbers 23 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -609,8 +609,8 @@ for warning in result.warnings {
 <section>
 <h2>この表を自分で測り直す</h2>
 <p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
-<pre><code>swift test                          # 839 件。形式ごとの往復と、LibreOffice を審判にした確認を含む
-swift test --filter FormatSupport   # <strong>この表そのもの</strong>。48 項目の生存と警告の数を固定している
+<pre><code>swift test                          # 形式ごとの往復と、LibreOffice を審判にした確認を含む全部
+swift test --filter FormatSupport   # <strong>この表そのもの</strong>。48 項目の生存と警告の数、そして<strong>このページの ○ と ×</strong> を固定している
 swift test --filter CrossFormat     # <strong>方向ごと</strong>の点検（相互運用ガイドの土台）と 3 世代テスト
 swift test --filter ODFOnly         # ODF にあって Excel に無い 6 件
 swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表

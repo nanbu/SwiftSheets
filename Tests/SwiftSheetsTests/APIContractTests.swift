@@ -251,6 +251,28 @@ import SwiftSheets
                 Comment(rawValue: "CHANGELOG must carry a section for \(SwiftSheetsInfo.version)"))
     }
 
+    /// The published documents name the version too, in their `<title>` — the line a reader sees in the browser
+    /// tab and in a search result. Two of them sat at 0.7.2 for three releases, because nothing was watching:
+    /// the README's numbers were pinned by the test above and the documents' were not. Now they are. A page that
+    /// does not name a version at all is fine; a page that names the wrong one is not.
+    @Test func everyPublishedDocumentNamesTheCurrentVersion() throws {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let docs = root.appending(path: "docs")
+        var checked = 0
+        for file in try FileManager.default.contentsOfDirectory(at: docs, includingPropertiesForKeys: nil)
+        where file.pathExtension == "html" {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            guard let open = text.range(of: "<title>"), let close = text.range(of: "</title>") else { continue }
+            let title = String(text[open.upperBound..<close.lowerBound])
+            guard let named = title.firstMatch(of: #/SwiftSheets \d+\.\d+\.\d+/#) else { continue }
+            checked += 1
+            #expect(String(named.output) == "SwiftSheets \(SwiftSheetsInfo.version)",
+                    Comment(rawValue: "\(file.lastPathComponent) names \(named.output) in its title, "
+                            + "but the library is \(SwiftSheetsInfo.version)"))
+        }
+        #expect(checked >= 3, "the documents that name a version should still be naming it")
+    }
+
     /// The README's test count is a floor ("800+ tests"), and the floor cannot drift: it must equal the number of
     /// `@Test` declarations under `Tests/`, rounded down to the nearest hundred. Counting declarations in source
     /// stands in for counting at run time (a suite cannot ask the runner for its own total mid-run), and it counts
