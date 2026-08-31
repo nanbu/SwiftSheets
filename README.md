@@ -11,7 +11,10 @@ as they went in. Foundation + the Compression and CryptoKit frameworks only; no 
 
 The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
 (Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
-[the format support table](https://nanbu.github.io/SwiftSheets/format-support.html). Both are at
+[the format support table](https://nanbu.github.io/SwiftSheets/format-support.html). The same question from the other
+side — every feature each format's own specification names, how far this library carries it, and the API for each — is
+[the spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html) (191 rows; read and write kept
+apart, and also published as [YAML](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml)). All are at
 **<https://nanbu.github.io/SwiftSheets/>**.
 
 ```swift
@@ -290,6 +293,7 @@ python3 Tests/NumbersParity/dump_with_numbers_parser.py                    # ref
 python3 Tests/NumbersParity/verify_with_numbers_parser.py                  # numbers-parser reads what SwiftSheets wrote
 python3 Tests/ExcelParity/verify_with_excel_app.py                         # Excel itself unlocks what SwiftSheets locked (Appendix B.31)
 python3 scripts/extract-numbers-schema.py                                 # regenerate the Numbers schema resources from numbers-parser
+python3 scripts/build-spec-feature-matrix.py                              # rebuild docs/spec-feature-matrix.{html,yaml} from scripts/spec-feature-matrix.json (--check in CI)
 /Applications/LibreOffice.app/Contents/MacOS/soffice --headless --convert-to pdf out.xlsx   # the machine judge for "opens cleanly"
 ```
 

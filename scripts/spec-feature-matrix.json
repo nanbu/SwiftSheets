@@ -1,0 +1,2944 @@
+{
+ "meta": {
+  "title": "形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応",
+  "library_version": "0.10.0",
+  "as_of": "2026-08-29",
+  "commit": "1d5f531",
+  "axis": "各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。docs/format-support.html（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。",
+  "granularity": "「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。",
+  "caveat": "「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 10 件 / numbers 23 件）。",
+  "environments": [
+   "macOS 15",
+   "Swift 6.2 / Xcode 26",
+   "openpyxl 3.1.5（XLSX の審判）",
+   "LibreOffice 26.2.3（ODF の審判）",
+   "numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）",
+   "Microsoft Excel 16.112.2（保護の審判・付録 B.31）"
+  ],
+  "status_vocabulary": {
+   "full": {
+    "symbol": "○",
+    "meaning": "そのまま往復する。モデルの言葉で読め、同じものが書き出される"
+   },
+   "partial": {
+    "symbol": "△",
+    "meaning": "形を変えて通る。必ず degraded / substituted の警告が返る"
+   },
+   "preserved": {
+    "symbol": "▣",
+    "meaning": "モデル化しない。同形式の保存では元のバイトのまま残る（F3）。他形式へ変換すると落ちて警告"
+   },
+   "none": {
+    "symbol": "×",
+    "meaning": "通らない。落として dropped の警告を返す"
+   },
+   "na": {
+    "symbol": "—",
+    "meaning": "その形式に概念がない"
+   },
+   "unverified": {
+    "symbol": "?",
+    "meaning": "実測していない。推測で ○ × を書かないための欄"
+   }
+  },
+  "evidence_types": {
+   "measured": "FormatSupportTests の 48 項目の実測（書いて読み戻して比べる）",
+   "code": "コーデックのコードで確認（要素名・警告文・保全リストの実在）",
+   "readme": "README / 実装仕様書 付録 B の記述",
+   "judge": "外部の実装が読めたこと（openpyxl・LibreOffice・numbers-parser・Numbers.app・Excel）"
+  },
+  "common_api": {
+   "read": "Workbook(contentsOf:) / Workbook.read(contentsOf:) -> ReadResult / wb.readWarnings",
+   "write": "wb.write(to:as:) -> WriteResult / wb.data(as:) / Workbook.convert(_:to:output:)",
+   "detect": "SheetFormat.detect(from:)",
+   "warnings": "ConversionWarning(kind: .dropped/.degraded/.substituted, subject:, sheet:, location:, message:)"
+  }
+ },
+ "formats": [
+  {
+   "id": "xlsx",
+   "name": "Excel（.xlsx / .xlsm）",
+   "spec": {
+    "name": "ECMA-376 / ISO/IEC 29500 — Office Open XML SpreadsheetML",
+    "public": true,
+    "note": "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
+   },
+   "areas": [
+    {
+     "id": "package",
+     "name": "パッケージと部品",
+     "features": [
+      {
+       "id": "xlsx.package.opc",
+       "name": "OPC パッケージ（ZIP・コンテンツタイプ・リレーション）",
+       "spec_anchor": "[Content_Types].xml, _rels/.rels",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Workbook(contentsOf:)",
+        "wb.write(to:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "書き出しでは [Content_Types].xml が実在するパートだけを宣言し、r:id は全て解決する（PreservationTests）。"
+      },
+      {
+       "id": "xlsx.package.preservation",
+       "name": "解釈しないパートの保全（F3）",
+       "spec_anchor": "xl/charts/, xl/theme/, xl/drawings/, vbaProject.bin ほか",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved",
+        "PreservationStore",
+        "sheet.preserved"
+       ],
+       "warning": "他形式へ変換すると「N part(s) … cannot be carried into …」",
+       "evidence": "code",
+       "note": "触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。"
+      },
+      {
+       "id": "xlsx.package.zip64",
+       "name": "ZIP64（4GB 超・65,535 パート超）",
+       "spec_anchor": "ZIP64 end of central directory",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "SheetError.corruptedContainer"
+       ],
+       "warning": "throw（警告ではなくエラー）",
+       "evidence": "readme",
+       "note": "README の Limits に明記。壊れたファイルと区別して報告する。"
+      },
+      {
+       "id": "xlsx.package.encryption",
+       "name": "パスワードによる暗号化",
+       "spec_anchor": "ECMA-376 Part 2 agile / standard encryption（[MS-OFFCRYPTO]）",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "SheetError.unsupportedFeature",
+        "UnopenableInput.encryptedOOXML"
+       ],
+       "warning": "throw。壊れたファイルではなく「暗号化されている」と名指しする",
+       "evidence": "code",
+       "note": "旧 .xls（BIFF）も UnopenableInput.legacyOLE として別扱いで報告する。"
+      }
+     ]
+    },
+    {
+     "id": "workbook",
+     "name": "ブック（xl/workbook.xml）",
+     "features": [
+      {
+       "id": "xlsx.wb.sheets",
+       "name": "シートの一覧・順序・名前・複製",
+       "spec_anchor": "<sheets>/<sheet>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.sheets",
+        "wb.sheetNames",
+        "addSheet(named:at:)",
+        "removeSheet(named:)",
+        "moveSheet(named:to:)",
+        "duplicateSheet(named:as:)",
+        "renameSheet(_:to:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "シート名を変えると、そのシートを指す数式が追従する。"
+      },
+      {
+       "id": "xlsx.wb.state",
+       "name": "シートの表示状態（表示・非表示・完全非表示）",
+       "spec_anchor": "sheet@state",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.isHidden",
+        "sheet.state",
+        "SheetState"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.wb.definednames",
+       "name": "定義名（ブック単位・シート単位）",
+       "spec_anchor": "<definedNames>/<definedName localSheetId>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.definedNames",
+        "sheet.definedNames"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "印刷範囲・タイトル行は _xlnm.Print_Area / _xlnm.Print_Titles として同じ場所に載る。"
+      },
+      {
+       "id": "xlsx.wb.epoch",
+       "name": "日付の原点（1900 / 1904）",
+       "spec_anchor": "workbookPr@date1904",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.epoch",
+        "DateEpoch",
+        "ExcelDate"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "1900 年 2 月 29 日の幻の日も openpyxl と同じ扱いに揃えてある。"
+      },
+      {
+       "id": "xlsx.wb.calcpr",
+       "name": "計算プロパティと計算チェーン",
+       "spec_anchor": "<calcPr>, xl/calcChain.xml",
+       "read": "partial",
+       "write": "partial",
+       "api": [],
+       "warning": null,
+       "evidence": "code",
+       "note": "calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため。"
+      },
+      {
+       "id": "xlsx.wb.protection",
+       "name": "ブックの保護（シート構成・ウィンドウの固定）",
+       "spec_anchor": "<workbookProtection>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.protection",
+        "WorkbookProtection",
+        "setModernPassword(_:)",
+        "setPassword(_:)"
+       ],
+       "warning": null,
+       "evidence": "judge",
+       "note": "新方式は SHA-512 のハッシュを生成。実機 Excel 16.112.2 が開錠することを AppleScript で確認（付録 B.31）。"
+      },
+      {
+       "id": "xlsx.wb.views",
+       "name": "ブックビュー（選択中のシート）",
+       "spec_anchor": "<bookViews>/<workbookView activeTab>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.activeSheet",
+        "wb.activeIndex"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "xlsx.wb.external",
+       "name": "外部ブックへの参照",
+       "spec_anchor": "<externalReferences>, xl/externalLinks/",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "FormulaExpr（[1]Sheet!A1 は文字として保持）"
+       ],
+       "warning": "他形式へ変換すると objects の dropped 警告",
+       "evidence": "code",
+       "note": "参照先の値は解決しない。数式の中では文字列のまま運ぶので、同形式なら壊れない。"
+      },
+      {
+       "id": "xlsx.wb.props",
+       "name": "文書プロパティ（作成者・題名・日時）",
+       "spec_anchor": "docProps/core.xml, docProps/app.xml",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.metadata",
+        "DocumentProperties",
+        "wb.sourceInfo"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "生成元アプリ名は sourceInfo.application に残す。"
+      },
+      {
+       "id": "xlsx.wb.customprops",
+       "name": "ユーザー定義の文書プロパティ",
+       "spec_anchor": "docProps/custom.xml",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.customProperties",
+        "CustomDocumentProperty"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "文字・整数・実数・真偽・日付・定義名リンクの 6 種。"
+      },
+      {
+       "id": "xlsx.wb.misc",
+       "name": "ファイル共有・カスタムブックビュー・スマートタグ・Web 公開",
+       "spec_anchor": "<fileSharing>, <customWorkbookViews>, <smartTagPr>, <webPublishing>",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": "<workbook> の未知の子要素はスキーマ順の位置に戻して書き出す（WorkbookWriter.workbookOrder）。"
+      }
+     ]
+    },
+    {
+     "id": "worksheet",
+     "name": "ワークシート（xl/worksheets/sheetN.xml）",
+     "features": [
+      {
+       "id": "xlsx.ws.cellvalues",
+       "name": "セルの値（数値・文字・真偽・エラー・インライン文字列）",
+       "spec_anchor": "<c t=\"n|s|str|b|e|inlineStr|d\">",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[\"A1\"]",
+        "sheet[0, 1]",
+        "CellValue"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "整数と実数は openpyxl と同じ分け方（.integer / .number(Decimal)）。日付は CivilDate で、時間帯を持たない。"
+      },
+      {
+       "id": "xlsx.ws.sst",
+       "name": "共有文字列",
+       "spec_anchor": "xl/sharedStrings.xml",
+       "read": "full",
+       "write": "full",
+       "api": [],
+       "warning": null,
+       "evidence": "code",
+       "note": "書き出しでは自動で共有化する。利用者が意識する API はない。"
+      },
+      {
+       "id": "xlsx.ws.richtext",
+       "name": "セル内の書式差（リッチテキスト）",
+       "spec_anchor": "<is>/<r>/<rPr>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "CellValue.richText",
+        "TextRun"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.furigana",
+       "name": "ふりがな（ルビ）",
+       "spec_anchor": "<rPh>, <phoneticPr>",
+       "read": "none",
+       "write": "na",
+       "api": [],
+       "warning": "なし（openpyxl に揃えた意図的な差）",
+       "evidence": "code",
+       "note": "読み飛ばす。openpyxl 準拠を優先した既知の非対応で、ここだけは警告が出ない。"
+      },
+      {
+       "id": "xlsx.ws.rows",
+       "name": "行の高さ・非表示・アウトライン段",
+       "spec_anchor": "<row ht customHeight hidden outlineLevel collapsed>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.rowDimension(_:)",
+        "setHeight(_:ofRow:)",
+        "RowDimension"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.cols",
+       "name": "列の幅・非表示・アウトライン段・自動幅",
+       "spec_anchor": "<cols>/<col width bestFit hidden outlineLevel>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "setWidth(_:ofColumn:)",
+        "columnDimension(_:)",
+        "autofitColumns(maxWidth:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "autofitColumns は XlsxWriter の幅表に倣う。東アジアの文字は 2 倍幅で測る（付録 B.33）。"
+      },
+      {
+       "id": "xlsx.ws.outline",
+       "name": "行・列のグループ化（アウトライン）",
+       "spec_anchor": "row@outlineLevel, <outlinePr summaryBelow summaryRight>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "groupRows(_:outlineLevel:hidden:)",
+        "groupColumns(_:_:outlineLevel:)",
+        "sheet.properties"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.merge",
+       "name": "セルの結合",
+       "spec_anchor": "<mergeCells>/<mergeCell>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "merge(_:)",
+        "unmerge(_:)",
+        "sheet.merges",
+        "mergedRange(containing:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.hyperlink",
+       "name": "ハイパーリンク",
+       "spec_anchor": "<hyperlinks>/<hyperlink r:id location tooltip>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[cell: \"A1\"].hyperlink",
+        "Hyperlink"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.freeze",
+       "name": "ウィンドウ枠の固定",
+       "spec_anchor": "<sheetViews>/<sheetView>/<pane state=\"frozen\">",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.freezePanes",
+        "freezePanes(at:)",
+        "freezePanesA1"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "分割（split）は固定として扱う。"
+      },
+      {
+       "id": "xlsx.ws.sheetview",
+       "name": "シートビュー（表示倍率・目盛線の表示・選択）",
+       "spec_anchor": "<sheetView zoomScale showGridLines tabSelected>, <selection>",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "sheet.view",
+        "SheetView"
+       ],
+       "warning": "なし（README の既知の限界）",
+       "evidence": "readme",
+       "note": "一部の sheetView 属性は保全の対象外。README「Known limits of the current preservation」に明記。"
+      },
+      {
+       "id": "xlsx.ws.tabcolor",
+       "name": "タブの色",
+       "spec_anchor": "<sheetPr>/<tabColor>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.tabColor"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.protection",
+       "name": "シートの保護（できることを名指しする許可の集合）",
+       "spec_anchor": "<sheetProtection>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.protection",
+        "SheetProtection",
+        "setModernPassword(_:)"
+       ],
+       "warning": null,
+       "evidence": "judge",
+       "note": "ファイルは「禁止」を書くが、API は「許可」で名づけた。実機 Excel が開錠を確認済み。"
+      },
+      {
+       "id": "xlsx.ws.protectedranges",
+       "name": "保護シート内の編集できる窓",
+       "spec_anchor": "<protectedRanges>/<protectedRange>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.protectedRanges",
+        "ProtectedRange"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "ODS・Numbers には無い。変換すると落ちて警告。"
+      },
+      {
+       "id": "xlsx.ws.scenarios",
+       "name": "シナリオ（入力値の組の記録）",
+       "spec_anchor": "<scenarios>/<scenario>/<inputCells>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.scenarios",
+        "Scenario",
+        "ScenarioList"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.ws.watches",
+       "name": "無視するエラー・セルウォッチ・カスタムシートビュー・データ統合",
+       "spec_anchor": "<ignoredErrors>, <cellWatches>, <customSheetViews>, <dataConsolidate>",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "sheet.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": "<worksheet> の未知の子要素はスキーマ順に戻す（WorkbookWriter.worksheetOrder）。統合だけは ODF が文書に持てる（ODS の表を参照）。"
+      },
+      {
+       "id": "xlsx.ws.multitable",
+       "name": "1 つのシートに複数の表",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "na",
+       "api": [
+        "sheet.tables"
+       ],
+       "warning": "「N other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)」",
+       "evidence": "measured",
+       "note": "ワークシートは 1 枚のグリッド。Numbers から来た複数の表は、先頭以外を落として言う。"
+      }
+     ]
+    },
+    {
+     "id": "formula",
+     "name": "数式",
+     "features": [
+      {
+       "id": "xlsx.formula.normal",
+       "name": "数式（構文木として保持）",
+       "spec_anchor": "<f>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Formula(\"=SUM(A1:B2)\")",
+        "FormulaExpr",
+        "value.formula"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "行の挿入・削除・シート名の変更に参照が追従する（openpyxl は追従しない）。"
+      },
+      {
+       "id": "xlsx.formula.shared",
+       "name": "共有数式",
+       "spec_anchor": "<f t=\"shared\" si ref>",
+       "read": "full",
+       "write": "full",
+       "api": [],
+       "warning": null,
+       "evidence": "code",
+       "note": "読むときに展開する。書き出しは通常の数式として書く。"
+      },
+      {
+       "id": "xlsx.formula.array",
+       "name": "配列数式（範囲つき）",
+       "spec_anchor": "<f t=\"array\" ref>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.table.arrayFormulas[anchor] = CellRange(\"A2:A4\")"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.formula.cached",
+       "name": "数式のキャッシュ値",
+       "spec_anchor": "<c><v>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        ".formula(_, cached:)",
+        "ReadOptions(dataOnly: true)"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "dataOnly で値だけを読む道もある。"
+      },
+      {
+       "id": "xlsx.formula.nesting",
+       "name": "数式の入れ子（64 段まで）",
+       "spec_anchor": "Excel 自身の上限",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "FormulaExpr.unparsed"
+       ],
+       "warning": "なし（同じ形式へ書き戻すかぎり無損失）",
+       "evidence": "readme",
+       "note": "64 段を超える式は文字のまま持ち、そのまま書き戻す。行の挿入に追従せず、方言も翻訳しない。"
+      },
+      {
+       "id": "xlsx.formula.remote",
+       "name": "株価・為替の関数（STOCK・CURRENCY など 6 種）",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "FormulaExpr.remoteDataFunction"
+       ],
+       "warning": "キャッシュしてあった値を式の代わりに書き、そう言う",
+       "evidence": "measured",
+       "note": "Numbers だけが計算し直せる関数で、Excel に同名の関数が無い。取ってあった値を書いて言う——Numbers 自身が Excel へ書き出すときと同じ置き換え（付録 B.27）。"
+      },
+      {
+       "id": "xlsx.formula.unknownfn",
+       "name": "未知の関数・新しい関数（_xlfn 接頭辞・動的配列）",
+       "spec_anchor": "_xlfn.*",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "FormulaExpr"
+       ],
+       "warning": "なし（名前のまま運ぶ）",
+       "evidence": "code",
+       "note": "関数の意味は解釈しない。名前と引数の木として運ぶので、同形式なら壊れない。"
+      }
+     ]
+    },
+    {
+     "id": "styles",
+     "name": "スタイル（xl/styles.xml）",
+     "features": [
+      {
+       "id": "xlsx.style.cell",
+       "name": "フォント・塗り・罫線・配置・表示形式",
+       "spec_anchor": "<fonts> <fills> <borders> <numFmts> <cellXfs>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.style(\"A1\") { $0.font.bold = true }",
+        "CellStyle",
+        "Font",
+        "Fill",
+        "Border",
+        "Alignment"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "書き出しは元のフォント／塗り／罫線の表の上に積むので、索引で参照される項目の位置が動かない。"
+      },
+      {
+       "id": "xlsx.style.gradient",
+       "name": "グラデーションの塗り",
+       "spec_anchor": "<gradientFill>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Fill.gradient(_:)",
+        "GradientFill"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "ODS・Numbers はセルに 1 色しか持てないので、変換すると最初の色になり警告が出る。"
+      },
+      {
+       "id": "xlsx.style.named",
+       "name": "名前付きセルスタイル",
+       "spec_anchor": "<cellStyles>, <cellStyleXfs>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.namedStyles",
+        "addNamedStyle(_:)",
+        "CellStyle.namedStyle"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "xlsx.style.dxf",
+       "name": "差分書式（条件付き書式・テーブルが指す書式）",
+       "spec_anchor": "<dxfs>/<dxf>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.differentialStyles",
+        "DifferentialStyle",
+        "DifferentialFont"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "全ての欄が省略可。nil は「そのままにする」の意味。"
+      },
+      {
+       "id": "xlsx.style.theme",
+       "name": "テーマ（配色・書体）",
+       "spec_anchor": "xl/theme/theme1.xml, Color.theme",
+       "read": "partial",
+       "write": "preserved",
+       "api": [
+        "Color.theme(_:tint:)",
+        "Color.indexed(_:)",
+        "wb.indexedColors"
+       ],
+       "warning": "他形式では「theme/indexed colours written as default」",
+       "evidence": "code",
+       "note": "読んだテーマはパートごと保全する。新規ブックにはテーマを作らず、色は RGB で明示する。"
+      },
+      {
+       "id": "xlsx.style.tablestyles",
+       "name": "テーブルスタイル定義",
+       "spec_anchor": "<tableStyles>",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved.styleTables"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "そのまま複写する。索引がずれないことを優先。"
+      }
+     ]
+    },
+    {
+     "id": "cf",
+     "name": "条件付き書式",
+     "features": [
+      {
+       "id": "xlsx.cf.rules",
+       "name": "規則 17 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）",
+       "spec_anchor": "<conditionalFormatting>/<cfRule type operator>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.addConditionalFormatting(.cellIs(.greaterThan, \"100\", paint: red), over: \"B2:B99\")",
+        "ConditionalFormattingRule.Kind"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "優先順位はシート内で 1…n に振り直す。"
+      },
+      {
+       "id": "xlsx.cf.scales",
+       "name": "カラースケール・データバー・アイコンセット",
+       "spec_anchor": "<colorScale> <dataBar> <iconSet> <cfvo>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "ColorScale",
+        "DataBar",
+        "IconSet",
+        "ConditionalValue"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.cf.ext",
+       "name": "拡張の条件付き書式（負のデータバー・独自アイコン）",
+       "spec_anchor": "<extLst> x14:conditionalFormatting",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "sheet.hasUnmodelledConditionalFormats"
+       ],
+       "warning": "フラグが立つ。ODS・Numbers へ変換すると dropped",
+       "evidence": "code",
+       "note": "モデルで言い切れない規則は、ファイル自身のブロックをそのまま書き戻す。"
+      }
+     ]
+    },
+    {
+     "id": "validation",
+     "name": "入力規則",
+     "features": [
+      {
+       "id": "xlsx.dv.rules",
+       "name": "入力規則（リスト・数値・日付・文字数・カスタム）",
+       "spec_anchor": "<dataValidations>/<dataValidation type operator>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.dataValidations = [.list(\"'Choices'!$A$2:$A$4\", over: MultiCellRange(\"C4:C99\")!)]",
+        "DataValidation"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "hideDropDown は、反転した showDropDown 属性の「意味」で名づけた。"
+      },
+      {
+       "id": "xlsx.dv.ext",
+       "name": "拡張の入力規則（別シートを直接指すリストなど）",
+       "spec_anchor": "<extLst> x14:dataValidations",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "sheet.hasUnmodelledValidations"
+       ],
+       "warning": "フラグが立つ",
+       "evidence": "code",
+       "note": "ファイル自身のブロックを保持して書き戻す。"
+      }
+     ]
+    },
+    {
+     "id": "tables",
+     "name": "テーブル・フィルタ・並べ替え",
+     "features": [
+      {
+       "id": "xlsx.table.part",
+       "name": "名前付きテーブル",
+       "spec_anchor": "xl/tables/tableN.xml, <tableParts>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.excelTables",
+        "addExcelTable(named:over:)",
+        "ExcelTable",
+        "TableStyleInfo"
+       ],
+       "warning": "名前が重複すると「named table not written」",
+       "evidence": "measured",
+       "note": "パート・コンテンツタイプ・リレーション・<tableParts> をすべて生成する。"
+      },
+      {
+       "id": "xlsx.filter.auto",
+       "name": "オートフィルタ（範囲）",
+       "spec_anchor": "<autoFilter ref>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.autoFilter",
+        "autoFilterA1"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.filter.columns",
+       "name": "絞り込み条件（値の一覧・比較・色・アイコン・動的・上位 10・日付グループ）",
+       "spec_anchor": "<filterColumn> <filters> <customFilters> <colorFilter> <iconFilter> <dynamicFilter> <top10>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.filterColumns",
+        "FilterColumn",
+        "Top10Filter",
+        "DynamicFilter",
+        "ColorFilter",
+        "IconFilter",
+        "DateGroup"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.filter.ext",
+       "name": "拡張のフィルタ",
+       "spec_anchor": "<extLst> x14:filter",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "sheet.hasUnmodelledFilters"
+       ],
+       "warning": "フラグが立つ",
+       "evidence": "code",
+       "note": "元の XML をそのまま保持する。"
+      },
+      {
+       "id": "xlsx.sort",
+       "name": "並べ替えの記録",
+       "spec_anchor": "<sortState>/<sortCondition>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.sortState",
+        "SortState",
+        "SortCondition"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.slicer",
+       "name": "スライサー",
+       "spec_anchor": "xl/slicers/, xl/slicerCaches/",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "他形式へ変換すると objects の dropped",
+       "evidence": "code",
+       "note": "モデル化していない。同形式の保存ではパートごとそのまま残る。"
+      }
+     ]
+    },
+    {
+     "id": "pivot",
+     "name": "ピボットテーブル",
+     "features": [
+      {
+       "id": "xlsx.pivot.table",
+       "name": "ピボットテーブルの配置（行・列・値・レポートフィルタ）",
+       "spec_anchor": "xl/pivotTables/pivotTableN.xml",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)",
+        "sheet.pivotTables",
+        "PivotTable",
+        "PivotField",
+        "PivotDataField"
+       ],
+       "warning": "解析できないパートは「could not be parsed; the pivot table it describes was skipped」",
+       "evidence": "measured",
+       "note": "配置は書くが数字は書かない。開いたアプリが元の範囲から計算し直す。"
+      },
+      {
+       "id": "xlsx.pivot.cache",
+       "name": "ピボットキャッシュ（定義とレコード）",
+       "spec_anchor": "xl/pivotCache/pivotCacheDefinitionN.xml, pivotCacheRecordsN.xml",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "PivotCache",
+        "PivotCacheField",
+        "PivotItem"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "レコード部は XML のまま持ち運ぶ。2 回目の保存で壊れていた欠陥は 2026-08-27 に修正済み。"
+      }
+     ]
+    },
+    {
+     "id": "drawing",
+     "name": "描画とオブジェクト",
+     "features": [
+      {
+       "id": "xlsx.draw.image",
+       "name": "画像の埋め込み（マスに置く・範囲に合わせる）",
+       "spec_anchor": "xl/media/, xl/drawings/drawingN.xml, <twoCellAnchor> <oneCellAnchor>",
+       "read": "preserved",
+       "write": "full",
+       "api": [
+        "sheet.addImage(try SheetImage(data:), at: \"B2\", sizing: .resizeCellToFit)",
+        "addImage(_:over:)",
+        "SheetImage",
+        "ImagePlacement"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "judge",
+       "note": "PNG / JPEG / GIF。形式と画素数はバイトから読む。既に図形のあるシートには錨だけを差し込み、他はバイトのまま。読み取りの模型化はない（付録 B.32）。"
+      },
+      {
+       "id": "xlsx.draw.chart",
+       "name": "グラフ（縦棒・横棒・折れ線・円）",
+       "spec_anchor": "xl/charts/chartN.xml",
+       "read": "preserved",
+       "write": "partial",
+       "api": [
+        "sheet.addChart(Chart(.column), over: \"D2:K16\")",
+        "chart.addSeries(values:categories:name:)",
+        "Chart.Kind"
+       ],
+       "warning": "系列のないグラフは「a … chart with no series was not written」／他形式へは dropped",
+       "evidence": "judge",
+       "note": "書けるのは 4 種。既にファイルにあるグラフは触らずそのまま（F3）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。"
+      },
+      {
+       "id": "xlsx.draw.comment",
+       "name": "メモ（セルのコメント）",
+       "spec_anchor": "xl/comments1.xml + legacy VML",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[cell: \"A1\"].comment = CellNote(text, author:)",
+        "sheet.notes"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "コメント部と、その相棒の VML の両方を書く。"
+      },
+      {
+       "id": "xlsx.draw.threaded",
+       "name": "スレッド形式のコメント",
+       "spec_anchor": "xl/threadedComments/, xl/persons/",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": "モデル化していない。"
+      },
+      {
+       "id": "xlsx.draw.shapes",
+       "name": "図形・テキストボックス・SmartArt・背景画像",
+       "spec_anchor": "<xdr:sp>, <picture>",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "xlsx.draw.ole",
+       "name": "OLE オブジェクト・ActiveX コントロール",
+       "spec_anchor": "<oleObjects>, <controls>",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "sheet.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "xlsx.draw.sparkline",
+       "name": "スパークライン",
+       "spec_anchor": "<extLst> x14:sparklineGroups",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "sheet.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": "worksheet の extLst ごと保持される。モデルの言葉はない。"
+      }
+     ]
+    },
+    {
+     "id": "print",
+     "name": "印刷",
+     "features": [
+      {
+       "id": "xlsx.print.setup",
+       "name": "用紙・向き・拡大率・先頭ページ番号",
+       "spec_anchor": "<pageSetup>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.pageSetup",
+        "PageSetup"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.print.margins",
+       "name": "余白・中央寄せ・目盛線と見出しの印刷",
+       "spec_anchor": "<pageMargins>, <printOptions>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.pageMargins",
+        "sheet.printOptions",
+        "PageMargins",
+        "PrintOptions"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.print.headerfooter",
+       "name": "ヘッダー／フッター",
+       "spec_anchor": "<headerFooter> oddHeader/&L&C&R",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.headerFooter",
+        "HeaderFooter"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "Excel の書式コード文字列のまま持つ（分解しない）。"
+      },
+      {
+       "id": "xlsx.print.breaks",
+       "name": "改ページ",
+       "spec_anchor": "<rowBreaks>, <colBreaks>",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.rowBreaks",
+        "sheet.columnBreaks"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "xlsx.print.area",
+       "name": "印刷範囲・繰り返すタイトル行／列",
+       "spec_anchor": "_xlnm.Print_Area, _xlnm.Print_Titles",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "setPrintArea(_:)",
+        "sheet.printArea",
+        "sheet.printTitleRows",
+        "sheet.printTitleColumns"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "macro",
+     "name": "マクロと外部連携",
+     "features": [
+      {
+       "id": "xlsx.macro.vba",
+       "name": "VBA マクロ（.xlsm）",
+       "spec_anchor": "xl/vbaProject.bin",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.write(to:as: .xlsm)"
+       ],
+       "warning": ".xlsx へ書くと「VBA project dropped: macros cannot be kept in .xlsx」",
+       "evidence": "measured",
+       "note": "不透明なバイトとして保持するだけで、実行はしない。"
+      },
+      {
+       "id": "xlsx.macro.connections",
+       "name": "外部データ接続・クエリテーブル・Web クエリ",
+       "spec_anchor": "xl/connections.xml, xl/queryTables/",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "xlsx.macro.richvalue",
+       "name": "リッチ値（株価・地理などのデータ型）",
+       "spec_anchor": "c@cm, c@vm, xl/richData/",
+       "read": "none",
+       "write": "none",
+       "api": [],
+       "warning": "なし（README の既知の限界）",
+       "evidence": "readme",
+       "note": "cm / vm 属性は保全の対象外。ここは正直な穴で、README に書いてある。"
+      },
+      {
+       "id": "xlsx.macro.customxml",
+       "name": "カスタム XML パート",
+       "spec_anchor": "customXml/",
+       "read": "preserved",
+       "write": "preserved",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "他形式へ変換すると dropped",
+       "evidence": "code",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "sheettypes",
+     "name": "ワークシート以外のシート",
+     "features": [
+      {
+       "id": "xlsx.sheettype.chartsheet",
+       "name": "グラフシート・ダイアログシート・マクロシート",
+       "spec_anchor": "xl/chartsheets/, <chartsheet>",
+       "read": "unverified",
+       "write": "unverified",
+       "api": [],
+       "warning": "未確認",
+       "evidence": "code",
+       "note": "読み込みはブックの <sheet> をすべてワークシートとして解析する。グラフシートを含むファイルはテストコーパスに無く、実測していない。推測で ○ × を書かないため未検証のままにする。"
+      }
+     ]
+    },
+    {
+     "id": "streaming",
+     "name": "大きなファイル",
+     "features": [
+      {
+       "id": "xlsx.stream.read",
+       "name": "行ごとの読み出し（全体をメモリに載せない）",
+       "spec_anchor": "xl/worksheets/sheetN.xml の逐次解析",
+       "read": "partial",
+       "write": "na",
+       "api": [
+        "StreamingReader(contentsOf:)",
+        "forEachRow(inSheet:)",
+        "StreamedRow"
+       ],
+       "warning": "なし（値と書式だけと明記）",
+       "evidence": "readme",
+       "note": "75 万セルで +54MB（モデル全体は +190MB）。結合・メモ・保全は運ばない。"
+      },
+      {
+       "id": "xlsx.stream.write",
+       "name": "行ごとの書き出し",
+       "spec_anchor": "同上",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "StreamingWriter(url:sheetName:)",
+        "append(_:)",
+        "close()"
+       ],
+       "warning": "なし",
+       "evidence": "readme",
+       "note": "行数によらず +3MB。値と書式だけ。"
+      },
+      {
+       "id": "xlsx.limit.cells",
+       "name": "セル数の上限",
+       "spec_anchor": "ReadOptions.cellLimit（既定 1,000,000）",
+       "read": "partial",
+       "write": "na",
+       "api": [
+        "ReadOptions(cellLimit:)"
+       ],
+       "warning": "degraded の警告で「読み取りをここで止めた」と言う",
+       "evidence": "readme",
+       "note": "黙って途中で止めない。"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ods",
+   "name": "OpenDocument 表計算（.ods）",
+   "spec": {
+    "name": "OASIS OpenDocument Format 1.3 — Part 3 (Schema) / Part 4 (OpenFormula)",
+    "public": true,
+    "note": "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
+   },
+   "areas": [
+    {
+     "id": "package",
+     "name": "パッケージ",
+     "features": [
+      {
+       "id": "ods.package.zip",
+       "name": "ODF パッケージ（mimetype を無圧縮で先頭に置く）",
+       "spec_anchor": "mimetype, META-INF/manifest.xml",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Workbook(contentsOf:)",
+        "wb.write(to:as: .ods)"
+       ],
+       "warning": null,
+       "evidence": "judge",
+       "note": "先頭に非圧縮の mimetype を置く決まりを守る。LibreOffice が開き直せることで確認している。"
+      },
+      {
+       "id": "ods.package.parts",
+       "name": "文書の 4 つの部品",
+       "spec_anchor": "content.xml, styles.xml, meta.xml, settings.xml",
+       "read": "full",
+       "write": "full",
+       "api": [],
+       "warning": null,
+       "evidence": "code",
+       "note": "settings.xml も読み書きする（ウィンドウ枠の固定など、表示の設定がここに入る）。"
+      },
+      {
+       "id": "ods.package.encryption",
+       "name": "パスワードによる暗号化",
+       "spec_anchor": "manifest:encryption-data（ODF 1.3 §4.3）",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "SheetError.unsupportedFeature",
+        "UnopenableInput.encryptedODF"
+       ],
+       "warning": "throw。暗号化されていると名指しする",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "ods.package.opaque",
+       "name": "埋め込みオブジェクト・画像のパート",
+       "spec_anchor": "Pictures/, Object N/, ObjectReplacements/",
+       "read": "preserved",
+       "write": "none",
+       "api": [
+        "wb.preserved"
+       ],
+       "warning": "「N embedded object(s)/picture(s) of the source ODS are not re-linked」",
+       "evidence": "code",
+       "note": "ODS の書き出しは content.xml を作り直すので、元の絵や図の参照は張り直せない。持ってはいるが繋がらない、と正直に言う。"
+      }
+     ]
+    },
+    {
+     "id": "table",
+     "name": "表・行・列",
+     "features": [
+      {
+       "id": "ods.table.sheet",
+       "name": "表（シート）と名前・表示／非表示",
+       "spec_anchor": "table:table, table:name, table:display=\"false\"",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.sheets",
+        "sheet.name",
+        "sheet.isHidden"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.table.repeat",
+       "name": "繰り返しによる圧縮（同じ行・同じ列をまとめて書く）",
+       "spec_anchor": "table:number-rows-repeated, table:number-columns-repeated",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "ReadOptions(cellLimit:)"
+       ],
+       "warning": "上限を超えると degraded で「ここで読み取りを止めた」",
+       "evidence": "code",
+       "note": "ODF はこの圧縮で 170 億セルを 1KB の XML に書ける。既定 100 万セルで止め、必ずそう言う。"
+      },
+      {
+       "id": "ods.table.rowcol",
+       "name": "行の高さ・列の幅・非表示",
+       "spec_anchor": "style:row-height, style:column-width, table:visibility",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "setHeight(_:ofRow:)",
+        "setWidth(_:ofColumn:)",
+        "RowDimension",
+        "ColumnDimension"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.table.group",
+       "name": "行・列のグループ化（アウトライン）",
+       "spec_anchor": "table:table-row-group（入れ子）",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "groupRows(_:outlineLevel:hidden:)",
+        "groupColumns(_:_:outlineLevel:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "ODF は段の深さを要素の入れ子で表す。読むときに段の数に直す。"
+      },
+      {
+       "id": "ods.table.header",
+       "name": "見出し行・見出し列",
+       "spec_anchor": "table:table-header-rows, table:table-header-columns",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.freezePanes"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "ods.table.multi",
+       "name": "1 つのシートに複数の表",
+       "spec_anchor": "table:table を並べる",
+       "read": "na",
+       "write": "na",
+       "api": [
+        "sheet.tables"
+       ],
+       "warning": "モデルに複数あると「N other table(s) not written」",
+       "evidence": "measured",
+       "note": "ODF は 1 シート＝1 グリッド。Numbers から来た複数の表は、先頭以外を落として言う。"
+      }
+     ]
+    },
+    {
+     "id": "cell",
+     "name": "セルと値",
+     "features": [
+      {
+       "id": "ods.cell.value",
+       "name": "セルの値（浮動小数・パーセント・通貨・日付・時刻・真偽・文字）",
+       "spec_anchor": "office:value-type=\"float|percentage|currency|date|time|boolean|string\"",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[\"A1\"]",
+        "CellValue"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.cell.currency",
+       "name": "通貨のセル種別（どの通貨かをデータとして持つ）",
+       "spec_anchor": "office:value-type=\"currency\", office:currency",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "CellStyle.numberFormat"
+       ],
+       "warning": "他形式へは「only OpenDocument has it」の dropped",
+       "evidence": "measured",
+       "note": "ODF だけが持つ 6 つのうちの 1 つ。Excel と Numbers では表示形式の中にしか無いので、記号は残っても「これは金額だ」という区別は残らない。"
+      },
+      {
+       "id": "ods.cell.span",
+       "name": "セルの結合",
+       "spec_anchor": "table:number-columns-spanned / -rows-spanned",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "merge(_:)",
+        "sheet.merges"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.cell.text",
+       "name": "セル内の書式差（リッチテキスト）",
+       "spec_anchor": "text:p / text:span",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "CellValue.richText",
+        "TextRun"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.cell.link",
+       "name": "ハイパーリンク",
+       "spec_anchor": "text:a xlink:href",
+       "read": "full",
+       "write": "partial",
+       "api": [
+        "sheet[cell: \"A1\"].hyperlink",
+        "Hyperlink"
+       ],
+       "warning": "1 セルに複数あると「a cell holds more than one hyperlink; the first was kept」",
+       "evidence": "measured",
+       "note": "ODF はリンクを文字の範囲に付けられる。読むときは先頭を採り、そう言う。"
+      },
+      {
+       "id": "ods.cell.note",
+       "name": "メモ（注釈）",
+       "spec_anchor": "office:annotation",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[cell: \"A1\"].comment",
+        "CellNote"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.cell.control",
+       "name": "セルの中の操作子（チェックボックスなど）",
+       "spec_anchor": "office:forms / form:control",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "Cell.control",
+        "CellControl"
+       ],
+       "warning": "「N cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has …」",
+       "evidence": "measured",
+       "note": "読み込みでは office:forms の中を読み飛ばす。Numbers から来た制御は値だけ残して落とす。"
+      }
+     ]
+    },
+    {
+     "id": "formula",
+     "name": "数式（OpenFormula）",
+     "features": [
+      {
+       "id": "ods.formula.of",
+       "name": "数式（OpenFormula 方言）",
+       "spec_anchor": "table:formula=\"of:=[.A1]\"",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Formula(\"=SUM(A1:B2)\")",
+        "value.formula?.rendered(as: .ods)",
+        "FormulaExpr"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "構文木から OpenFormula へ翻訳する。交差演算子は Excel の空白と OpenFormula の ! の両方を理解する。"
+      },
+      {
+       "id": "ods.formula.matrix",
+       "name": "行列数式（配列数式）",
+       "spec_anchor": "table:number-matrix-columns-spanned / -rows-spanned",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.table.arrayFormulas"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "起点のセルに範囲を書く。"
+      },
+      {
+       "id": "ods.formula.untranslatable",
+       "name": "OpenFormula に無い式・訳せない式",
+       "spec_anchor": "—",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "FormulaExpr.unparsed"
+       ],
+       "warning": "「formula in … dialect could not be translated; cached value written」ほか 3 種",
+       "evidence": "code",
+       "note": "訳すと意味が変わってしまう式は、キャッシュ値に落として、どこがなぜ落ちたかを言う。"
+      },
+      {
+       "id": "ods.formula.remote",
+       "name": "株価・為替の関数（STOCK・CURRENCY など 6 種）",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "FormulaExpr.remoteDataFunction"
+       ],
+       "warning": "「… fetches live data and OpenFormula has no such function; the cached value …」",
+       "evidence": "measured",
+       "note": "OpenFormula に同名の関数が無い。取ってあった値を書いて言う（Numbers 自身の Excel 書き出しと同じ置き換え）。"
+      },
+      {
+       "id": "ods.formula.named",
+       "name": "名前付き範囲・名前付き式",
+       "spec_anchor": "table:named-range, table:named-expression",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.definedNames",
+        "sheet.definedNames"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "style",
+     "name": "スタイルとデータスタイル",
+     "features": [
+      {
+       "id": "ods.style.cell",
+       "name": "セルのスタイル（フォント・色・罫線・配置・折り返し）",
+       "spec_anchor": "style:style family=\"table-cell\", fo:*, style:*",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.style(\"A1\") { … }",
+        "CellStyle"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.style.gradient",
+       "name": "グラデーションの塗り",
+       "spec_anchor": "draw:gradient",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "Fill.gradient(_:)"
+       ],
+       "warning": "「gradient fill(s) written as their first colour: an ODF cell style has one …」",
+       "evidence": "measured",
+       "note": "ODF のセルスタイルは 1 色しか持てない。最初の色にして言う。"
+      },
+      {
+       "id": "ods.style.datastyle",
+       "name": "データスタイル（表示形式）",
+       "spec_anchor": "number:number-style, number:date-style, number:currency-style ほか",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "CellStyle.numberFormat",
+        "NumberFormat"
+       ],
+       "warning": "「number format … has no ODF data style; General used」／「only its first section is written」",
+       "evidence": "measured",
+       "note": "ODF のデータスタイルは見え方を 1 通りしか持てない。Excel の複数セクション・色・条件は落ちる。逆向きに訳せないデータスタイルも General に落として言う。"
+      },
+      {
+       "id": "ods.style.map",
+       "name": "スタイルに付く条件（本体仕様の条件付き書式）",
+       "spec_anchor": "style:map",
+       "read": "full",
+       "write": "none",
+       "api": [
+        "sheet.conditionalFormatting"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "読むときだけの経路。calcext: を持たない古い作り手のファイルのために残してある。書き出しは calcext: に一本化。"
+      },
+      {
+       "id": "ods.style.masterpage",
+       "name": "マスターページとページレイアウト",
+       "spec_anchor": "style:master-page, style:page-layout",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.pageSetup",
+        "sheet.pageMargins",
+        "sheet.headerFooter"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "ODF はシートごとにマスターページを持つ。印刷の設定はここに入る。"
+      }
+     ]
+    },
+    {
+     "id": "cf",
+     "name": "条件付き書式",
+     "features": [
+      {
+       "id": "ods.cf.calcext",
+       "name": "条件付き書式 18 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）",
+       "spec_anchor": "calcext:conditional-formats / calcext:condition",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.addConditionalFormatting(_:over:)",
+        "ConditionalFormattingRule.Kind"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "書き出しは calcext: だけ。読むときは calcext: と style:map の両方を読む。LibreOffice が XLSX へ変換すると 18 種すべて再現する。"
+      },
+      {
+       "id": "ods.cf.scales",
+       "name": "カラースケール・データバー・アイコンセット",
+       "spec_anchor": "calcext:color-scale, calcext:data-bar, calcext:icon-set",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "ColorScale",
+        "DataBar",
+        "IconSet"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "ODF 1.3 の本体仕様には言葉が無い。ODF に「数値を隠す」データバーは無いので、そこだけ落ちる。"
+      },
+      {
+       "id": "ods.cf.unmodelled",
+       "name": "モデルが読み切れなかった条件付き書式",
+       "spec_anchor": "—",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "sheet.hasUnmodelledConditionalFormats"
+       ],
+       "warning": "「a conditional format the model could not read is dropped: ODS is regenerated …」",
+       "evidence": "code",
+       "note": "ODS は毎回作り直すので、XLSX のように元のブロックを差し戻す手が使えない。落として言う。"
+      }
+     ]
+    },
+    {
+     "id": "validation",
+     "name": "入力規則",
+     "features": [
+      {
+       "id": "ods.dv.rules",
+       "name": "内容の検証（ドロップダウン・数値・日付・文字数・カスタム）",
+       "spec_anchor": "table:content-validation, table:condition, table:content-validation-name",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.dataValidations",
+        "DataValidation"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "ODF は規則を文書の先頭にまとめ、セルが名前で指す。"
+      },
+      {
+       "id": "ods.dv.unmodelled",
+       "name": "モデルが読み切れなかった入力規則",
+       "spec_anchor": "—",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "sheet.hasUnmodelledValidations"
+       ],
+       "warning": "「a data validation the model could not read is dropped: ODS is regenerated …」",
+       "evidence": "code",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "db",
+     "name": "データベース範囲・フィルタ・並べ替え",
+     "features": [
+      {
+       "id": "ods.db.range",
+       "name": "データベース範囲（名前付きの表に当たるもの）",
+       "spec_anchor": "table:database-range",
+       "read": "full",
+       "write": "partial",
+       "api": [
+        "sheet.excelTables",
+        "addExcelTable(named:over:)"
+       ],
+       "warning": "「named table … written as an ODF database range: its banded-row style …」",
+       "evidence": "measured",
+       "note": "名前と範囲は通る。縞模様のスタイルは落ちて言う。"
+      },
+      {
+       "id": "ods.db.filter",
+       "name": "フィルタ（絞り込み条件）",
+       "spec_anchor": "table:filter, table:filter-condition",
+       "read": "full",
+       "write": "partial",
+       "api": [
+        "sheet.autoFilter",
+        "sheet.filterColumns"
+       ],
+       "warning": "色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言う",
+       "evidence": "measured",
+       "note": "値の一覧と比較条件は通る。"
+      },
+      {
+       "id": "ods.db.sort",
+       "name": "並べ替えの記録",
+       "spec_anchor": "table:sort, table:sort-by",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.sortState",
+        "SortState"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.db.unmodelled",
+       "name": "モデルが読み切れなかったフィルタ",
+       "spec_anchor": "—",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "sheet.hasUnmodelledFilters"
+       ],
+       "warning": "「an auto-filter the model could not read is dropped: ODS is regenerated …」",
+       "evidence": "code",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "pilot",
+     "name": "データパイロット（ピボット）",
+     "features": [
+      {
+       "id": "ods.pilot.table",
+       "name": "データパイロット表",
+       "spec_anchor": "table:data-pilot-table, table:data-pilot-field",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.pivotTables",
+        "wb.addPivotTable(…)",
+        "PivotTable"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "Excel のピボットと同じく配置だけを書き、数字は開いた側に計算させる。"
+      }
+     ]
+    },
+    {
+     "id": "protect",
+     "name": "保護",
+     "features": [
+      {
+       "id": "ods.protect.table",
+       "name": "表の保護",
+       "spec_anchor": "table:protected, table:protection-key",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.protection",
+        "SheetProtection"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.protect.ranges",
+       "name": "保護シート内の編集できる窓",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.protectedRanges"
+       ],
+       "warning": "「N protected range(s) dropped: ODF protects a whole table …」",
+       "evidence": "measured",
+       "note": "ODF は表全体を守り、その中に窓を持たない。"
+      },
+      {
+       "id": "ods.protect.workbook",
+       "name": "ブックの保護（シート構成の固定）",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "wb.protection"
+       ],
+       "warning": "「workbook protection is dropped: ODF locks a document, not its sheet list」",
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "print",
+     "name": "印刷",
+     "features": [
+      {
+       "id": "ods.print.page",
+       "name": "向き・用紙・拡大率・余白・中央寄せ",
+       "spec_anchor": "style:page-layout-properties, style:print-orientation, style:scale-to",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.pageSetup",
+        "sheet.pageMargins"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.print.headerfooter",
+       "name": "ヘッダー／フッター（左・中央・右の 3 領域）",
+       "spec_anchor": "style:header, style:footer, style:region-left/center/right",
+       "read": "full",
+       "write": "partial",
+       "api": [
+        "sheet.headerFooter"
+       ],
+       "warning": "フォント指定だけ落ちる",
+       "evidence": "measured",
+       "note": "Excel の &L&C&R と ODF の 3 領域を相互に訳す。"
+      },
+      {
+       "id": "ods.print.range",
+       "name": "印刷範囲・タイトル行／列",
+       "spec_anchor": "table:print-ranges, table:print",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "setPrintArea(_:)",
+        "sheet.printTitleRows"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "ods.print.break",
+       "name": "改ページ",
+       "spec_anchor": "fo:break-before（行・列のスタイル）",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.rowBreaks",
+        "sheet.columnBreaks"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "odfonly",
+     "name": "ODF だけが持つもの（付録 B.17）",
+     "features": [
+      {
+       "id": "ods.only.label",
+       "name": "ラベル範囲（見出しを数式でそのまま使う）",
+       "spec_anchor": "table:label-ranges / table:label-range",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.labelRanges",
+        "LabelRange"
+       ],
+       "warning": "他形式へは「… is dropped: only OpenDocument has it」",
+       "evidence": "measured",
+       "note": "=SUM(売上) の「売上」が定義名ではなく列見出し。Excel 2003 の自然言語の数式に当たるが、いまの Excel 形式に置き場所がない。"
+      },
+      {
+       "id": "ods.only.consolidation",
+       "name": "統合の定義",
+       "spec_anchor": "table:consolidation",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.consolidation",
+        "Consolidation"
+       ],
+       "warning": "他形式へは dropped",
+       "evidence": "measured",
+       "note": "「この範囲とこの範囲を、ここに合計する」を文書に残す。Excel の統合は一度きりの操作で、定義は保存されない。"
+      },
+      {
+       "id": "ods.only.detective",
+       "name": "探偵の矢印（参照元・参照先のトレース）",
+       "spec_anchor": "table:detective, table:highlighted-range, table:operation",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "table.detective",
+        "CellDetective"
+       ],
+       "warning": "他形式へは dropped",
+       "evidence": "measured",
+       "note": "Excel も同じ矢印を描くが、閉じると消える。ODF はファイルに残すので、監査の跡がついたまま届く。"
+      },
+      {
+       "id": "ods.only.calcsettings",
+       "name": "計算設定（正規表現・ワイルドカード・大小文字・二桁年・表示桁で計算）",
+       "spec_anchor": "table:calculation-settings, table:use-regular-expressions, table:null-year",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.calculationSettings",
+        "CalculationSettings"
+       ],
+       "warning": "他形式へは「a calculation setting is dropped — …; only OpenDocument keeps it in the file」",
+       "evidence": "measured",
+       "note": "検索条件の意味を変える設定。Excel ではアプリ側の設定で、ファイルには入らない。"
+      },
+      {
+       "id": "ods.only.nulldate",
+       "name": "日付の原点（任意の日付を置ける）",
+       "spec_anchor": "table:null-date",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "wb.epoch",
+        "DateEpoch"
+       ],
+       "warning": "1899-12-30 でも 1904-01-01 でもない原点は「read as the 1900 system, so dates may be out」",
+       "evidence": "measured",
+       "note": "Excel は 1900 か 1904 の二択、ODF は任意の日付。読むときは、その他の原点を 1900 系として読み、そう言う。書くときもモデルが持てるのは 2 つの原点だけなので、任意の日付は書けない。"
+      }
+     ]
+    },
+    {
+     "id": "unmodelled",
+     "name": "ODF が持ち、モデルが言葉を持たないもの",
+     "features": [
+      {
+       "id": "ods.un.tracked",
+       "name": "変更履歴（セル単位の版）",
+       "spec_anchor": "table:tracked-changes",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "wb.unmodelledODFFeatures",
+        "UnmodelledODFFeatures.trackedChanges"
+       ],
+       "warning": "「tracked changes (a document's revision history) is dropped: … the model has no word for it」",
+       "evidence": "code",
+       "note": "あることは読み取り、書き出しで「あったが落とした」と言う。中身は運ばない。"
+      },
+      {
+       "id": "ods.un.dde",
+       "name": "DDE リンク（別の動いているアプリが値を供給する）",
+       "spec_anchor": "table:dde-links",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "UnmodelledODFFeatures.ddeLinks"
+       ],
+       "warning": "同上",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "ods.un.linkedsheet",
+       "name": "別の文書から取り込んだシート",
+       "spec_anchor": "table:table-source",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "UnmodelledODFFeatures.linkedSheet"
+       ],
+       "warning": "同上",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "ods.un.linkedrange",
+       "name": "別の文書から取り込んだ範囲",
+       "spec_anchor": "table:cell-range-source",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "UnmodelledODFFeatures.linkedRange"
+       ],
+       "warning": "同上",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "ods.un.draw",
+       "name": "描画オブジェクト（画像・グラフ・図形・テキストボックス）",
+       "spec_anchor": "draw:frame, draw:image, draw:object, draw:custom-shape",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "sheet.addImage(_:at:sizing:)",
+        "sheet.addChart(_:over:)"
+       ],
+       "warning": "「N image(s) added by addImage dropped: writing pictures into ODS is not implemented yet」ほか",
+       "evidence": "code",
+       "note": "読み込みは draw:frame の中を読み飛ばす。addImage / addChart で作った絵とグラフも ODS には書けない（.xlsx なら書ける）。"
+      },
+      {
+       "id": "ods.un.scenario",
+       "name": "シナリオ",
+       "spec_anchor": "table:scenario",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "sheet.scenarios"
+       ],
+       "warning": "「N scenario(s) dropped: an ODF scenario is a whole shadow sheet …」",
+       "evidence": "measured",
+       "note": "ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増えてしまうので書かない。"
+      },
+      {
+       "id": "ods.un.tabcolor",
+       "name": "タブの色",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.tabColor"
+       ],
+       "warning": "「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」",
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "numbers",
+   "name": "Apple Numbers（.numbers）",
+   "spec": {
+    "name": "公開仕様なし — Numbers ユーザガイド（ヘルプ）＋実際のファイルからの観測",
+    "public": false,
+    "note": "Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。"
+   },
+   "areas": [
+    {
+     "id": "package",
+     "name": "書類とパッケージ",
+     "features": [
+      {
+       "id": "num.package.iwa",
+       "name": "書類の読み書き（IWA: Snappy 圧縮 + Protobuf）",
+       "spec_anchor": "Index/*.iwa, Index/Document.iwa",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Workbook(contentsOf:)",
+        "wb.write(to:as: .numbers)",
+        "NumbersCodec"
+       ],
+       "warning": null,
+       "evidence": "judge",
+       "note": "依存のない動的な Protobuf の木（ProtoMessage）で扱う。知らない欄はバイト単位でそのまま往復する（NumbersIWATests.fixturesRoundTripByteForByte）。"
+      },
+      {
+       "id": "num.package.template",
+       "name": "書き出しの土台（テンプレート・パッチ方式）",
+       "spec_anchor": "Resources/empty.numbers",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "NumbersCodec"
+       ],
+       "warning": "テンプレートに無い器を要る機能は、その旨を名指しして落とす",
+       "evidence": "readme",
+       "note": "numbers-parser 同梱の空の書類を土台にし、1 枚目のシート／表をその場で書き換え、2 枚目からは部分グラフを複製して新しい id と UUID を振る（仕様 §11.1）。毎回テンプレートから始まるので、往復の保全（F3）は無い。"
+      },
+      {
+       "id": "num.package.encryption",
+       "name": "書類のパスワード保護",
+       "spec_anchor": ".iwph（暗号化された書類の目印）",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "SheetError.unsupportedFeature"
+       ],
+       "warning": "throw「encrypted Numbers documents are not supported」",
+       "evidence": "code",
+       "note": "Numbers 側の「パスワードを要求」で守った書類は開かない。"
+      },
+      {
+       "id": "num.package.version",
+       "name": "Numbers のバージョン追従",
+       "spec_anchor": "TN.DocumentArchive のバージョン欄",
+       "read": "partial",
+       "write": "na",
+       "api": [
+        "wb.readWarnings"
+       ],
+       "warning": "「Numbers document version … is newer than the verified range; read as far as possible」",
+       "evidence": "code",
+       "note": "検証済みの範囲より新しい書類でも、読めるところまで読んで、そう言う。"
+      },
+      {
+       "id": "num.package.metadata",
+       "name": "文書プロパティ・ユーザー定義項目",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "wb.metadata",
+        "wb.customProperties"
+       ],
+       "warning": "「N custom document propert(ies) dropped: Numbers has no free-form document fields」",
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "sheet",
+     "name": "シートとキャンバス",
+     "features": [
+      {
+       "id": "num.sheet.sheets",
+       "name": "シート（名前・順序・複数）",
+       "spec_anchor": "TN.SheetArchive",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "wb.sheets",
+        "addSheet(named:at:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "2 枚目以降は部分グラフの複製。Numbers.app 自身が開けることを審判にしている（付録 B.18）。"
+      },
+      {
+       "id": "num.sheet.multitable",
+       "name": "1 枚のシートに複数の表",
+       "spec_anchor": "TST.TableInfoArchive を並べる",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.tables",
+        "sheet.addTable(named:anchor:)",
+        "Table.anchor"
+       ],
+       "warning": "他形式へは「N other table(s) not written: a worksheet holds a single grid」",
+       "evidence": "measured",
+       "note": "ここだけ Numbers が強い。Excel と ODS は 1 シート＝1 グリッドなので、先頭以外を落として言う。"
+      },
+      {
+       "id": "num.sheet.hidden",
+       "name": "シートを隠す",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.isHidden"
+       ],
+       "warning": "「Numbers has no hidden sheets; the sheet is visible」",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.sheet.tabcolor",
+       "name": "タブの色",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.tabColor"
+       ],
+       "warning": "「the tab colour is dropped: Numbers tabs have no colour」",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.sheet.background",
+       "name": "シートの背景色・向き",
+       "spec_anchor": "TN.SheetStyleArchive, TN.CommandSetSheetDirectionArchive",
+       "read": "none",
+       "write": "none",
+       "api": [],
+       "warning": "なし（モデルに対応物が無い）",
+       "evidence": "code",
+       "note": "保管庫の型としては実在するが、モデルに写す先が無い。読み書きの対象にしていない。"
+      },
+      {
+       "id": "num.sheet.form",
+       "name": "入力フォーム（iPhone / iPad のフォーム）",
+       "spec_anchor": "TN.FormBasedSheetArchive",
+       "read": "unverified",
+       "write": "unverified",
+       "api": [],
+       "warning": "未確認",
+       "evidence": "code",
+       "note": "型は書類の名簿に実在するが、コーデックは触っていない。フォームを含む書類の検体が無く、実測していないので未検証のままにする。"
+      }
+     ]
+    },
+    {
+     "id": "table",
+     "name": "表（テーブル）",
+     "features": [
+      {
+       "id": "num.table.name",
+       "name": "表の名前",
+       "spec_anchor": "TST.TableModelArchive.table_name",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Table.name"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "num.table.position",
+       "name": "表の位置（キャンバス上の置き場所）",
+       "spec_anchor": "TST.TableInfoArchive の幾何",
+       "read": "full",
+       "write": "partial",
+       "api": [
+        "Table.anchor"
+       ],
+       "warning": null,
+       "evidence": "readme",
+       "note": "読むときは位置を Table.anchor に写す。"
+      },
+      {
+       "id": "num.table.header",
+       "name": "ヘッダ行・ヘッダ列",
+       "spec_anchor": "number_of_header_rows / _columns, header_rows_frozen",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.freezePanes"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "Excel のウィンドウ枠の固定に当たるものとして往復させる。"
+      },
+      {
+       "id": "num.table.footer",
+       "name": "フッタ行",
+       "spec_anchor": "number_of_footer_rows",
+       "read": "partial",
+       "write": "none",
+       "api": [],
+       "warning": "なし（枠の指定だけが落ちる）",
+       "evidence": "code",
+       "note": "行そのものは普通の行として読み、値も書式も失われない。「ここから下はフッタ」という枠だけモデルに言葉が無い。"
+      },
+      {
+       "id": "num.table.size",
+       "name": "行の高さ・列の幅・非表示",
+       "spec_anchor": "TST.TableModelArchive の行列情報",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "setHeight(_:ofRow:)",
+        "setWidth(_:ofColumn:)"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.table.merge",
+       "name": "セルの結合",
+       "spec_anchor": "TST.MergeRegionMapArchive",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "merge(_:)",
+        "sheet.merges"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.table.style",
+       "name": "表のスタイル（縞模様などの既定の見た目）",
+       "spec_anchor": "TST.TableStyleArchive, TST.TableStylePresetArchive",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "sheet.excelTables"
+       ],
+       "warning": "「N named table(s) dropped: every Numbers table is named, but its own header rows are not this frame」",
+       "evidence": "measured",
+       "note": "Numbers の表は全て名前を持つが、Excel の「名前付きテーブル」とは枠が違う。写さずに落として言う。"
+      },
+      {
+       "id": "num.table.outline",
+       "name": "行・列のグループ化（アウトライン）",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "groupRows(_:outlineLevel:hidden:)"
+       ],
+       "warning": "「row / column grouping is dropped: Numbers groups by category, not by outline level」",
+       "evidence": "measured",
+       "note": "Numbers はカテゴリで束ねる。段の深さという考え方が無い。"
+      }
+     ]
+    },
+    {
+     "id": "cell",
+     "name": "セルと値",
+     "features": [
+      {
+       "id": "num.cell.value",
+       "name": "セルの値（数値・文字・日付・真偽・経過時間・エラー）",
+       "spec_anchor": "TST.Tile / TST.TileRowInfo のセル格納",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[\"A1\"]",
+        "CellValue"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "Numbers の数値は decimal128。Decimal で受けるので桁が落ちない。"
+      },
+      {
+       "id": "num.cell.richtext",
+       "name": "セル内の書式差（リッチテキスト）",
+       "spec_anchor": "TSWP.StorageArchive, TSWP.CharacterStyleArchive",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "CellValue.richText",
+        "TextRun"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "Numbers は文字スタイルの変わり目として持つ。"
+      },
+      {
+       "id": "num.cell.link",
+       "name": "ハイパーリンク",
+       "spec_anchor": "TSWP.HyperlinkFieldArchive",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "sheet[cell: \"A1\"].hyperlink",
+        "Hyperlink"
+       ],
+       "warning": "1 セルに複数あると「the cell holds N links; a cell carries one, so the first was kept」",
+       "evidence": "measured",
+       "note": "Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。読むときは先頭を採り、そう言う。"
+      },
+      {
+       "id": "num.cell.note",
+       "name": "メモ（セルのコメント）",
+       "spec_anchor": "TSD.CommentStorageArchive, TSK.AnnotationAuthorArchive",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet[cell: \"A1\"].comment",
+        "CellNote"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "表のコメント一覧に置き、書いた人ごとに 1 つの「作成者」を共有する。"
+      },
+      {
+       "id": "num.cell.stock",
+       "name": "株価セル（現行 Numbers では STOCK 数式）",
+       "spec_anchor": "—",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "FormulaExpr.remoteDataFunction"
+       ],
+       "warning": null,
+       "evidence": "judge",
+       "note": "Numbers.app で手作りした見本で確認。いまの Numbers では株価セルは普通の STOCK 数式で、そう読める（付録 B.29）。"
+      }
+     ]
+    },
+    {
+     "id": "formula",
+     "name": "数式",
+     "features": [
+      {
+       "id": "num.formula.tree",
+       "name": "数式（Numbers の式の木として読み書き）",
+       "spec_anchor": "TSCE.FormulaArchive, TSCE.ASTNodeArrayArchive",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Formula(\"=SUM(A1:B2)\")",
+        "FormulaExpr"
+       ],
+       "warning": null,
+       "evidence": "judge",
+       "note": "構文木を Numbers が評価する逆ポーランドのノード列に変える。書いた式は Numbers の中で本物の式として計算される（付録 B.18）。"
+      },
+      {
+       "id": "num.formula.cross",
+       "name": "別の表への参照",
+       "spec_anchor": "'Sheet::Table'!A1",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "FormulaExpr"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.formula.unsupported",
+       "name": "写す先の見本が無い形（定義名・Numbers に無い関数・A:C の列範囲・交差／合併）",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "value.formula",
+        "WriteResult.warnings"
+       ],
+       "warning": "「formula written as its cached value: …」がどこでなぜ落ちたかを名指しする",
+       "evidence": "readme",
+       "note": "手元のフィクスチャに実例が無い形は発明せず、キャッシュ値に落として言う。"
+      },
+      {
+       "id": "num.formula.remote",
+       "name": "株価・為替の関数（STOCK・STOCKH・CURRENCY ほか 6 種）",
+       "spec_anchor": "—",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "FormulaExpr.remoteDataFunction"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": "Numbers だけが計算し直せる式。式のまま書き、書類を開いたときに取り直される（付録 B.27）。"
+      },
+      {
+       "id": "num.formula.array",
+       "name": "配列数式（展開つき）",
+       "spec_anchor": "起点の式＋覆うセルの内部関数",
+       "read": "full",
+       "write": "none",
+       "api": [
+        "sheet.table.arrayFormulas"
+       ],
+       "warning": "「N array formula(s) written as the anchor's formula and the covered cells' values …」",
+       "evidence": "measured",
+       "note": "読みだけ。書けないのは内部関数が再計算で値を作れないため——Numbers 産の見本ですら、古い版に偽装して再計算させると値が消える（実測・付録 B.26）。"
+      }
+     ]
+    },
+    {
+     "id": "style",
+     "name": "書式",
+     "features": [
+      {
+       "id": "num.style.cell",
+       "name": "セル書式（フォント・色・塗り・罫線・配置・折り返し）",
+       "spec_anchor": "TST.CellStyleArchive, TST.CellStylePropertiesArchive",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.style(\"A1\") { … }",
+        "CellStyle"
+       ],
+       "warning": null,
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.style.font",
+       "name": "書体の名前",
+       "spec_anchor": "PostScript 名（Helvetica Neue ⇄ HelveticaNeue）",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Font.name"
+       ],
+       "warning": null,
+       "evidence": "code",
+       "note": "対応表を資源（fonts.json）として持ち、相互に変換する。"
+      },
+      {
+       "id": "num.style.numfmt",
+       "name": "表示形式（種類＋小数桁＋桁区切り）",
+       "spec_anchor": "TSK.FormatStructArchive",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "CellStyle.numberFormat",
+        "NumberFormat"
+       ],
+       "warning": "「number format … has no Numbers equivalent」／「… its colours, conditions and negative section are dropped」",
+       "evidence": "measured",
+       "note": "Numbers は見え方を 1 通りしか記述できない。Excel の複数セクション・色・条件は落として言う。"
+      },
+      {
+       "id": "num.style.gradient",
+       "name": "グラデーションの塗り",
+       "spec_anchor": "TSD.FillArchive",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "Fill.gradient(_:)"
+       ],
+       "warning": "最初の色になり、そう言う",
+       "evidence": "measured",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "cf",
+     "name": "条件付き書式",
+     "features": [
+      {
+       "id": "num.cf.rules",
+       "name": "条件付き書式 14 種（比較 8・文字列 4・重複・一意）",
+       "spec_anchor": "TST.ConditionalStyleSetArchive の predicate_type",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "sheet.addConditionalFormatting(_:over:)",
+        "ConditionalFormattingRule.Kind"
+       ],
+       "warning": "残りの規則は「conditional format … is dropped: Numbers has no rule of that kind」",
+       "evidence": "measured",
+       "note": "predicate_type は Apple が名前を付けていない整数。14 の値は観測で埋めた——1 列 1 規則の書類を .xlsx で書き、Numbers 15.3.1 に読ませて .numbers で保存し直し、生き残った規則をパラメータで元の列に対応づけた（付録 B.18）。"
+      },
+      {
+       "id": "num.cf.scales",
+       "name": "カラースケール・データバー・アイコンセット",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "ColorScale",
+        "DataBar",
+        "IconSet"
+       ],
+       "warning": "dropped",
+       "evidence": "measured",
+       "note": "Numbers 自身も Excel ファイルを読み込むときに同じものを捨てる。"
+      }
+     ]
+    },
+    {
+     "id": "control",
+     "name": "入力規則とセルの制御",
+     "features": [
+      {
+       "id": "num.ctl.popup",
+       "name": "ポップアップメニュー",
+       "spec_anchor": "TST.PopUpMenuModel",
+       "read": "full",
+       "write": "partial",
+       "api": [
+        "sheet.dataValidations = [.list(\"\\\"a,b,c\\\"\", over: …)]",
+        "DataValidation"
+       ],
+       "warning": "選択肢を書き並べていない規則は「only a list whose choices are spelt in the rule becomes a Numbers pop-up menu」",
+       "evidence": "measured",
+       "note": "モデルの言葉では .list の入力規則。範囲を指すリストと数値条件は落として言う（Numbers 自身も Excel の取り込みで同じ置き換えをする・付録 B.24）。"
+      },
+      {
+       "id": "num.ctl.controls",
+       "name": "セルの制御（チェックボックス・ステッパー・スライダー・レート）",
+       "spec_anchor": "セルの制御情報（つまみの最小・最大・刻み）",
+       "read": "full",
+       "write": "full",
+       "api": [
+        "Cell.control",
+        "CellControl",
+        "CellControl.Kind"
+       ],
+       "warning": "値と制御の型が合わないと「a checkbox edits a boolean and a dial edits a number …」",
+       "evidence": "judge",
+       "note": "Numbers 固有。AppleScript でセルごとに尋ねると、Numbers 自身が制御の名前で答える（付録 B.25）。制御のあるセルは必ず値を持つ（未操作のチェックボックスは false、つまみは最小値、レートは 0）。"
+      },
+      {
+       "id": "num.ctl.other",
+       "name": "モデルに言葉の無い制御",
+       "spec_anchor": "—",
+       "read": "partial",
+       "write": "na",
+       "api": [],
+       "warning": "「… a Numbers control the model has no word for …; the value is kept, the control is not」",
+       "evidence": "code",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "organise",
+     "name": "整理（カテゴリ・フィルタ・並べ替え）",
+     "features": [
+      {
+       "id": "num.org.category",
+       "name": "カテゴリ（列で束ねる）",
+       "spec_anchor": "TST.GroupByArchive, TST.CategoryOwnerRefArchive",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "wb.readWarnings"
+       ],
+       "warning": "「a category grouping by <列名> is dropped — the model has no word for Numbers categories …」",
+       "evidence": "measured",
+       "note": "行は平らなまま、束ねていた列の名前を挙げて言う。切ってあるカテゴリも別の文面で言う。"
+      },
+      {
+       "id": "num.org.filter",
+       "name": "フィルタ",
+       "spec_anchor": "TST.FilterSetArchive",
+       "read": "partial",
+       "write": "none",
+       "api": [
+        "RowDimension.hidden"
+       ],
+       "warning": "「a Numbers filter (N rule(s)) is dropped — the rows it hides are kept as hidden rows …」",
+       "evidence": "measured",
+       "note": "隠している行は隠し行として保ち、規則は落として言う。Numbers 自身の Excel 書き出しと同じ渡し方（付録 B.29）。"
+      },
+      {
+       "id": "num.org.sort",
+       "name": "並べ替え",
+       "spec_anchor": "sort_order / rules",
+       "read": "partial",
+       "write": "none",
+       "api": [],
+       "warning": "「a Numbers sort order (N rule(s), by <列名>) is dropped — the rows already come back sorted」",
+       "evidence": "measured",
+       "note": "行は並べ替え済みの順で入っている。規則だけが落ちる。"
+      }
+     ]
+    },
+    {
+     "id": "pivot",
+     "name": "集計表（ピボット）",
+     "features": [
+      {
+       "id": "num.pivot.write",
+       "name": "集計表（縦横とも複数段・部分合計つき）",
+       "spec_anchor": "TST.PivotOwnerArchive, TST.PivotOrderArchive, TST.SummaryModelArchive",
+       "read": "partial",
+       "write": "partial",
+       "api": [
+        "wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)",
+        "PivotTable"
+       ],
+       "warning": "2 つ目以降の集計値は「N of its M summarised values dropped — the value lanes … share one placeholder id」",
+       "evidence": "judge",
+       "note": "本物の Numbers の集計表として書く（生きた要約で、Numbers が元の行から数え直す）。3 段の入れ子まで実測済み。集計する値は 1 つまで（付録 B.28）。"
+      },
+      {
+       "id": "num.pivot.read",
+       "name": "集計表を読む",
+       "spec_anchor": "同上",
+       "read": "partial",
+       "write": "na",
+       "api": [
+        "sheet.tables"
+       ],
+       "warning": "なし（値のある普通の表として読める）",
+       "evidence": "readme",
+       "note": "読み戻すと普通の表になる。集計の仕掛けはモデルに持たない。"
+      },
+      {
+       "id": "num.pivot.filterfield",
+       "name": "レポートフィルタの段",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "PivotTable.pageFields"
+       ],
+       "warning": "「N report filter(s) dropped — a Numbers pivot has no filter field, and Numbers drops them too …」",
+       "evidence": "code",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "canvas",
+     "name": "キャンバスのオブジェクト",
+     "features": [
+      {
+       "id": "num.canvas.chart",
+       "name": "グラフ",
+       "spec_anchor": "TSCH.ChartDrawableArchive",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "sheet.addChart(_:over:)"
+       ],
+       "warning": "読みは「a chart」を dropped で名指し／書きは「N chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet」",
+       "evidence": "measured",
+       "note": "キャンバスに立つ物はモデルに置き場所が無い。あったことは必ず言う。"
+      },
+      {
+       "id": "num.canvas.image",
+       "name": "画像",
+       "spec_anchor": "TSD.ImageArchive",
+       "read": "none",
+       "write": "none",
+       "api": [
+        "sheet.addImage(_:at:sizing:)"
+       ],
+       "warning": "読みは「an image」／書きは「N image(s) added by addImage dropped …」",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.canvas.shape",
+       "name": "図形・テキストボックス",
+       "spec_anchor": "TSD.ShapeArchive",
+       "read": "none",
+       "write": "none",
+       "api": [],
+       "warning": "読みで「a shape」を dropped で名指し",
+       "evidence": "measured",
+       "note": "テキストボックスは文字を持つ図形として同じ扱い。"
+      },
+      {
+       "id": "num.canvas.movie",
+       "name": "ムービー・オーディオ",
+       "spec_anchor": "TSD.MovieArchive",
+       "read": "none",
+       "write": "none",
+       "api": [],
+       "warning": "読みで「a movie」",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "num.canvas.group",
+       "name": "図形のグループ・接続線",
+       "spec_anchor": "TSD.GroupArchive, TSD.ConnectionLineArchive",
+       "read": "none",
+       "write": "none",
+       "api": [],
+       "warning": "読みで「a group of objects」「a connection line」",
+       "evidence": "code",
+       "note": null
+      }
+     ]
+    },
+    {
+     "id": "misc",
+     "name": "保護・印刷・その他",
+     "features": [
+      {
+       "id": "num.misc.protect",
+       "name": "書類のパスワード保護（書き出し側）",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "wb.protection"
+       ],
+       "warning": "「workbook protection is dropped: Numbers locks a document with a password, which this writer does not set」",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.misc.sheetprotect",
+       "name": "シートの保護・保護範囲",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.protection",
+        "sheet.protectedRanges"
+       ],
+       "warning": "「sheet protection is dropped: Numbers protects a whole document, not a sheet」ほか",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.misc.print",
+       "name": "印刷（用紙・向き・余白・ヘッダー／フッター・印刷範囲・改ページ）",
+       "spec_anchor": "TN.CommandSetPrinterMarginsArchive ほか",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.pageSetup",
+        "sheet.headerFooter",
+        "sheet.printArea",
+        "sheet.rowBreaks"
+       ],
+       "warning": "「the print setup (headers, page breaks, print area, orientation) is dropped: Numbers prints a canvas, not a page grid」",
+       "evidence": "measured",
+       "note": "Numbers はキャンバスを印刷する。ページのグリッドという考え方が無い。"
+      },
+      {
+       "id": "num.misc.definednames",
+       "name": "定義名",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "wb.definedNames",
+        "sheet.definedNames"
+       ],
+       "warning": "「N defined name(s) dropped: Numbers has no defined names」",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.misc.scenario",
+       "name": "シナリオ",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "sheet.scenarios"
+       ],
+       "warning": "「N scenario(s) dropped: Numbers has no scenarios」",
+       "evidence": "measured",
+       "note": null
+      },
+      {
+       "id": "num.misc.epoch",
+       "name": "1904 の日付原点",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [
+        "wb.epoch"
+       ],
+       "warning": "「the 1904 date origin is dropped: the template has no calculation engine to record it on」",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "num.misc.vba",
+       "name": "VBA マクロ",
+       "spec_anchor": "—",
+       "read": "na",
+       "write": "none",
+       "api": [],
+       "warning": "「VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)」",
+       "evidence": "code",
+       "note": null
+      },
+      {
+       "id": "num.misc.collab",
+       "name": "共同編集の履歴",
+       "spec_anchor": "TSCK.* （collaboration）",
+       "read": "none",
+       "write": "none",
+       "api": [],
+       "warning": "なし（モデルに対応物が無い）",
+       "evidence": "code",
+       "note": "型は名簿に実在するが、読み書きの対象にしていない。"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

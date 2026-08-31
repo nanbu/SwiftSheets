@@ -9,6 +9,24 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Added
+
+- **A feature matrix read from the specifications** —
+  [docs/spec-feature-matrix.html](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html), and the same
+  content as [YAML](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml). The existing format support
+  table starts from the model's 48 features and measures what each format keeps; this one starts from what
+  each format's own specification names — 191 rows, Excel 78 / ODS 56 / Numbers 57 — and says how far the
+  library carries each, with the API for it. Read and write are separate columns, because a single one would
+  be untrue: Numbers array formulas are read but not written, and a Numbers filter reads back as hidden rows
+  with its rules dropped. Six statuses rather than two, because "unsupported" hides a real difference —
+  `preserved` (the model has no word for it, but a same-format save returns it byte for byte, and a conversion
+  drops it with a warning) is not the same thing as `none`. Two rows are marked `unverified` rather than
+  guessed at: Excel chart sheets and Numbers form sheets, neither of which has a specimen to measure.
+  Both documents are generated from `scripts/spec-feature-matrix.json` by
+  `scripts/build-spec-feature-matrix.py`; CI runs it with `--check`, which also fails when the row count named
+  in README.md or docs/index.html no longer matches the source. Numbers, again, are checked rather than
+  remembered.
+
 ### Changed
 
 - **Excel itself now judges sheet protection** (spec Appendix B.31). The modern SHA-512 password shipped in

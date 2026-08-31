@@ -24,6 +24,12 @@ jobs:
           xcodebuild -version
           swift --version
 
+      # docs/spec-feature-matrix.{html,yaml} are generated from scripts/spec-feature-matrix.json.
+      # Checking here means the promise "the table is regenerated, never hand-edited" is enforced
+      # rather than remembered. Standard library only — no Python packages to install.
+      - name: Generated documents match their source
+        run: python3 scripts/build-spec-feature-matrix.py --check
+
       - name: Build
         run: swift build --build-tests
 

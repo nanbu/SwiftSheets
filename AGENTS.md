@@ -42,6 +42,15 @@ Numbers in the README are checked by tests, not remembered:
 If `APIContractTests` goes red after your change, update the README or CHANGELOG to match reality — do not
 weaken the test.
 
+## The generated documents (docs/spec-feature-matrix.*)
+
+`docs/spec-feature-matrix.html` and `docs/spec-feature-matrix.yaml` are **generated**. The source is
+`scripts/spec-feature-matrix.json`; edit that and run `python3 scripts/build-spec-feature-matrix.py`. Never hand-edit
+the two products — `--check` runs in CI and fails on any difference, and it also fails when the row count named in
+README.md or docs/index.html no longer matches the source. Statuses in that table are `full` / `partial` /
+`preserved` / `none` / `na` / `unverified`; `unverified` exists so a row nobody has measured is never guessed at.
+The page borrows its `<style>` from `docs/format-support.html` at build time, so the sibling pages cannot drift apart.
+
 ## The openpyxl parity ledger (Tests/OpenpyxlParity)
 
 openpyxl's test suite is the yardstick for XLSX behaviour. Every ported or adapted test carries a

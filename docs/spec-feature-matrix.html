@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>形式ごとの機能対応表 — 仕様にある機能を、SwiftSheets はどこまで扱えるか（SwiftSheets 0.10.0）</title>
+<style>
+:root{
+  --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
+  --ink:#1d1d1f; --ink-2:#515154; --ink-3:#86868b;
+  --accent:#0a84ff; --good:#248a3d; --bad:#d70015; --warn:#b25000;
+  --hairline:rgba(0,0,0,.08); --line:#d2d2d7; --soft:#f0f0f3;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#161617; --surface:#1d1d1f; --card-bg:#1d1d1f;
+    --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#86868b;
+    --accent:#409cff; --good:#30d158; --bad:#ff453a; --warn:#ff9f0a;
+    --hairline:rgba(255,255,255,.12); --line:#48484a; --soft:#242426;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-size:15.5px;line-height:1.8;-webkit-font-smoothing:antialiased}
+main{max-width:980px;margin:0 auto;padding:56px 22px 100px}
+h1{font-size:31px;font-weight:800;line-height:1.35;margin:0 0 10px;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:700;margin:56px 0 10px;letter-spacing:-.01em;padding-top:6px}
+h3{font-size:17px;font-weight:700;margin:28px 0 6px}
+p{margin:10px 0}
+.lede{color:var(--ink-2);font-size:17.5px;line-height:1.75}
+.meta{color:var(--ink-3);font-size:13px;margin-top:14px}
+.rule{height:1px;background:var(--hairline);border:0;margin:26px 0}
+.card{background:var(--card-bg);border:1px solid var(--hairline);border-radius:16px;padding:18px 22px;margin:16px 0}
+.card h3{margin-top:0}
+.card.tint{background:var(--surface)}
+.card.decide{border-color:var(--accent);border-width:1.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0}
+.grid .card{margin:0}
+.score{text-align:center}
+.score .num{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.score .num small{font-size:16px;font-weight:700;color:var(--ink-3)}
+.score .lab{font-size:13.5px;color:var(--ink-2);font-weight:700;margin-top:2px}
+.score .sub{font-size:12.5px;color:var(--ink-3);margin-top:6px;line-height:1.6}
+.chip{display:inline-block;padding:2px 12px;border-radius:999px;font-size:12.5px;font-weight:600;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--hairline);margin:0 6px 6px 0}
+.chip.ok{color:var(--good)} .chip.hot{color:var(--accent)} .chip.no{color:var(--bad)}
+.kv{color:var(--ink-3);font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:2px}
+figure{margin:26px 0}
+figcaption{color:var(--ink-3);font-size:13px;margin-top:8px;text-align:center}
+svg{max-width:100%;height:auto;display:block;margin:0 auto;font-family:inherit}
+.sv-card{fill:var(--card-bg);stroke:var(--line)}
+.sv-soft{fill:var(--soft);stroke:var(--line)}
+.sv-ghost{fill:none;stroke:var(--line);stroke-dasharray:5 4}
+.sv-accent{fill:var(--accent)}
+.sv-accent-soft{fill:var(--card-bg);stroke:var(--accent);stroke-width:1.5}
+.sv-t{fill:var(--ink);font-size:13.5px}
+.sv-tb{fill:var(--ink);font-size:13.5px;font-weight:700}
+.sv-t2{fill:var(--ink-2);font-size:12.5px}
+.sv-t3{fill:var(--ink-3);font-size:11.5px}
+.sv-inv{fill:#fff;font-size:13px;font-weight:700}
+.sv-bad{fill:var(--bad);font-size:13px;font-weight:700}
+.sv-good{fill:var(--good);font-size:13px;font-weight:700}
+.sv-warn{fill:var(--warn);font-size:13px;font-weight:700}
+.sv-line{stroke:var(--line);stroke-width:1.2;fill:none}
+.sv-arrow{stroke:var(--ink-3);stroke-width:1.6;fill:none}
+.sv-mark{fill:var(--ink-3)}
+.sv-grid{stroke:var(--line);stroke-width:.8}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
+.tablewrap{overflow-x:auto;margin:16px 0;border:1px solid var(--hairline);border-radius:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--hairline);vertical-align:top}
+th{font-weight:700;font-size:13.5px;color:var(--ink-2);background:var(--surface)}
+tr:last-child td{border-bottom:0}
+td.m,th.m{text-align:center;width:74px;white-space:nowrap}
+td.m{font-weight:700}
+.y{color:var(--good)} .n{color:var(--bad)} .h{color:var(--warn)}
+tr.group td{background:var(--surface);font-weight:700;font-size:13.5px;color:var(--ink-2)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;
+  background:var(--surface);padding:1.5px 6px;border-radius:6px}
+pre{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;
+  padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.65;margin:14px 0}
+pre code{background:none;padding:0}
+ul.plain{padding-left:1.3em;margin:10px 0} ul.plain li{margin:6px 0}
+ol.steps{padding-left:1.4em} ol.steps li{margin:8px 0}
+.answer{background:var(--surface);border-radius:12px;padding:14px 18px;margin-top:14px;font-weight:700}
+.answer .q{color:var(--accent)}
+footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);color:var(--ink-3);font-size:13px}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;font-size:10.5pt}
+  main{max-width:none;padding:0}
+  section,.card,table,svg,figure,.grid{break-inside:avoid}
+  h2{break-after:avoid}
+  pre,.tablewrap{overflow:visible;white-space:normal}
+  table{min-width:0;font-size:9pt}
+  th,td{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>形式ごとの機能対応表</h1>
+<p class="lede">Excel・OpenDocument・Numbers それぞれの<strong>公開仕様が持っている機能</strong>を並べ、SwiftSheets が読めるか・書けるか・どの API で触るのかを 191 行にしたものです。隣の<a href="format-support.html">形式ごとの対応表</a>が「モデルの 48 項目 → 3 形式」を測るのに対し、この表は<strong>逆向き</strong>に「形式の仕様 → SwiftSheets」を見ます。</p>
+<p class="meta">2026-08-29 時点 / SwiftSheets 0.10.0 / 検証環境: macOS 15・Swift 6.2 / Xcode 26・openpyxl 3.1.5（XLSX の審判）・LibreOffice 26.2.3（ODF の審判）・numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）・Microsoft Excel 16.112.2（保護の審判・付録 B.31）</p>
+<hr class="rule">
+<section>
+<h2>この表の向き</h2>
+<p>各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。形式ごとの対応表（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。</p>
+<p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
+<div class="grid">
+<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○45 △9 ▣16 ×4 ／ 書き ○46 △9 ▣15 ×3<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">56<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○35 △10 ▣1 ×4 ／ 書き ○30 △9 ▣0 ×16<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">57<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △11 ▣0 ×9 ／ 書き ○18 △8 ▣0 ×27<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
+</div>
+</section>
+<section>
+<h2>記号は 6 つ — 「対応・未対応」の 2 択にしなかった理由</h2>
+<p>同じ「未対応」でも、①モデルが言葉を持たないだけで保存すれば残るもの（▣）と、②本当に消えるもの（×）では、使う側にとっての意味がまるで違います。読みと書きも分けました — Numbers の配列数式は読めても書けず、フィルタは隠し行だけが読める、といった行が実際にあるからです。</p>
+<figure>
+<svg viewBox="0 0 900 300" role="img" aria-label="1 つの機能が迎える 4 つの結末を並べた図">
+  <rect x="0" y="10" width="210" height="132" rx="14" class="sv-card"/>
+  <text x="20" y="42" class="sv-good" font-size="24">○</text>
+  <text x="52" y="42" class="sv-tb">そのまま往復</text>
+  <text x="20" y="70" class="sv-t2">モデルの言葉で読めて、</text>
+  <text x="20" y="90" class="sv-t2">同じものが書き出される。</text>
+  <text x="20" y="110" class="sv-t2">API がその機能を持つ。</text>
+  <text x="20" y="130" class="sv-t3">例: セルの結合</text>
+
+  <rect x="230" y="10" width="210" height="132" rx="14" class="sv-card"/>
+  <text x="250" y="42" class="sv-warn" font-size="24">△</text>
+  <text x="282" y="42" class="sv-tb">形を変えて通る</text>
+  <text x="250" y="70" class="sv-t2">相手の形式が同じことを</text>
+  <text x="250" y="90" class="sv-t2">言えないので、近いものに</text>
+  <text x="250" y="110" class="sv-t2">置き換えて、必ず言う。</text>
+  <text x="250" y="130" class="sv-t3">例: 表示形式の複数セクション</text>
+
+  <rect x="460" y="10" width="210" height="132" rx="14" class="sv-card"/>
+  <text x="480" y="42" class="sv-t" font-size="24">▣</text>
+  <text x="512" y="42" class="sv-tb">触らずに残す</text>
+  <text x="480" y="70" class="sv-t2">読み取って模型にはしないが、</text>
+  <text x="480" y="90" class="sv-t2">同じ形式で保存すれば元の</text>
+  <text x="480" y="110" class="sv-t2">バイトのまま残る（F3）。</text>
+  <text x="480" y="130" class="sv-t3">例: グラフ・VBA・スパークライン</text>
+
+  <rect x="690" y="10" width="210" height="132" rx="14" class="sv-card"/>
+  <text x="710" y="42" class="sv-bad" font-size="24">×</text>
+  <text x="742" y="42" class="sv-tb">落として、言う</text>
+  <text x="710" y="70" class="sv-t2">通らない。ただし黙って</text>
+  <text x="710" y="90" class="sv-t2">消えることはなく、必ず</text>
+  <text x="710" y="110" class="sv-t2">警告として返ってくる。</text>
+  <text x="710" y="130" class="sv-t3">例: Numbers の印刷設定</text>
+
+  <rect x="0" y="170" width="900" height="106" rx="14" class="sv-soft"/>
+  <text x="24" y="200" class="sv-tb">▣ が ○ と違うところ</text>
+  <text x="24" y="226" class="sv-t2">同じ形式へ保存し直すかぎり完全に残りますが、モデルには言葉が無いので、API から触ることも、他の形式へ持っていくこともできません。</text>
+  <text x="24" y="248" class="sv-t2">他の形式へ変換した瞬間に × と同じ扱いになり、そのとき初めて警告が出ます。だから「対応・未対応」の 2 択では言えず、</text>
+  <text x="24" y="268" class="sv-t2">この表は 6 つの記号を使っています。</text>
+</svg>
+<figcaption>この表の記号。× と ▣ を分けたことが、この表の中心にあります。</figcaption>
+</figure>
+<div class="tablewrap"><table><thead><tr><th class="m">記号</th><th>意味</th></tr></thead><tbody>
+<tr><td class="m y">○</td><td>そのまま往復する。モデルの言葉で読め、同じものが書き出される</td></tr>
+<tr><td class="m h">△</td><td>形を変えて通る。必ず degraded / substituted の警告が返る</td></tr>
+<tr><td class="m">▣</td><td>モデル化しない。同形式の保存では元のバイトのまま残る（F3）。他形式へ変換すると落ちて警告</td></tr>
+<tr><td class="m n">×</td><td>通らない。落として dropped の警告を返す</td></tr>
+<tr><td class="m">—</td><td>その形式に概念がない</td></tr>
+<tr><td class="m h">?</td><td>実測していない。推測で ○ × を書かないための欄</td></tr>
+</tbody></table></div>
+<p>「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 10 件 / numbers 23 件）。</p>
+</section>
+<section>
+<h2>各行の根拠</h2>
+<p>「対応しています」と書いた表はすぐ嘘になります。そこで各行の末尾に、その判定が<strong>どこから来たのか</strong>を付けました。</p>
+<div class="tablewrap"><table><thead><tr><th>しるし</th><th>意味</th></tr></thead><tbody>
+<tr><td>実測</td><td>FormatSupportTests の 48 項目の実測（書いて読み戻して比べる）</td></tr>
+<tr><td>コード確認</td><td>コーデックのコードで確認（要素名・警告文・保全リストの実在）</td></tr>
+<tr><td>文書</td><td>README / 実装仕様書 付録 B の記述</td></tr>
+<tr><td>実機の審判</td><td>外部の実装が読めたこと（openpyxl・LibreOffice・numbers-parser・Numbers.app・Excel）</td></tr>
+</tbody></table></div>
+<p><strong>正直な残り物</strong>: 実測していない行が 2 件あります（Excel のグラフシート・ダイアログシート・マクロシート、Apple Numbers の入力フォーム（iPhone / iPad のフォーム））。検体が手元に無いため、推測で ○ × を書かず <code>?</code> のままにしてあります。</p>
+</section>
+<section>
+<h2>どの行にも共通する入口</h2>
+<pre><code>読む:   Workbook(contentsOf:) / Workbook.read(contentsOf:) -&gt; ReadResult / wb.readWarnings
+書く:   wb.write(to:as:) -&gt; WriteResult / wb.data(as:) / Workbook.convert(_:to:output:)
+見分ける: SheetFormat.detect(from:)
+落としたものの受け取り方: ConversionWarning(kind: .dropped/.degraded/.substituted, subject:, sheet:, location:, message:)</code></pre>
+</section>
+<section>
+<h2>件数</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">45</td><td class="m">9</td><td class="m">16</td><td class="m">4</td><td class="m">3</td><td class="m">1</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">46</td><td class="m">9</td><td class="m">15</td><td class="m">3</td><td class="m">4</td><td class="m">1</td><td class="m">78</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">35</td><td class="m">10</td><td class="m">1</td><td class="m">4</td><td class="m">6</td><td class="m">0</td><td class="m">56</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">30</td><td class="m">9</td><td class="m">0</td><td class="m">16</td><td class="m">1</td><td class="m">0</td><td class="m">56</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">11</td><td class="m">0</td><td class="m">9</td><td class="m">15</td><td class="m">1</td><td class="m">57</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">8</td><td class="m">0</td><td class="m">27</td><td class="m">3</td><td class="m">1</td><td class="m">57</td></tr>
+</tbody></table></div>
+<p class="meta">「—」はその形式に概念が無い行です。Numbers に「—」が多いのは能力差ではなく、Excel・OpenDocument 側の機能を並べた行に Numbers 側の対応物が無い、という意味です。</p>
+</section>
+<section>
+<h2>Excel（.xlsx / .xlsm）</h2>
+<p><strong>仕様</strong>: ECMA-376 / ISO/IEC 29500 — Office Open XML SpreadsheetML</p>
+<p>公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。</p>
+<div class="tablewrap"><table>
+<thead><tr><th>機能</th><th class="m">読み</th><th class="m">書き</th><th>仕様の手がかり</th><th>対応する API</th><th>注（落ちるときに何を言うか・根拠）</th></tr></thead><tbody>
+<tr class="group"><td colspan="6">パッケージと部品</td></tr>
+<tr><td>OPC パッケージ（ZIP・コンテンツタイプ・リレーション）</td><td class="m y">○</td><td class="m y">○</td><td><code>[Content_Types].xml, _rels/.rels</code></td><td><code>Workbook(contentsOf:)</code> <code>wb.write(to:)</code></td><td>書き出しでは [Content_Types].xml が実在するパートだけを宣言し、r:id は全て解決する（PreservationTests）。 <span class="chip">実測</span></td></tr>
+<tr><td>解釈しないパートの保全（F3）</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/charts/, xl/theme/, xl/drawings/, vbaProject.bin ほか</code></td><td><code>wb.preserved</code> <code>PreservationStore</code> <code>sheet.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると「N part(s) … cannot be carried into …」 触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。 <span class="chip">コード確認</span></td></tr>
+<tr><td>ZIP64（4GB 超・65,535 パート超）</td><td class="m n">×</td><td class="m n">×</td><td><code>ZIP64 end of central directory</code></td><td><code>SheetError.corruptedContainer</code></td><td><strong>言うこと</strong>: throw（警告ではなくエラー） README の Limits に明記。壊れたファイルと区別して報告する。 <span class="chip">文書</span></td></tr>
+<tr><td>パスワードによる暗号化</td><td class="m n">×</td><td class="m n">×</td><td><code>ECMA-376 Part 2 agile / standard encryption（[MS-OFFCRYPTO]）</code></td><td><code>SheetError.unsupportedFeature</code> <code>UnopenableInput.encryptedOOXML</code></td><td><strong>言うこと</strong>: throw。壊れたファイルではなく「暗号化されている」と名指しする 旧 .xls（BIFF）も UnopenableInput.legacyOLE として別扱いで報告する。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">ブック（xl/workbook.xml）</td></tr>
+<tr><td>シートの一覧・順序・名前・複製</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;sheets&gt;/&lt;sheet&gt;</code></td><td><code>wb.sheets</code> <code>wb.sheetNames</code> <code>addSheet(named:at:)</code> <code>removeSheet(named:)</code> <code>moveSheet(named:to:)</code> <code>duplicateSheet(named:as:)</code> <code>renameSheet(_:to:)</code></td><td>シート名を変えると、そのシートを指す数式が追従する。 <span class="chip">実測</span></td></tr>
+<tr><td>シートの表示状態（表示・非表示・完全非表示）</td><td class="m y">○</td><td class="m y">○</td><td><code>sheet@state</code></td><td><code>sheet.isHidden</code> <code>sheet.state</code> <code>SheetState</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>定義名（ブック単位・シート単位）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;definedNames&gt;/&lt;definedName localSheetId&gt;</code></td><td><code>wb.definedNames</code> <code>sheet.definedNames</code></td><td>印刷範囲・タイトル行は _xlnm.Print_Area / _xlnm.Print_Titles として同じ場所に載る。 <span class="chip">実測</span></td></tr>
+<tr><td>日付の原点（1900 / 1904）</td><td class="m y">○</td><td class="m y">○</td><td><code>workbookPr@date1904</code></td><td><code>wb.epoch</code> <code>DateEpoch</code> <code>ExcelDate</code></td><td>1900 年 2 月 29 日の幻の日も openpyxl と同じ扱いに揃えてある。 <span class="chip">実測</span></td></tr>
+<tr><td>計算プロパティと計算チェーン</td><td class="m h">△</td><td class="m h">△</td><td><code>&lt;calcPr&gt;, xl/calcChain.xml</code></td><td>—</td><td>calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため。 <span class="chip">コード確認</span></td></tr>
+<tr><td>ブックの保護（シート構成・ウィンドウの固定）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;workbookProtection&gt;</code></td><td><code>wb.protection</code> <code>WorkbookProtection</code> <code>setModernPassword(_:)</code> <code>setPassword(_:)</code></td><td>新方式は SHA-512 のハッシュを生成。実機 Excel 16.112.2 が開錠することを AppleScript で確認（付録 B.31）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>ブックビュー（選択中のシート）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;bookViews&gt;/&lt;workbookView activeTab&gt;</code></td><td><code>wb.activeSheet</code> <code>wb.activeIndex</code></td><td><span class="chip">コード確認</span></td></tr>
+<tr><td>外部ブックへの参照</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;externalReferences&gt;, xl/externalLinks/</code></td><td><code>FormulaExpr（[1]Sheet!A1 は文字として保持）</code></td><td><strong>言うこと</strong>: 他形式へ変換すると objects の dropped 警告 参照先の値は解決しない。数式の中では文字列のまま運ぶので、同形式なら壊れない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>文書プロパティ（作成者・題名・日時）</td><td class="m y">○</td><td class="m y">○</td><td><code>docProps/core.xml, docProps/app.xml</code></td><td><code>wb.metadata</code> <code>DocumentProperties</code> <code>wb.sourceInfo</code></td><td>生成元アプリ名は sourceInfo.application に残す。 <span class="chip">コード確認</span></td></tr>
+<tr><td>ユーザー定義の文書プロパティ</td><td class="m y">○</td><td class="m y">○</td><td><code>docProps/custom.xml</code></td><td><code>wb.customProperties</code> <code>CustomDocumentProperty</code></td><td>文字・整数・実数・真偽・日付・定義名リンクの 6 種。 <span class="chip">実測</span></td></tr>
+<tr><td>ファイル共有・カスタムブックビュー・スマートタグ・Web 公開</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;fileSharing&gt;, &lt;customWorkbookViews&gt;, &lt;smartTagPr&gt;, &lt;webPublishing&gt;</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped &lt;workbook&gt; の未知の子要素はスキーマ順の位置に戻して書き出す（WorkbookWriter.workbookOrder）。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">ワークシート（xl/worksheets/sheetN.xml）</td></tr>
+<tr><td>セルの値（数値・文字・真偽・エラー・インライン文字列）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;c t=&quot;n|s|str|b|e|inlineStr|d&quot;&gt;</code></td><td><code>sheet[&quot;A1&quot;]</code> <code>sheet[0, 1]</code> <code>CellValue</code></td><td>整数と実数は openpyxl と同じ分け方（.integer / .number(Decimal)）。日付は CivilDate で、時間帯を持たない。 <span class="chip">実測</span></td></tr>
+<tr><td>共有文字列</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/sharedStrings.xml</code></td><td>—</td><td>書き出しでは自動で共有化する。利用者が意識する API はない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;is&gt;/&lt;r&gt;/&lt;rPr&gt;</code></td><td><code>CellValue.richText</code> <code>TextRun</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>ふりがな（ルビ）</td><td class="m n">×</td><td class="m">—</td><td><code>&lt;rPh&gt;, &lt;phoneticPr&gt;</code></td><td>—</td><td><strong>言うこと</strong>: なし（openpyxl に揃えた意図的な差） 読み飛ばす。openpyxl 準拠を優先した既知の非対応で、ここだけは警告が出ない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>行の高さ・非表示・アウトライン段</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;row ht customHeight hidden outlineLevel collapsed&gt;</code></td><td><code>sheet.rowDimension(_:)</code> <code>setHeight(_:ofRow:)</code> <code>RowDimension</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>列の幅・非表示・アウトライン段・自動幅</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;cols&gt;/&lt;col width bestFit hidden outlineLevel&gt;</code></td><td><code>setWidth(_:ofColumn:)</code> <code>columnDimension(_:)</code> <code>autofitColumns(maxWidth:)</code></td><td>autofitColumns は XlsxWriter の幅表に倣う。東アジアの文字は 2 倍幅で測る（付録 B.33）。 <span class="chip">実測</span></td></tr>
+<tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m y">○</td><td><code>row@outlineLevel, &lt;outlinePr summaryBelow summaryRight&gt;</code></td><td><code>groupRows(_:outlineLevel:hidden:)</code> <code>groupColumns(_:_:outlineLevel:)</code> <code>sheet.properties</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>セルの結合</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;mergeCells&gt;/&lt;mergeCell&gt;</code></td><td><code>merge(_:)</code> <code>unmerge(_:)</code> <code>sheet.merges</code> <code>mergedRange(containing:)</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;hyperlinks&gt;/&lt;hyperlink r:id location tooltip&gt;</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>ウィンドウ枠の固定</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;sheetViews&gt;/&lt;sheetView&gt;/&lt;pane state=&quot;frozen&quot;&gt;</code></td><td><code>sheet.freezePanes</code> <code>freezePanes(at:)</code> <code>freezePanesA1</code></td><td>分割（split）は固定として扱う。 <span class="chip">実測</span></td></tr>
+<tr><td>シートビュー（表示倍率・目盛線の表示・選択）</td><td class="m h">△</td><td class="m h">△</td><td><code>&lt;sheetView zoomScale showGridLines tabSelected&gt;, &lt;selection&gt;</code></td><td><code>sheet.view</code> <code>SheetView</code></td><td><strong>言うこと</strong>: なし（README の既知の限界） 一部の sheetView 属性は保全の対象外。README「Known limits of the current preservation」に明記。 <span class="chip">文書</span></td></tr>
+<tr><td>タブの色</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;sheetPr&gt;/&lt;tabColor&gt;</code></td><td><code>sheet.tabColor</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>シートの保護（できることを名指しする許可の集合）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;sheetProtection&gt;</code></td><td><code>sheet.protection</code> <code>SheetProtection</code> <code>setModernPassword(_:)</code></td><td>ファイルは「禁止」を書くが、API は「許可」で名づけた。実機 Excel が開錠を確認済み。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>保護シート内の編集できる窓</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;protectedRanges&gt;/&lt;protectedRange&gt;</code></td><td><code>sheet.protectedRanges</code> <code>ProtectedRange</code></td><td>ODS・Numbers には無い。変換すると落ちて警告。 <span class="chip">実測</span></td></tr>
+<tr><td>シナリオ（入力値の組の記録）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;scenarios&gt;/&lt;scenario&gt;/&lt;inputCells&gt;</code></td><td><code>sheet.scenarios</code> <code>Scenario</code> <code>ScenarioList</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>無視するエラー・セルウォッチ・カスタムシートビュー・データ統合</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;ignoredErrors&gt;, &lt;cellWatches&gt;, &lt;customSheetViews&gt;, &lt;dataConsolidate&gt;</code></td><td><code>sheet.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped &lt;worksheet&gt; の未知の子要素はスキーマ順に戻す（WorkbookWriter.worksheetOrder）。統合だけは ODF が文書に持てる（ODS の表を参照）。 <span class="chip">コード確認</span></td></tr>
+<tr><td>1 つのシートに複数の表</td><td class="m">—</td><td class="m">—</td><td>—</td><td><code>sheet.tables</code></td><td><strong>言うこと</strong>: 「N other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)」 ワークシートは 1 枚のグリッド。Numbers から来た複数の表は、先頭以外を落として言う。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">数式</td></tr>
+<tr><td>数式（構文木として保持）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;f&gt;</code></td><td><code>Formula(&quot;=SUM(A1:B2)&quot;)</code> <code>FormulaExpr</code> <code>value.formula</code></td><td>行の挿入・削除・シート名の変更に参照が追従する（openpyxl は追従しない）。 <span class="chip">実測</span></td></tr>
+<tr><td>共有数式</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;f t=&quot;shared&quot; si ref&gt;</code></td><td>—</td><td>読むときに展開する。書き出しは通常の数式として書く。 <span class="chip">コード確認</span></td></tr>
+<tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;f t=&quot;array&quot; ref&gt;</code></td><td><code>sheet.table.arrayFormulas[anchor] = CellRange(&quot;A2:A4&quot;)</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>数式のキャッシュ値</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;c&gt;&lt;v&gt;</code></td><td><code>.formula(_, cached:)</code> <code>ReadOptions(dataOnly: true)</code></td><td>dataOnly で値だけを読む道もある。 <span class="chip">コード確認</span></td></tr>
+<tr><td>数式の入れ子（64 段まで）</td><td class="m h">△</td><td class="m h">△</td><td><code>Excel 自身の上限</code></td><td><code>FormulaExpr.unparsed</code></td><td><strong>言うこと</strong>: なし（同じ形式へ書き戻すかぎり無損失） 64 段を超える式は文字のまま持ち、そのまま書き戻す。行の挿入に追従せず、方言も翻訳しない。 <span class="chip">文書</span></td></tr>
+<tr><td>株価・為替の関数（STOCK・CURRENCY など 6 種）</td><td class="m">—</td><td class="m h">△</td><td>—</td><td><code>FormulaExpr.remoteDataFunction</code></td><td><strong>言うこと</strong>: キャッシュしてあった値を式の代わりに書き、そう言う Numbers だけが計算し直せる関数で、Excel に同名の関数が無い。取ってあった値を書いて言う——Numbers 自身が Excel へ書き出すときと同じ置き換え（付録 B.27）。 <span class="chip">実測</span></td></tr>
+<tr><td>未知の関数・新しい関数（_xlfn 接頭辞・動的配列）</td><td class="m h">△</td><td class="m h">△</td><td><code>_xlfn.*</code></td><td><code>FormulaExpr</code></td><td><strong>言うこと</strong>: なし（名前のまま運ぶ） 関数の意味は解釈しない。名前と引数の木として運ぶので、同形式なら壊れない。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">スタイル（xl/styles.xml）</td></tr>
+<tr><td>フォント・塗り・罫線・配置・表示形式</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;fonts&gt; &lt;fills&gt; &lt;borders&gt; &lt;numFmts&gt; &lt;cellXfs&gt;</code></td><td><code>sheet.style(&quot;A1&quot;) { $0.font.bold = true }</code> <code>CellStyle</code> <code>Font</code> <code>Fill</code> <code>Border</code> <code>Alignment</code></td><td>書き出しは元のフォント／塗り／罫線の表の上に積むので、索引で参照される項目の位置が動かない。 <span class="chip">実測</span></td></tr>
+<tr><td>グラデーションの塗り</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;gradientFill&gt;</code></td><td><code>Fill.gradient(_:)</code> <code>GradientFill</code></td><td>ODS・Numbers はセルに 1 色しか持てないので、変換すると最初の色になり警告が出る。 <span class="chip">実測</span></td></tr>
+<tr><td>名前付きセルスタイル</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;cellStyles&gt;, &lt;cellStyleXfs&gt;</code></td><td><code>wb.namedStyles</code> <code>addNamedStyle(_:)</code> <code>CellStyle.namedStyle</code></td><td><span class="chip">コード確認</span></td></tr>
+<tr><td>差分書式（条件付き書式・テーブルが指す書式）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;dxfs&gt;/&lt;dxf&gt;</code></td><td><code>wb.differentialStyles</code> <code>DifferentialStyle</code> <code>DifferentialFont</code></td><td>全ての欄が省略可。nil は「そのままにする」の意味。 <span class="chip">コード確認</span></td></tr>
+<tr><td>テーマ（配色・書体）</td><td class="m h">△</td><td class="m">▣</td><td><code>xl/theme/theme1.xml, Color.theme</code></td><td><code>Color.theme(_:tint:)</code> <code>Color.indexed(_:)</code> <code>wb.indexedColors</code></td><td><strong>言うこと</strong>: 他形式では「theme/indexed colours written as default」 読んだテーマはパートごと保全する。新規ブックにはテーマを作らず、色は RGB で明示する。 <span class="chip">コード確認</span></td></tr>
+<tr><td>テーブルスタイル定義</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;tableStyles&gt;</code></td><td><code>wb.preserved.styleTables</code></td><td>そのまま複写する。索引がずれないことを優先。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">条件付き書式</td></tr>
+<tr><td>規則 17 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;conditionalFormatting&gt;/&lt;cfRule type operator&gt;</code></td><td><code>sheet.addConditionalFormatting(.cellIs(.greaterThan, &quot;100&quot;, paint: red), over: &quot;B2:B99&quot;)</code> <code>ConditionalFormattingRule.Kind</code></td><td>優先順位はシート内で 1…n に振り直す。 <span class="chip">実測</span></td></tr>
+<tr><td>カラースケール・データバー・アイコンセット</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;colorScale&gt; &lt;dataBar&gt; &lt;iconSet&gt; &lt;cfvo&gt;</code></td><td><code>ColorScale</code> <code>DataBar</code> <code>IconSet</code> <code>ConditionalValue</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>拡張の条件付き書式（負のデータバー・独自アイコン）</td><td class="m h">△</td><td class="m h">△</td><td><code>&lt;extLst&gt; x14:conditionalFormatting</code></td><td><code>sheet.hasUnmodelledConditionalFormats</code></td><td><strong>言うこと</strong>: フラグが立つ。ODS・Numbers へ変換すると dropped モデルで言い切れない規則は、ファイル自身のブロックをそのまま書き戻す。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">入力規則</td></tr>
+<tr><td>入力規則（リスト・数値・日付・文字数・カスタム）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;dataValidations&gt;/&lt;dataValidation type operator&gt;</code></td><td><code>sheet.dataValidations = [.list(&quot;&#x27;Choices&#x27;!$A$2:$A$4&quot;, over: MultiCellRange(&quot;C4:C99&quot;)!)]</code> <code>DataValidation</code></td><td>hideDropDown は、反転した showDropDown 属性の「意味」で名づけた。 <span class="chip">実測</span></td></tr>
+<tr><td>拡張の入力規則（別シートを直接指すリストなど）</td><td class="m h">△</td><td class="m h">△</td><td><code>&lt;extLst&gt; x14:dataValidations</code></td><td><code>sheet.hasUnmodelledValidations</code></td><td><strong>言うこと</strong>: フラグが立つ ファイル自身のブロックを保持して書き戻す。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">テーブル・フィルタ・並べ替え</td></tr>
+<tr><td>名前付きテーブル</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/tables/tableN.xml, &lt;tableParts&gt;</code></td><td><code>sheet.excelTables</code> <code>addExcelTable(named:over:)</code> <code>ExcelTable</code> <code>TableStyleInfo</code></td><td><strong>言うこと</strong>: 名前が重複すると「named table not written」 パート・コンテンツタイプ・リレーション・&lt;tableParts&gt; をすべて生成する。 <span class="chip">実測</span></td></tr>
+<tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;autoFilter ref&gt;</code></td><td><code>sheet.autoFilter</code> <code>autoFilterA1</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>絞り込み条件（値の一覧・比較・色・アイコン・動的・上位 10・日付グループ）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;filterColumn&gt; &lt;filters&gt; &lt;customFilters&gt; &lt;colorFilter&gt; &lt;iconFilter&gt; &lt;dynamicFilter&gt; &lt;top10&gt;</code></td><td><code>sheet.filterColumns</code> <code>FilterColumn</code> <code>Top10Filter</code> <code>DynamicFilter</code> <code>ColorFilter</code> <code>IconFilter</code> <code>DateGroup</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>拡張のフィルタ</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;extLst&gt; x14:filter</code></td><td><code>sheet.hasUnmodelledFilters</code></td><td><strong>言うこと</strong>: フラグが立つ 元の XML をそのまま保持する。 <span class="chip">コード確認</span></td></tr>
+<tr><td>並べ替えの記録</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;sortState&gt;/&lt;sortCondition&gt;</code></td><td><code>sheet.sortState</code> <code>SortState</code> <code>SortCondition</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>スライサー</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/slicers/, xl/slicerCaches/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると objects の dropped モデル化していない。同形式の保存ではパートごとそのまま残る。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">ピボットテーブル</td></tr>
+<tr><td>ピボットテーブルの配置（行・列・値・レポートフィルタ）</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/pivotTables/pivotTableN.xml</code></td><td><code>wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)</code> <code>sheet.pivotTables</code> <code>PivotTable</code> <code>PivotField</code> <code>PivotDataField</code></td><td><strong>言うこと</strong>: 解析できないパートは「could not be parsed; the pivot table it describes was skipped」 配置は書くが数字は書かない。開いたアプリが元の範囲から計算し直す。 <span class="chip">実測</span></td></tr>
+<tr><td>ピボットキャッシュ（定義とレコード）</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/pivotCache/pivotCacheDefinitionN.xml, pivotCacheRecordsN.xml</code></td><td><code>PivotCache</code> <code>PivotCacheField</code> <code>PivotItem</code></td><td>レコード部は XML のまま持ち運ぶ。2 回目の保存で壊れていた欠陥は 2026-08-27 に修正済み。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">描画とオブジェクト</td></tr>
+<tr><td>画像の埋め込み（マスに置く・範囲に合わせる）</td><td class="m">▣</td><td class="m y">○</td><td><code>xl/media/, xl/drawings/drawingN.xml, &lt;twoCellAnchor&gt; &lt;oneCellAnchor&gt;</code></td><td><code>sheet.addImage(try SheetImage(data:), at: &quot;B2&quot;, sizing: .resizeCellToFit)</code> <code>addImage(_:over:)</code> <code>SheetImage</code> <code>ImagePlacement</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped PNG / JPEG / GIF。形式と画素数はバイトから読む。既に図形のあるシートには錨だけを差し込み、他はバイトのまま。読み取りの模型化はない（付録 B.32）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>グラフ（縦棒・横棒・折れ線・円）</td><td class="m">▣</td><td class="m h">△</td><td><code>xl/charts/chartN.xml</code></td><td><code>sheet.addChart(Chart(.column), over: &quot;D2:K16&quot;)</code> <code>chart.addSeries(values:categories:name:)</code> <code>Chart.Kind</code></td><td><strong>言うこと</strong>: 系列のないグラフは「a … chart with no series was not written」／他形式へは dropped 書けるのは 4 種。既にファイルにあるグラフは触らずそのまま（F3）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/comments1.xml + legacy VML</code></td><td><code>sheet[cell: &quot;A1&quot;].comment = CellNote(text, author:)</code> <code>sheet.notes</code></td><td>コメント部と、その相棒の VML の両方を書く。 <span class="chip">実測</span></td></tr>
+<tr><td>スレッド形式のコメント</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/threadedComments/, xl/persons/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped モデル化していない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>図形・テキストボックス・SmartArt・背景画像</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;xdr:sp&gt;, &lt;picture&gt;</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped <span class="chip">コード確認</span></td></tr>
+<tr><td>OLE オブジェクト・ActiveX コントロール</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;oleObjects&gt;, &lt;controls&gt;</code></td><td><code>sheet.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped <span class="chip">コード確認</span></td></tr>
+<tr><td>スパークライン</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;extLst&gt; x14:sparklineGroups</code></td><td><code>sheet.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped worksheet の extLst ごと保持される。モデルの言葉はない。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">印刷</td></tr>
+<tr><td>用紙・向き・拡大率・先頭ページ番号</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;pageSetup&gt;</code></td><td><code>sheet.pageSetup</code> <code>PageSetup</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>余白・中央寄せ・目盛線と見出しの印刷</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;pageMargins&gt;, &lt;printOptions&gt;</code></td><td><code>sheet.pageMargins</code> <code>sheet.printOptions</code> <code>PageMargins</code> <code>PrintOptions</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>ヘッダー／フッター</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;headerFooter&gt; oddHeader/&amp;L&amp;C&amp;R</code></td><td><code>sheet.headerFooter</code> <code>HeaderFooter</code></td><td>Excel の書式コード文字列のまま持つ（分解しない）。 <span class="chip">実測</span></td></tr>
+<tr><td>改ページ</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;rowBreaks&gt;, &lt;colBreaks&gt;</code></td><td><code>sheet.rowBreaks</code> <code>sheet.columnBreaks</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>印刷範囲・繰り返すタイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td><code>_xlnm.Print_Area, _xlnm.Print_Titles</code></td><td><code>setPrintArea(_:)</code> <code>sheet.printArea</code> <code>sheet.printTitleRows</code> <code>sheet.printTitleColumns</code></td><td><span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">マクロと外部連携</td></tr>
+<tr><td>VBA マクロ（.xlsm）</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/vbaProject.bin</code></td><td><code>wb.write(to:as: .xlsm)</code></td><td><strong>言うこと</strong>: .xlsx へ書くと「VBA project dropped: macros cannot be kept in .xlsx」 不透明なバイトとして保持するだけで、実行はしない。 <span class="chip">実測</span></td></tr>
+<tr><td>外部データ接続・クエリテーブル・Web クエリ</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/connections.xml, xl/queryTables/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped <span class="chip">コード確認</span></td></tr>
+<tr><td>リッチ値（株価・地理などのデータ型）</td><td class="m n">×</td><td class="m n">×</td><td><code>c@cm, c@vm, xl/richData/</code></td><td>—</td><td><strong>言うこと</strong>: なし（README の既知の限界） cm / vm 属性は保全の対象外。ここは正直な穴で、README に書いてある。 <span class="chip">文書</span></td></tr>
+<tr><td>カスタム XML パート</td><td class="m">▣</td><td class="m">▣</td><td><code>customXml/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると dropped <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">ワークシート以外のシート</td></tr>
+<tr><td>グラフシート・ダイアログシート・マクロシート</td><td class="m h">?</td><td class="m h">?</td><td><code>xl/chartsheets/, &lt;chartsheet&gt;</code></td><td>—</td><td><strong>言うこと</strong>: 未確認 読み込みはブックの &lt;sheet&gt; をすべてワークシートとして解析する。グラフシートを含むファイルはテストコーパスに無く、実測していない。推測で ○ × を書かないため未検証のままにする。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">大きなファイル</td></tr>
+<tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>xl/worksheets/sheetN.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>forEachRow(inSheet:)</code> <code>StreamedRow</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 75 万セルで +54MB（モデル全体は +190MB）。結合・メモ・保全は運ばない。 <span class="chip">文書</span></td></tr>
+<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>同上</code></td><td><code>StreamingWriter(url:sheetName:)</code> <code>append(_:)</code> <code>close()</code></td><td><strong>言うこと</strong>: なし 行数によらず +3MB。値と書式だけ。 <span class="chip">文書</span></td></tr>
+<tr><td>セル数の上限</td><td class="m h">△</td><td class="m">—</td><td><code>ReadOptions.cellLimit（既定 1,000,000）</code></td><td><code>ReadOptions(cellLimit:)</code></td><td><strong>言うこと</strong>: degraded の警告で「読み取りをここで止めた」と言う 黙って途中で止めない。 <span class="chip">文書</span></td></tr>
+</tbody></table></div>
+</section>
+<section>
+<h2>OpenDocument 表計算（.ods）</h2>
+<p><strong>仕様</strong>: OASIS OpenDocument Format 1.3 — Part 3 (Schema) / Part 4 (OpenFormula)</p>
+<p>公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。</p>
+<div class="tablewrap"><table>
+<thead><tr><th>機能</th><th class="m">読み</th><th class="m">書き</th><th>仕様の手がかり</th><th>対応する API</th><th>注（落ちるときに何を言うか・根拠）</th></tr></thead><tbody>
+<tr class="group"><td colspan="6">パッケージ</td></tr>
+<tr><td>ODF パッケージ（mimetype を無圧縮で先頭に置く）</td><td class="m y">○</td><td class="m y">○</td><td><code>mimetype, META-INF/manifest.xml</code></td><td><code>Workbook(contentsOf:)</code> <code>wb.write(to:as: .ods)</code></td><td>先頭に非圧縮の mimetype を置く決まりを守る。LibreOffice が開き直せることで確認している。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>文書の 4 つの部品</td><td class="m y">○</td><td class="m y">○</td><td><code>content.xml, styles.xml, meta.xml, settings.xml</code></td><td>—</td><td>settings.xml も読み書きする（ウィンドウ枠の固定など、表示の設定がここに入る）。 <span class="chip">コード確認</span></td></tr>
+<tr><td>パスワードによる暗号化</td><td class="m n">×</td><td class="m n">×</td><td><code>manifest:encryption-data（ODF 1.3 §4.3）</code></td><td><code>SheetError.unsupportedFeature</code> <code>UnopenableInput.encryptedODF</code></td><td><strong>言うこと</strong>: throw。暗号化されていると名指しする <span class="chip">コード確認</span></td></tr>
+<tr><td>埋め込みオブジェクト・画像のパート</td><td class="m">▣</td><td class="m n">×</td><td><code>Pictures/, Object N/, ObjectReplacements/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 「N embedded object(s)/picture(s) of the source ODS are not re-linked」 ODS の書き出しは content.xml を作り直すので、元の絵や図の参照は張り直せない。持ってはいるが繋がらない、と正直に言う。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">表・行・列</td></tr>
+<tr><td>表（シート）と名前・表示／非表示</td><td class="m y">○</td><td class="m y">○</td><td><code>table:table, table:name, table:display=&quot;false&quot;</code></td><td><code>wb.sheets</code> <code>sheet.name</code> <code>sheet.isHidden</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>繰り返しによる圧縮（同じ行・同じ列をまとめて書く）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:number-rows-repeated, table:number-columns-repeated</code></td><td><code>ReadOptions(cellLimit:)</code></td><td><strong>言うこと</strong>: 上限を超えると degraded で「ここで読み取りを止めた」 ODF はこの圧縮で 170 億セルを 1KB の XML に書ける。既定 100 万セルで止め、必ずそう言う。 <span class="chip">コード確認</span></td></tr>
+<tr><td>行の高さ・列の幅・非表示</td><td class="m y">○</td><td class="m y">○</td><td><code>style:row-height, style:column-width, table:visibility</code></td><td><code>setHeight(_:ofRow:)</code> <code>setWidth(_:ofColumn:)</code> <code>RowDimension</code> <code>ColumnDimension</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:table-row-group（入れ子）</code></td><td><code>groupRows(_:outlineLevel:hidden:)</code> <code>groupColumns(_:_:outlineLevel:)</code></td><td>ODF は段の深さを要素の入れ子で表す。読むときに段の数に直す。 <span class="chip">実測</span></td></tr>
+<tr><td>見出し行・見出し列</td><td class="m y">○</td><td class="m y">○</td><td><code>table:table-header-rows, table:table-header-columns</code></td><td><code>sheet.freezePanes</code></td><td><span class="chip">コード確認</span></td></tr>
+<tr><td>1 つのシートに複数の表</td><td class="m">—</td><td class="m">—</td><td><code>table:table を並べる</code></td><td><code>sheet.tables</code></td><td><strong>言うこと</strong>: モデルに複数あると「N other table(s) not written」 ODF は 1 シート＝1 グリッド。Numbers から来た複数の表は、先頭以外を落として言う。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">セルと値</td></tr>
+<tr><td>セルの値（浮動小数・パーセント・通貨・日付・時刻・真偽・文字）</td><td class="m y">○</td><td class="m y">○</td><td><code>office:value-type=&quot;float|percentage|currency|date|time|boolean|string&quot;</code></td><td><code>sheet[&quot;A1&quot;]</code> <code>CellValue</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>通貨のセル種別（どの通貨かをデータとして持つ）</td><td class="m y">○</td><td class="m y">○</td><td><code>office:value-type=&quot;currency&quot;, office:currency</code></td><td><code>CellStyle.numberFormat</code></td><td><strong>言うこと</strong>: 他形式へは「only OpenDocument has it」の dropped ODF だけが持つ 6 つのうちの 1 つ。Excel と Numbers では表示形式の中にしか無いので、記号は残っても「これは金額だ」という区別は残らない。 <span class="chip">実測</span></td></tr>
+<tr><td>セルの結合</td><td class="m y">○</td><td class="m y">○</td><td><code>table:number-columns-spanned / -rows-spanned</code></td><td><code>merge(_:)</code> <code>sheet.merges</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td><code>text:p / text:span</code></td><td><code>CellValue.richText</code> <code>TextRun</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m h">△</td><td><code>text:a xlink:href</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><strong>言うこと</strong>: 1 セルに複数あると「a cell holds more than one hyperlink; the first was kept」 ODF はリンクを文字の範囲に付けられる。読むときは先頭を採り、そう言う。 <span class="chip">実測</span></td></tr>
+<tr><td>メモ（注釈）</td><td class="m y">○</td><td class="m y">○</td><td><code>office:annotation</code></td><td><code>sheet[cell: &quot;A1&quot;].comment</code> <code>CellNote</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>セルの中の操作子（チェックボックスなど）</td><td class="m n">×</td><td class="m n">×</td><td><code>office:forms / form:control</code></td><td><code>Cell.control</code> <code>CellControl</code></td><td><strong>言うこと</strong>: 「N cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has …」 読み込みでは office:forms の中を読み飛ばす。Numbers から来た制御は値だけ残して落とす。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">数式（OpenFormula）</td></tr>
+<tr><td>数式（OpenFormula 方言）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:formula=&quot;of:=[.A1]&quot;</code></td><td><code>Formula(&quot;=SUM(A1:B2)&quot;)</code> <code>value.formula?.rendered(as: .ods)</code> <code>FormulaExpr</code></td><td>構文木から OpenFormula へ翻訳する。交差演算子は Excel の空白と OpenFormula の ! の両方を理解する。 <span class="chip">実測</span></td></tr>
+<tr><td>行列数式（配列数式）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:number-matrix-columns-spanned / -rows-spanned</code></td><td><code>sheet.table.arrayFormulas</code></td><td>起点のセルに範囲を書く。 <span class="chip">実測</span></td></tr>
+<tr><td>OpenFormula に無い式・訳せない式</td><td class="m h">△</td><td class="m h">△</td><td>—</td><td><code>FormulaExpr.unparsed</code></td><td><strong>言うこと</strong>: 「formula in … dialect could not be translated; cached value written」ほか 3 種 訳すと意味が変わってしまう式は、キャッシュ値に落として、どこがなぜ落ちたかを言う。 <span class="chip">コード確認</span></td></tr>
+<tr><td>株価・為替の関数（STOCK・CURRENCY など 6 種）</td><td class="m">—</td><td class="m h">△</td><td>—</td><td><code>FormulaExpr.remoteDataFunction</code></td><td><strong>言うこと</strong>: 「… fetches live data and OpenFormula has no such function; the cached value …」 OpenFormula に同名の関数が無い。取ってあった値を書いて言う（Numbers 自身の Excel 書き出しと同じ置き換え）。 <span class="chip">実測</span></td></tr>
+<tr><td>名前付き範囲・名前付き式</td><td class="m y">○</td><td class="m y">○</td><td><code>table:named-range, table:named-expression</code></td><td><code>wb.definedNames</code> <code>sheet.definedNames</code></td><td><span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">スタイルとデータスタイル</td></tr>
+<tr><td>セルのスタイル（フォント・色・罫線・配置・折り返し）</td><td class="m y">○</td><td class="m y">○</td><td><code>style:style family=&quot;table-cell&quot;, fo:*, style:*</code></td><td><code>sheet.style(&quot;A1&quot;) { … }</code> <code>CellStyle</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>グラデーションの塗り</td><td class="m">—</td><td class="m h">△</td><td><code>draw:gradient</code></td><td><code>Fill.gradient(_:)</code></td><td><strong>言うこと</strong>: 「gradient fill(s) written as their first colour: an ODF cell style has one …」 ODF のセルスタイルは 1 色しか持てない。最初の色にして言う。 <span class="chip">実測</span></td></tr>
+<tr><td>データスタイル（表示形式）</td><td class="m h">△</td><td class="m h">△</td><td><code>number:number-style, number:date-style, number:currency-style ほか</code></td><td><code>CellStyle.numberFormat</code> <code>NumberFormat</code></td><td><strong>言うこと</strong>: 「number format … has no ODF data style; General used」／「only its first section is written」 ODF のデータスタイルは見え方を 1 通りしか持てない。Excel の複数セクション・色・条件は落ちる。逆向きに訳せないデータスタイルも General に落として言う。 <span class="chip">実測</span></td></tr>
+<tr><td>スタイルに付く条件（本体仕様の条件付き書式）</td><td class="m y">○</td><td class="m n">×</td><td><code>style:map</code></td><td><code>sheet.conditionalFormatting</code></td><td>読むときだけの経路。calcext: を持たない古い作り手のファイルのために残してある。書き出しは calcext: に一本化。 <span class="chip">コード確認</span></td></tr>
+<tr><td>マスターページとページレイアウト</td><td class="m y">○</td><td class="m y">○</td><td><code>style:master-page, style:page-layout</code></td><td><code>sheet.pageSetup</code> <code>sheet.pageMargins</code> <code>sheet.headerFooter</code></td><td>ODF はシートごとにマスターページを持つ。印刷の設定はここに入る。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">条件付き書式</td></tr>
+<tr><td>条件付き書式 18 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）</td><td class="m y">○</td><td class="m y">○</td><td><code>calcext:conditional-formats / calcext:condition</code></td><td><code>sheet.addConditionalFormatting(_:over:)</code> <code>ConditionalFormattingRule.Kind</code></td><td>書き出しは calcext: だけ。読むときは calcext: と style:map の両方を読む。LibreOffice が XLSX へ変換すると 18 種すべて再現する。 <span class="chip">実測</span></td></tr>
+<tr><td>カラースケール・データバー・アイコンセット</td><td class="m y">○</td><td class="m y">○</td><td><code>calcext:color-scale, calcext:data-bar, calcext:icon-set</code></td><td><code>ColorScale</code> <code>DataBar</code> <code>IconSet</code></td><td>ODF 1.3 の本体仕様には言葉が無い。ODF に「数値を隠す」データバーは無いので、そこだけ落ちる。 <span class="chip">実測</span></td></tr>
+<tr><td>モデルが読み切れなかった条件付き書式</td><td class="m h">△</td><td class="m n">×</td><td>—</td><td><code>sheet.hasUnmodelledConditionalFormats</code></td><td><strong>言うこと</strong>: 「a conditional format the model could not read is dropped: ODS is regenerated …」 ODS は毎回作り直すので、XLSX のように元のブロックを差し戻す手が使えない。落として言う。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">入力規則</td></tr>
+<tr><td>内容の検証（ドロップダウン・数値・日付・文字数・カスタム）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:content-validation, table:condition, table:content-validation-name</code></td><td><code>sheet.dataValidations</code> <code>DataValidation</code></td><td>ODF は規則を文書の先頭にまとめ、セルが名前で指す。 <span class="chip">実測</span></td></tr>
+<tr><td>モデルが読み切れなかった入力規則</td><td class="m h">△</td><td class="m n">×</td><td>—</td><td><code>sheet.hasUnmodelledValidations</code></td><td><strong>言うこと</strong>: 「a data validation the model could not read is dropped: ODS is regenerated …」 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">データベース範囲・フィルタ・並べ替え</td></tr>
+<tr><td>データベース範囲（名前付きの表に当たるもの）</td><td class="m y">○</td><td class="m h">△</td><td><code>table:database-range</code></td><td><code>sheet.excelTables</code> <code>addExcelTable(named:over:)</code></td><td><strong>言うこと</strong>: 「named table … written as an ODF database range: its banded-row style …」 名前と範囲は通る。縞模様のスタイルは落ちて言う。 <span class="chip">実測</span></td></tr>
+<tr><td>フィルタ（絞り込み条件）</td><td class="m y">○</td><td class="m h">△</td><td><code>table:filter, table:filter-condition</code></td><td><code>sheet.autoFilter</code> <code>sheet.filterColumns</code></td><td><strong>言うこと</strong>: 色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言う 値の一覧と比較条件は通る。 <span class="chip">実測</span></td></tr>
+<tr><td>並べ替えの記録</td><td class="m y">○</td><td class="m y">○</td><td><code>table:sort, table:sort-by</code></td><td><code>sheet.sortState</code> <code>SortState</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>モデルが読み切れなかったフィルタ</td><td class="m h">△</td><td class="m n">×</td><td>—</td><td><code>sheet.hasUnmodelledFilters</code></td><td><strong>言うこと</strong>: 「an auto-filter the model could not read is dropped: ODS is regenerated …」 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">データパイロット（ピボット）</td></tr>
+<tr><td>データパイロット表</td><td class="m y">○</td><td class="m y">○</td><td><code>table:data-pilot-table, table:data-pilot-field</code></td><td><code>sheet.pivotTables</code> <code>wb.addPivotTable(…)</code> <code>PivotTable</code></td><td>Excel のピボットと同じく配置だけを書き、数字は開いた側に計算させる。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">保護</td></tr>
+<tr><td>表の保護</td><td class="m y">○</td><td class="m y">○</td><td><code>table:protected, table:protection-key</code></td><td><code>sheet.protection</code> <code>SheetProtection</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>保護シート内の編集できる窓</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.protectedRanges</code></td><td><strong>言うこと</strong>: 「N protected range(s) dropped: ODF protects a whole table …」 ODF は表全体を守り、その中に窓を持たない。 <span class="chip">実測</span></td></tr>
+<tr><td>ブックの保護（シート構成の固定）</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.protection</code></td><td><strong>言うこと</strong>: 「workbook protection is dropped: ODF locks a document, not its sheet list」 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">印刷</td></tr>
+<tr><td>向き・用紙・拡大率・余白・中央寄せ</td><td class="m y">○</td><td class="m y">○</td><td><code>style:page-layout-properties, style:print-orientation, style:scale-to</code></td><td><code>sheet.pageSetup</code> <code>sheet.pageMargins</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>ヘッダー／フッター（左・中央・右の 3 領域）</td><td class="m y">○</td><td class="m h">△</td><td><code>style:header, style:footer, style:region-left/center/right</code></td><td><code>sheet.headerFooter</code></td><td><strong>言うこと</strong>: フォント指定だけ落ちる Excel の &amp;L&amp;C&amp;R と ODF の 3 領域を相互に訳す。 <span class="chip">実測</span></td></tr>
+<tr><td>印刷範囲・タイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td><code>table:print-ranges, table:print</code></td><td><code>setPrintArea(_:)</code> <code>sheet.printTitleRows</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>改ページ</td><td class="m y">○</td><td class="m y">○</td><td><code>fo:break-before（行・列のスタイル）</code></td><td><code>sheet.rowBreaks</code> <code>sheet.columnBreaks</code></td><td><span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">ODF だけが持つもの（付録 B.17）</td></tr>
+<tr><td>ラベル範囲（見出しを数式でそのまま使う）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:label-ranges / table:label-range</code></td><td><code>wb.labelRanges</code> <code>LabelRange</code></td><td><strong>言うこと</strong>: 他形式へは「… is dropped: only OpenDocument has it」 =SUM(売上) の「売上」が定義名ではなく列見出し。Excel 2003 の自然言語の数式に当たるが、いまの Excel 形式に置き場所がない。 <span class="chip">実測</span></td></tr>
+<tr><td>統合の定義</td><td class="m y">○</td><td class="m y">○</td><td><code>table:consolidation</code></td><td><code>wb.consolidation</code> <code>Consolidation</code></td><td><strong>言うこと</strong>: 他形式へは dropped 「この範囲とこの範囲を、ここに合計する」を文書に残す。Excel の統合は一度きりの操作で、定義は保存されない。 <span class="chip">実測</span></td></tr>
+<tr><td>探偵の矢印（参照元・参照先のトレース）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:detective, table:highlighted-range, table:operation</code></td><td><code>table.detective</code> <code>CellDetective</code></td><td><strong>言うこと</strong>: 他形式へは dropped Excel も同じ矢印を描くが、閉じると消える。ODF はファイルに残すので、監査の跡がついたまま届く。 <span class="chip">実測</span></td></tr>
+<tr><td>計算設定（正規表現・ワイルドカード・大小文字・二桁年・表示桁で計算）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:calculation-settings, table:use-regular-expressions, table:null-year</code></td><td><code>wb.calculationSettings</code> <code>CalculationSettings</code></td><td><strong>言うこと</strong>: 他形式へは「a calculation setting is dropped — …; only OpenDocument keeps it in the file」 検索条件の意味を変える設定。Excel ではアプリ側の設定で、ファイルには入らない。 <span class="chip">実測</span></td></tr>
+<tr><td>日付の原点（任意の日付を置ける）</td><td class="m h">△</td><td class="m h">△</td><td><code>table:null-date</code></td><td><code>wb.epoch</code> <code>DateEpoch</code></td><td><strong>言うこと</strong>: 1899-12-30 でも 1904-01-01 でもない原点は「read as the 1900 system, so dates may be out」 Excel は 1900 か 1904 の二択、ODF は任意の日付。読むときは、その他の原点を 1900 系として読み、そう言う。書くときもモデルが持てるのは 2 つの原点だけなので、任意の日付は書けない。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">ODF が持ち、モデルが言葉を持たないもの</td></tr>
+<tr><td>変更履歴（セル単位の版）</td><td class="m h">△</td><td class="m n">×</td><td><code>table:tracked-changes</code></td><td><code>wb.unmodelledODFFeatures</code> <code>UnmodelledODFFeatures.trackedChanges</code></td><td><strong>言うこと</strong>: 「tracked changes (a document&#x27;s revision history) is dropped: … the model has no word for it」 あることは読み取り、書き出しで「あったが落とした」と言う。中身は運ばない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>DDE リンク（別の動いているアプリが値を供給する）</td><td class="m h">△</td><td class="m n">×</td><td><code>table:dde-links</code></td><td><code>UnmodelledODFFeatures.ddeLinks</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
+<tr><td>別の文書から取り込んだシート</td><td class="m h">△</td><td class="m n">×</td><td><code>table:table-source</code></td><td><code>UnmodelledODFFeatures.linkedSheet</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
+<tr><td>別の文書から取り込んだ範囲</td><td class="m h">△</td><td class="m n">×</td><td><code>table:cell-range-source</code></td><td><code>UnmodelledODFFeatures.linkedRange</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
+<tr><td>描画オブジェクト（画像・グラフ・図形・テキストボックス）</td><td class="m n">×</td><td class="m n">×</td><td><code>draw:frame, draw:image, draw:object, draw:custom-shape</code></td><td><code>sheet.addImage(_:at:sizing:)</code> <code>sheet.addChart(_:over:)</code></td><td><strong>言うこと</strong>: 「N image(s) added by addImage dropped: writing pictures into ODS is not implemented yet」ほか 読み込みは draw:frame の中を読み飛ばす。addImage / addChart で作った絵とグラフも ODS には書けない（.xlsx なら書ける）。 <span class="chip">コード確認</span></td></tr>
+<tr><td>シナリオ</td><td class="m n">×</td><td class="m n">×</td><td><code>table:scenario</code></td><td><code>sheet.scenarios</code></td><td><strong>言うこと</strong>: 「N scenario(s) dropped: an ODF scenario is a whole shadow sheet …」 ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増えてしまうので書かない。 <span class="chip">実測</span></td></tr>
+<tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」 <span class="chip">実測</span></td></tr>
+</tbody></table></div>
+</section>
+<section>
+<h2>Apple Numbers（.numbers）</h2>
+<p><strong>仕様</strong>: 公開仕様なし — Numbers ユーザガイド（ヘルプ）＋実際のファイルからの観測</p>
+<p>Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。</p>
+<div class="tablewrap"><table>
+<thead><tr><th>機能</th><th class="m">読み</th><th class="m">書き</th><th>仕様の手がかり</th><th>対応する API</th><th>注（落ちるときに何を言うか・根拠）</th></tr></thead><tbody>
+<tr class="group"><td colspan="6">書類とパッケージ</td></tr>
+<tr><td>書類の読み書き（IWA: Snappy 圧縮 + Protobuf）</td><td class="m y">○</td><td class="m y">○</td><td><code>Index/*.iwa, Index/Document.iwa</code></td><td><code>Workbook(contentsOf:)</code> <code>wb.write(to:as: .numbers)</code> <code>NumbersCodec</code></td><td>依存のない動的な Protobuf の木（ProtoMessage）で扱う。知らない欄はバイト単位でそのまま往復する（NumbersIWATests.fixturesRoundTripByteForByte）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>書き出しの土台（テンプレート・パッチ方式）</td><td class="m">—</td><td class="m h">△</td><td><code>Resources/empty.numbers</code></td><td><code>NumbersCodec</code></td><td><strong>言うこと</strong>: テンプレートに無い器を要る機能は、その旨を名指しして落とす numbers-parser 同梱の空の書類を土台にし、1 枚目のシート／表をその場で書き換え、2 枚目からは部分グラフを複製して新しい id と UUID を振る（仕様 §11.1）。毎回テンプレートから始まるので、往復の保全（F3）は無い。 <span class="chip">文書</span></td></tr>
+<tr><td>書類のパスワード保護</td><td class="m n">×</td><td class="m n">×</td><td><code>.iwph（暗号化された書類の目印）</code></td><td><code>SheetError.unsupportedFeature</code></td><td><strong>言うこと</strong>: throw「encrypted Numbers documents are not supported」 Numbers 側の「パスワードを要求」で守った書類は開かない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>Numbers のバージョン追従</td><td class="m h">△</td><td class="m">—</td><td><code>TN.DocumentArchive のバージョン欄</code></td><td><code>wb.readWarnings</code></td><td><strong>言うこと</strong>: 「Numbers document version … is newer than the verified range; read as far as possible」 検証済みの範囲より新しい書類でも、読めるところまで読んで、そう言う。 <span class="chip">コード確認</span></td></tr>
+<tr><td>文書プロパティ・ユーザー定義項目</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.metadata</code> <code>wb.customProperties</code></td><td><strong>言うこと</strong>: 「N custom document propert(ies) dropped: Numbers has no free-form document fields」 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">シートとキャンバス</td></tr>
+<tr><td>シート（名前・順序・複数）</td><td class="m y">○</td><td class="m y">○</td><td><code>TN.SheetArchive</code></td><td><code>wb.sheets</code> <code>addSheet(named:at:)</code></td><td>2 枚目以降は部分グラフの複製。Numbers.app 自身が開けることを審判にしている（付録 B.18）。 <span class="chip">実測</span></td></tr>
+<tr><td>1 枚のシートに複数の表</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.TableInfoArchive を並べる</code></td><td><code>sheet.tables</code> <code>sheet.addTable(named:anchor:)</code> <code>Table.anchor</code></td><td><strong>言うこと</strong>: 他形式へは「N other table(s) not written: a worksheet holds a single grid」 ここだけ Numbers が強い。Excel と ODS は 1 シート＝1 グリッドなので、先頭以外を落として言う。 <span class="chip">実測</span></td></tr>
+<tr><td>シートを隠す</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.isHidden</code></td><td><strong>言うこと</strong>: 「Numbers has no hidden sheets; the sheet is visible」 <span class="chip">実測</span></td></tr>
+<tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: Numbers tabs have no colour」 <span class="chip">実測</span></td></tr>
+<tr><td>シートの背景色・向き</td><td class="m n">×</td><td class="m n">×</td><td><code>TN.SheetStyleArchive, TN.CommandSetSheetDirectionArchive</code></td><td>—</td><td><strong>言うこと</strong>: なし（モデルに対応物が無い） 保管庫の型としては実在するが、モデルに写す先が無い。読み書きの対象にしていない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>入力フォーム（iPhone / iPad のフォーム）</td><td class="m h">?</td><td class="m h">?</td><td><code>TN.FormBasedSheetArchive</code></td><td>—</td><td><strong>言うこと</strong>: 未確認 型は書類の名簿に実在するが、コーデックは触っていない。フォームを含む書類の検体が無く、実測していないので未検証のままにする。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">表（テーブル）</td></tr>
+<tr><td>表の名前</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.TableModelArchive.table_name</code></td><td><code>Table.name</code></td><td><span class="chip">コード確認</span></td></tr>
+<tr><td>表の位置（キャンバス上の置き場所）</td><td class="m y">○</td><td class="m h">△</td><td><code>TST.TableInfoArchive の幾何</code></td><td><code>Table.anchor</code></td><td>読むときは位置を Table.anchor に写す。 <span class="chip">文書</span></td></tr>
+<tr><td>ヘッダ行・ヘッダ列</td><td class="m y">○</td><td class="m y">○</td><td><code>number_of_header_rows / _columns, header_rows_frozen</code></td><td><code>sheet.freezePanes</code></td><td>Excel のウィンドウ枠の固定に当たるものとして往復させる。 <span class="chip">実測</span></td></tr>
+<tr><td>フッタ行</td><td class="m h">△</td><td class="m n">×</td><td><code>number_of_footer_rows</code></td><td>—</td><td><strong>言うこと</strong>: なし（枠の指定だけが落ちる） 行そのものは普通の行として読み、値も書式も失われない。「ここから下はフッタ」という枠だけモデルに言葉が無い。 <span class="chip">コード確認</span></td></tr>
+<tr><td>行の高さ・列の幅・非表示</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.TableModelArchive の行列情報</code></td><td><code>setHeight(_:ofRow:)</code> <code>setWidth(_:ofColumn:)</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>セルの結合</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.MergeRegionMapArchive</code></td><td><code>merge(_:)</code> <code>sheet.merges</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>表のスタイル（縞模様などの既定の見た目）</td><td class="m n">×</td><td class="m n">×</td><td><code>TST.TableStyleArchive, TST.TableStylePresetArchive</code></td><td><code>sheet.excelTables</code></td><td><strong>言うこと</strong>: 「N named table(s) dropped: every Numbers table is named, but its own header rows are not this frame」 Numbers の表は全て名前を持つが、Excel の「名前付きテーブル」とは枠が違う。写さずに落として言う。 <span class="chip">実測</span></td></tr>
+<tr><td>行・列のグループ化（アウトライン）</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>groupRows(_:outlineLevel:hidden:)</code></td><td><strong>言うこと</strong>: 「row / column grouping is dropped: Numbers groups by category, not by outline level」 Numbers はカテゴリで束ねる。段の深さという考え方が無い。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">セルと値</td></tr>
+<tr><td>セルの値（数値・文字・日付・真偽・経過時間・エラー）</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.Tile / TST.TileRowInfo のセル格納</code></td><td><code>sheet[&quot;A1&quot;]</code> <code>CellValue</code></td><td>Numbers の数値は decimal128。Decimal で受けるので桁が落ちない。 <span class="chip">実測</span></td></tr>
+<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td><code>TSWP.StorageArchive, TSWP.CharacterStyleArchive</code></td><td><code>CellValue.richText</code> <code>TextRun</code></td><td>Numbers は文字スタイルの変わり目として持つ。 <span class="chip">実測</span></td></tr>
+<tr><td>ハイパーリンク</td><td class="m h">△</td><td class="m h">△</td><td><code>TSWP.HyperlinkFieldArchive</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><strong>言うこと</strong>: 1 セルに複数あると「the cell holds N links; a cell carries one, so the first was kept」 Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。読むときは先頭を採り、そう言う。 <span class="chip">実測</span></td></tr>
+<tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td><code>TSD.CommentStorageArchive, TSK.AnnotationAuthorArchive</code></td><td><code>sheet[cell: &quot;A1&quot;].comment</code> <code>CellNote</code></td><td>表のコメント一覧に置き、書いた人ごとに 1 つの「作成者」を共有する。 <span class="chip">実測</span></td></tr>
+<tr><td>株価セル（現行 Numbers では STOCK 数式）</td><td class="m y">○</td><td class="m y">○</td><td>—</td><td><code>FormulaExpr.remoteDataFunction</code></td><td>Numbers.app で手作りした見本で確認。いまの Numbers では株価セルは普通の STOCK 数式で、そう読める（付録 B.29）。 <span class="chip">実機の審判</span></td></tr>
+<tr class="group"><td colspan="6">数式</td></tr>
+<tr><td>数式（Numbers の式の木として読み書き）</td><td class="m y">○</td><td class="m y">○</td><td><code>TSCE.FormulaArchive, TSCE.ASTNodeArrayArchive</code></td><td><code>Formula(&quot;=SUM(A1:B2)&quot;)</code> <code>FormulaExpr</code></td><td>構文木を Numbers が評価する逆ポーランドのノード列に変える。書いた式は Numbers の中で本物の式として計算される（付録 B.18）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>別の表への参照</td><td class="m y">○</td><td class="m y">○</td><td><code>&#x27;Sheet::Table&#x27;!A1</code></td><td><code>FormulaExpr</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>写す先の見本が無い形（定義名・Numbers に無い関数・A:C の列範囲・交差／合併）</td><td class="m">—</td><td class="m h">△</td><td>—</td><td><code>value.formula</code> <code>WriteResult.warnings</code></td><td><strong>言うこと</strong>: 「formula written as its cached value: …」がどこでなぜ落ちたかを名指しする 手元のフィクスチャに実例が無い形は発明せず、キャッシュ値に落として言う。 <span class="chip">文書</span></td></tr>
+<tr><td>株価・為替の関数（STOCK・STOCKH・CURRENCY ほか 6 種）</td><td class="m y">○</td><td class="m y">○</td><td>—</td><td><code>FormulaExpr.remoteDataFunction</code></td><td>Numbers だけが計算し直せる式。式のまま書き、書類を開いたときに取り直される（付録 B.27）。 <span class="chip">実測</span></td></tr>
+<tr><td>配列数式（展開つき）</td><td class="m y">○</td><td class="m n">×</td><td><code>起点の式＋覆うセルの内部関数</code></td><td><code>sheet.table.arrayFormulas</code></td><td><strong>言うこと</strong>: 「N array formula(s) written as the anchor&#x27;s formula and the covered cells&#x27; values …」 読みだけ。書けないのは内部関数が再計算で値を作れないため——Numbers 産の見本ですら、古い版に偽装して再計算させると値が消える（実測・付録 B.26）。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">書式</td></tr>
+<tr><td>セル書式（フォント・色・塗り・罫線・配置・折り返し）</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.CellStyleArchive, TST.CellStylePropertiesArchive</code></td><td><code>sheet.style(&quot;A1&quot;) { … }</code> <code>CellStyle</code></td><td><span class="chip">実測</span></td></tr>
+<tr><td>書体の名前</td><td class="m y">○</td><td class="m y">○</td><td><code>PostScript 名（Helvetica Neue ⇄ HelveticaNeue）</code></td><td><code>Font.name</code></td><td>対応表を資源（fonts.json）として持ち、相互に変換する。 <span class="chip">コード確認</span></td></tr>
+<tr><td>表示形式（種類＋小数桁＋桁区切り）</td><td class="m h">△</td><td class="m h">△</td><td><code>TSK.FormatStructArchive</code></td><td><code>CellStyle.numberFormat</code> <code>NumberFormat</code></td><td><strong>言うこと</strong>: 「number format … has no Numbers equivalent」／「… its colours, conditions and negative section are dropped」 Numbers は見え方を 1 通りしか記述できない。Excel の複数セクション・色・条件は落として言う。 <span class="chip">実測</span></td></tr>
+<tr><td>グラデーションの塗り</td><td class="m h">△</td><td class="m h">△</td><td><code>TSD.FillArchive</code></td><td><code>Fill.gradient(_:)</code></td><td><strong>言うこと</strong>: 最初の色になり、そう言う <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">条件付き書式</td></tr>
+<tr><td>条件付き書式 14 種（比較 8・文字列 4・重複・一意）</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.ConditionalStyleSetArchive の predicate_type</code></td><td><code>sheet.addConditionalFormatting(_:over:)</code> <code>ConditionalFormattingRule.Kind</code></td><td><strong>言うこと</strong>: 残りの規則は「conditional format … is dropped: Numbers has no rule of that kind」 predicate_type は Apple が名前を付けていない整数。14 の値は観測で埋めた——1 列 1 規則の書類を .xlsx で書き、Numbers 15.3.1 に読ませて .numbers で保存し直し、生き残った規則をパラメータで元の列に対応づけた（付録 B.18）。 <span class="chip">実測</span></td></tr>
+<tr><td>カラースケール・データバー・アイコンセット</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>ColorScale</code> <code>DataBar</code> <code>IconSet</code></td><td><strong>言うこと</strong>: dropped Numbers 自身も Excel ファイルを読み込むときに同じものを捨てる。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">入力規則とセルの制御</td></tr>
+<tr><td>ポップアップメニュー</td><td class="m y">○</td><td class="m h">△</td><td><code>TST.PopUpMenuModel</code></td><td><code>sheet.dataValidations = [.list(&quot;\&quot;a,b,c\&quot;&quot;, over: …)]</code> <code>DataValidation</code></td><td><strong>言うこと</strong>: 選択肢を書き並べていない規則は「only a list whose choices are spelt in the rule becomes a Numbers pop-up menu」 モデルの言葉では .list の入力規則。範囲を指すリストと数値条件は落として言う（Numbers 自身も Excel の取り込みで同じ置き換えをする・付録 B.24）。 <span class="chip">実測</span></td></tr>
+<tr><td>セルの制御（チェックボックス・ステッパー・スライダー・レート）</td><td class="m y">○</td><td class="m y">○</td><td><code>セルの制御情報（つまみの最小・最大・刻み）</code></td><td><code>Cell.control</code> <code>CellControl</code> <code>CellControl.Kind</code></td><td><strong>言うこと</strong>: 値と制御の型が合わないと「a checkbox edits a boolean and a dial edits a number …」 Numbers 固有。AppleScript でセルごとに尋ねると、Numbers 自身が制御の名前で答える（付録 B.25）。制御のあるセルは必ず値を持つ（未操作のチェックボックスは false、つまみは最小値、レートは 0）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>モデルに言葉の無い制御</td><td class="m h">△</td><td class="m">—</td><td>—</td><td>—</td><td><strong>言うこと</strong>: 「… a Numbers control the model has no word for …; the value is kept, the control is not」 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">整理（カテゴリ・フィルタ・並べ替え）</td></tr>
+<tr><td>カテゴリ（列で束ねる）</td><td class="m h">△</td><td class="m n">×</td><td><code>TST.GroupByArchive, TST.CategoryOwnerRefArchive</code></td><td><code>wb.readWarnings</code></td><td><strong>言うこと</strong>: 「a category grouping by &lt;列名&gt; is dropped — the model has no word for Numbers categories …」 行は平らなまま、束ねていた列の名前を挙げて言う。切ってあるカテゴリも別の文面で言う。 <span class="chip">実測</span></td></tr>
+<tr><td>フィルタ</td><td class="m h">△</td><td class="m n">×</td><td><code>TST.FilterSetArchive</code></td><td><code>RowDimension.hidden</code></td><td><strong>言うこと</strong>: 「a Numbers filter (N rule(s)) is dropped — the rows it hides are kept as hidden rows …」 隠している行は隠し行として保ち、規則は落として言う。Numbers 自身の Excel 書き出しと同じ渡し方（付録 B.29）。 <span class="chip">実測</span></td></tr>
+<tr><td>並べ替え</td><td class="m h">△</td><td class="m n">×</td><td><code>sort_order / rules</code></td><td>—</td><td><strong>言うこと</strong>: 「a Numbers sort order (N rule(s), by &lt;列名&gt;) is dropped — the rows already come back sorted」 行は並べ替え済みの順で入っている。規則だけが落ちる。 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">集計表（ピボット）</td></tr>
+<tr><td>集計表（縦横とも複数段・部分合計つき）</td><td class="m h">△</td><td class="m h">△</td><td><code>TST.PivotOwnerArchive, TST.PivotOrderArchive, TST.SummaryModelArchive</code></td><td><code>wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)</code> <code>PivotTable</code></td><td><strong>言うこと</strong>: 2 つ目以降の集計値は「N of its M summarised values dropped — the value lanes … share one placeholder id」 本物の Numbers の集計表として書く（生きた要約で、Numbers が元の行から数え直す）。3 段の入れ子まで実測済み。集計する値は 1 つまで（付録 B.28）。 <span class="chip">実機の審判</span></td></tr>
+<tr><td>集計表を読む</td><td class="m h">△</td><td class="m">—</td><td><code>同上</code></td><td><code>sheet.tables</code></td><td><strong>言うこと</strong>: なし（値のある普通の表として読める） 読み戻すと普通の表になる。集計の仕掛けはモデルに持たない。 <span class="chip">文書</span></td></tr>
+<tr><td>レポートフィルタの段</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>PivotTable.pageFields</code></td><td><strong>言うこと</strong>: 「N report filter(s) dropped — a Numbers pivot has no filter field, and Numbers drops them too …」 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">キャンバスのオブジェクト</td></tr>
+<tr><td>グラフ</td><td class="m n">×</td><td class="m n">×</td><td><code>TSCH.ChartDrawableArchive</code></td><td><code>sheet.addChart(_:over:)</code></td><td><strong>言うこと</strong>: 読みは「a chart」を dropped で名指し／書きは「N chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet」 キャンバスに立つ物はモデルに置き場所が無い。あったことは必ず言う。 <span class="chip">実測</span></td></tr>
+<tr><td>画像</td><td class="m n">×</td><td class="m n">×</td><td><code>TSD.ImageArchive</code></td><td><code>sheet.addImage(_:at:sizing:)</code></td><td><strong>言うこと</strong>: 読みは「an image」／書きは「N image(s) added by addImage dropped …」 <span class="chip">実測</span></td></tr>
+<tr><td>図形・テキストボックス</td><td class="m n">×</td><td class="m n">×</td><td><code>TSD.ShapeArchive</code></td><td>—</td><td><strong>言うこと</strong>: 読みで「a shape」を dropped で名指し テキストボックスは文字を持つ図形として同じ扱い。 <span class="chip">実測</span></td></tr>
+<tr><td>ムービー・オーディオ</td><td class="m n">×</td><td class="m n">×</td><td><code>TSD.MovieArchive</code></td><td>—</td><td><strong>言うこと</strong>: 読みで「a movie」 <span class="chip">コード確認</span></td></tr>
+<tr><td>図形のグループ・接続線</td><td class="m n">×</td><td class="m n">×</td><td><code>TSD.GroupArchive, TSD.ConnectionLineArchive</code></td><td>—</td><td><strong>言うこと</strong>: 読みで「a group of objects」「a connection line」 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">保護・印刷・その他</td></tr>
+<tr><td>書類のパスワード保護（書き出し側）</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.protection</code></td><td><strong>言うこと</strong>: 「workbook protection is dropped: Numbers locks a document with a password, which this writer does not set」 <span class="chip">実測</span></td></tr>
+<tr><td>シートの保護・保護範囲</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.protection</code> <code>sheet.protectedRanges</code></td><td><strong>言うこと</strong>: 「sheet protection is dropped: Numbers protects a whole document, not a sheet」ほか <span class="chip">実測</span></td></tr>
+<tr><td>印刷（用紙・向き・余白・ヘッダー／フッター・印刷範囲・改ページ）</td><td class="m">—</td><td class="m n">×</td><td><code>TN.CommandSetPrinterMarginsArchive ほか</code></td><td><code>sheet.pageSetup</code> <code>sheet.headerFooter</code> <code>sheet.printArea</code> <code>sheet.rowBreaks</code></td><td><strong>言うこと</strong>: 「the print setup (headers, page breaks, print area, orientation) is dropped: Numbers prints a canvas, not a page grid」 Numbers はキャンバスを印刷する。ページのグリッドという考え方が無い。 <span class="chip">実測</span></td></tr>
+<tr><td>定義名</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.definedNames</code> <code>sheet.definedNames</code></td><td><strong>言うこと</strong>: 「N defined name(s) dropped: Numbers has no defined names」 <span class="chip">実測</span></td></tr>
+<tr><td>シナリオ</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.scenarios</code></td><td><strong>言うこと</strong>: 「N scenario(s) dropped: Numbers has no scenarios」 <span class="chip">実測</span></td></tr>
+<tr><td>1904 の日付原点</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.epoch</code></td><td><strong>言うこと</strong>: 「the 1904 date origin is dropped: the template has no calculation engine to record it on」 <span class="chip">コード確認</span></td></tr>
+<tr><td>VBA マクロ</td><td class="m">—</td><td class="m n">×</td><td>—</td><td>—</td><td><strong>言うこと</strong>: 「VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)」 <span class="chip">コード確認</span></td></tr>
+<tr><td>共同編集の履歴</td><td class="m n">×</td><td class="m n">×</td><td><code>TSCK.* （collaboration）</code></td><td>—</td><td><strong>言うこと</strong>: なし（モデルに対応物が無い） 型は名簿に実在するが、読み書きの対象にしていない。 <span class="chip">コード確認</span></td></tr>
+</tbody></table></div>
+</section>
+<section>
+<h2>この表を自分で確かめる</h2>
+<p>〔実測〕の行は、リポジトリのテストがそのまま裏づけです。</p>
+<pre><code>swift test --filter FormatSupport   # 48 項目を全形式へ書いて読み戻し、生存と警告の数を固定している
+swift test --filter CrossFormat     # 方向ごと（A → B）の点検
+swift test                          # 全部
+
+python3 scripts/build-spec-feature-matrix.py --check   # この表が出所と一致しているか</code></pre>
+<p>表を直すときは <code>scripts/spec-feature-matrix.json</code> を直し、<code>python3 scripts/build-spec-feature-matrix.py</code> を走らせてください。この HTML と <a href="spec-feature-matrix.yaml">同じ内容の YAML</a> は生成物です。</p>
+</section>
+<footer>
+SwiftSheets — 形式ごとの機能対応表。SwiftSheets 0.10.0（commit 1d5f531）時点の実測とコード確認。<br>
+モデルの側から測った表は <a href="format-support.html">形式ごとの対応表</a>、方向ごと（A → B）の挙動は <a href="interoperability.html">相互運用ガイド</a> に。<br>
+実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B に。
+</footer>
+</main>
+</body>
+</html>
