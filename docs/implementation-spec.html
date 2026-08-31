@@ -4620,9 +4620,45 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   </p>
   <p>
     それでも <strong>Linux 版 Foundation の振る舞い</strong>は Mac では測れない
-    （日付・小数・<code>String(data:encoding:)</code> の対応表 —— CSV の Shift_JIS がとくに怪しい）。
+    （日付・小数・<code>String(data:encoding:)</code> の対応表）。
     したがって <strong>Linux 対応はまだ名乗らない</strong>: CI に Linux ジョブ（<code>swift:6.2-noble</code>）を置き、
     それが緑になるまで README のバッジも §1.1 の達成も据え置く。<strong>審判の無い主張は載せない</strong>。
+  </p>
+
+  <h4>審判が言ったこと（2026-08-31・PR #1 で 5 回）</h4>
+  <p>
+    Linux ジョブは 3 回赤を出し、そのたびに理由が違った。
+    <strong>組み立て</strong>: 連結した式 2 か所を型検査が解けない（<code>StylesWriter</code> の名前つき書式・
+    <code>ODSReader</code> の条件付き書式の起点セル。後者は Mac でも 1.3 秒かかっていた）——文単位に書き下して解消。
+    <strong>検査</strong>: プロセスごと異常終了。1 件ずつ走らせたら報告が名を挙げた——
+    <code>libFoundationXML</code> の <code>_NSXMLParserStartElementNs</code>（libxml2 からの呼び出し）で
+    <code>Illegal instruction</code>。<strong>その内側にこちらのフレームは 1 つも無い</strong>
+    （こちら側の最内は <code>SAXDriver.run</code> の <code>XMLParser.parse()</code> の行）。
+  </p>
+  <p>
+    その 1 スイート（<code>FuzzTests</code>）を外すと <strong>Linux で 938 件すべて緑</strong>
+    （うち 6 件は LibreOffice 不在の既知課題つき合格）。
+    <strong>CSV の Shift_JIS も通る</strong> —— 上で「怪しい」と書いた見立ては外れだった。
+  </p>
+  <h4>検体 —— 1 バイト違わず再現した</h4>
+  <p>
+    fuzz の <strong>seed 1・round 174</strong>。素材は <code>generated.xlsx</code>、4131 バイト、CRC32 4279849508。
+    <code>[Content_Types].xml</code> の 233〜236 バイト目が <code>ff ff ff ff</code> に化け、
+    <code>&lt;Default …&gt;</code> が <code>&lt;De</code>+4 バイト+<code>t …&gt;</code> になっている——
+    <strong>要素名の途中に UTF-8 として不正なバイト</strong>。libxml2 はそれを開始タグとして報告し、
+    受け取った Foundation が名前を <code>String</code> に直そうとして落ちる。
+    再現は <code>SWIFTSHEETS_FUZZ_SEEDS=1</code> で 175 周＋<strong><code>-DSWIFTSHEETS_ZLIB</code></strong>
+    ——素材の圧縮バイトが揃わないと以降の乱数の食い方まで変わるため。
+    <strong>この一致自体が、2 つの DEFLATE 経路が同じバイトを出していることの裏づけでもある。</strong>
+  </p>
+  <p>
+    これは §12 柱5（不正入力でクラッシュしない）と SECURITY.md の約束に正面からぶつかる。
+    <strong>直しはこちらの責任</strong>——落ちる原因は外側にあるが、落ちないように渡すのはこちら側の仕事である。
+    渡す前に部品が UTF-8 として成立しているかを確かめ、成立しなければ従来どおり
+    <code>malformedPart</code> を投げる案を検討中（BOM つき・宣言が UTF-8 以外の部品は素通し）。
+    <strong>ただしそれで壊れ方の全種類が塞がるかは不明で、審判に聞きながら繰り返すほかない。</strong>
+    決まるまでの仮置きとして、Linux ジョブは <code>FuzzTests</code> を除外して走らせている——
+    ジョブ名と CI の注記に「外している」と書いてある。
   </p>
 
 </section>
