@@ -68,10 +68,8 @@ jobs:
       # Same as macOS: the suites that need LibreOffice, Numbers.app or a Python with openpyxl / numbers-parser
       # skip themselves visibly when those are absent.
       #
-      # `--skip FuzzTests` is not a settled choice — it is what this job runs while a decision is pending.
-      # The fuzz suite takes the process down here, and not through any code of ours: Foundation's own XML
-      # parser traps on an element name whose bytes are not valid UTF-8 (`_NSXMLParserStartElementNs`, called
-      # from libxml2). Everything else passes — 938 of 941, Shift_JIS and all. Spec Appendix B.38 holds the
-      # specimen and the reasoning; whatever is decided there, this line changes with it.
-      - name: Test (all but the fuzz suite — see Appendix B.38)
-        run: swift test --skip-build --no-parallel --skip FuzzTests
+      # Same as macOS, the fuzz suite included: nothing here is excluded, and nothing here is expected to
+      # crash. The one thing that did — Foundation's parser trapping on an element name whose bytes are not
+      # valid UTF-8 — is turned away before it reaches the parser now (Appendix B.38).
+      - name: Test
+        run: swift test --skip-build

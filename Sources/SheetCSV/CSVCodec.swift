@@ -147,7 +147,7 @@ public enum CSVCodec: SpreadsheetCodec {
 
         switch encoding {
         case .utf8:
-            if let bad = firstInvalidUTF8Offset(in: body) {
+            if let bad = TextEncodingSniffer.firstInvalidUTF8Offset(in: body) {
                 return (try repairedOrThrow(firstBadOffset: bad, repaired: String(decoding: body, as: UTF8.self), detail: "invalid UTF-8 sequence"), warnings)
             }
             return (String(decoding: body, as: UTF8.self), warnings)
@@ -166,34 +166,6 @@ public enum CSVCodec: SpreadsheetCodec {
             let name = String.localizedName(of: encoding)
             return (try repairedOrThrow(firstBadOffset: bad, repaired: repaired, detail: "bytes not valid in \(name)"), warnings)
         }
-    }
-
-    /// Byte offset (within `data`) of the first malformed UTF-8 sequence; nil when the whole buffer is valid.
-    static func firstInvalidUTF8Offset(in data: Data) -> Int? {
-        let bytes = [UInt8](data)
-        var i = 0
-        let n = bytes.count
-        while i < n {
-            let b = bytes[i]
-            if b < 0x80 { i += 1; continue }
-            let length: Int
-            var minSecond: UInt8 = 0x80, maxSecond: UInt8 = 0xBF
-            switch b {
-            case 0xC2...0xDF: length = 2
-            case 0xE0: length = 3; minSecond = 0xA0
-            case 0xE1...0xEC, 0xEE...0xEF: length = 3
-            case 0xED: length = 3; maxSecond = 0x9F          // no surrogates
-            case 0xF0: length = 4; minSecond = 0x90
-            case 0xF1...0xF3: length = 4
-            case 0xF4: length = 4; maxSecond = 0x8F          // ≤ U+10FFFF
-            default: return i
-            }
-            guard i + length <= n else { return i }
-            guard bytes[i + 1] >= minSecond, bytes[i + 1] <= maxSecond else { return i }
-            for k in 2..<length where bytes[i + k] < 0x80 || bytes[i + k] > 0xBF { return i }
-            i += length
-        }
-        return nil
     }
 
     static func utf16Units(of data: Data, littleEndian: Bool) -> [UInt16] {

@@ -110,6 +110,7 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     package init(handler: SAXHandler) { self.handler = handler }
 
     package func run(_ data: Data, part: String) throws {
+        try SAXDriver.rejectUndecodableBytes(data, part: part)
         let parser = XMLParser(data: data)
         self.parser = parser
         parser.shouldProcessNamespaces = false
@@ -117,6 +118,40 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
         let ok = parser.parse()
         if let failure { throw failure }
         guard ok else { throw SheetError.malformedPart(path: part, detail: parser.parserError?.localizedDescription ?? "parse error") }
+    }
+
+    /// XML whose bytes are not valid UTF-8 is a malformed part, and never reaches the parser.
+    ///
+    /// This is not tidiness. Where Foundation's parser is the one built on libxml2, an element name carrying
+    /// bytes that are not valid UTF-8 takes the **process** down — not the read, the process — while it turns
+    /// that name into a `String`. A caller must not lose their program over someone else's broken file, and
+    /// "this part is malformed" is what this library already promises to say. The specimen that found it is in
+    /// `Fixtures/malformed/content-types-invalid-utf8.xlsx`: four bytes of a byte-flipped download landing
+    /// inside the word `Default`.
+    ///
+    /// A part that says it is something other than UTF-8 — by a byte-order mark, or by naming an encoding in
+    /// its XML declaration — is handed over untouched, as before. The parser decodes those itself, and this
+    /// question does not apply to them.
+    static func rejectUndecodableBytes(_ data: Data, part: String) throws {
+        var body = data
+        if let (encoding, length) = TextEncodingSniffer.bom(in: data) {
+            guard encoding == .utf8 else { return }
+            body = data.dropFirst(length)
+        }
+        guard !declaresOtherEncoding(body) else { return }
+        guard let bad = TextEncodingSniffer.firstInvalidUTF8Offset(in: body) else { return }
+        throw SheetError.malformedPart(path: part, detail: "byte \(bad + (data.count - body.count)) is not valid UTF-8")
+    }
+
+    /// True when the XML declaration names an encoding that is not UTF-8.
+    private static func declaresOtherEncoding(_ data: Data) -> Bool {
+        // the declaration is the first thing in the part and is short; bad bytes further in cannot affect it
+        let head = String(decoding: data.prefix(200), as: UTF8.self)
+        guard head.hasPrefix("<?xml"), let close = head.range(of: "?>"),
+              let key = head.range(of: "encoding="), key.upperBound < close.lowerBound else { return false }
+        let rest = head[key.upperBound...]
+        guard let quote = rest.first, quote == "\"" || quote == "'" else { return false }
+        return rest.dropFirst().prefix { $0 != quote }.lowercased() != "utf-8"
     }
 
     /// Aborts parsing; `run` rethrows the error (hooks cannot throw).
