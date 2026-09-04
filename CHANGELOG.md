@@ -9,6 +9,41 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Added
+
+- **One streaming reader for every format** (spec Appendix B.40). `StreamingReader(contentsOf:)` in the
+  `SwiftSheets` module detects the format the way `Workbook(contentsOf:)` does and walks the file row by row
+  whether it is XLSX / XLSM, ODS, Numbers or delimited text; `forEachRow(inSheet:)`, `rows(inSheet:)` and
+  `forEachRow(inSheet:valuesOnly:)` read the same for all of them, and the rows come back as the same
+  `StreamedRow`. Behind it stand `XLSXStreamingReader`, the new `ODSStreamingReader` and `NumbersStreamingReader`,
+  and `CSVStreamingReader`, each usable on its own. A Numbers sheet's second and later tables are reached with
+  `table:` (0 is the first, the one `Sheet.table` is), and `tableCount(inSheet:)` says how many there are; for
+  any other format a table other than 0 is an error rather than an empty walk.
+- **ODS row by row.** The body is expanded a piece at a time and the table asked for is walked as it goes by;
+  the tables before it are skipped as subtrees and the ones after it are never read. A row the file writes once
+  with `number-rows-repeated` is delivered that many times, as the whole-workbook reader expands it, and runs of
+  empty rows past the padding threshold are not. The cell-text rules of ODF (paragraphs, runs, white space,
+  links, notes) now live in one place, `ODSCellText`, that both readers share. Over a million cells: 4.3 s and
+  42 MB, against 4.0 s and 233 MB for the whole model.
+- **Numbers row by row, from an index rather than a decoded tree.** `NumbersObjectIndex` reads every part's
+  archive headers once, decodes objects on demand, and lets go of the parts that hold nothing but tiles (the
+  256-row blocks a table's cells live in), expanding each again only when a walk reaches it. Over a million
+  cells: 1.5 s and 86 MB, against 2.5 s and 323 MB for the whole model.
+- **A million-cell Numbers document is on the performance record** for the first time: writing 10.0 s and
+  413 MB, reading 2.5 s and 323 MB, row by row 1.5 s and 86 MB.
+
+### Changed
+
+- **`SheetXLSX.StreamingReader` is `XLSXStreamingReader`.** Anyone importing `SwiftSheets` keeps writing
+  `StreamingReader(contentsOf:)` and gains the other formats; anyone importing `SheetXLSX` alone renames. No
+  alias is kept, since one would make the name ambiguous under the umbrella import. `StreamedRow`,
+  `StreamedCell` and `StreamingReadOptions` moved to `SheetCore`.
+- **Numbers reads twice as fast.** Half the time of a million-cell read went into turning each cell's
+  decimal128 into a `Decimal` by fourteen multiplications and a round trip through text; a significand that fits
+  in 64 bits (nearly every number a spreadsheet holds) now goes straight in, and whether it is a whole number is
+  decided on the integers. The general road stays for wider significands, and a test holds the two to the same
+  answer at the edges. Over a million cells, reading 5.9 → 2.5 s; over a hundred thousand, 0.58 → 0.29 s.
+
 ## [0.12.0] — 2026-09-05
 
 ### Added

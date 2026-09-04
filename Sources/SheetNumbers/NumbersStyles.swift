@@ -14,7 +14,7 @@ import SheetCore
 /// (kind + decimal places + separator + …), not a format string. `NumbersFormat` turns that description into the
 /// Excel code the model carries, and back.
 struct NumbersStyleResolver {
-    let doc: NumbersDocument
+    let doc: any NumbersObjectStore
     /// style-list key → the style archive's object id.
     private var styles: [Int: Int] = [:]
     /// format-list key → the `TSK.FormatStructArchive` it holds.
@@ -24,7 +24,7 @@ struct NumbersStyleResolver {
     private var bodyCell: Int?, headerRowCell: Int?, headerColumnCell: Int?, footerRowCell: Int?
     private var resolved: [Int: CellStyle] = [:]
 
-    init(doc: NumbersDocument, model: ProtoMessage, store: ProtoMessage) {
+    init(doc: any NumbersObjectStore, model: ProtoMessage, store: ProtoMessage) {
         self.doc = doc
         for entry in store.reference("styleTable").flatMap({ doc.object($0) })?.messages("entries") ?? [] {
             if let key = entry.int("key"), let ref = entry.reference("reference") { styles[key] = ref }
@@ -53,12 +53,16 @@ struct NumbersStyleResolver {
     var isEmpty: Bool { styles.isEmpty && formats.isEmpty }
 
     /// The style of one cell. `nil` ids fall back to the table's default for the region the cell sits in.
-    mutating func style(_ s: CellStorage, row: Int, col: Int) -> CellStyle {
+    mutating func style(_ s: CellStorage, row: Int, col: Int) -> CellStyle { resolve(s, row: row, col: col).style }
+
+    /// The style and the key it was cached under — one key per (text style, cell style, format) triple, so a
+    /// reader can share one `SharedStyle` per key without hashing the 384-byte style of every cell.
+    mutating func resolve(_ s: CellStorage, row: Int, col: Int) -> (style: CellStyle, key: Int) {
         let textID = s.textStyleID.flatMap { styles[$0] } ?? defaultTextStyle(row: row, col: col)
         let cellID = s.cellStyleID.flatMap { styles[$0] } ?? defaultCellStyle(row: row, col: col)
         let formatKey = s.numFormatID ?? s.currencyFormatID ?? s.dateFormatID ?? s.durationFormatID ?? s.textFormatID ?? s.boolFormatID
         let cacheKey = (textID ?? 0) &* 1_000_003 &+ (cellID ?? 0) &* 1009 &+ (formatKey ?? -1)
-        if let hit = resolved[cacheKey] { return hit }
+        if let hit = resolved[cacheKey] { return (hit, cacheKey) }
 
         var style = CellStyle.default
         if let textID { apply(text: textID, to: &style) }
@@ -67,7 +71,7 @@ struct NumbersStyleResolver {
             style.numberFormat = code
         }
         resolved[cacheKey] = style
-        return style
+        return (style, cacheKey)
     }
 
     /// What a conditional-format rule paints, as a differential style. A rule names two style archives by

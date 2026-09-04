@@ -4,67 +4,27 @@ import FoundationXML   // where Foundation is split, the XML parser lives in its
 #endif
 import SheetCore
 
-/// One cell as the streaming reader hands it over.
-public struct StreamedCell: Sendable {
-    public let ref: CellRef
-    public let value: CellValue?
-    /// The cell's formatting, when `StreamingReadOptions.includeStyles` asked for it.
-    public let style: CellStyle?
-}
-
-/// One row as the streaming reader hands it over: the cells the file actually holds, in column order. A row the
-/// file skipped is never delivered, and a row's missing cells are simply absent — `values(width:)` fills the gaps
-/// in when a dense array is what you want.
-public struct StreamedRow: Sendable {
-    /// 0-based, as everywhere else in the model.
-    public let index: Int
-    public let cells: [StreamedCell]
-
-    /// A dense array from column 0 to `width - 1` (or to the row's own last cell when `width` is nil).
-    public func values(width: Int? = nil) -> [CellValue?] {
-        let last = width.map { $0 - 1 } ?? (cells.last?.ref.col ?? -1)
-        guard last >= 0 else { return [] }
-        var out = [CellValue?](repeating: nil, count: last + 1)
-        for c in cells where c.ref.col <= last { out[c.ref.col] = c.value }
-        return out
-    }
-    public var isEmpty: Bool { cells.allSatisfy { $0.value == nil } }
-}
-
-/// What the streaming reader does with the sheet it walks.
-public struct StreamingReadOptions: Sendable, Hashable {
-    /// Resolve each cell's formatting as well as its value. Off by default: it is the expensive half, and a
-    /// row-by-row pass is usually after the numbers.
-    public var includeStyles = false
-    /// Formula cells yield their cached values rather than the formula (openpyxl's `data_only`).
-    public var dataOnly = false
-    /// Rows with no cell that holds anything are handed over anyway. Off by default, as openpyxl's reader is.
-    public var includesEmptyRows = false
-    public init(includeStyles: Bool = false, dataOnly: Bool = false, includesEmptyRows: Bool = false) {
-        self.includeStyles = includeStyles; self.dataOnly = dataOnly; self.includesEmptyRows = includesEmptyRows
-    }
-}
-
-/// Reads a workbook one row at a time, without ever building it (openpyxl's `read_only=True`).
+/// Reads an XLSX / XLSM workbook one row at a time, without ever building it (openpyxl's `read_only=True`).
+/// `StreamingReader` in the `SwiftSheets` module opens a file of any format and hands it to this reader when it
+/// is an Excel workbook (spec Appendix B.40.1); the API is the same here.
 ///
 /// `Workbook(contentsOf:)` holds every cell — a hundred to two hundred bytes each, so a million cells is a few
 /// hundred megabytes. This reads the same file for its values without that: the file itself is memory-mapped, one
-/// sheet part is expanded at a time, and rows are handed to your closure as they are parsed and then let go.
+/// sheet part is expanded a piece at a time, and rows are handed to your closure as they are parsed and then let go.
 ///
-///     let reader = try StreamingReader(contentsOf: url)
+///     let reader = try XLSXStreamingReader(contentsOf: url)
 ///     var total = 0
 ///     try reader.forEachRow(inSheet: "売上", valuesOnly: 3) { values in
 ///         if case .integer(let qty)? = values[2] { total += qty }
 ///     }
 ///
-/// **What it costs.** The compressed file is mapped, not read, so it does not count. What does: the sheet part
-/// after expansion (XML is bulkier than the model per cell, but it is one sheet rather than the workbook), the
-/// shared-string table (which every reader must hold whole), and the row in your hands. `ReadOptions.cellLimit`
-/// does not apply — nothing accumulates for it to bound.
+/// **What it costs.** The compressed file is mapped, not read, so it does not count. What does: the piece of the
+/// sheet part in hand (256 KiB expanded), the shared-string table (which every reader must hold whole), and the
+/// row in your hands. `ReadOptions.cellLimit` does not apply — nothing accumulates for it to bound.
 ///
-/// **What it does not do.** Only XLSX and XLSM, only values and (on request) formatting: no merges, no notes, no
-/// charts, nothing preserved. Nothing is written back — for that, read the workbook the ordinary way.
-public struct StreamingReader {
+/// **What it does not do.** Only values and (on request) formatting: no merges, no notes, no charts, nothing
+/// preserved. Nothing is written back — for that, read the workbook the ordinary way.
+public struct XLSXStreamingReader: StreamingRowSource {
     /// The most bytes of a sheet part held at once by the last walk — the number the memory promise rests on.
     nonisolated(unsafe) package static var lastLargestCarry = 0
     let zip: ZipArchive
@@ -124,9 +84,17 @@ public struct StreamingReader {
         partPaths = paths
     }
 
-    /// Visits every row of a sheet in order. Throwing from `body` stops the walk and rethrows.
-    public func forEachRow(inSheet name: String, options: StreamingReadOptions = StreamingReadOptions(),
+    /// One grid per sheet: a worksheet is one table.
+    public func tableCount(inSheet name: String) throws -> Int {
+        guard partPaths[name] != nil else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
+        return 1
+    }
+
+    /// Visits every row of a sheet in order. Throwing from `body` stops the walk and rethrows. `table` is 0 —
+    /// a worksheet is one grid — and exists so the call reads the same for every format.
+    public func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: (StreamedRow) throws -> Void) throws {
+        try checkTable(table, inSheet: name)
         guard let part = partPaths[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
         // the part is expanded a piece at a time and never held whole: what this reader costs is the piece in
         // hand, the shared strings, and the row on its way to the caller (spec Appendix B.39.8)
@@ -135,7 +103,7 @@ public struct StreamingReader {
         try withoutActuallyEscaping(body) { handler in
             let parser = StreamingSheetParser(sst: sst, styles: styles, epoch: epoch, options: options, body: handler)
             do {
-                StreamingReader.lastLargestCarry = try parser.run(stream: stream, part: part)
+                XLSXStreamingReader.lastLargestCarry = try parser.run(stream: stream, part: part)
             } catch {
                 // the parser is stopped on purpose twice over: when the handler throws, and at the end of <sheetData>
                 if let thrown = parser.thrown { throw thrown }
@@ -149,50 +117,29 @@ public struct StreamingReader {
     /// one piece of the part at a time as the loop asks for them, so a walk that stops early reads no further
     /// (spec Appendix B.39.10). The rows arrive in the sheet's order; the sequence is asynchronous only because that
     /// is the shape Swift gives a sequence that can throw.
-    public func rows(inSheet name: String, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
-        /// The walk's state. One consumer pulls on it, one row at a time, so its access is sequential by
-        /// construction; the sequence is asynchronous in shape only.
-        final class Walk: @unchecked Sendable {
-            var queue: [StreamedRow] = []
-            var feeder: SAXDriver.PieceFeeder?
-            var parser: StreamingSheetParser?
-            var finished = false
-            var setupError: Error?
-        }
-        let walk = Walk()
-        do {
-            guard let part = partPaths[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
-            let parser = StreamingSheetParser(sst: sst, styles: styles, epoch: epoch, options: options) { [walk] in walk.queue.append($0) }
-            let driver = SAXDriver(handler: parser)
-            parser.driver = driver
-            walk.parser = parser
-            walk.feeder = try SAXDriver.PieceFeeder(driver: driver, stream: try zip.stream(part), part: part)
-        } catch {
-            walk.setupError = error
-        }
-        return AsyncThrowingStream(unfolding: {
-            if let error = walk.setupError { walk.setupError = nil; throw error }
-            while walk.queue.isEmpty, !walk.finished {
-                if try !walk.feeder!.feedNext() { walk.finished = true }
-            }
-            if !walk.queue.isEmpty { return walk.queue.removeFirst() }
-            // the parser stops itself at the end of <sheetData>; that stop is not a failure
-            if let failure = walk.feeder?.failure, !(walk.parser?.reachedEnd ?? false) { throw failure }
-            return nil
-        })
+    public func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
+        StreamingRowSequence.make { try rowWalk(inSheet: name, table: table, options: options) }
+    }
+
+    /// The pull shape of the walk: one piece of the part is expanded and parsed each time the rows in hand run out.
+    package func rowWalk(inSheet name: String, table: Int, options: StreamingReadOptions) throws -> any StreamingRowWalk {
+        try checkTable(table, inSheet: name)
+        guard let part = partPaths[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
+        let parser = StreamingSheetParser(sst: sst, styles: styles, epoch: epoch, options: options) { _ in }
+        return try PieceFedRowWalk(parser: parser, stream: try zip.stream(part), part: part)
     }
 
     /// The same walk, as dense value arrays (openpyxl's `values_only=True`). `width` pads every row to that many
     /// columns so the rows line up.
-    public func forEachRow(inSheet name: String, valuesOnly width: Int?,
+    public func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
                            options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: ([CellValue?]) throws -> Void) throws {
-        try forEachRow(inSheet: name, options: options) { try body($0.values(width: width)) }
+        try forEachRow(inSheet: name, table: table, options: options) { try body($0.values(width: width)) }
     }
 }
 
 /// worksheet XML → rows, one at a time. Nothing is kept between rows.
-final class StreamingSheetParser: SAXHandler {
+final class StreamingSheetParser: StreamingRowParser {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
     /// What `body` threw, so `forEachRow` can rethrow it rather than the parser's own abort error.
@@ -204,7 +151,9 @@ final class StreamingSheetParser: SAXHandler {
     private let styles: StylesParser
     private let epoch: DateEpoch
     private let options: StreamingReadOptions
-    private let body: (StreamedRow) throws -> Void
+    private var body: (StreamedRow) throws -> Void
+    /// Points the parser at another receiver — the walk's own queue, once the walk exists.
+    func rebind(_ body: @escaping (StreamedRow) throws -> Void) { self.body = body }
 
     private var inSheetData = false
     private var currentRow = -1, lastColumn = -1

@@ -32,12 +32,13 @@ run detect "$ROWS" "$X"
 run inspect "$ROWS" "$X"
 run writeODS "$ROWS" "$O"
 run readODS "$ROWS" "$O"
+run streamReadODS "$ROWS" "$O"
 run writeCSV "$ROWS" "$C"
 run readCSV "$ROWS" "$C"
 run streamReadCSV "$ROWS" "$C"
-SMALL=$((ROWS / 10))
-run writeNumbers "$SMALL" "$OUT/bench.numbers"
-run readNumbers "$SMALL" "$OUT/bench.numbers"
+run writeNumbers "$ROWS" "$OUT/bench.numbers"
+run readNumbers "$ROWS" "$OUT/bench.numbers"
+run streamReadNumbers "$ROWS" "$OUT/bench.numbers"
 
 python3 - "$OUT/lines.jsonl" "$ROOT/docs/performance.json" "$ROWS" <<'PY'
 import json, platform, re, subprocess, sys, datetime
@@ -62,6 +63,8 @@ by = {r["op"]: r for r in results}
 readme = {
     "streaming_write_peak_mb": round(by["streamWrite"]["peakMB"]),
     "streaming_read_peak_mb": round(by["streamRead"]["peakMB"]),
+    "streaming_read_ods_peak_mb": round(by["streamReadODS"]["peakMB"]),
+    "streaming_read_numbers_peak_mb": round(by["streamReadNumbers"]["peakMB"]),
     "whole_model_read_peak_mb": round(by["read"]["peakMB"]),
 }
 json.dump({"meta": meta, "readme": readme, "results": results}, open(target, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

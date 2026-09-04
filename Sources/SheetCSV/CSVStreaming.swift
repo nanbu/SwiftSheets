@@ -306,3 +306,39 @@ public final class CSVStreamingWriter {
 
     deinit { if !closed { try? handle.close() } }
 }
+
+// MARK: - The same rows as every other format
+
+/// Delimited text through the facade's `StreamingReader` (spec Appendix B.40.1): one sheet, "Sheet1", as the
+/// ordinary CSV reader names it, and every field a cell — an empty field is a cell holding nothing, so a row's
+/// cells are its fields in order.
+extension CSVStreamingReader: StreamingRowSource {
+    public var sheetNames: [String] { ["Sheet1"] }
+
+    public func tableCount(inSheet name: String) throws -> Int {
+        guard name == "Sheet1" else { throw SheetError.invalidWorkbook("no sheet named \(name); a text file has one sheet, Sheet1") }
+        return 1
+    }
+
+    package func rowWalk(inSheet name: String, table: Int, options streaming: StreamingReadOptions) throws -> any StreamingRowWalk {
+        try checkTable(table, inSheet: name)
+        return RowWalk(walk: try Walk(source: source, options: options, filename: filename), options: streaming)
+    }
+
+    final class RowWalk: StreamingRowWalk {
+        private let walk: Walk
+        private let options: StreamingReadOptions
+        private var index = 0
+        init(walk: Walk, options: StreamingReadOptions) { self.walk = walk; self.options = options }
+
+        func next() throws -> StreamedRow? {
+            while let record = try walk.next() {
+                defer { index += 1 }
+                let style: CellStyle? = options.includeStyles ? .default : nil
+                let row = StreamedRow(index: index, cells: record.enumerated().map { StreamedCell(ref: CellRef(row: index, col: $0), value: $1, style: style) })
+                if options.includesEmptyRows || !row.isEmpty { return row }
+            }
+            return nil
+        }
+    }
+}

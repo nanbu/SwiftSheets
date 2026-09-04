@@ -67,7 +67,8 @@ do {
         var total = Decimal(0)
         let t = try clock.measure { total = sum(try Workbook(contentsOf: url, options: ReadOptions(csv: CSVReadOptions(inferTypes: true)))) }
         report(op, rows, seconds(t), "sum=\(total)")
-    case "streamRead":
+    case "streamRead", "streamReadODS", "streamReadNumbers":
+        // the one streaming reader for every format (spec Appendix B.40): the file's format decides the walker
         var total = Decimal(0)
         let t = try clock.measure {
             let reader = try StreamingReader(contentsOf: url)

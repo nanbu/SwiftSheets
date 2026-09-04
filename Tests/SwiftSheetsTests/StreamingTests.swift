@@ -148,8 +148,8 @@ import SwiftSheets
         #expect(total == rows * (rows + 1) / 2)
         // the promise behind "+2 MB": the sheet's XML is several megabytes, and no more than a couple of pieces
         // of it were ever held at once (spec Appendix B.39.8)
-        #expect(StreamingReader.lastLargestCarry <= 2 * ZipEntryStream.pieceSize * 4 + 1 << 20,
-                "held \(StreamingReader.lastLargestCarry) bytes of the part at once")
+        #expect(XLSXStreamingReader.lastLargestCarry <= 2 * ZipEntryStream.pieceSize * 4 + 1 << 20,
+                "held \(XLSXStreamingReader.lastLargestCarry) bytes of the part at once")
         // and the file it wrote is an ordinary workbook
         let size = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int ?? 0
         #expect(size > 0)

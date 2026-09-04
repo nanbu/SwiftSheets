@@ -11,12 +11,12 @@ struct NumbersReader {
     /// Points per Excel character-width unit (Excel's default 8.43 chars ≈ 48 pt).
     static let pointsPerCharacter = 5.7
 
-    let doc: NumbersDocument
+    let doc: any NumbersObjectStore
     let options: ReadOptions
     var warnings: [ConversionWarning] = []
     private var tableUUIDToName: [String: String] = [:]
 
-    init(doc: NumbersDocument, options: ReadOptions) { self.doc = doc; self.options = options }
+    init(doc: any NumbersObjectStore, options: ReadOptions) { self.doc = doc; self.options = options }
 
     mutating func workbook() throws -> Workbook {
         guard let document = doc.object(NumbersDocument.documentID), document.typeName == "TN.DocumentArchive" else {
@@ -165,13 +165,7 @@ struct NumbersReader {
     }
 
     /// TableModelArchive ids of the tables drawn on a sheet, in canvas order.
-    func tableModels(inSheet sid: Int) -> [Int] {
-        guard let sheet = doc.object(sid) else { return [] }
-        return sheet.references("drawable_infos").compactMap { did in
-            guard doc.typeName(did) == "TST.TableInfoArchive", let info = doc.object(did) else { return nil }
-            return info.reference("tableModel")
-        }
-    }
+    func tableModels(inSheet sid: Int) -> [Int] { NumbersCells.tableModels(inSheet: sid, doc: doc) }
 
     // MARK: - One table
 
@@ -297,31 +291,8 @@ struct NumbersReader {
         return MultiCellRange(merged)
     }
 
-    /// The runs of a cell's text that carry formatting of their own. Numbers records where each run starts and
-    /// the character style it uses; an entry with no style is back to the cell's own formatting.
-    private func runs(in text: String, of storage: ProtoMessage, styles: NumbersStyleResolver) -> [TextRun] {
-        let entries = storage.message("table_char_style")?.messages("entries") ?? []
-        // One style over the whole text is the cell's own formatting, not a run of something different inside it
-        // — Numbers writes it that way for any imported cell that has a font. Reading it as rich text turned
-        // plain text into a one-run `.richText`, which is a different kind of value for no reason.
-        guard entries.count > 1 else { return [] }
-        let characters = Array(text)
-        var out: [TextRun] = []
-        for (i, entry) in entries.enumerated() {
-            let start = Swift.min(entry.int("character_index") ?? 0, characters.count)
-            let end = i + 1 < entries.count ? Swift.min(entries[i + 1].int("character_index") ?? characters.count, characters.count) : characters.count
-            guard end > start else { continue }
-            // the style a link wears is Numbers' own, not formatting the author asked for
-            let object = entry.reference("object")
-            let isLinkStyle = object.map { NumbersReader.isHyperlinkStyle($0, doc: doc) } ?? false
-            let font = isLinkStyle ? nil : object.flatMap { styles.font(ofCharacterStyle: $0) }
-            out.append(TextRun(String(characters[start..<end]), font: font))
-        }
-        return out.count > 1 || out.first?.font != nil ? out : []
-    }
-
     /// Whether a character style is the document's own hyperlink style, along its parent chain.
-    static func isHyperlinkStyle(_ id: Int, doc: NumbersDocument) -> Bool {
+    static func isHyperlinkStyle(_ id: Int, doc: any NumbersObjectStore) -> Bool {
         var cursor: Int? = id
         var seen = Set<Int>()
         while let current = cursor, seen.insert(current).inserted, let object = doc.object(current) {
@@ -379,19 +350,8 @@ struct NumbersReader {
         // lookup tables
         let strings = dataList(store.reference("stringTable")) { $0.string("string") }
         let formulas = dataList(store.reference("formula_table")) { $0.message("formula") }
-        // rich text: the text, and the links its smart fields carry (Numbers puts a hyperlink on a run of
-        // characters; the model has one link per cell, so the first one wins and the rest are reported)
-        let resolver = styles
-        let richTexts = dataList(store.reference("rich_text_table")) { entry -> (text: String, links: [String], runs: [TextRun])? in
-            guard let payload = entry.reference("rich_text_payload"), let storageID = doc.object(payload)?.reference("storage"),
-                  let storage = doc.object(storageID) else { return nil }
-            let links = storage.message("table_smartfield")?.messages("entries").compactMap { field -> String? in
-                guard let id = field.reference("object"), doc.typeName(id) == "TSWP.HyperlinkFieldArchive" else { return nil }
-                return doc.object(id)?.string("url_ref")
-            } ?? []
-            let text = storage.strings("text").joined()
-            return (text, links, self.runs(in: text, of: storage, styles: resolver))
-        }
+        // rich text: the text, the links its smart fields carry, and the formatting runs
+        let richTexts = NumbersCells.richTexts(store: store, doc: doc, styles: styles)
         // the notes on cells: the table's comment list, and the author each belongs to
         let comments = dataList(store.reference("commentStorageTable")) { entry -> CellNote? in
             guard let id = entry.reference("comment_storage"), let archive = doc.object(id), let text = archive.string("text") else { return nil }
@@ -399,70 +359,66 @@ struct NumbersReader {
             return CellNote(text, author: author ?? "")
         }
         // cells
-        let tiles = store.message("tiles")
-        let tileSize = tiles?.int("tile_size").flatMap { $0 > 0 ? $0 : nil } ?? 256
         var decoder = NumbersFormulaDecoder { [tableUUIDToName] hex in tableUUIDToName[hex] }
-        var sharedStyles: [CellStyle: SharedStyle] = [:]
+        /// One shared style per resolver key (a text style, a cell style and a format), so a cell costs a
+        /// dictionary lookup on an integer rather than a hash of its whole style.
+        var sharedStyles: [Int: SharedStyle] = [:]
         /// Cells covered by an array formula, by the anchor their spill formula names (Appendix B.26).
         var spillCells: [CellRef: [CellRef]] = [:]
-        for tileRef in tiles?.messages("tiles") ?? [] {
-            guard let tid2 = tileRef.reference("tile"), let tile = doc.object(tid2) else { continue }
-            let base = (tileRef.int("tileid") ?? 0) * tileSize
+        for (base, tileID) in NumbersCells.tiles(of: store).tiles {
+            guard let tile = doc.object(tileID) else { continue }
             if tile.bool("last_saved_in_BNC") != true {
                 warnings.append(ConversionWarning(.dropped, sheet: sheetName, message: "table \(t.name ?? "") uses pre-BNC cell storage, which is not supported; its cells were skipped"))
                 continue
             }
             for rowInfo in tile.messages("rowInfos") {
                 let row = base + (rowInfo.int("tile_row_index") ?? 0)
-                guard let storage = rowInfo.bytes("cell_storage_buffer"), let offsetsData = rowInfo.bytes("cell_offsets") else { continue }
-                let wide = rowInfo.bool("has_wide_offsets") ?? false
-                let offsets = NumbersReader.offsets(offsetsData, wide: wide)
-                for col in 0..<Swift.min(cols, offsets.count) {
-                    let start = offsets[col]
-                    guard start >= 0, start < storage.count else { continue }
-                    var end = storage.count
-                    for k in (col + 1)..<offsets.count where offsets[k] >= 0 { end = offsets[k]; break }
-                    guard end > start, end <= storage.count else { continue }
-                    let record = storage.subdata(in: (storage.startIndex + start)..<(storage.startIndex + end))
-                    do {
-                        let s = try CellStorage.decode(record)
-                        if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
-                        var control: CellControl?
-                        if let cid = s.controlID {
-                            if let modelled = modelledControls[cid] { control = modelled }
-                            else { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
-                        }
-                        // a spill cell holds `337(anchor)`, which is not a formula of its own but the anchor's
-                        // array formula showing one element here — read the value, remember the anchor
-                        var storage = s
-                        if let fid = s.formulaID, let archive = formulas[fid],
-                           let anchor = NumbersFormulaDecoder.spillAnchor(archive, row: row, col: col) {
-                            spillCells[anchor, default: []].append(CellRef(row: row, col: col))
-                            storage.formulaID = nil
-                        }
-                        let value = cellValue(storage, row: row, col: col, strings: strings, formulas: formulas, richTexts: richTexts, decoder: &decoder, sheetName: sheetName)
-                        let style = styles.style(s, row: row, col: col)
-                        let rich = s.richID.flatMap { richTexts[$0] }
-                        let note = s.commentID.flatMap { comments[$0] }
-                        if value != nil || style != .default || note != nil || control != nil {
-                            var cell = Cell(value: value)
-                            cell.comment = note
-                            cell.control = control
-                            if let first = rich?.links.first {
-                                cell.hyperlink = Hyperlink(target: first)
-                                if rich!.links.count > 1 {
-                                    warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: CellRef(row: row, col: col),
-                                                                      message: "the cell holds \(rich!.links.count) links; a cell carries one, so the first was kept"))
-                                }
-                            }
-                            if style != .default {
-                                if let shared = sharedStyles[style] { cell.sharedStyle = shared }
-                                else { let shared = SharedStyle(style); sharedStyles[style] = shared; cell.sharedStyle = shared }
-                            }
-                            t.store(cell, at: CellRef(row: row, col: col))
-                        }
-                    } catch {
+                NumbersCells.forEachRecord(in: rowInfo, cols: cols) { col, record in
+                    let s: CellStorage
+                    switch record {
+                    case .success(let decoded): s = decoded
+                    case .failure(let error):
                         warnings.append(ConversionWarning(.dropped, sheet: sheetName, location: CellRef(row: row, col: col), message: "\(error)"))
+                        return
+                    }
+                    if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                    var control: CellControl?
+                    if let cid = s.controlID {
+                        if let modelled = modelledControls[cid] { control = modelled }
+                        else { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                    }
+                    // a spill cell holds `337(anchor)`, which is not a formula of its own but the anchor's
+                    // array formula showing one element here — read the value, remember the anchor
+                    var storage = s
+                    if let fid = s.formulaID, let archive = formulas[fid],
+                       let anchor = NumbersFormulaDecoder.spillAnchor(archive, row: row, col: col) {
+                        spillCells[anchor, default: []].append(CellRef(row: row, col: col))
+                        storage.formulaID = nil
+                    }
+                    let (value, undecoded) = NumbersCells.value(storage, row: row, col: col, strings: strings, formulas: formulas,
+                                                                richTexts: richTexts, decoder: &decoder, dataOnly: options.dataOnly)
+                    if undecoded {
+                        warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: CellRef(row: row, col: col), message: "formula could not be decoded; cached value kept"))
+                    }
+                    let (style, styleKey) = styles.resolve(s, row: row, col: col)
+                    let rich = s.richID.flatMap { richTexts[$0] }
+                    let note = s.commentID.flatMap { comments[$0] }
+                    if value != nil || style != .default || note != nil || control != nil {
+                        var cell = Cell(value: value)
+                        cell.comment = note
+                        cell.control = control
+                        if let first = rich?.links.first {
+                            cell.hyperlink = Hyperlink(target: first)
+                            if rich!.links.count > 1 {
+                                warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: CellRef(row: row, col: col),
+                                                                  message: "the cell holds \(rich!.links.count) links; a cell carries one, so the first was kept"))
+                            }
+                        }
+                        if style != .default {
+                            if let shared = sharedStyles[styleKey] { cell.sharedStyle = shared }
+                            else { let shared = SharedStyle(style); sharedStyles[styleKey] = shared; cell.sharedStyle = shared }
+                        }
+                        t.store(cell, at: CellRef(row: row, col: col))
                     }
                 }
             }
@@ -605,57 +561,21 @@ struct NumbersReader {
     }
 
     static func offsets(_ data: Data, wide: Bool) -> [Int] {
-        let b = [UInt8](data)
-        var out: [Int] = []
-        var i = 0
-        while i + 1 < b.count {
-            let v = Int(Int16(bitPattern: UInt16(b[i]) | UInt16(b[i + 1]) << 8))
-            out.append(v < 0 ? -1 : (wide ? v * 4 : v))
-            i += 2
+        data.withUnsafeBytes { raw -> [Int] in
+            let b = raw.bindMemory(to: UInt8.self)
+            var out: [Int] = []
+            out.reserveCapacity(b.count / 2)
+            var i = 0
+            while i + 1 < b.count {
+                let v = Int(Int16(bitPattern: UInt16(b[i]) | UInt16(b[i + 1]) << 8))
+                out.append(v < 0 ? -1 : (wide ? v * 4 : v))
+                i += 2
+            }
+            return out
         }
-        return out
     }
 
-    func dataList<T>(_ id: Int?, _ value: (ProtoMessage) -> T?) -> [Int: T] {
-        guard let id, let list = doc.object(id) else { return [:] }
-        var out: [Int: T] = [:]
-        for e in list.messages("entries") { if let k = e.int("key"), let v = value(e) { out[k] = v } }
-        return out
-    }
-
-    private mutating func cellValue(_ s: CellStorage, row: Int, col: Int, strings: [Int: String], formulas: [Int: ProtoMessage],
-                                    richTexts: [Int: (text: String, links: [String], runs: [TextRun])],
-                                    decoder: inout NumbersFormulaDecoder, sheetName: String) -> CellValue? {
-        var value: CellValue?
-        switch s.cellType {
-        case .generic, .span: value = nil
-        case .number, .currency:
-            if let d = s.decimal {
-                if let i = Int("\(d)") { value = .integer(i) } else { value = .number(d) }
-            } else if let d = s.double { value = CellValue(d) }
-        case .text: value = s.stringID.flatMap { strings[$0] }.map { .text($0) }
-        case .date:
-            if let seconds = s.seconds {
-                let days = Int((seconds / 86400).rounded(.down))
-                let rest = seconds - Double(days) * 86400
-                value = .date(CivilDateTime(date: CivilDate(dayNumber: NumbersReader.epochDay + days), time: TimeOfDay(dayFraction: rest / 86400)))
-            }
-        case .bool: value = .bool((s.double ?? 0) > 0)
-        case .duration: value = s.double.map { .duration(.milliseconds(Int64(($0 * 1000).rounded()))) }
-        case .formulaError: value = .error("#VALUE!")
-        case .automatic:
-            if let rich = s.richID.flatMap({ richTexts[$0] }), !rich.runs.isEmpty { value = .richText(rich.runs) }
-            else { value = (s.richID.flatMap { richTexts[$0]?.text } ?? s.stringID.flatMap { strings[$0] }).map { .text($0) } }
-        case .formula: value = nil
-        }
-        if let fid = s.formulaID, !options.dataOnly, let archive = formulas[fid] {
-            if let text = decoder.text(for: archive, row: row, col: col) {
-                return .formula(FormulaExpr.parse(text, dialect: .xlsx), cached: value)
-            }
-            warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: CellRef(row: row, col: col), message: "formula could not be decoded; cached value kept"))
-        }
-        return value
-    }
+    func dataList<T>(_ id: Int?, _ value: (ProtoMessage) -> T?) -> [Int: T] { NumbersCells.dataList(id, doc: doc, value) }
 
     /// Merge ranges: the table's own formula store (`COLON_TRACT` entries) first, then the region map.
     func merges(_ model: ProtoMessage, store: ProtoMessage) -> [CellRange] {

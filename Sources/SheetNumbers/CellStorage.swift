@@ -10,6 +10,9 @@ struct CellStorage {
 
     var cellType: CellType
     var decimal: Decimal?
+    /// `decimal` when it is a whole number that fits, decided from the significand and exponent rather than by
+    /// printing the decimal and parsing it back (spec Appendix B.40.3).
+    var integer: Int?
     var double: Double?
     var seconds: Double?
     var stringID: Int?
@@ -33,7 +36,11 @@ struct CellStorage {
     var extras: UInt16 = 0
 
     static func decode(_ buffer: Data) throws -> CellStorage {
-        let b = [UInt8](buffer)
+        try buffer.withUnsafeBytes { try decode($0.bindMemory(to: UInt8.self)) }
+    }
+
+    /// Decodes a record where it lies — no copy of the bytes.
+    static func decode(_ b: UnsafeBufferPointer<UInt8>) throws -> CellStorage {
         guard b.count >= 12 else { throw SheetError.malformedPart(path: "cell storage", detail: "record shorter than its header") }
         guard b[0] == 5 else { throw SheetError.unsupportedFeature("cell storage version \(b[0]) (only version 5 is supported)") }
         guard let type = CellType(rawValue: Int(b[1])) else { throw SheetError.unsupportedFeature("cell type \(b[1])") }
@@ -56,7 +63,7 @@ struct CellStorage {
         }
         if flags & 0x1 != 0 {
             guard o + 16 <= b.count else { throw SheetError.malformedPart(path: "cell storage", detail: "truncated decimal128") }
-            s.decimal = decodeDecimal128(Array(b[o..<(o + 16)])); o += 16
+            (s.decimal, s.integer) = decodeDecimal128(b, at: o); o += 16
         }
         if flags & 0x2 != 0 { s.double = try double() }
         if flags & 0x4 != 0 { s.seconds = try double() }
@@ -80,8 +87,34 @@ struct CellStorage {
         return s
     }
 
+    /// The decimal and, when it is a whole number that fits in an `Int`, that integer. The fast road: a
+    /// significand that fits in 64 bits (bytes 8…13 zero and bit 0 of byte 14 clear — nearly every number a
+    /// spreadsheet holds) goes straight into a `Decimal` from its significand and exponent, and the integer
+    /// question is answered on the integers themselves. Anything wider takes the general road below.
+    static func decodeDecimal128(_ b: UnsafeBufferPointer<UInt8>, at o: Int) -> (Decimal, Int?) {
+        let high = b[o + 8] | b[o + 9] | b[o + 10] | b[o + 11] | b[o + 12] | b[o + 13] | (b[o + 14] & 1)
+        let exponent = Int((Int(b[o + 15] & 0x7F) << 7) | Int(b[o + 14] >> 1)) - decimal128Bias
+        let negative = b[o + 15] & 0x80 != 0
+        if high == 0, exponent >= -127, exponent <= 127 {
+            var mantissa: UInt64 = 0
+            for k in 0..<8 { mantissa |= UInt64(b[o + k]) << (8 * UInt64(k)) }
+            if mantissa == 0 { return (0, 0) }
+            let decimal = Decimal(sign: negative ? .minus : .plus, exponent: exponent, significand: Decimal(mantissa))
+            // whole? shed trailing zeros while the exponent is negative, then scale up while it fits
+            var m = mantissa, e = exponent
+            while e < 0, m % 10 == 0 { m /= 10; e += 1 }
+            guard e >= 0, e < powersOfTen.count else { return (decimal, nil) }
+            let (scaled, overflow) = m.multipliedReportingOverflow(by: powersOfTen[e])
+            guard !overflow, scaled <= UInt64(Int.max) else { return (decimal, nil) }
+            return (decimal, negative ? -Int(scaled) : Int(scaled))
+        }
+        let decimal = decodeDecimal128(Array(b[o..<(o + 16)]))
+        return (decimal, Int("\(decimal)"))
+    }
+    static let powersOfTen: [UInt64] = (0...19).map { e in (0..<e).reduce(UInt64(1)) { acc, _ in acc * 10 } }
+
     /// IEEE 754 decimal128 as Numbers writes it: 113-bit binary integer significand (bytes 0…13 + bit 0 of byte 14),
-    /// 14-bit biased exponent, sign bit.
+    /// 14-bit biased exponent, sign bit. The general road, exact for every width the format allows.
     static func decodeDecimal128(_ b: [UInt8]) -> Decimal {
         let exp = Int((Int(b[15] & 0x7F) << 7) | Int(b[14] >> 1)) - decimal128Bias
         var mantissa = Decimal(Int(b[14] & 1))

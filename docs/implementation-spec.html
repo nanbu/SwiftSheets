@@ -1494,6 +1494,7 @@ pre .vr { color: var(--code-var); }
     <tr><td>（概念なし）</td><td><code>try SheetFormat.detect(contentsOf: url)</code> / <code>probe(contentsOf:)</code></td><td>ファイル全体を読まずに形式を判定する。<code>probe</code> は開けない理由（暗号化・旧 .xls）と不明も 1 回で返す（Rev 4.14・B.39.4）</td></tr>
     <tr><td>（概念なし）</td><td><code>try Workbook.inspect(contentsOf: url)</code></td><td>読む前に問い合わせる: シート・申告セル数・展開後のバイト数・生成元（Rev 4.13・B.39.3）。<code>cellLimit</code> を決める材料</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
+    <tr><td><code>load_workbook(read_only=True)</code></td><td><code>try StreamingReader(contentsOf: url)</code></td><td>ブックを作らずに 1 行ずつ読む。形式は内容から判別し、XLSX / XLSM・ODS・Numbers・CSV のどれでも同じ呼び方（Rev 4.22・B.40）。<code>forEachRow(inSheet:)</code> か <code>for try await row in rows(inSheet:)</code>。Numbers の 2 枚目以降の表は <code>table:</code> で</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
     <tr><td><code>Workbook()</code></td><td><code>Workbook()</code></td><td>新規作成。空シート "Sheet1" を1枚持つ</td></tr>
     <tr><td><code>wb.save(path)</code></td><td><code>try wb.write(to: url)</code></td><td>拡張子から形式推定。戻り値は <code>WriteResult</code>（破棄可）</td></tr>
@@ -1653,7 +1654,7 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
     <tr><td>名前付きの表（<code>ws.tables</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.excelTables</code>・Rev 2.0・B.15）</td></tr>
     <tr><td>絞り込みの応用（色・アイコン・上位10・動的・日付グループ）</td><td><strong>読み書き対応済み</strong>（<code>FilterColumn</code>・Rev 2.0・B.15）。<code>&lt;extLst&gt;</code> 拡張だけは元の XML のまま</td></tr>
     <tr><td>文書の自由項目（<code>custom_doc_props</code>）</td><td><strong>読み書き対応済み</strong>（<code>Workbook.customProperties</code>・Rev 2.0・B.15）。ODF の <code>meta:user-defined</code> とも往復する</td></tr>
-    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・XLSX / XLSM のみ・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない</td></tr>
+    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きは XLSX / XLSM と CSV</td></tr>
     <tr><td>シート保護・シナリオ</td><td><strong>読み書き対応済み</strong>（<code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code>・Rev 2.0・B.15）。合鍵は旧来の 16 ビット式のみ生成する</td></tr>
     <tr><td>ブック暗号化</td><td>非対応（明示的エラー — 第1章）</td></tr>
     <tr><td>ピボットテーブル</td><td><strong>配置の読み書き対応済み</strong>（<code>Sheet.pivotTables</code>・Rev 2.0・B.15）。<strong>集計はしない</strong> — 「開いたときに再計算」を立てて書くので、数字は開いた側が入れる</td></tr>
@@ -1901,6 +1902,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.18 Draft</td><td>2026-09-05</td><td><strong>読み込みも持たない</strong>を付録 B.39.8 に記録。字句解析器を再開可能にし（<code>feed(startingAt:final:)</code>）、<code>ZipEntryStream</code> の切れ端ごとに読む。XLSX のシート・共有文字列表・逐次読み・ODS 本文が載る。逐次読みのピーク 61 → 23 MB、読み 254 → 221 MB、ODS 読み 318 → 233 MB。同時に持つ最大バイト数をテストで釘打ち。テスト 988 件</td></tr>
     <tr><td>4.19 Draft</td><td>2026-09-05</td><td><strong>パスワード付きのファイルの読み書き</strong>を付録 B.39.9 に記録。Excel の agile 形式（AES-256 / SHA-512、10 万回）と ODF 1.2〜1.3 の包（AES-CBC ＋ PBKDF2、LibreOffice と同じ 1,024 回）を <code>ReadOptions.password</code> / <code>WriteOptions.password</code> で。AES・SHA-1・SHA-256・HMAC・PBKDF2・OLE 複合ファイルを自前で書き、規格の既知解で照合。審判は msoffcrypto-tool（双方向）と cryptography による独立の ODF 復号器。§1.3 の非スコープから暗号化を外し、Excel 2007 の standard 形式・RC4・Blowfish・Numbers は名指しで断る。対応表の 2 行を更新。テスト 1,008 件</td></tr>
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
+    <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。</td></tr>
     <tr><td>4.21 Draft</td><td>2026-09-05</td><td><strong>計測台を公開の物に</strong>を付録 B.39.11 に記録。<code>Benchmarks/</code>・<code>scripts/bench.sh</code>・<code>docs/performance.json</code> → <code>docs/performance.html</code>。CI の <code>--check</code> が README の 3 つの MB を出所と照合する。0.12.0 の記録: 読み 2.8 秒・221 MB、逐次読み 1.9 秒・23 MB、書き 1.7 秒・258 MB、ODS 書き 3.4 秒・313 MB、ODS 読み 3.9 秒</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
@@ -2241,7 +2243,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <div class="compare"><table>
     <tr><th>項目</th><th>いまの状態</th><th>実装しない理由</th></tr>
     <tr><td>ストリーミング読み書き（<code>read_only</code> / <code>write_only</code>）</td>
-      <td><strong>Rev 2.0 で実装（B.15）</strong> — <code>StreamingReader</code> / <code>StreamingWriter</code></td>
+      <td><strong>Rev 2.0 で実装（B.15）</strong> — <code>StreamingReader</code> / <code>StreamingWriter</code>。読みは Rev 4.22（B.40）で ODS・Numbers・CSV も同じ入口から</td>
       <td>（かつての理由: 全載せモデルの上に積んだ最適化と契約が違う）。実際には<strong>モデルを作り直さずに済んだ</strong> —
         既存のコーデックはそのままに、値と書式だけを扱う別経路を並べた。保全はしないと決めたことで契約の衝突が消えた。</td></tr>
     <tr><td>条件付き書式の API</td><td><strong>Rev 2.0 で実装（B.15）</strong> — <code>Sheet.conditionalFormatting</code></td>
@@ -2420,7 +2422,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>ピボット表</td><td><code>Sheet.pivotTables</code>（<code>PivotTable</code> ＋ <code>PivotCache</code>）。配置パーツ・キャッシュ定義・関係・<code>&lt;pivotCaches&gt;</code> を生成し、範囲から作る <code>Workbook.addPivotTable</code> も用意</td>
       <td><strong>集計はしない</strong>。新しく作るキャッシュは <code>saveData="0" refreshOnLoad="1"</code> を立て、レコードのパーツを持たない — 開いた側が元の範囲を読んで計算する。計算していない数字を書かない、が理由。<strong>審判は openpyxl の読み戻しと LibreOffice</strong>（変換後の値が正しく集計されていることまで確認した）。<strong>Excel 実機では開いていない</strong> — Numbers と同じく MAINTENANCE.md のリリース確認項目に置く</td></tr>
     <tr><td>逐次読み書き</td><td><code>StreamingReader</code>（openpyxl の <code>read_only</code>）・<code>StreamingWriter</code>（<code>write_only</code>）。書き出しは <code>ZipFileWriter</code> で 1 行ずつ圧縮しながらファイルへ流す</td>
-      <td>XLSX / XLSM のみ、値と書式のみ。結合・注釈・保全は扱わない。文字列は共有表ではなくセルに直接書く（最初の行の時点で最後の行が何を繰り返すか分からないため）ので、繰り返しの多いファイルは通常のライターより大きくなる。<strong>実測</strong>（75 万セル）: 逐次書き出し <strong>+3 MB</strong>・逐次読み取り <strong>+54 MB</strong>（展開後の 1 シート分の XML）に対し、全載せ読み込みは <strong>+190 MB</strong></td></tr>
+      <td>Rev 2.0 の時点では XLSX / XLSM のみ（読みは Rev 4.22・B.40 で ODS と Numbers にも広がった）。値と書式のみ。結合・注釈・保全は扱わない。文字列は共有表ではなくセルに直接書く（最初の行の時点で最後の行が何を繰り返すか分からないため）ので、繰り返しの多いファイルは通常のライターより大きくなる。<strong>実測</strong>（75 万セル）: 逐次書き出し <strong>+3 MB</strong>・逐次読み取り <strong>+54 MB</strong>（展開後の 1 シート分の XML）に対し、全載せ読み込みは <strong>+190 MB</strong></td></tr>
   </table></div>
 
   <ul>
@@ -5043,6 +5045,127 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     判定 1 ミリ秒未満、問い合わせ 2 ミリ秒。着手前（5.7 秒・256 MB、逐次読み 5.1 秒・61 MB、書き 2.0 秒・360 MB、
     ODS 書き 4.0 秒・641 MB、ODS 読み 13.0 秒）と並べると、読みは 2 倍、ODS 読みは 3.3 倍、逐次読みのメモリは 2.6 分の 1。
   </p>
+
+
+  <h3>B.40 逐次読みを 3 形式へ — 共通の入口、ODS の本文歩き、Numbers の遅延文書（Rev 4.22）</h3>
+  <p>
+    2026-09-05。0.12.0 の計画（B.39）で「次の版」に送った 2 件 — ODS と Numbers の逐次読み — と、見送った第 6 段（並列読み）の
+    調査をまとめて扱う。逐次読みとは、ブック全体を模型として組み立てずに、ファイルの先頭から 1 行ずつ取り出して呼び手に渡し、
+    渡したそばから捨てる読み方である（B.15 の <code>StreamingReader</code>、当時は XLSX / XLSM だけ）。
+    この改訂で、<strong>どの形式でも同じ 1 つの呼び方</strong>にした。決めたことは 3 つ: ①入口は 1 つで、形式は
+    <code>Workbook(contentsOf:)</code> と同じ規則で内容から判定する ②行の型は 1 つで、形式ごとの読み手が同じ型を返す
+    ③Numbers の「1 枚のシートに複数の表」は <code>table:</code> 引数で届く（既定は先頭の表 — 模型の <code>Sheet.table</code> と同じ）。
+  </p>
+
+  <h4>B.40.1 共通の入口 — <code>StreamingReader</code>（SwiftSheets）と、形式ごとの 4 つの読み手</h4>
+  <p>
+    傘のモジュール <code>SwiftSheets</code> に <code>StreamingReader</code> を置き、
+    <code>XLSXStreamingReader</code>（SheetXLSX）・<code>ODSStreamingReader</code>（SheetODS）・<code>NumbersStreamingReader</code>（SheetNumbers）・
+    <code>CSVStreamingReader</code>（SheetCSV）に委ねる。行の型 <code>StreamedRow</code> / <code>StreamedCell</code> と選択肢
+    <code>StreamingReadOptions</code> は SheetXLSX から <strong>SheetCore へ移した</strong>（4 つの読み手が同じ型を返すため）。
+    4 つの読み手は package の約束 <code>StreamingRowSource</code> を満たす — <code>sheetNames</code>・<code>tableCount(inSheet:)</code>・
+    押し型の <code>forEachRow</code>（読み手が解析を進めて 1 行ごとに呼ぶ）・引き型の <code>rowWalk</code>（呼び手が 1 行ずつ求め、
+    読み手はそこまでしか読まない）。<code>for try await</code> の列（<code>rows(inSheet:)</code>）は引き型から SheetCore が 1 か所で組む
+    （<code>StreamingRowSequence</code>）。切れ端送り（B.39.10 の <code>SAXDriver.PieceFeeder</code>）から行を引き出す歩き
+    <code>PieceFedRowWalk</code> も SheetCore に 1 つ置き、XLSX と ODS が共有する。
+  </p>
+  <ul>
+    <li><strong>改名</strong>: SheetXLSX の <code>StreamingReader</code> は <code>XLSXStreamingReader</code> になった。
+      <code>import SwiftSheets</code> の利用者は今までどおり <code>StreamingReader(contentsOf:)</code> と書けば、XLSX に加えて
+      ODS・Numbers・CSV も開ける。<code>import SheetXLSX</code> だけで <code>StreamingReader</code> を使っていた利用者には
+      1.0 前の破壊的変更で、CHANGELOG に明記する。旧名の <code>typealias</code> は<strong>置かない</strong> — 傘の import で
+      2 つの <code>StreamingReader</code> が見えて曖昧になるため。</li>
+    <li><strong><code>table:</code></strong>（既定 0）は Numbers の 2 枚目以降の表に届くためにある。XLSX / ODS / CSV は 1 シート 1 表なので
+      0 以外は <strong>throw</strong>（黙って空の歩きにしない）。<code>tableCount(inSheet:)</code> は <code>Workbook.inspect</code> の
+      <code>SheetSummary.tableCount</code> と同じ数を答える。</li>
+    <li><strong>CSV</strong> も同じ入口から。シートは "Sheet1" 1 枚（通常の CSV 読み手と同じ名前）、欄はすべてセル（空欄は値 nil のセル）。</li>
+    <li><strong>暗号化</strong>: XLSX は B.39.9 のとおり丸ごと復号してから歩く（複合ファイルは行ごとに歩けない）。ODS は目録（manifest）が
+      暗号化された部品を名指しするので、読み手自身が復号して素の封筒を歩く。Numbers の保護書類は名指しで断る。
+      フォルダー形式の Numbers 書類も開く（B.39.4）。</li>
+    <li><strong>持ち物</strong>: XLSX のシート部品と ODS の本文は 256 KiB の切れ端ごとに戻す（B.39.8）。どの読み手も丸ごと持たざるを得ないのは
+      文字列表（XLSX の共有文字列表・Numbers の表ごとの文字列一覧）と、呼び手の手にある 1 行。<code>ReadOptions.cellLimit</code> は
+      効かない — 溜めるものが無い。</li>
+  </ul>
+
+  <h4>B.40.2 ODS — 本文を 1 度歩いて、頼まれた表の行だけ届ける</h4>
+  <p>
+    ODS は全シートが <code>content.xml</code> の 1 部品にある。3 枚目のシートを歩くには 1〜2 枚目を読み過ごすことになり、
+    字句解析は走るがセルは 1 つも作らない（表ごと部分木として飛ばす）。頼まれた表の終わりで解析を止めるので、後ろの表は
+    読まない。自動様式（<code>automatic-styles</code>）は同じ部品の表より前にあるので、1 度の歩きで書式も解決できる
+    （<code>styles.xml</code> は小さいので先に読む）。
+  </p>
+  <p>
+    <strong>セルの文字の読みは通常の読み手と 1 つの部品を共有する</strong>。ODF のセルの文字は段落（<code>text:p</code>）・
+    書式の切れ目（<code>text:span</code>）・空白の畳み方（ODF 6.1.2）・文字列に掛かるリンク（<code>text:a</code>）・
+    セルの中の注釈（<code>office:annotation</code> — この段落をセルの文字にしてはいけない）の 5 つが絡み、
+    ここを 2 度書くと片方だけ直る事故が起きる。そこで <code>ContentParser</code> からこの部分を <code>ODSCellText</code> に切り出し、
+    通常の読み手と逐次の読み手が同じ出来事を同じ部品に流す。値の解釈（<code>office:value-type</code> の型ごとの読み）も同じ部品に置いた。
+    切り出しの前後で通常の読み手のテストは 1 件も変えていない。
+  </p>
+  <p>
+    <strong>反復の展開は通常の読み手と同じ規則</strong>: 中身のある行は <code>number-rows-repeated</code> の回数ぶん届ける
+    （ファイルがそう言っている）。中身の無い行は <code>includesEmptyRows</code> のときだけ、しかも <code>paddingRepeat</code>（1,000）未満のときだけ
+    — 末尾の <code>number-rows-repeated="1048000"</code> は表の説明であって内容ではない（§8.3）。列の反復も同じで、
+    空の様式つきセルは 1,000 未満のときだけ様式つきの nil セルとして届ける（XLSX の逐次読みが <code>&lt;c s="3"/&gt;</code> を届けるのと同じ扱い）。
+    covered セル（結合の陰）は届けない。
+  </p>
+
+  <h4>B.40.3 Numbers — 目次だけ先に作り、タイルは行送りのたびに戻して捨てる</h4>
+  <p>
+    <strong>着手前の実測（100 万マス、Numbers としては初めて）</strong>: 書き 8.4 秒・413 MB、読み 5.9 秒・323 MB（模型 203 MB）。
+    書類は 34 MB・433 部品で、うち 392 がタイル（256 行ごとの <code>Index/Tables/Tile-*.iwa</code>）。
+    呼び出しの記録を採ると、読みの時間の半分近くが <strong>decimal128 の復号</strong>だった — 16 バイトの数を <code>Decimal</code> の掛け算 14 回と
+    文字列経由の変換で組み立てていた（<code>CellStorage.decodeDecimal128</code>）。整数かどうかの判定も <code>Int("\(d)")</code> と文字列経由だった。
+    部品の復号（IWA → Protobuf の木）は最初の 1 秒に収まっており、時間よりメモリの問題である。
+  </p>
+  <p>
+    <strong>遅延文書</strong> <code>NumbersObjectIndex</code>: 封筒の目録から IWA 部品を列挙し、各部品の Snappy を戻して
+    archive の見出し（<code>TSP.ArchiveInfo</code>）だけを復号し、object id → （部品・位置・型）の目次を作る。オブジェクトの本体は
+    求められたときに復号して cache する。<strong>タイル（<code>TST.Tile</code>）だけを持つ部品は、戻した本体を捨てる</strong> — 歩きのときに
+    もう一度戻す。他の部品（書類・シート・表の模型・文字列一覧・様式）は戻した本体を持つ。通常の読み手の <code>NumbersDocument</code>
+    （書き手と <code>inspect</code> も使う可変の器）には手を入れず、両方が満たす小さな約束 <code>NumbersObjectStore</code> を置いて、
+    様式の解決（<code>NumbersStyleResolver</code>）・文字の書式の切れ目・値の読み（<code>cellValue</code>）を共有した。
+  </p>
+  <p>
+    <strong>行の順序は約束</strong>: 通常の読み手はタイルと行を来た順に <code>store(at:)</code> するので順不同でも困らないが、逐次読みは
+    「上から順」が約束なので、タイルは <code>tileid</code> 順、タイル内の行は <code>tile_row_index</code> 順に並べてから届ける。
+    BNC 以前のタイル（<code>last_saved_in_BNC</code> が立っていない）は、通常の読み手は警告して飛ばすが、逐次読みには警告の口が無いので
+    <strong>throw</strong> する（黙って飛ばさない）。数式は通常の読み手と同じく木から文字に戻し（別の表への参照名も先に集める）、
+    復号できない数式はキャッシュ値で届ける。配列数式の覆いセル（関数 337）は値だけ届ける（B.26）。
+  </p>
+  <p>
+    <strong>decimal128 の復号を直した</strong>（通常の読み手にも効く）: 仮数の上位が 0 で 64 ビットに収まる数（実務の数はほぼ全部）は
+    <code>UInt64</code> から <code>Decimal(sign:exponent:significand:)</code> で直接作り、整数の判定は仮数と指数から決める。
+    値が 1 桁も変わらないことは、境界値（14 バイト目の 1 ビット・負の指数・2^64 付近）を通常の経路と突き合わせて釘打った。
+    実測は B.40.5 に。
+  </p>
+
+  <h4>B.40.5 実測 — 3 形式の逐次読みと、Numbers の前後</h4>
+  <p>
+    （計測は B.39.11 の計測台で。この小節の数字は同じ機械・同じ素材の同時刻比。）
+  </p>
+  <p>
+    <strong>逐次読みの 3 形式（100 万マス・2026-09-05・計測台の記録）</strong>: XLSX 2.0 秒・24 MB（全載せ 2.9 秒・221 MB）、
+    ODS 4.3 秒・42 MB（全載せ 4.0 秒・233 MB）、Numbers 1.5 秒・86 MB（全載せ 2.5 秒・323 MB）。
+    どの形式でも、行ごとに読めば全載せの 1/5 から 1/9 のメモリで済む。ODS の逐次読みが全載せより 0.3 秒遅いのは、
+    行を 1 つずつ組み立てて渡す分で、本文の字句解析はどちらも同じ 1 回である。ODS の 42 MB の内訳は、切れ端（256 KiB ずつ）と
+    様式の目録、写像したファイル自身（触ったページは常駐に数えられる）。Numbers の 86 MB は写像した書類 34 MB と、
+    表の文字列一覧（10 万本の見出し文字）を辞書にしたもの、手元のタイル 1 つ。
+  </p>
+  <p>
+    <strong>Numbers の前後（100 万マス）</strong>: 読み 5.9 → 2.5 秒（decimal128 の復号の直し。メモリは 323 MB で変わらず —
+    模型そのものが 203 MB）。10 万マスでは 0.58 → 0.29 秒。書き 10.0 秒・413 MB は手を入れておらず、次の版の候補
+    （読みと同じく、呼び出しの記録を採ってから直す）。この計測から <code>scripts/bench.sh</code> は Numbers も 100 万マスで測る
+    （それまでは 1 桁小さい素材だった）。README の Limits の行が名乗る MB は 3 つから 5 つになり（逐次書き・逐次読み xlsx / ods / numbers・
+    全載せ）、いずれも <code>docs/performance.json</code> と機械で照合する。
+  </p>
+  <p>
+    <strong>直したついでに分かった 2 点</strong>。①Numbers の通常の読み手は、セルごとに 384 バイトの <code>CellStyle</code> を丸ごとハッシュして
+    共有スタイルを探していた（呼び出しの記録の 7%）。様式の解決器が使う整数の鍵で探すようにした。②タイルの行のセル記録は
+    <code>Data</code> の切り出しと <code>[UInt8]</code> への写しで 2 度コピーされていた。バッファをその場で読む
+    <code>CellStorage.decode(UnsafeBufferPointer)</code> を足し、通常の読み手も逐次読みもそれを使う。
+  </p>
+
 
 </section>
 
