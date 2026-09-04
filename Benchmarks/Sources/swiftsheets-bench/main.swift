@@ -40,14 +40,18 @@ func row(_ i: Int) -> [CellValue?] {
      .text(i % 2 == 0 ? "分類A" : "分類B"),
      .integer(i * 2)]
 }
-func workbook() -> Workbook {
+/// The multi-sheet book (spec Appendix B.41): the same million cells dealt over this many sheets, so that a read
+/// side by side and a read one sheet at a time are measured on the same material.
+let sheetsInMultiSheetBook = 8
+func workbook(sheets: Int = 1) -> Workbook {
     var wb = Workbook()
-    for i in 0..<rows { wb.sheets[0].append(row(i)) }
+    for s in 1..<sheets { wb.addSheet(named: "Sheet\(s + 1)") }
+    for i in 0..<rows { wb.sheets[i % sheets].append(row(i)) }
     return wb
 }
 func sum(_ wb: Workbook) -> Decimal {
     var total = Decimal(0)
-    for r in wb.sheets[0].values() { for v in r { if let n = v?.numberValue { total += n } } }
+    for sheet in wb.sheets { for r in sheet.values() { for v in r { if let n = v?.numberValue { total += n } } } }
     return total
 }
 
@@ -67,6 +71,17 @@ do {
         var total = Decimal(0)
         let t = try clock.measure { total = sum(try Workbook(contentsOf: url, options: ReadOptions(csv: CSVReadOptions(inferTypes: true)))) }
         report(op, rows, seconds(t), "sum=\(total)")
+    case "writeSheets":
+        let wb = workbook(sheets: sheetsInMultiSheetBook)
+        let before = peakMB()
+        let t = try clock.measure { try wb.write(to: url) }
+        report(op, rows, seconds(t), "sheets=\(sheetsInMultiSheetBook) modelMB=\(String(format: "%.1f", before))")
+    case "readSheets", "readSheetsSerial":
+        // the sheets side by side (the default decides so for a book this size) against one at a time
+        var total = Decimal(0)
+        let options = ReadOptions(concurrency: op == "readSheetsSerial" ? 1 : nil)
+        let t = try clock.measure { total = sum(try Workbook(contentsOf: url, options: options)) }
+        report(op, rows, seconds(t), "sheets=\(sheetsInMultiSheetBook) sum=\(total)")
     case "streamRead", "streamReadODS", "streamReadNumbers":
         // the one streaming reader for every format (spec Appendix B.40): the file's format decides the walker
         var total = Decimal(0)

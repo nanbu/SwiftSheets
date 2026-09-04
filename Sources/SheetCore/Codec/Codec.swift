@@ -58,12 +58,25 @@ public struct ReadOptions: Sendable, Hashable {
     /// and later do it (ECMA-376 agile encryption), or an OpenDocument package encrypted as ODF 1.2 / 1.3 say.
     /// A wrong one is `SheetError.wrongPassword`; a protected file read without one is `unsupportedFeature`.
     public var password: String?
+    /// How many sheets of an XLSX / XLSM workbook may be parsed at once (spec Appendix B.41). Nil, the default,
+    /// decides on its own: the sheets are read side by side, up to one per processor core, when there are at
+    /// least two of them and their parts expand to a few megabytes — a small workbook is not worth the threads.
+    /// `1` reads them one after another whatever their size; `n` reads at most `n` at once and does so even for a
+    /// small workbook.
+    ///
+    /// This is also the handle on memory: every sheet ends up in the model whichever way it is read, and what
+    /// reading side by side adds is the working room of the sheets in flight at the same moment — bounded by
+    /// this number (the performance record, docs/performance.html, has the measured figures for eight sheets
+    /// read one at a time and side by side). ODS and Numbers ignore it: an ODS document is one part, and a
+    /// Numbers document is read from an index.
+    public var concurrency: Int?
 
     public init(dataOnly: Bool = false, preserveUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
                 filename: String? = nil, cellLimit: Int = Int.max, limits: ZipLimits = ZipLimits(), password: String? = nil,
-                sheets: SheetSelection? = nil) {
+                sheets: SheetSelection? = nil, concurrency: Int? = nil) {
         self.dataOnly = dataOnly; self.preserveUnknownParts = preserveUnknownParts; self.csv = csv
         self.filename = filename; self.cellLimit = cellLimit; self.limits = limits; self.password = password; self.sheets = sheets
+        self.concurrency = concurrency
     }
 }
 

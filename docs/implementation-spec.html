@@ -1493,6 +1493,7 @@ pre .vr { color: var(--code-var); }
     <tr><td><code>load_workbook(path)</code></td><td><code>try Workbook(contentsOf: url)</code></td><td>読み込み。形式は内容から自動判別（第4章）</td></tr>
     <tr><td>（概念なし）</td><td><code>try SheetFormat.detect(contentsOf: url)</code> / <code>probe(contentsOf:)</code></td><td>ファイル全体を読まずに形式を判定する。<code>probe</code> は開けない理由（暗号化・旧 .xls）と不明も 1 回で返す（Rev 4.14・B.39.4）</td></tr>
     <tr><td>（概念なし）</td><td><code>try Workbook.inspect(contentsOf: url)</code></td><td>読む前に問い合わせる: シート・申告セル数・展開後のバイト数・生成元（Rev 4.13・B.39.3）。<code>cellLimit</code> を決める材料</td></tr>
+    <tr><td>（概念なし）</td><td><code>ReadOptions(concurrency:)</code></td><td>XLSX / XLSM のシートを同時に読む枚数（Rev 4.23・B.41）。nil = 自動（2 枚以上・申告 4 MiB 以上でコア数まで）、1 = 1 枚ずつ、n = 最大 n 枚。同時に読む枚数がメモリの増分の上限</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
     <tr><td><code>load_workbook(read_only=True)</code></td><td><code>try StreamingReader(contentsOf: url)</code></td><td>ブックを作らずに 1 行ずつ読む。形式は内容から判別し、XLSX / XLSM・ODS・Numbers・CSV のどれでも同じ呼び方（Rev 4.22・B.40）。<code>forEachRow(inSheet:)</code> か <code>for try await row in rows(inSheet:)</code>。Numbers の 2 枚目以降の表は <code>table:</code> で</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
@@ -1902,6 +1903,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.18 Draft</td><td>2026-09-05</td><td><strong>読み込みも持たない</strong>を付録 B.39.8 に記録。字句解析器を再開可能にし（<code>feed(startingAt:final:)</code>）、<code>ZipEntryStream</code> の切れ端ごとに読む。XLSX のシート・共有文字列表・逐次読み・ODS 本文が載る。逐次読みのピーク 61 → 23 MB、読み 254 → 221 MB、ODS 読み 318 → 233 MB。同時に持つ最大バイト数をテストで釘打ち。テスト 988 件</td></tr>
     <tr><td>4.19 Draft</td><td>2026-09-05</td><td><strong>パスワード付きのファイルの読み書き</strong>を付録 B.39.9 に記録。Excel の agile 形式（AES-256 / SHA-512、10 万回）と ODF 1.2〜1.3 の包（AES-CBC ＋ PBKDF2、LibreOffice と同じ 1,024 回）を <code>ReadOptions.password</code> / <code>WriteOptions.password</code> で。AES・SHA-1・SHA-256・HMAC・PBKDF2・OLE 複合ファイルを自前で書き、規格の既知解で照合。審判は msoffcrypto-tool（双方向）と cryptography による独立の ODF 復号器。§1.3 の非スコープから暗号化を外し、Excel 2007 の standard 形式・RC4・Blowfish・Numbers は名指しで断る。対応表の 2 行を更新。テスト 1,008 件</td></tr>
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
+    <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・255 MB</td></tr>
     <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ。fuzz の的に 3 形式の逐次読みを追加</td></tr>
     <tr><td>4.21 Draft</td><td>2026-09-05</td><td><strong>計測台を公開の物に</strong>を付録 B.39.11 に記録。<code>Benchmarks/</code>・<code>scripts/bench.sh</code>・<code>docs/performance.json</code> → <code>docs/performance.html</code>。CI の <code>--check</code> が README の 3 つの MB を出所と照合する。0.12.0 の記録: 読み 2.8 秒・221 MB、逐次読み 1.9 秒・23 MB、書き 1.7 秒・258 MB、ODS 書き 3.4 秒・313 MB、ODS 読み 3.9 秒</td></tr>
   </table></div>
@@ -5210,7 +5212,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   </p>
 
 
-  <h4>B.40.6 並列読み（第 6 段）— 設計と試作の実測、実装は次の版へ</h4>
+  <h4>B.40.6 並列読み（第 6 段）— 設計と試作の実測、実装は次の版へ（→ B.41 で実装した）</h4>
   <p>
     第 6 段「共有文字列と書式を読んだあと、シートを同時に読む」は 0.12.0 で見送った（B.39 の計画では「自動で、調整口は置かない」）。
     理由は 1 点で、<code>StylesParser</code> の 2 つの遅延辞書 — <code>sharedStyle(index)</code>（xf ごとの共有スタイル）と
@@ -5251,6 +5253,69 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     README の Limits に並列時のピークを機械照合つきで載せる。本番に入れるときに要るもの: <code>prefill()</code> と
     <code>SheetReadContext</code> の 2 点に加えて、警告の順序の固定（シート順）、fuzz の的への追加（同時に壊れた部品を 2 つ渡す）、
     Linux での実測。試作のパッチと生データは工房の実験置き場に置き、本体には入れない。
+  </p>
+
+
+  <h3>B.41 並列読み — シートを同時に読む、整数 1 つの手綱つき（Rev 4.23）</h3>
+  <p>
+    2026-09-05。B.40.6 で設計と試作の実測まで済ませ「次の版へ」とした第 6 段を本体に入れた。B.39 の計画は「自動で、調整口は置かない」
+    だったが、<strong>整数 1 つ</strong>（<code>ReadOptions.concurrency</code>）を置いた。理由は、同時に読む枚数がそのままメモリの増分の
+    上限になるからで（下の「メモリの理屈」）、手綱として一番素直な形がこの数だった。対象は XLSX / XLSM の全載せ読み
+    （<code>Workbook(contentsOf:)</code>）だけ。ODS は本文が 1 部品で分けようがなく、Numbers は目次から読む（B.40.3）ので、両者はこの
+    設定を読まない。
+  </p>
+  <p><strong>仕組み（3 段）</strong>:</p>
+  <ol>
+    <li><strong>先に済ませる</strong>: 共有文字列表と書式表は今までどおり最初に読む。書式表の 2 つの遅延辞書
+      — xf ごとの共有スタイルと「その書式は日付か経過時間か」— は、シートを読み始める前に全 xf ぶん埋める
+      （<code>StylesParser.prefill()</code>）。存在しない xf 番号は既定を返すだけで辞書に書かない。これで、シートを読む間
+      書式表には<strong>読むだけ</strong>になる。</li>
+    <li><strong>シート 1 枚の仕事を入れ物に移す</strong>: 関係の解決・部品の展開と解析・名前付きの表・ピボット・注釈を
+      <code>SheetReadContext</code>（読むだけの共有物を持つ <code>@unchecked Sendable</code>）の 1 メソッドにし、待ち行列
+      （<code>SheetQueue</code>）から 1 枚ずつ取って走らせる。同時に走る本数は下の決め方で決め、
+      <code>DispatchQueue.concurrentPerform</code> で回す（Linux でも同じ）。呼び手の API は同期のまま。</li>
+    <li><strong>結果はシート順に並べ直す</strong>: 各シートの結果（シート・消費した部品・警告・失敗）はシート番号の箱
+      （<code>SheetResultsBox</code>）に置き、終わってからシート順に取り出す。警告はシート順に連結し、失敗が 2 枚以上にあれば
+      <strong>シート順で最初の 1 件</strong>を投げる。どの順に終わっても結果は同じ。</li>
+  </ol>
+  <p>
+    <strong>決め方 — 読まずに分かる軽い情報で</strong>: ZIP の目録は部品ごとの展開後の大きさを申告している。読み込みはすでに目録を
+    持っているので、解析するシート部品（<code>ReadOptions.sheets</code> で外した枚と、グリッドでない枚は除く）の申告の合計を足すだけで、
+    何も余分に読まない。<code>concurrency</code> が nil（既定）なら、<strong>2 枚以上・合計 4 MiB 以上</strong>のときだけ、コア数まで同時に
+    読む（4 MiB は SpreadsheetML で 10 万マス前後。小さなブックにスレッドを立てる損を避ける）。<code>1</code> なら大きさに関わらず
+    1 枚ずつ、<code>n</code>（2 以上）なら小さなブックでも最大 n 枚ずつ（枚数を超える指定は枚数に丸める。0 以下は 1）。
+  </p>
+  <p>
+    <strong>メモリの理屈 — なぜ整数 1 つで足りるか</strong>: どの読み方でも全シートは最後に模型として残るので、同時読みが足すのは
+    「同時に育っている途中のシートの作業領域」（配列や辞書が倍々に広がる分）だけである。それは同時に走る枚数分より大きくならない。
+    だから同時数の上限を呼び手が握れば、増分の上限も握れる。物理メモリと連動して自動で抑える仕組みは<strong>入れなかった</strong>:
+    模型そのものの大きさ（申告セル数 × 100〜200 バイト）を読み手が推し量る形になり、それは <code>Workbook.inspect</code>
+    と <code>cellLimit</code> で呼び手のほうがよく知っている。試作の数字（8 枚同時で +113 MB、32 枚 × 3.1 万マスで +47 MB）は
+    「1 枚が小さいほど増分も小さい」と言っており、増えるのは同時に走る枚の作業領域であることと合う。
+  </p>
+  <p>
+    <strong>実測</strong>（100 万マスを 8 シートに分けたブック・同じ機械・release・計測台 <code>scripts/bench.sh</code> に
+    <code>writeSheets</code> / <code>readSheetsSerial</code> / <code>readSheets</code> として追加）:
+    1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・255 MB（2.3 倍・+110 MB）。
+    1 シートのブックは 2.8 秒・213 MB のまま（分ける仕事が無いので変わらない）。README の Limits はこの 2 つの MB を
+    <code>docs/performance.json</code> の <code>readme</code> から機械照合つきで名乗る。Linux では CI が同じ検査を走らせて正しさを
+    見ているが、速さは測っていない。
+  </p>
+  <p>
+    <strong>変わらない約束</strong>: 警告の順序はシート順。最初の失敗はシート順。<code>ReadOptions.sheets</code> と両立
+    （外した枚は解析せず、申告の合計にも入れない）。<code>dataOnly</code>・<code>preserveUnknownParts</code> は各シートの入れ物へ
+    そのまま渡る。書き側の並列は共有文字列表と書式表の番号が先着順で決まるため、この設計の外（B.39 のまま）。
+  </p>
+  <p>
+    <strong>検査</strong>: <code>ParallelReadTests</code> — 1 枚ずつと同時の読みが模型も警告も一致する（共有文字列・2 つの書式・
+    数式・リンク・注釈・結合を持つ 6 枚）／4 枚を外す選択の警告がシート順で並ぶ（5 回繰り返す）／2 枚の部品を同時に欠いたとき
+    投げるのは前の枚（5 回繰り返す）／決め方の表（枚数・大きさ・指定・コア数）／辞書は先に埋まり、無い xf では育たない。
+    fuzz（§12）の見本に 3 シートのブックを足し、全形式の変異を <code>concurrency: 4</code> で読む — 壊れた部品が 2 つ同時に来ても
+    <code>SheetError</code> で返る。
+  </p>
+  <p>
+    <strong>やらなかったこと</strong>: Numbers のタイルを同時に戻す（読みは 2.5 秒で、目次づくりが先に終わる構造上、次に測ってから）。
+    書き側の並列（上記）。ODS（1 部品）。
   </p>
 
 </section>

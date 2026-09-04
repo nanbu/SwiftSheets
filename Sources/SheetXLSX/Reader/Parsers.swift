@@ -396,11 +396,17 @@ final class StylesParser: SAXHandler {
     private var numericKinds: [Int: NumericKind] = [:]
     func numericKind(_ index: Int) -> NumericKind {
         if let known = numericKinds[index] { return known }
+        guard cellXfs.indices.contains(index) else { return .plain }   // an xf that does not exist: General, never cached
         let fmt = style(index).numberFormat
         let kind: NumericKind = NumberFormat.isTimedeltaFormat(fmt) ? .duration : NumberFormat.isDateFormat(fmt) ? .date : .plain
         numericKinds[index] = kind
         return kind
     }
+
+    /// Fills both per-xf caches for every xf there is, so that sheet parsers running side by side only ever read
+    /// them (spec Appendix B.41): after this, `sharedStyle` and `numericKind` write nothing — an index past the
+    /// table answers with the default and is not cached.
+    func prefill() { for i in cellXfs.indices { _ = sharedStyle(i); _ = numericKind(i) } }
 
     private var sharedStyles: [Int: SharedStyle] = [:]
     /// One shared instance per `xf`: a sheet's cells reference a handful of styles between them, and each of those

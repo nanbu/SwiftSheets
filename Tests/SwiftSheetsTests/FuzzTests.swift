@@ -32,6 +32,8 @@ import SwiftSheets
         }
         // whatever of the above is missing, the generated minimum still exercises every reader
         out.append(("generated.xlsx", (try? Workbook(sheets: [sampleSheet()]).data(as: .xlsx)) ?? Data()))
+        // three sheets, so that a mutant reaches the side-by-side read (spec Appendix B.41) with two broken parts at once
+        out.append(("generated-3-sheets.xlsx", (try? Workbook(sheets: (1...3).map { i in var s = sampleSheet(); s.name = "S\(i)"; return s }).data(as: .xlsx)) ?? Data()))
         out.append(("generated.ods", (try? Workbook(sheets: [sampleSheet()]).data(as: .ods)) ?? Data()))
         out.append(("generated.numbers", (try? Workbook(sheets: [sampleSheet()]).data(as: .numbers)) ?? Data()))
         out.append(("generated.csv", Data("a,b,c\n1,2,\"x\ny\"\n".utf8)))
@@ -158,7 +160,8 @@ import SwiftSheets
                 ? Self.mutate(source.data, using: &rng)
                 : (Self.mutateInsidePackage(source.data, using: &rng) ?? Self.mutate(source.data, using: &rng))
             for format in SheetFormat.allCases {
-                do { _ = try Workbook.read(mutant, format: format, options: ReadOptions(cellLimit: 50_000)) }
+                // concurrency 4: an XLSX mutant's sheets are parsed side by side however small it is
+                do { _ = try Workbook.read(mutant, format: format, options: ReadOptions(cellLimit: 50_000, concurrency: 4)) }
                 catch is SheetError {}
                 catch { Issue.record(Comment(rawValue: "\(source.name) as \(format) round \(round) seed \(seed): \(type(of: error)) — \(error)")) }
                 // …and the row-by-row reader of the same format (spec Appendix B.40), which has its own index

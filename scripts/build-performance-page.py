@@ -5,9 +5,9 @@
     python3 scripts/build-performance-page.py         # JSON からページを作り直す
     python3 scripts/build-performance-page.py --check # ページが JSON と一致し、README の数字も JSON と一致するか（CI 向け）
 
-数字は覚えるものではなく確かめるもの（付録 B.39.11）。README の Limits の行が名乗る 5 つの数字
-（逐次書き・逐次読み xlsx / ods / numbers・全載せのピーク MB）は JSON の "readme" に名前つきで置き、--check が README の
-文章と突き合わせる。見た目は docs/format-support.html の <style> を借りる（隣の文書と勝手にずれないため）。
+数字は覚えるものではなく確かめるもの（付録 B.39.11）。README の Limits の行が名乗る数字
+（逐次書き・逐次読み xlsx / ods / numbers・全載せ・8 シートを 1 枚ずつ／同時に読んだピーク MB）は JSON の "readme" に
+名前つきで置き、--check が README の文章と突き合わせる。見た目は docs/format-support.html の <style> を借りる（隣の文書と勝手にずれないため）。
 """
 import json
 import os
@@ -27,6 +27,9 @@ LABELS = {
     "read": ("読み込み（xlsx）", ".xlsx → 模型、全マスの合計"),
     "streamRead": ("逐次読み（xlsx）", "StreamingReader で 1 行ずつ、全マスの合計"),
     "streamWrite": ("逐次書き（xlsx）", "StreamingWriter で 1 行ずつ"),
+    "writeSheets": ("書き出し（xlsx・8 シート）", "同じ 100 万マスを 8 シートに分けた模型 → .xlsx"),
+    "readSheetsSerial": ("読み込み（xlsx・8 シート・1 枚ずつ）", "ReadOptions(concurrency: 1)、全マスの合計"),
+    "readSheets": ("読み込み（xlsx・8 シート・同時）", "既定（シートを同時に読む）、全マスの合計"),
     "edit": ("開いて 1 マス直して保存", ".xlsx → 模型 → .xlsx"),
     "detect": ("形式の判定", "SheetFormat.detect(contentsOf:)、1 回あたり"),
     "inspect": ("読む前の問い合わせ", "Workbook.inspect(contentsOf:)"),
@@ -99,7 +102,7 @@ def render(doc):
 
 
 def readme_claims(doc):
-    """The README quotes five numbers by name; each must appear as **N MB** in the Limits row."""
+    """The README quotes the numbers by name; each must appear as **N MB** in the Limits row."""
     with open(README, encoding="utf-8") as fh:
         text = fh.read()
     row = next((l for l in text.splitlines() if l.startswith("| Whole workbook in memory |")), "")

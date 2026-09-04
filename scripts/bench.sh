@@ -26,6 +26,9 @@ run build "$ROWS" "$X"
 run write "$ROWS" "$X"
 run read "$ROWS" "$X"
 run streamRead "$ROWS" "$X"
+run writeSheets "$ROWS" "$OUT/sheets.xlsx"
+run readSheetsSerial "$ROWS" "$OUT/sheets.xlsx"
+run readSheets "$ROWS" "$OUT/sheets.xlsx"
 run streamWrite "$ROWS" "$OUT/stream.xlsx"
 run edit "$ROWS" "$X"
 run detect "$ROWS" "$X"
@@ -66,6 +69,8 @@ readme = {
     "streaming_read_ods_peak_mb": round(by["streamReadODS"]["peakMB"]),
     "streaming_read_numbers_peak_mb": round(by["streamReadNumbers"]["peakMB"]),
     "whole_model_read_peak_mb": round(by["read"]["peakMB"]),
+    "read_8_sheets_serial_peak_mb": round(by["readSheetsSerial"]["peakMB"]),
+    "read_8_sheets_parallel_peak_mb": round(by["readSheets"]["peakMB"]),
 }
 json.dump({"meta": meta, "readme": readme, "results": results}, open(target, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("wrote", target)

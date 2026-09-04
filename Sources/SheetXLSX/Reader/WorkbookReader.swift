@@ -115,125 +115,36 @@ enum WorkbookReader {
             pivotCaches[declared.cacheId] = cache
         }
 
-        // sheets
+        // sheets — each one's parse is independent once the shared strings and the style caches are in place
+        // (spec Appendix B.41): the caches are filled up front so that the parsers only ever read them, and the
+        // sheets are read side by side when the workbook is worth it, or when the caller says so
+        styles.prefill()
+        let context = SheetReadContext(zip: zip, sst: sst.strings, styles: styles, epoch: wb.epoch, options: options,
+                                       contentTypes: ct.overrides, rels: rels, base: base, pivotCaches: pivotCaches, workbookPath: workbookPath)
+        let infos = wbParser.sheets
+        let parsedBytes = infos.enumerated().compactMap { index, info -> Int? in   // what the grids to be parsed expand to
+            guard let rel = rels.first(where: { $0.id == info.rId }), rel.type.hasSuffix(relWorksheet) else { return nil }
+            if let selection = options.sheets, !selection.includes(name: info.name, index: index) { return nil }
+            return zip.entries[resolve(rel.target)]?.uncompressedSize ?? 0
+        }
+        let workers = concurrency(parsedBytes: parsedBytes, options: options)
+        let results = SheetResultsBox(count: infos.count)
+        if workers > 1 {
+            let queue = SheetQueue(count: infos.count)
+            DispatchQueue.concurrentPerform(iterations: workers) { _ in
+                while let i = queue.take() { results.set(i, context.read(index: i, info: infos[i])) }
+            }
+        } else {
+            for i in infos.indices { results.set(i, context.read(index: i, info: infos[i])) }
+        }
+        // sheet order, whichever order they finished in: the warnings keep it, and the first failure in it is the
+        // one thrown
         var sheets: [Sheet] = []
-        for (index, info) in wbParser.sheets.enumerated() {
-            guard let rel = rels.first(where: { $0.id == info.rId }) else { throw SheetError.malformedPart(path: workbookPath, detail: "sheet \(info.name) has no relationship") }
-            let part = resolve(rel.target)
-            guard zip.contains(part) else { throw SheetError.malformedPart(path: part, detail: "sheet part missing") }
-            let sheetRelsPath = relsPath(of: part)
-            let sheetRels = (try? parseRels(zip, sheetRelsPath)) ?? []
-            consumed.insert(part); consumed.insert(sheetRelsPath)
-
-            // a sheet the caller did not ask for is carried as it arrived and never parsed: its part, its
-            // relationships (all of them — the part still names them) and everything they point at stay bytes
-            if let selection = options.sheets, !selection.includes(name: info.name, index: index), rel.type.hasSuffix(relWorksheet) {
-                let body = try zip.read(part)
-                var sheet = Sheet(name: info.name)
-                sheet.state = info.state
-                sheet.preserved.partPath = part
-                sheet.preserved.relationshipId = info.rId
-                sheet.preserved.sheetId = info.sheetId
-                sheet.preserved.relationships = sheetRels
-                sheet.preserved.foreignSheet = ForeignSheet(root: "worksheet", relationshipType: rel.type,
-                                                            contentType: ct.overrides[part] ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
-                                                            body: body)
-                sheet.preserved.isUnread = true
-                warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheet.name,
-                                                  message: "the sheet was not read (left out by ReadOptions.sheets); it has no cells here and is written back to .xlsx exactly as it arrived"))
-                sheets.append(sheet)
-                continue
-            }
-
-            // Not every sheet is a grid: SpreadsheetML also has chart sheets, dialog sheets and macro sheets, and
-            // the workbook lists them beside the worksheets. Parsing one as a worksheet would find no cells and,
-            // worse, writing it back would replace `<chartsheet>` with `<worksheet>` under the same content type —
-            // a package that says one thing and holds another. So the part is kept as bytes and reported
-            // (spec Appendix B.35).
-            if !rel.type.hasSuffix(relWorksheet) {
-                let body = try zip.read(part)
-                var sheet = Sheet(name: info.name)
-                sheet.state = info.state
-                sheet.preserved.partPath = part
-                sheet.preserved.relationshipId = info.rId
-                sheet.preserved.sheetId = info.sheetId
-                sheet.preserved.relationships = sheetRels.filter { !$0.type.hasSuffix(relHyperlink) }
-                sheet.preserved.foreignSheet = ForeignSheet(
-                    root: rootElement(of: body) ?? "sheet", relationshipType: rel.type,
-                    contentType: ct.overrides[part] ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
-                    body: body)
-                warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
-                                                  message: "\(sheet.preserved.foreignSheet!.description) has no grid the model can read; "
-                                                  + "it has no cells here and is written back to .xlsx exactly as it arrived"))
-                sheets.append(sheet)
-                continue
-            }
-
-            let p = SheetParser(name: info.name, sst: sst.strings, styles: styles, epoch: wb.epoch, dataOnly: options.dataOnly, rels: sheetRels)
-            try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
-            var sheet = p.sheet
-            sheet.state = info.state
-            sheet.preserved.partPath = part
-            sheet.preserved.relationshipId = info.rId
-            sheet.preserved.sheetId = info.sheetId
-            sheet.preserved.relationships = sheetRels.filter {
-                !$0.type.hasSuffix(relHyperlink) && !$0.type.hasSuffix(relTable) && !$0.type.hasSuffix(relPivotTable)
-            }
-            sheet.preserved.rootAttributes = p.rootAttributes
-
-            // named tables: each `<tablePart>` names a relationship, which names a part. The parts stop being
-            // opaque, and `<tableParts>` is regenerated from the model rather than kept (`SheetParser` dropped it).
-            let sheetDir = (part as NSString).deletingLastPathComponent
-            for rel in sheetRels where rel.type.hasSuffix(relTable) {
-                let tablePart = resolvePart(rel.target, relativeTo: sheetDir)
-                guard let data = try? zip.read(tablePart) else { continue }
-                consumed.insert(tablePart); consumed.insert(relsPath(of: tablePart))
-                let tp = TablePartParser()
-                try? tp.run(data, part: tablePart)
-                guard var t = tp.table else { continue }
-                t.partPath = tablePart
-                t.relationshipId = rel.id
-                sheet.excelTables.append(t)
-            }
-
-            // pivot tables: the layout part names the cache it reads by id
-            for rel in sheetRels where rel.type.hasSuffix(relPivotTable) {
-                let pivotPart = resolvePart(rel.target, relativeTo: sheetDir)
-                guard let data = try? zip.read(pivotPart) else { continue }
-                consumed.insert(pivotPart); consumed.insert(relsPath(of: pivotPart))
-                let pp = PivotTableParser()
-                do { try pp.run(data, part: pivotPart) } catch {
-                    warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
-                                                      message: "\(pivotPart) could not be parsed; the pivot table it describes was skipped"))
-                    continue
-                }
-                guard var pivot = pp.table else {
-                    warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
-                                                      message: "\(pivotPart) holds no pivot table definition; it was skipped"))
-                    continue
-                }
-                pivot.partPath = pivotPart
-                pivot.relationshipId = rel.id
-                if let id = pp.cacheId, let cache = pivotCaches[id] { pivot.cache = cache }
-                sheet.pivotTables.append(pivot)
-            }
-
-            // cell notes: the text from the comments part, the box size from the legacy VML beside it. Both parts
-            // stay opaque as well — untouched notes are re-packed byte for byte (spec §6), and only an edit makes
-            // the writer generate them afresh.
-            if let commentsRel = sheetRels.first(where: { $0.type.hasSuffix(CommentParts.relationshipType) }) {
-                let commentsPart = resolvePart(commentsRel.target, relativeTo: (part as NSString).deletingLastPathComponent)
-                if let data = try? zip.read(commentsPart) {
-                    var notes = CommentParts.parse(data, part: commentsPart)
-                    if let vmlRel = sheetRels.first(where: { $0.type.hasSuffix(CommentParts.vmlRelationshipType) }),
-                       let vml = try? zip.read(resolvePart(vmlRel.target, relativeTo: (part as NSString).deletingLastPathComponent)) {
-                        CommentParts.applySizes(from: vml, to: &notes)
-                    }
-                    for (ref, note) in notes { sheet[cell: ref].comment = note }
-                    sheet.preserved.comments = notes
-                }
-            }
-            sheets.append(sheet)
+        for r in results.all {
+            if let error = r.error { throw error }
+            if let sheet = r.sheet { sheets.append(sheet) }
+            consumed.formUnion(r.consumed)
+            warnings.append(contentsOf: r.warnings)
         }
         guard !sheets.isEmpty else { throw SheetError.invalidWorkbook("workbook has no sheets") }
         // an unread sheet's cells index the shared strings and the cell formats by position: keep both tables
@@ -341,4 +252,195 @@ enum WorkbookReader {
         try p.run(try zip.read(path), part: path)
         return p.rels
     }
+
+    /// How many sheets to parse at once (spec Appendix B.41). `ReadOptions.concurrency` says it outright (capped
+    /// at the number of grids to parse); left unsaid, the sheets go side by side — up to one per processor
+    /// core — only when at least two are to be parsed and their parts expand to `parallelThresholdBytes` between
+    /// them, a size the ZIP directory already states, so nothing is read to decide.
+    static let parallelThresholdBytes = 4 << 20   // about a hundred thousand cells of SpreadsheetML
+    static func concurrency(parsedBytes: [Int], options: ReadOptions) -> Int {
+        guard parsedBytes.count > 1 else { return 1 }
+        if let asked = options.concurrency { return Swift.max(1, Swift.min(asked, parsedBytes.count)) }
+        guard parsedBytes.reduce(0, +) >= parallelThresholdBytes else { return 1 }
+        return Swift.max(1, Swift.min(ProcessInfo.processInfo.activeProcessorCount, parsedBytes.count))
+    }
+}
+
+/// What one sheet's parse needs from the workbook, read-only, so that sheets can be parsed side by side (spec
+/// Appendix B.41). Everything here is settled before the first sheet starts: the shared strings are a value, the
+/// style caches are prefilled, the archive reads by position.
+final class SheetReadContext: @unchecked Sendable {
+    let zip: ZipArchive
+    let sst: [CellValue]
+    let styles: StylesParser
+    let epoch: DateEpoch
+    let options: ReadOptions
+    let contentTypes: [String: String]
+    let rels: [Relationship]
+    let base: String
+    let pivotCaches: [Int: PivotCache]
+    let workbookPath: String
+    init(zip: ZipArchive, sst: [CellValue], styles: StylesParser, epoch: DateEpoch, options: ReadOptions, contentTypes: [String: String],
+         rels: [Relationship], base: String, pivotCaches: [Int: PivotCache], workbookPath: String) {
+        self.zip = zip; self.sst = sst; self.styles = styles; self.epoch = epoch; self.options = options
+        self.contentTypes = contentTypes; self.rels = rels; self.base = base; self.pivotCaches = pivotCaches; self.workbookPath = workbookPath
+    }
+
+    /// One sheet's outcome: the sheet, the parts it consumed, what it had to report — or the error that stopped it.
+    struct Result: Sendable {
+        var sheet: Sheet?
+        var consumed: Set<String> = []
+        var warnings: [ConversionWarning] = []
+        var error: Error?
+    }
+
+    func read(index: Int, info: WorkbookXMLParser.SheetInfo) -> Result {
+        var result = Result()
+        do { try readSheet(index: index, info: info, into: &result) } catch { result.error = error }
+        return result
+    }
+
+    private func resolve(_ target: String) -> String { WorkbookReader.resolvePart(target, relativeTo: base) }
+
+    private func readSheet(index: Int, info: WorkbookXMLParser.SheetInfo, into result: inout Result) throws {
+        guard let rel = rels.first(where: { $0.id == info.rId }) else { throw SheetError.malformedPart(path: workbookPath, detail: "sheet \(info.name) has no relationship") }
+        let part = resolve(rel.target)
+        guard zip.contains(part) else { throw SheetError.malformedPart(path: part, detail: "sheet part missing") }
+        let sheetRelsPath = WorkbookReader.relsPath(of: part)
+        let sheetRels = (try? WorkbookReader.parseRels(zip, sheetRelsPath)) ?? []
+        result.consumed.insert(part); result.consumed.insert(sheetRelsPath)
+
+        // a sheet the caller did not ask for is carried as it arrived and never parsed: its part, its
+        // relationships (all of them — the part still names them) and everything they point at stay bytes
+        if let selection = options.sheets, !selection.includes(name: info.name, index: index), rel.type.hasSuffix(WorkbookReader.relWorksheet) {
+            let body = try zip.read(part)
+            var sheet = Sheet(name: info.name)
+            sheet.state = info.state
+            sheet.preserved.partPath = part
+            sheet.preserved.relationshipId = info.rId
+            sheet.preserved.sheetId = info.sheetId
+            sheet.preserved.relationships = sheetRels
+            sheet.preserved.foreignSheet = ForeignSheet(root: "worksheet", relationshipType: rel.type,
+                                                        contentType: contentTypes[part] ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+                                                        body: body)
+            sheet.preserved.isUnread = true
+            result.warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheet.name,
+                                              message: "the sheet was not read (left out by ReadOptions.sheets); it has no cells here and is written back to .xlsx exactly as it arrived"))
+            result.sheet = sheet
+            return
+        }
+
+        // Not every sheet is a grid: SpreadsheetML also has chart sheets, dialog sheets and macro sheets, and
+        // the workbook lists them beside the worksheets. Parsing one as a worksheet would find no cells and,
+        // worse, writing it back would replace `<chartsheet>` with `<worksheet>` under the same content type —
+        // a package that says one thing and holds another. So the part is kept as bytes and reported
+        // (spec Appendix B.35).
+        if !rel.type.hasSuffix(WorkbookReader.relWorksheet) {
+            let body = try zip.read(part)
+            var sheet = Sheet(name: info.name)
+            sheet.state = info.state
+            sheet.preserved.partPath = part
+            sheet.preserved.relationshipId = info.rId
+            sheet.preserved.sheetId = info.sheetId
+            sheet.preserved.relationships = sheetRels.filter { !$0.type.hasSuffix(WorkbookReader.relHyperlink) }
+            sheet.preserved.foreignSheet = ForeignSheet(
+                root: WorkbookReader.rootElement(of: body) ?? "sheet", relationshipType: rel.type,
+                contentType: contentTypes[part] ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+                body: body)
+            result.warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.preserved.foreignSheet!.description) has no grid the model can read; "
+                                              + "it has no cells here and is written back to .xlsx exactly as it arrived"))
+            result.sheet = sheet
+            return
+        }
+
+        let p = SheetParser(name: info.name, sst: sst, styles: styles, epoch: epoch, dataOnly: options.dataOnly, rels: sheetRels)
+        try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
+        var sheet = p.sheet
+        sheet.state = info.state
+        sheet.preserved.partPath = part
+        sheet.preserved.relationshipId = info.rId
+        sheet.preserved.sheetId = info.sheetId
+        sheet.preserved.relationships = sheetRels.filter {
+            !$0.type.hasSuffix(WorkbookReader.relHyperlink) && !$0.type.hasSuffix(WorkbookReader.relTable) && !$0.type.hasSuffix(WorkbookReader.relPivotTable)
+        }
+        sheet.preserved.rootAttributes = p.rootAttributes
+
+        // named tables: each `<tablePart>` names a relationship, which names a part. The parts stop being
+        // opaque, and `<tableParts>` is regenerated from the model rather than kept (`SheetParser` dropped it).
+        let sheetDir = (part as NSString).deletingLastPathComponent
+        for rel in sheetRels where rel.type.hasSuffix(WorkbookReader.relTable) {
+            let tablePart = WorkbookReader.resolvePart(rel.target, relativeTo: sheetDir)
+            guard let data = try? zip.read(tablePart) else { continue }
+            result.consumed.insert(tablePart); result.consumed.insert(WorkbookReader.relsPath(of: tablePart))
+            let tp = TablePartParser()
+            try? tp.run(data, part: tablePart)
+            guard var t = tp.table else { continue }
+            t.partPath = tablePart
+            t.relationshipId = rel.id
+            sheet.excelTables.append(t)
+        }
+
+        // pivot tables: the layout part names the cache it reads by id
+        for rel in sheetRels where rel.type.hasSuffix(WorkbookReader.relPivotTable) {
+            let pivotPart = WorkbookReader.resolvePart(rel.target, relativeTo: sheetDir)
+            guard let data = try? zip.read(pivotPart) else { continue }
+            result.consumed.insert(pivotPart); result.consumed.insert(WorkbookReader.relsPath(of: pivotPart))
+            let pp = PivotTableParser()
+            do { try pp.run(data, part: pivotPart) } catch {
+                result.warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                  message: "\(pivotPart) could not be parsed; the pivot table it describes was skipped"))
+                continue
+            }
+            guard var pivot = pp.table else {
+                result.warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                                  message: "\(pivotPart) holds no pivot table definition; it was skipped"))
+                continue
+            }
+            pivot.partPath = pivotPart
+            pivot.relationshipId = rel.id
+            if let id = pp.cacheId, let cache = pivotCaches[id] { pivot.cache = cache }
+            sheet.pivotTables.append(pivot)
+        }
+
+        // cell notes: the text from the comments part, the box size from the legacy VML beside it. Both parts
+        // stay opaque as well — untouched notes are re-packed byte for byte (spec §6), and only an edit makes
+        // the writer generate them afresh.
+        if let commentsRel = sheetRels.first(where: { $0.type.hasSuffix(CommentParts.relationshipType) }) {
+            let commentsPart = WorkbookReader.resolvePart(commentsRel.target, relativeTo: (part as NSString).deletingLastPathComponent)
+            if let data = try? zip.read(commentsPart) {
+                var notes = CommentParts.parse(data, part: commentsPart)
+                if let vmlRel = sheetRels.first(where: { $0.type.hasSuffix(CommentParts.vmlRelationshipType) }),
+                   let vml = try? zip.read(WorkbookReader.resolvePart(vmlRel.target, relativeTo: (part as NSString).deletingLastPathComponent)) {
+                    CommentParts.applySizes(from: vml, to: &notes)
+                }
+                for (ref, note) in notes { sheet[cell: ref].comment = note }
+                sheet.preserved.comments = notes
+            }
+        }
+        result.sheet = sheet
+    }
+}
+
+/// The sheets still to be parsed, handed out one at a time to whoever asks.
+final class SheetQueue: @unchecked Sendable {
+    private var next = 0
+    private let count: Int
+    private let lock = NSLock()
+    init(count: Int) { self.count = count }
+    func take() -> Int? {
+        lock.lock(); defer { lock.unlock() }
+        guard next < count else { return nil }
+        next += 1
+        return next - 1
+    }
+}
+
+/// The results of the sheet reads, each put in its own place under a lock.
+final class SheetResultsBox: @unchecked Sendable {
+    private var stored: [SheetReadContext.Result]
+    private let lock = NSLock()
+    init(count: Int) { stored = Array(repeating: SheetReadContext.Result(), count: count) }
+    func set(_ i: Int, _ r: SheetReadContext.Result) { lock.lock(); stored[i] = r; lock.unlock() }
+    var all: [SheetReadContext.Result] { lock.lock(); defer { lock.unlock() }; return stored }
 }
