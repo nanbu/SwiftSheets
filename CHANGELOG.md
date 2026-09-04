@@ -41,6 +41,15 @@ writes, so the constant, the README's status line and the tag always name the sa
 - **No cell ceiling by default** (spec Appendix B.39.2). `ReadOptions.cellLimit` used to stop a read at a
   million cells; it now defaults to no limit, and is there to be set by a reader of untrusted input. How many
   cells are worth holding is the caller's decision.
+- **Parts a reader does not interpret travel folded** (spec Appendix B.39.7). A chart, an image, a pivot cache,
+  a VBA project is kept as the compressed bytes the package held, and a same-format write copies them as they
+  lie: never expanded, never folded again, byte for byte in the literal sense. `PreservationStore.opaqueParts`
+  expands them only when read; `opaquePartNames` and `opaquePartCount` answer without expanding.
+- **The writers no longer hold a sheet's XML.** Rows go to the compressor 64 KiB at a time; the ODS body, which
+  has to exist before the styles it registers can be written, is kept in pieces and spilled to a temporary file
+  past 8 MiB. Over a million cells: writing peaks at 258 MB instead of 360 (the model itself is 203), ODS
+  writing at 313 MB instead of 641, and opening a workbook with charts, editing one cell and saving it takes
+  3.8 s and 288 MB instead of 6.9 s and 397 MB.
 - **The XML inside a package is read by a byte-level scanner of the library's own** (spec Appendix B.39.6),
   not by Foundation's parser: names are compared as bytes, strings are made straight from UTF-8, and a
   preserved subtree is the source bytes themselves rather than a re-serialisation. Every reader keeps its

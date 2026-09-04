@@ -210,3 +210,24 @@ import SwiftSheets
         #expect(ReadOptions(cellLimit: 10).cellLimit == 10)
     }
 }
+
+/// Parts a reader does not interpret travel folded (spec Appendix B.39.7): the compressed bytes in the output
+/// are the compressed bytes of the input, so a write-back never expanded or refolded them.
+@Suite struct FoldedPartTests {
+    @Test func anUntouchedPartLeavesAsTheSameFoldedBytes() throws {
+        let source = try Data(contentsOf: ZipTests.fixtures.appendingPathComponent("preservation/charts-and-friends.xlsx"))
+        var wb = try Workbook(data: source)
+        wb.sheets[0]["A1"] = "edited"
+        let out = try wb.data(as: .xlsx)
+        let before = try ZipArchive(data: source), after = try ZipArchive(data: out)
+        var checked = 0
+        for name in before.names where name.hasPrefix("xl/charts/") || name.hasPrefix("xl/media/") || name.hasPrefix("xl/theme/") {
+            let a = try before.compressed(name), b = try after.compressed(name)
+            #expect(a.payload == b.payload && a.entry.method == b.entry.method && a.entry.crc32 == b.entry.crc32, "\(name)")
+            checked += 1
+        }
+        #expect(checked >= 2)
+        #expect(wb.preserved.opaqueParts["xl/theme/theme1.xml"] != nil, "the expanded view still answers")
+        #expect(wb.preserved.opaquePartNames.count == wb.preserved.opaqueParts.count)
+    }
+}

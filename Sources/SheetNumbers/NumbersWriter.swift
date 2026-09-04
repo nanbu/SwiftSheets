@@ -123,8 +123,8 @@ struct NumbersWriter {
 
     mutating func write() throws -> Data {
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
-        if let src = workbook.preserved.sourceFormat, src != .numbers, !workbook.preserved.opaqueParts.isEmpty {
-            warnings.append(ConversionWarning(.dropped, subject: .objects, message: "\(workbook.preserved.opaqueParts.count) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
+        if let src = workbook.preserved.sourceFormat, src != .numbers, workbook.preserved.opaquePartCount > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, message: "\(workbook.preserved.opaquePartCount) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
         }
         // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
         if workbook.preserved.hasVBAProject {

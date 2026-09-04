@@ -1897,6 +1897,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.14 Draft</td><td>2026-09-04</td><td><strong>形式の判定</strong>を付録 B.39.4 に記録し §4.2 に規則 3 つを足した。<code>SheetFormat.detect(contentsOf:)</code> はファイル全体を読まない（先頭 4 バイト・末尾の目録・小さな 1 部品）。<code>SheetFormat.probe</code> → <code>FormatProbe</code> が形式・開けない理由・不明を 1 回で答える。フォルダー形式の Numbers 書類を開けるようにした（それまで「ディレクトリです」で失敗）。文字の判定をバイト列で行う。テスト 977 件</td></tr>
     <tr><td>4.15 Draft</td><td>2026-09-04</td><td><strong>手戻りの小さい手直し</strong>を付録 B.39.5 に記録。日付書式の判定を書式番号ごとに 1 回・書式の索引を共有スタイルの同一性で・逐次書きの 64 KiB 束ね・ODS 段落の早道・Snappy と IWA の配列写しの廃止。形式は変えない。同時刻比で読み −25%、逐次読み −37%、書き −13%。テスト 977 件</td></tr>
     <tr><td>4.16 Draft</td><td>2026-09-05</td><td><strong>自前の字句解析器</strong> <code>XMLScanner</code> を付録 B.39.6 に記録。UTF-8 の部品は既定でこれが読み、UTF-16 と別符号化の部品は Foundation へ。受け手の約束は不変、保全の断片は元のバイト列そのものに。<code>-DSWIFTSHEETS_FOUNDATION_XML</code> で旧経路に戻せ、CI が 3 経路で全件を走らせる。見本全冊 289 部品で両機関の出来事が同一。読み 5.5 → 2.6 秒、逐次読み 4.6 → 1.8 秒、ODS 読み 13.9 → 3.7 秒。テスト 984 件</td></tr>
+    <tr><td>4.17 Draft</td><td>2026-09-05</td><td><strong>書き出しを持たない</strong>を付録 B.39.7 に記録。解釈しない部品は縮めたまま運ぶ（<code>OpaquePart.compressed</code>・<code>opaqueParts</code> は取り出したときだけ戻す）。XLSX のシートは行を 64 KiB ごとに圧縮器へ流し、ODS の本文は 8 MiB を超えたら一時ファイルへ落として後から流す（<code>TextSpill</code>）。書きのピーク 360 → 258 MB、ODS 書き 641 → 313 MB、開いて 1 マス直して保存 6.9 → 3.8 秒・397 → 288 MB。テスト 988 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4894,6 +4895,38 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   <p>
     実測（100 万マス・同時刻の前バイナリ比）: 読み <strong>5.50 → 2.64 秒</strong>、逐次読み <strong>4.58 → 1.81 秒</strong>、
     ODS 読み <strong>13.86 → 3.71 秒</strong>。着手前の 5.7 秒からは 2.2 倍、ODS は 3.7 倍。メモリはまだ変わらない（次の段）。
+  </p>
+
+  <h4>B.39.7 書き出しを持たない — 部品は縮めたまま運び、行は圧縮器へ流す</h4>
+  <p>
+    書き出しの記録は「同じ 33 MB のシート XML を 5 回写している」ことを示していた（B.39 冒頭）。
+    100 万マスの書き出しのピークは模型 203 MB に対して 360 MB、ODS では 641 MB。加えて、開いて 1 マス直して保存する —
+    この library の存在理由 — が、解釈しない部品（グラフ・画像・集計表の記録・VBA）を<strong>読むときに戻し、書くときに縮め直す</strong>
+    ことに部品の大きさぶんの時間とメモリを払っていた。
+  </p>
+  <h5>決めたこと</h5>
+  <ul>
+    <li><strong>解釈しない部品は縮めたまま運ぶ</strong>（<code>OpaquePart.compressed</code>）。読み手は封筒から圧縮バイトと
+      CRC・大きさをそのまま受け取り（B.39.1 の <code>compressed(_:)</code>）、同形式の書き手は封筒へそのまま写す
+      （<code>addCompressed</code>）。展開も再圧縮も起きず、F3 の「バイト一致」は文字どおりになった。
+      公開の <code>opaqueParts</code> は<strong>取り出したときだけ</strong>戻す計算プロパティに変え、
+      名前と数は展開せずに答える（<code>opaquePartNames</code> / <code>opaquePartCount</code>）。
+      <code>FoldedPartTests</code>: グラフ・画像・テーマの圧縮バイトが入力と出力で同一。</li>
+    <li><strong>XLSX のシートは行を圧縮器へ流す</strong>。<code>sheetPart</code> は <code>&lt;sheetData&gt;</code> の前後を文字列で、
+      行を「与えられた器へ書く」閉包で返す。器は 64 KiB たまるごとに圧縮器へ渡す <code>PieceBuffer</code>。
+      共有文字列表の有無は行を書く前に決めなければ目録と関係が食い違うので、モデルから
+      「数式でない文字の値があるか」で先に決める（それに気づいたのは <code>PreservationTests</code> が
+      <code>sharedStrings.xml</code> の未宣言を赤くしたから）。テストが読む <code>sheetXML</code> は同じ閉包を文字列へ流す。</li>
+    <li><strong>ODS の本文はいったん脇へ置く</strong>（<code>TextSpill</code>）。ODS は本文を作りながら登録した書式を
+      本文の<strong>前</strong>に書かねばならず、本文を先に全部作らざるを得ない。8 MiB までは断片で持ち、超えたら一時ファイルへ落として、
+      書式を書き終えた後に 1 MiB ずつ読み戻して圧縮器へ渡す。表の XML は行ごとに器へ流し、1 本の文字列として育てない。</li>
+  </ul>
+  <p>
+    実測（100 万マス・前バイナリと同時刻）: 書き出しのピーク <strong>360 → 258 MB</strong>（時間 1.8 → 1.7 秒）、
+    ODS 書き <strong>641 → 313 MB</strong>（4.0 → 3.2 秒）、開いて 1 マス直して保存 <strong>6.9 → 3.8 秒・397 → 288 MB</strong>。
+    残りは模型そのもの（203 MB）と共有文字列表で、次の版の話（B.39 冒頭）。
+    計測中に 1 度、計測台の<strong>差分ビルドが古い部品を混ぜ</strong>、書き出しが壊れて見えた（多バイト文字の途中で 2 バイトが重複）。
+    作り直したら消えた。計測台の手引きに「測る前に .build を消す」を書いた。
   </p>
 
 </section>

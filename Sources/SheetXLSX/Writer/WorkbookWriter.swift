@@ -33,6 +33,24 @@ enum XMLWriter {
     static func num(_ d: Decimal) -> String { "\(d)" }
 }
 
+/// Text on its way to a compressor, handed over in pieces of about 64 KiB rather than one string per part.
+final class PieceBuffer {
+    static let pieceSize = 64 * 1024
+    private var pending = Data()
+    private let sink: (Data) throws -> Void
+    init(_ sink: @escaping (Data) throws -> Void) { self.sink = sink }
+    convenience init(_ text: @escaping (String) -> Void) { self.init { text(String(decoding: $0, as: UTF8.self)) } }
+    func write(_ s: String) throws {
+        pending.append(contentsOf: s.utf8)
+        if pending.count >= PieceBuffer.pieceSize { try flush() }
+    }
+    func flush() throws {
+        guard !pending.isEmpty else { return }
+        try sink(pending)
+        pending.removeAll(keepingCapacity: true)
+    }
+}
+
 /// Collects what the write could not express.
 final class WarningSink {
     var warnings: [ConversionWarning] = []
@@ -65,7 +83,7 @@ enum WorkbookWriter {
         let strings = SharedStringTable()
 
         // opaque parts that travel along (VBA only into .xlsm)
-        var opaque = sameFamily ? preserved.opaqueParts : [:]
+        var opaque: [String: OpaquePart] = sameFamily ? preserved.parts : [:]
         var droppedRelTypes: [String] = []
         if format == .xlsx {
             let vba = opaque.keys.filter { $0.hasSuffix("vbaProject.bin") || $0.hasSuffix("vbaProjectSignature.bin") || $0.hasSuffix("vbaData.xml") }
@@ -75,8 +93,8 @@ enum WorkbookWriter {
                 sink.add(.dropped, subject: .macros, "VBA project dropped: macros cannot be kept in .xlsx (write .xlsm to keep them)")
             }
         }
-        if !sameFamily, !preserved.opaqueParts.isEmpty {
-            sink.add(.dropped, subject: .objects, "\(preserved.opaqueParts.count) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
+        if !sameFamily, preserved.opaquePartCount > 0 {
+            sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
         }
         // a Numbers word with no OOXML spelling: the value under the control is written, the control is named
         for sheet in wb.sheets {
@@ -123,7 +141,7 @@ enum WorkbookWriter {
 
             // the source parts stop being authoritative the moment the model disagrees with them
             for path in [sourceComments, sourceVML].compactMap({ $0 }) {
-                if let vml = sourceVML, path == vml, let bytes = opaque[vml], CommentParts.holdsNonNoteShapes(bytes) {
+                if let vml = sourceVML, path == vml, let bytes = opaque[vml]?.data, CommentParts.holdsNonNoteShapes(bytes) {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name,
                              "legacy drawing shapes other than cell notes (form controls, buttons) were dropped: the part had to be regenerated for the notes")
                 }
@@ -170,7 +188,7 @@ enum WorkbookWriter {
                 let path = "xl/media/image\(nextMedia).\(image.format.rawValue)"
                 nextMedia += 1
                 usedPaths.insert(path)
-                opaque[path] = image.data
+                opaque[path] = .bytes(image.data)
                 imageExtensions.insert(image.format.rawValue)
                 entries.append((DrawingParts.imageRelationshipType, "../media/" + (path as NSString).lastPathComponent))
             }
@@ -183,7 +201,7 @@ enum WorkbookWriter {
                 let path = "xl/charts/chart\(nextChart).xml"
                 nextChart += 1
                 usedPaths.insert(path)
-                opaque[path] = Data(ChartParts.chartXML(chart, sheetName: sheet.name).utf8)
+                opaque[path] = .bytes(Data(ChartParts.chartXML(chart, sheetName: sheet.name).utf8))
                 generatedOverrides[path] = ChartParts.contentType
                 entries.append((ChartParts.relationshipType, "../charts/" + (path as NSString).lastPathComponent))
                 charts.append(chart)
@@ -209,16 +227,16 @@ enum WorkbookWriter {
                 .flatMap { opaque[$0] != nil ? $0 : nil }
             if let drawingPath = existing {
                 let relsPath = WorkbookReader.relsPath(of: drawingPath)
-                guard let patched = DrawingParts.appendingRelationships(entries: entries, to: opaque[relsPath]),
+                guard let patched = DrawingParts.appendingRelationships(entries: entries, to: opaque[relsPath]?.data),
                       let spliced = DrawingParts.appendingAnchors(
-                          anchors(patched.ids, firstShapeID: { 1000 + (Int($0.dropFirst(3)) ?? 0) }), to: opaque[drawingPath]!)
+                          anchors(patched.ids, firstShapeID: { 1000 + (Int($0.dropFirst(3)) ?? 0) }), to: opaque[drawingPath]!.data)
                 else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name,
                              "\(entries.count) image(s)/chart(s) not written: the sheet's existing drawing part could not be extended")
                     continue
                 }
-                opaque[drawingPath] = spliced
-                opaque[relsPath] = patched.data
+                opaque[drawingPath] = .bytes(spliced)
+                opaque[relsPath] = .bytes(patched.data)
             } else {
                 let drawingPath = "xl/drawings/drawing\(nextDrawing).xml"
                 nextDrawing += 1
@@ -349,12 +367,12 @@ enum WorkbookWriter {
         }
 
         // sheets first: they register styles and strings
-        var sheetParts: [(xml: String, rels: String?, parts: [(path: String, data: Data)])] = []
+        var sheetParts: [SheetPart] = []
         for (i, sheet) in wb.sheets.enumerated() {
-            sheetParts.append(sheetXML(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily,
-                                       isActive: i == wb.activeIndex, comments: commentPlans[i],
-                                       tables: tablePlans[i] ?? [], pivots: pivotPlans[i] ?? [],
-                                       images: imagePlans[i], sharedSourceStyles: sharedSourceStyles, sink: sink))
+            sheetParts.append(sheetPart(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily,
+                                        isActive: i == wb.activeIndex, comments: commentPlans[i],
+                                        tables: tablePlans[i] ?? [], pivots: pivotPlans[i] ?? [],
+                                        images: imagePlans[i], sharedSourceStyles: sharedSourceStyles, sink: sink))
         }
         let generatedNoteParts = sheetParts.flatMap(\.parts)
         // styles reference theme colours, so a theme part must exist: keep the source's, or ship the default one
@@ -363,7 +381,14 @@ enum WorkbookWriter {
         let needsGeneratedTheme = preservedTheme == nil
         let stylesId = freshId()
         let themeId = needsGeneratedTheme ? freshId() : nil
-        let sstId = strings.isEmpty ? nil : freshId()
+        // the rows are written after the workbook's own parts now, so whether a shared-string table will exist
+        // is decided from the model: any text value outside a formula goes into it
+        let hasStrings = wb.sheets.contains { sheet in
+            sheet.preserved.foreignSheet == nil && sheet.table.cells.values.contains { cell in
+                switch cell.value { case .text?, .richText?: return true; default: return false }
+            }
+        }
+        let sstId = hasStrings ? freshId() : nil
 
         // [Content_Types].xml
         var defaults = ["rels": "application/vnd.openxmlformats-package.relationships+xml", "xml": "application/xml"]
@@ -375,7 +400,7 @@ enum WorkbookWriter {
                 ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
         }
         overrides["xl/styles.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"
-        if !strings.isEmpty { overrides["xl/sharedStrings.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" }
+        if hasStrings { overrides["xl/sharedStrings.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" }
         overrides[themePath] = Theme.contentType
         overrides["docProps/core.xml"] = "application/vnd.openxmlformats-package.core-properties+xml"
         overrides["docProps/app.xml"] = "application/vnd.openxmlformats-officedocument.extended-properties+xml"
@@ -485,7 +510,13 @@ enum WorkbookWriter {
             if sameFamily, let foreign = sheet.preserved.foreignSheet {
                 archive.add(plan.path, foreign.body)      // not a grid: it leaves as the bytes it arrived as
             } else {
-                archive.add(plan.path, Data((XMLWriter.header + part.xml).utf8))
+                // the rows go to the compressor a piece at a time; the sheet's XML is never held whole
+                try archive.beginEntry(plan.path)
+                let buffer = PieceBuffer { try archive.write($0) }
+                try buffer.write(XMLWriter.header)
+                try part.write(into: buffer)
+                try buffer.flush()
+                try archive.endEntry()
             }
             if let r = part.rels { archive.add(WorkbookReader.relsPath(of: plan.path), Data((XMLWriter.header + r).utf8)) }
         }
@@ -500,9 +531,9 @@ enum WorkbookWriter {
             archive.add(records, bytes)
         }
         if needsGeneratedTheme { archive.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8)) }
-        if !strings.isEmpty { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml()).utf8)) }
+        if hasStrings { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml()).utf8)) }
         archive.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
-        for name in opaque.keys.sorted() { archive.add(name, opaque[name]!) }
+        for name in opaque.keys.sorted() { archive.add(name, part: opaque[name]!) }
 
         let warnings = sink.warnings
         return WriteResult(data: archive.finish(), warnings: warnings, suggestion: WriteResult.suggest(from: warnings, target: format, options: options))
@@ -793,10 +824,48 @@ enum WorkbookWriter {
     /// drawing needs no plan: its preserved bytes were spliced during planning (spec Appendix B.32).
     struct ImagePlan { var newDrawing: (path: String, xml: String, rels: String)? }
 
+    /// A worksheet part with its rows still to be generated: `head` and `tail` are the small parts of the XML
+    /// around `<sheetData>`, and `rows` writes the rows themselves into whatever is given — a buffer feeding the
+    /// compressor, or a string for a test to read.
+    struct SheetPart {
+        let head: String
+        let tail: String
+        let rows: (PieceBuffer) throws -> Void
+        let rels: String?
+        let parts: [(path: String, data: Data)]
+
+        /// The whole part as one string.
+        var xml: String {
+            var out = head
+            let buffer = PieceBuffer { out += $0 }
+            try? rows(buffer)
+            try? buffer.flush()
+            return out + tail
+        }
+
+        func write(into buffer: PieceBuffer) throws {
+            try buffer.write(head)
+            try rows(buffer)
+            try buffer.write(tail)
+        }
+    }
+
     static func sheetXML(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool,
                          comments: CommentPlan?, tables: [TablePlan] = [], pivots: [PivotPlan] = [],
                          images: ImagePlan? = nil,
                          sharedSourceStyles: Set<Int> = [], sink: WarningSink) -> (xml: String, rels: String?, parts: [(path: String, data: Data)]) {
+        let part = sheetPart(ws, epoch: epoch, styles: styles, strings: strings, preserve: preserve, isActive: isActive, comments: comments,
+                             tables: tables, pivots: pivots, images: images, sharedSourceStyles: sharedSourceStyles, sink: sink)
+        return (part.xml, part.rels, part.parts)
+    }
+
+    /// The marker `ordered` leaves where the rows go.
+    static let sheetDataMarker = "\u{0}sheetData\u{0}"
+
+    static func sheetPart(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool,
+                          comments: CommentPlan?, tables: [TablePlan] = [], pivots: [PivotPlan] = [],
+                          images: ImagePlan? = nil,
+                          sharedSourceStyles: Set<Int> = [], sink: WarningSink) -> SheetPart {
         let table = ws.table
         // a worksheet is one grid: a canvas carrying several tables (Numbers) keeps only the first one
         if ws.tables.count > 1 {
@@ -839,13 +908,18 @@ enum WorkbookWriter {
             }
             generated.append(("cols", s + "</cols>"))
         }
-        s = "<sheetData>"
+        // hyperlinks are collected before the rows are written, since the rows are written last
+        var hyperlinks: [(String, Hyperlink)] = []
+        for (ref, c) in table.cells where c.hyperlink != nil { hyperlinks.append((ref.a1, c.hyperlink!)) }
+        hyperlinks.sort { CellRef($0.0)! < CellRef($1.0)! }
+        let sheetName = ws.name
+        let rows: (PieceBuffer) throws -> Void = { out in
+        var s = "<sheetData>"
         // grouped by row, but only the *keys*: grouping the cells themselves would copy every `Cell` (each carries
         // its whole style — 496 bytes), which is half a gigabyte on a million cells
         var byRow: [Int: [CellRef]] = [:]
         for ref in table.cells.keys { byRow[ref.row, default: []].append(ref) }
         let rowNumbers = Set(byRow.keys).union(table.rowDimensions.filter { !$0.value.isDefault }.keys).sorted()
-        var hyperlinks: [(String, Hyperlink)] = []
         for r in rowNumbers {
             s += "<row r=\"\(r + 1)\""
             if let d = table.rowDimensions[r] {
@@ -862,7 +936,6 @@ enum WorkbookWriter {
                 let styleIndex = styles.index(for: c)
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
                 let a1 = ref.a1
-                if let h = c.hyperlink { hyperlinks.append((a1, h)) }
                 switch c.value {
                 case nil: s += "<c r=\"\(a1)\"\(st)/>"
                 case .formula(let f, let cached)?:
@@ -894,8 +967,11 @@ enum WorkbookWriter {
                 }
             }
             s += "</row>"
+            if s.utf8.count >= PieceBuffer.pieceSize { try out.write(s); s = "" }
         }
-        generated.append(("sheetData", s + "</sheetData>"))
+        try out.write(s + "</sheetData>")
+        }
+        generated.append(("sheetData", sheetDataMarker))
         if !ws.protection.isDefault {
             let p = ws.protection
             var x = "<sheetProtection"
@@ -1109,7 +1185,9 @@ enum WorkbookWriter {
         var xml = "<worksheet" + XMLWriter.rootAttributes(preserve ? ws.preserved.rootAttributes : [:], defaults: ["xmlns": XMLWriter.nsMain, "xmlns:r": XMLWriter.nsRel]) + ">"
         xml += XMLWriter.ordered(generated, fragments: noteFragments, order: worksheetOrder)
         xml += "</worksheet>"
-        return (xml, rels, extraParts)
+        _ = sheetName
+        guard let marker = xml.range(of: sheetDataMarker) else { return SheetPart(head: xml, tail: "", rows: { _ in }, rels: rels, parts: extraParts) }
+        return SheetPart(head: String(xml[..<marker.lowerBound]), tail: String(xml[marker.upperBound...]), rows: rows, rels: rels, parts: extraParts)
     }
 }
 

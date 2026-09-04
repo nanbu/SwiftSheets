@@ -244,9 +244,11 @@ enum WorkbookReader {
             wb.preserved.relationships["_rels/.rels"] = rootRels.filter { r in ![relOfficeDocument, relCore, relApp, relCustom].contains { r.type.hasSuffix($0) } }
             wb.preserved.contentTypeDefaults = ct.defaults
             for name in zip.entries.keys where !consumed.contains(name) && !name.hasSuffix("/") {
-                wb.preserved.opaqueParts[name] = try zip.read(name)
+                // kept as the package holds it — folded — so a write-back copies it without expanding it
+                let (payload, entry) = try zip.compressed(name)
+                wb.preserved.parts[name] = .compressed(payload: payload, method: entry.method, crc32: entry.crc32, uncompressedSize: entry.uncompressedSize)
             }
-            wb.preserved.contentTypeOverrides = ct.overrides.filter { wb.preserved.opaqueParts[$0.key] != nil }
+            wb.preserved.contentTypeOverrides = ct.overrides.filter { wb.preserved.parts[$0.key] != nil }
         }
         return (wb, warnings)
     }

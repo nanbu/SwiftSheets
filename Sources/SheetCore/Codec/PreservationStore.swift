@@ -6,7 +6,19 @@ import Foundation
 public struct PreservationStore: Sendable, Hashable {
     public var sourceFormat: SheetFormat?
     /// Uninterpreted parts by package path ("xl/charts/chart1.xml", "xl/vbaProject.bin"), bytes untouched.
-    public var opaqueParts: [String: Data] = [:]
+    ///
+    /// Reading this expands every part a reader kept compressed (spec Appendix B.39.7); it is the view for a
+    /// caller who wants the bytes. The writers do not go through it — they copy a compressed part into the new
+    /// package as it lies, without expanding it or folding it again.
+    public var opaqueParts: [String: Data] {
+        get { parts.mapValues(\.data) }
+        set { parts = newValue.mapValues { .bytes($0) } }
+    }
+    /// The parts as the reader kept them: expanded, or still folded as they were in the source package.
+    package var parts: [String: OpaquePart] = [:]
+    /// The names of the parts, without expanding any of them.
+    public var opaquePartNames: [String] { Array(parts.keys) }
+    public var opaquePartCount: Int { parts.count }
     /// `[Content_Types].xml` entries of the source: extension defaults and part overrides, so opaque parts keep
     /// their declarations when re-packed.
     public var contentTypeDefaults: [String: String] = [:]
@@ -30,20 +42,20 @@ public struct PreservationStore: Sendable, Hashable {
 
     public init() {}
 
-    public var isEmpty: Bool { opaqueParts.isEmpty && workbookFragments.isEmpty && styleFragments.isEmpty }
+    public var isEmpty: Bool { parts.isEmpty && workbookFragments.isEmpty && styleFragments.isEmpty }
 
     /// Whether a VBA project rides along among the preserved parts.
     ///
     /// Only a macro-enabled workbook can hold one, so every other target has to report it as `.macros` rather than
     /// fold it into a count of "parts": the subject is what decides which format `WriteResult.suggest` names, and a
     /// macro loss answered with "write XLSX instead" points at a format that loses them too (spec Appendix B.22).
-    public var hasVBAProject: Bool { opaqueParts.keys.contains { $0.hasSuffix("vbaProject.bin") } }
+    public var hasVBAProject: Bool { parts.keys.contains { $0.hasSuffix("vbaProject.bin") } }
 
     /// Human-readable inventory: "VBA project: yes / charts: 2 / drawings: 1 / other parts: 3".
     public var summary: String {
         var counts: [(String, Int)] = []
         func count(_ label: String, _ predicate: (String) -> Bool) {
-            let n = opaqueParts.keys.filter(predicate).count
+            let n = self.parts.keys.filter(predicate).count
             if n > 0 { counts.append((label, n)) }
         }
         let vba = hasVBAProject
@@ -54,10 +66,34 @@ public struct PreservationStore: Sendable, Hashable {
         count("comments") { $0.hasPrefix("xl/comments") }
         count("images") { $0.hasPrefix("xl/media/") }
         let known = counts.reduce(0) { $0 + $1.1 } + (vba ? 1 : 0)
-        let other = opaqueParts.count - known
+        let other = self.parts.count - known
         var parts = ["VBA project: \(vba ? "yes" : "no")"] + counts.map { "\($0.0): \($0.1)" }
         if other > 0 { parts.append("other parts: \(other)") }
         return parts.joined(separator: " / ")
+    }
+}
+
+/// One part a reader did not interpret: its bytes, or — when it came out of a package — the folded bytes
+/// exactly as the package held them, with what a writer needs to copy them into another package unchanged.
+/// A same-format write then never expands a chart, an image or a VBA project it does not touch, and never
+/// folds them again: "byte for byte" is literal, and the cost of carrying a part no longer depends on its size.
+public enum OpaquePart: Sendable, Hashable {
+    case bytes(Data)
+    case compressed(payload: Data, method: UInt16, crc32: UInt32, uncompressedSize: Int)
+
+    /// The part's bytes, expanded if they were folded.
+    public var data: Data {
+        switch self {
+        case .bytes(let d): return d
+        case .compressed(let payload, let method, _, let size):
+            if method == 0 { return payload }
+            return (try? Deflate.decompress(payload, expectedSize: size)) ?? Data()
+        }
+    }
+
+    /// The expanded size, without expanding.
+    public var uncompressedSize: Int {
+        switch self { case .bytes(let d): return d.count; case .compressed(_, _, _, let n): return n }
     }
 }
 

@@ -100,7 +100,8 @@ enum ODSReader {
 
         if options.preserveUnknownParts {
             for name in zip.entries.keys where !interpretedParts.contains(name) && !name.hasSuffix("/") && !name.hasPrefix("Thumbnails/") {
-                wb.preserved.opaqueParts[name] = try zip.read(name)
+                let (payload, entry) = try zip.compressed(name)
+                wb.preserved.parts[name] = .compressed(payload: payload, method: entry.method, crc32: entry.crc32, uncompressedSize: entry.uncompressedSize)
                 if let mt = manifest.mediaTypes[name] { wb.preserved.contentTypeOverrides[name] = mt }
             }
         }

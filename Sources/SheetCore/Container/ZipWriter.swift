@@ -245,6 +245,14 @@ package final class ZipWriter {
         try! packager.addCompressed(name, payload: payload, method: method, crc: crc, uncompressedSize: uncompressedSize)
     }
 
+    /// Adds a preserved part as it was kept: expanded bytes are folded, folded bytes are copied as they lie.
+    package func add(_ name: String, part: OpaquePart, stored: Bool = false) {
+        switch part {
+        case .bytes(let d): add(name, d, stored: stored)
+        case .compressed(let payload, let method, let crc, let size): addCompressed(name, payload: payload, method: method, crc: crc, uncompressedSize: size)
+        }
+    }
+
     package func beginEntry(_ name: String) throws { try packager.beginEntry(name) }
     package func write(_ data: Data) throws { try packager.write(data) }
     package func write(_ text: String) throws { try packager.write(text) }

@@ -268,22 +268,26 @@ enum ODSWriter {
         var validationNames: [Int: [(ranges: MultiCellRange, name: String)]] = [:]
         // ODF 1.3 §9.4 fixes the order of what comes before the tables: calculation settings, content validations,
         // label ranges
-        var body = ODSFeatures.calculationSettingsXML(wb)
-        body += ODSValidation.xml(wb, names: &validationNames, sink: sink)
-        body += ODSFeatures.labelRangesXML(wb, sink: sink)
+        // the body is kept as the pieces it was made of — a table's XML is most of a document, and joining the
+        // pieces into one string would hold it twice
+        let body = TextSpill()
+        body.write(ODSFeatures.calculationSettingsXML(wb))
+        body.write(ODSValidation.xml(wb, names: &validationNames, sink: sink))
+        body.write(ODSFeatures.labelRangesXML(wb, sink: sink))
         for (i, sheet) in wb.sheets.enumerated() {
-            body += tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [],
-                             styles: styles, conditionalStyles: conditionalStyles, sink: sink)
+            tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [],
+                     styles: styles, conditionalStyles: conditionalStyles, sink: sink, into: body)
         }
-        body += namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name)
-        body += databaseRangesXML(wb, sink: sink)
-        body += ODSPivot.xml(wb, sink: sink)
-        body += ODSFeatures.consolidationXML(wb, sink: sink)
+        body.write(namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name))
+        body.write(databaseRangesXML(wb, sink: sink))
+        body.write(ODSPivot.xml(wb, sink: sink))
+        body.write(ODSFeatures.consolidationXML(wb, sink: sink))
 
-        var content = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of", "calcext", "loext", "tableooo"]) + " office:version=\"1.3\">"
-        content += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
-        content += "<office:automatic-styles>" + styles.xml() + "</office:automatic-styles>"
-        content += "<office:body><office:spreadsheet>" + body + "</office:spreadsheet></office:body></office:document-content>"
+        var contentHead = xmlHeader + "<office:document-content" + ns(["office", "style", "text", "table", "draw", "fo", "xlink", "dc", "meta", "number", "svg", "of", "calcext", "loext", "tableooo"]) + " office:version=\"1.3\">"
+        contentHead += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
+        contentHead += "<office:automatic-styles>" + styles.xml() + "</office:automatic-styles>"
+        contentHead += "<office:body><office:spreadsheet>"
+        let contentTail = "</office:spreadsheet></office:body></office:document-content>"
 
         // sheet features the ODS writer does not express (all of them read and written for XLSX; none of them
         // silently dropped)
@@ -336,14 +340,14 @@ enum ODSWriter {
 
         // preserved parts: same-format ones travel along (unlinked); foreign ones cannot
         let preserved = wb.preserved
-        var opaque: [String: Data] = [:]
+        var opaque: [String: OpaquePart] = [:]
         if preserved.sourceFormat == .ods {
-            opaque = preserved.opaqueParts
+            opaque = preserved.parts
             // only drawn content is worth a warning: metadata parts (manifest.rdf, Configurations2) are re-packed as they are
             let drawn = opaque.keys.filter { $0.hasPrefix("Pictures/") || $0.hasPrefix("Object ") || $0.hasPrefix("ObjectReplacements/") || $0.hasPrefix("media/") }
             if !drawn.isEmpty { sink.add(.dropped, subject: .objects, "\(drawn.count) embedded object(s)/picture(s) of the source ODS are not re-linked: content.xml is regenerated") }
-        } else if !preserved.opaqueParts.isEmpty {
-            sink.add(.dropped, subject: .objects, "\(preserved.opaqueParts.count) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
+        } else if preserved.opaquePartCount > 0 {
+            sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
         }
         // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
         if preserved.hasVBAProject {
@@ -353,7 +357,12 @@ enum ODSWriter {
         var archive = ZipWriter()
         archive.add("mimetype", Data(mimeType.utf8), stored: true)
         archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides).utf8))
-        archive.add("content.xml", Data(content.utf8))
+        // the body — most of the document — goes to the compressor in slices rather than as one more copy
+        try archive.beginEntry("content.xml")
+        try archive.write(contentHead)
+        try body.forEachPiece { try archive.write($0) }
+        try archive.write(contentTail)
+        try archive.endEntry()
         archive.add("styles.xml", Data(stylesXML(styles.fonts + conditionalStyles.fonts, conditionalStyles: conditionalStyles,
                                                  pages: pageOrder, sink: sink).utf8))
         for property in wb.customProperties where property.linkTarget != nil {
@@ -362,7 +371,7 @@ enum ODSWriter {
         }
         archive.add("meta.xml", Data(metaXML(wb.metadata, custom: wb.customProperties).utf8))
         archive.add("settings.xml", Data(settingsXML(wb).utf8))
-        for name in opaque.keys.sorted() { archive.add(name, opaque[name]!) }
+        for name in opaque.keys.sorted() { archive.add(name, part: opaque[name]!) }
 
         let warnings = sink.warnings
         return WriteResult(data: archive.finish(), warnings: warnings, suggestion: WriteResult.suggest(from: warnings, target: .ods, options: options))
@@ -376,7 +385,7 @@ enum ODSWriter {
         return names.map { "<style:font-face style:name=\"\(XML.esc($0))\" svg:font-family=\"\(XML.esc($0.contains(" ") ? "'" + $0 + "'" : $0))\"/>" }.joined()
     }
 
-    static func manifestXML(opaque: [String: Data], mediaTypes: [String: String]) -> String {
+    static func manifestXML(opaque: [String: OpaquePart], mediaTypes: [String: String]) -> String {
         var s = xmlHeader + "<manifest:manifest" + ns(["manifest"]) + " manifest:version=\"1.3\">"
         s += "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.3\" manifest:media-type=\"\(mimeType)\"/>"
         for p in ["content.xml", "styles.xml", "meta.xml", "settings.xml"] { s += "<manifest:file-entry manifest:full-path=\"\(p)\" manifest:media-type=\"text/xml\"/>" }
@@ -601,7 +610,7 @@ enum ODSWriter {
 
     static func tableXML(_ sheet: Sheet, masterPage: String, validations: [(ranges: MultiCellRange, name: String)],
                          styles: ODSStyleRegistry, conditionalStyles: ODSConditionalStyleRegistry,
-                         sink: ODSWarningSink) -> String {
+                         sink: ODSWarningSink, into out: TextSpill) {
         let t = sheet.table
         // one <table:table> per sheet: a canvas carrying several tables (Numbers) keeps only the first one
         if sheet.tables.count > 1 {
@@ -735,12 +744,14 @@ enum ODSWriter {
                 }
             }
             s += "</table:table-row>"
+            // a table's XML is most of a document: it leaves in pieces rather than growing as one string
+            if s.utf8.count >= TextSpill.pieceSize { out.write(s); s = "" }
         }
         groups(to: 0)
         flushEmpty()
         s += namedExpressionsXML(sheet.definedNames, baseSheet: sheet.name, extra: printTitlesXML(sheet))
         s += ODSConditionalFormatWriter.xml(sheet, styles: conditionalStyles, sink: sink)
-        return s + "</table:table>"
+        out.write(s + "</table:table>")
     }
 
     static func cellXML(_ cell: Cell, at ref: CellRef, merge: CellRange?, matrix: CellRange?, validation: String?,
