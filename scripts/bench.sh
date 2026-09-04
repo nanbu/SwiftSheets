@@ -2,6 +2,7 @@
 # bench.sh — measure the library and write docs/performance.json (spec Appendix B.39.11).
 #
 #   scripts/bench.sh [rows]          # default 100000 rows × 10 columns = a million cells
+#   scripts/bench.sh --grid          # the 200-column standard: 5,000 / 50,000 / 500,000 rows (scripts/bench-grid.py)
 #
 # Every measurement runs in its own process (peak memory is a process's lifetime maximum), from a release build
 # of Benchmarks/ made fresh (an incremental build once mixed stale parts into a measurement). The JSON carries the
@@ -9,8 +10,9 @@
 # docs/performance.html is generated from the JSON by scripts/build-performance-page.py, which also checks that the
 # README quotes the same numbers.
 set -euo pipefail
-ROWS="${1:-100000}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ "${1:-}" == "--grid" ]]; then exec python3 "$ROOT/scripts/bench-grid.py" "${@:2}"; fi
+ROWS="${1:-100000}"
 BENCH="$ROOT/Benchmarks"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT

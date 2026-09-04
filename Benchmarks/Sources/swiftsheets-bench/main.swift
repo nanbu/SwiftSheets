@@ -9,6 +9,11 @@ import SwiftSheets
 // The workbook is 10 columns × <rows> rows: a label, five integers, three decimals, a Japanese category — the
 // same synthetic material spec Appendix B.39 was measured with. It is synthetic on purpose (the numbers in
 // docs/performance.json say so): representative of a data export, not of a formatted report.
+//
+// SWIFTSHEETS_BENCH_COLUMNS widens the row (the 200-column standard of Appendix B.39.11: 5,000 / 50,000 /
+// 500,000 rows, driven by scripts/bench-grid.py). The pattern repeats across the width with the numbers offset
+// per block; the text columns past the first block draw on a vocabulary of fifty, as an export's do, so the
+// distinct strings grow with the rows, not with the width.
 
 func peakMB() -> Double {
     var u = rusage(); getrusage(RUSAGE_SELF, &u)
@@ -19,8 +24,9 @@ func peakMB() -> Double {
     #endif
 }
 func seconds(_ d: Duration) -> Double { Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18 }
+let columns = Int(ProcessInfo.processInfo.environment["SWIFTSHEETS_BENCH_COLUMNS"] ?? "") ?? 10
 func report(_ op: String, _ rows: Int, _ sec: Double, _ note: String = "") {
-    print(#"{"op":"\#(op)","rows":\#(rows),"sec":\#(String(format: "%.3f", sec)),"peakMB":\#(String(format: "%.1f", peakMB()))\#(note.isEmpty ? "" : #","note":"\#(note)""#)}"#)
+    print(#"{"op":"\#(op)","rows":\#(rows),"columns":\#(columns),"sec":\#(String(format: "%.3f", sec)),"peakMB":\#(String(format: "%.1f", peakMB()))\#(note.isEmpty ? "" : #","note":"\#(note)""#)}"#)
 }
 
 let args = CommandLine.arguments
@@ -33,12 +39,22 @@ let url = URL(filePath: args[3])
 let clock = ContinuousClock()
 
 func row(_ i: Int) -> [CellValue?] {
-    [.text("R\(i)"),
-     .integer(i), .integer(i * 7), .integer(i % 97), .integer(i &* 13 % 1000),
-     .number(Decimal(i) + Decimal(string: "0.5")!), .number(Decimal(i * 3) + Decimal(string: "0.25")!),
-     .number(Decimal(i % 31) + Decimal(string: "0.125")!),
-     .text(i % 2 == 0 ? "分類A" : "分類B"),
-     .integer(i * 2)]
+    var r: [CellValue?] = []
+    r.reserveCapacity(columns)
+    var block = 0
+    while r.count < columns {
+        let n = i + block
+        let base: [CellValue?] = [
+            .text(block == 0 ? "R\(i)" : "品目\(n % 50)"),
+            .integer(n), .integer(n * 7), .integer(n % 97), .integer(n &* 13 % 1000),
+            .number(Decimal(n) + Decimal(string: "0.5")!), .number(Decimal(n * 3) + Decimal(string: "0.25")!),
+            .number(Decimal(n % 31) + Decimal(string: "0.125")!),
+            .text(n % 2 == 0 ? "分類A" : "分類B"),
+            .integer(n * 2)]
+        r.append(contentsOf: base.prefix(columns - r.count))
+        block += 1
+    }
+    return r
 }
 /// The multi-sheet book (spec Appendix B.41): the same million cells dealt over this many sheets, so that a read
 /// side by side and a read one sheet at a time are measured on the same material.
@@ -94,6 +110,13 @@ do {
         // the one streaming writer for every format (spec Appendix B.42): the path's extension decides the writer
         let t = try clock.measure {
             let w = try StreamingWriter(url: url, sheetName: "Sheet1")
+            for i in 0..<rows { try w.append(row(i)) }
+            try w.close()
+        }
+        report(op, rows, seconds(t))
+    case "streamWriteCSV":
+        let t = try clock.measure {
+            let w = try CSVStreamingWriter(url: url)
             for i in 0..<rows { try w.append(row(i)) }
             try w.close()
         }

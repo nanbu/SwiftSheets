@@ -40,6 +40,7 @@ LABELS = {
     "writeCSV": ("書き出し（csv）", "模型 → .csv"),
     "readCSV": ("読み込み（csv）", ".csv → 模型（型の推定つき）"),
     "streamReadCSV": ("逐次読み（csv）", "CSVStreamingReader で 1 行ずつ"),
+    "streamWriteCSV": ("逐次書き（csv）", "CSVStreamingWriter で 1 行ずつ"),
     "writeNumbers": ("書き出し（numbers）", "模型 → .numbers"),
     "readNumbers": ("読み込み（numbers）", ".numbers → 模型、全マスの合計"),
     "streamReadNumbers": ("逐次読み（numbers）", "StreamingReader で 1 行ずつ、全マスの合計"),
@@ -88,6 +89,8 @@ def render(doc):
             extra = "（うち模型 %s MB）" % m.group(1)
         w("<tr><td>%s</td><td>%s</td><td>%s MB%s</td><td>%s</td></tr>" % (e(label), e(fmt_sec(r["sec"])), e(r["peakMB"]), e(extra), e(what)))
     w("</tbody></table>")
+    if doc.get("grid"):
+        render_grid(doc["grid"], w)
     w("<h2>計測の条件</h2><ul>")
     w("<li>日付: %s、コミット: <code>%s</code></li>" % (e(meta["date"]), e(meta["commit"])))
     w("<li>機械: %s、メモリ %s GB、%s</li>" % (e(meta["machine"]), e(meta.get("memory_gb", "?")), e(meta["os"])))
@@ -101,6 +104,38 @@ def render(doc):
       "python3 scripts/build-performance-page.py --check   # このページと README の数字が出所と一致しているか</code></pre>")
     w("</main>\n</body>\n</html>\n")
     return "\n".join(out)
+
+
+def render_grid(grid, w):
+    """The 200-column standard (Appendix B.39.11): one table, a pair of columns per size, and a reason wherever
+    a measurement could not be taken on this machine — never a blank."""
+    runs = grid["runs"]
+    w("<h2>%s 列の基準 — %s</h2>" % (e(grid["columns"]), e(" / ".join("{:,} 行".format(r["rows"]) for r in runs))))
+    w("<p>同じ操作を、列数を %s に固定し行数だけ 10 倍ずつ増やして測った値（%s、コミット <code>%s</code>）。"
+      "測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。</p>"
+      % (e(grid["columns"]), e(grid["date"]), e(grid["commit"])))
+    w("<div style=\"overflow-x:auto\"><table><thead><tr><th>計測</th>")
+    for r in runs:
+        w("<th colspan=\"2\">{:,} 行（{:,} マス）</th>".format(r["rows"], r["cells"]))
+    w("</tr><tr><th></th>" + "".join("<th>時間</th><th>ピークメモリ</th>" for _ in runs) + "</tr></thead><tbody>")
+    ops = []
+    for r in runs:
+        for x in r["results"]:
+            if x["op"] not in ops: ops.append(x["op"])
+        for x in r.get("skipped", []):
+            if x["op"] not in ops: ops.append(x["op"])
+    for op in ops:
+        label, _ = LABELS.get(op, (op, ""))
+        w("<tr><td>%s</td>" % e(label))
+        for r in runs:
+            hit = next((x for x in r["results"] if x["op"] == op), None)
+            if hit:
+                w("<td>%s</td><td>%s MB</td>" % (e(fmt_sec(hit["sec"])), e(hit["peakMB"])))
+            else:
+                skip = next((x for x in r.get("skipped", []) if x["op"] == op), None)
+                w("<td colspan=\"2\"><small>測れない（%s）</small></td>" % e(skip["reason"] if skip else "未計測"))
+        w("</tr>")
+    w("</tbody></table></div>")
 
 
 def readme_claims(doc):

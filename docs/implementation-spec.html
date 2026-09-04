@@ -1905,6 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.27 Draft</td><td>2026-09-05</td><td>付録 B.39.11 に <strong>200 列の基準</strong>を追記: 列数 200 固定・行数 5,000 / 50,000 / 500,000 で同じ操作を測る <code>scripts/bench.sh --grid</code>。機械に収まらない操作は見込み（マス × 320 B・空きディスク × 1.5）で落ちる前に測らず、理由を記録する。計測台は列数を環境変数で広げ、CSV の逐次書きを加えた</td></tr>
     <tr><td>4.26 Draft</td><td>2026-09-05</td><td><strong>ODS への画像の書き</strong>を付録 B.43 に記録して本体へ。<code>addImage</code> の絵を <code>Pictures/</code> の部品と錨のセルの中の <code>draw:frame</code> / <code>draw:image</code> で書き、manifest に media-type を載せる。寸法は 96 dpi で cm、範囲に合わせる絵は <code>table:end-cell-address</code>。読みは変えない（自分の読み手では戻らない、と対応表に明記）。審判は LibreOffice</td></tr>
     <tr><td>4.25 Draft</td><td>2026-09-05</td><td><strong>逐次書きを 3 形式へ</strong>を付録 B.42 に記録。傘の <code>StreamingWriter(url:)</code> が拡張子で形式を決めて <code>XLSXStreamingWriter</code>（旧 <code>StreamingWriter</code> を改名）/ <code>ODSStreamingWriter</code> / <code>NumbersStreamingWriter</code> / <code>CSVStreamingWriter</code> に渡す。ODS は行を <code>TextSpill</code> に退避して close で様式の後ろに流す。Numbers はタイルを埋まるたびに封筒へ（<code>NumbersDocument.addStreamed</code>）、行ヘッダはワイヤ形式のまま貯める（<code>ProtoMessage.Value.raw</code>）。運べないものは枚数つきで警告</td></tr>
     <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ。fuzz の的に 3 形式の逐次読みを追加</td></tr>
@@ -5083,7 +5084,18 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     ③Numbers の「1 枚のシートに複数の表」は <code>table:</code> 引数で届く（既定は先頭の表 — 模型の <code>Sheet.table</code> と同じ）。
   </p>
 
-  <h4>B.40.1 共通の入口 — <code>StreamingReader</code>（SwiftSheets）と、形式ごとの 4 つの読み手</h4>
+    <p>
+    <strong>200 列の基準（Rev 4.27・2026-09-05）</strong>: 100 万マスの記録に加えて、<strong>列数を 200 に固定し、行数を
+    5,000 / 50,000 / 500,000</strong>（100 万・1,000 万・1 億マス）と 10 倍ずつ増やす基準を置いた
+    （<code>scripts/bench.sh --grid</code> → <code>scripts/bench-grid.py</code>、<code>docs/performance.json</code> の
+    <code>grid</code>、同じページの 2 つ目の表）。素材は 10 列の型を幅に繰り返し、数字はブロックごとにずらし、
+    2 ブロック目以降の文字列は 50 語の語彙から引く（実務の書き出しの文字列は行とともに増え、幅とともには増えない）。
+    機械に収まらない大きさは<strong>落ちる前に測らない</strong>: 全載せの操作は見込みピーク（マス × 320 B —
+    100 万マスの記録で最大の 1 マスあたりのピーク）が実メモリの 6 割を超えると測らず、ファイルを書く操作は
+    空きディスクが要る量の 1.5 倍を切ると測らず、どちらも理由を記録に残す。<code>bench-grid.py --self-test</code>
+    がこの判定を固定する。README の数字は従来どおり 100 万マスの記録から照合する。
+  </p>
+<h4>B.40.1 共通の入口 — <code>StreamingReader</code>（SwiftSheets）と、形式ごとの 4 つの読み手</h4>
   <p>
     傘のモジュール <code>SwiftSheets</code> に <code>StreamingReader</code> を置き、
     <code>XLSXStreamingReader</code>（SheetXLSX）・<code>ODSStreamingReader</code>（SheetODS）・<code>NumbersStreamingReader</code>（SheetNumbers）・
