@@ -41,6 +41,12 @@ writes, so the constant, the README's status line and the tag always name the sa
 - **No cell ceiling by default** (spec Appendix B.39.2). `ReadOptions.cellLimit` used to stop a read at a
   million cells; it now defaults to no limit, and is there to be set by a reader of untrusted input. How many
   cells are worth holding is the caller's decision.
+- **Faster without changing a byte of any file** (spec Appendix B.39.5): whether a number under a format is
+  a date is decided once per format rather than once per cell; a cell's style index is looked up by the
+  shared style object it points at rather than by hashing the style; the streaming writer hands rows to the
+  compressor 64 KiB at a time; ODS paragraphs and Numbers' Snappy blocks skip the copies they used to make.
+  Over a million cells, measured back to back on the same machine: reading 5.6 → 4.2 s, streaming reads
+  5.1 → 3.2 s, writing 2.0 → 1.7 s.
 - CRC-32 is computed by zlib (0.001 s over a 33 MB part where the Swift loop took 0.09 s), and the one-shot
   compressor no longer copies its output to trim it.
 

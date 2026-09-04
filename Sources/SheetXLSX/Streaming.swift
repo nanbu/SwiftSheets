@@ -260,9 +260,11 @@ final class StreamingSheetParser: SAXHandler {
         default:
             let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty, let d = Double(raw) else { return nil }
-            let fmt = styles.style(cellStyle).numberFormat
-            if NumberFormat.isTimedeltaFormat(fmt) { return ExcelDate.durationFromSerial(d).map { .duration($0) } }
-            if NumberFormat.isDateFormat(fmt) { return ExcelDate.fromSerial(d, epoch: epoch) }
+            switch styles.numericKind(cellStyle) {
+            case .duration: return ExcelDate.durationFromSerial(d).map { .duration($0) }
+            case .date: return ExcelDate.fromSerial(d, epoch: epoch)
+            case .plain: break
+            }
             if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
             return .number(Decimal(string: raw, locale: nil).flatMap { $0.isNaN ? nil : $0 } ?? Decimal(d))
         }
@@ -321,7 +323,7 @@ public final class StreamingWriter {
         for (column, cell) in cells.enumerated() {
             guard cell.value != nil || cell.style != .default else { continue }
             let ref = CellRef(row: row - 1, col: column).a1
-            let index = styles.index(for: cell.style)
+            let index = styles.index(for: cell)
             let style = index != 0 ? " s=\"\(index)\"" : ""
             switch cell.value {
             case nil: xml += "<c r=\"\(ref)\"\(style)/>"
@@ -334,7 +336,18 @@ public final class StreamingWriter {
                 xml += "<c r=\"\(ref)\"\(style)\(t)>\(v)</c>"
             }
         }
-        try zip.write(xml + "</row>")
+        pending.append(contentsOf: (xml + "</row>").utf8)
+        if pending.count >= StreamingWriter.pieceSize { try flushPending() }
+    }
+
+    /// Rows are handed to the compressor in pieces of about this many bytes: one call per row was measured slower
+    /// than the whole-workbook writer, and the compressor works best on a window at a time.
+    static let pieceSize = 64 * 1024
+    private var pending = Data()
+    private func flushPending() throws {
+        guard !pending.isEmpty else { return }
+        try zip.write(pending)
+        pending.removeAll(keepingCapacity: true)
     }
 
     /// Finishes the last sheet, writes the small parts beside it and closes the file. Calling it twice is harmless.
@@ -397,6 +410,7 @@ public final class StreamingWriter {
 
     private func finishSheet() throws {
         guard open else { return }
+        try flushPending()
         try zip.write("</sheetData></worksheet>")
         try zip.endEntry()
         open = false

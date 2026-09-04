@@ -108,6 +108,18 @@ final class StyleRegistry {
         }
     }
 
+    /// The `xf` index of a cell's formatting, by the shared style object the cell points at when it has one: the
+    /// same object answers from a small identity table instead of hashing a 384-byte style per cell.
+    private var sharedIndex: [ObjectIdentifier: (style: SharedStyle, index: Int)] = [:]
+    func index(for cell: Cell) -> Int {
+        guard let shared = cell.sharedStyle else { return index(for: cell.style) }
+        let id = ObjectIdentifier(shared)
+        if let known = sharedIndex[id], known.style === shared { return known.index }
+        let i = index(for: shared.style)
+        sharedIndex[id] = (shared, i)
+        return i
+    }
+
     func index(for style: CellStyle) -> Int {
         if let i = xfIndex[style] { return i }
         _ = fontID(style.font); _ = fillID(style.fill); _ = borderID(style.border)

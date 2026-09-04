@@ -1895,6 +1895,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.12 Draft</td><td>2026-09-04</td><td><strong>速さと大きさの第二段</strong>を付録 B.39 に開き、その第 1・第 2 小節を記録。着手前の実測（100 万マスで読み 5.7 秒の約 7 割が Foundation の XML 部品まわり、圧縮を戻すのは 0.02 秒）を前提に、<strong>封筒（ZIP）を作り替えた</strong>: バイトの出所の抽象化（写像／位置指定読み）・ZIP64 の読み書き・切れ端ごとの展開・申告の妥当性検査（部品数・合計・圧縮率・重なり）と <code>ReadOptions.limits</code>・縮めたままの写し・CRC-32 を zlib へ。<strong>セル数の既定の天井を外した</strong>（<code>cellLimit</code> は <code>Int.max</code>、設定は残す）。README の Limits から ZIP64 の行が消え、Cell budget の行が「既定なし」になった。テスト 960 件</td></tr>
     <tr><td>4.13 Draft</td><td>2026-09-04</td><td><strong>読む前に問い合わせる API</strong> <code>Workbook.inspect</code> を付録 B.39.3 に記録。シート・申告セル数・展開後のバイト数・生成元を、セルを作らずに返す。XLSX は部品の先頭の切れ端だけ、ODS は本文をバイト列で 1 度歩いて反復回数を掛ける、Numbers は表の archive の行数×列数。<code>InspectOptions.countCells</code> で実数も数える。タグだけを拾うバイト走査器 <code>TagScanner</code> を新設（後段の字句解析器の先触れ）。テスト 971 件</td></tr>
     <tr><td>4.14 Draft</td><td>2026-09-04</td><td><strong>形式の判定</strong>を付録 B.39.4 に記録し §4.2 に規則 3 つを足した。<code>SheetFormat.detect(contentsOf:)</code> はファイル全体を読まない（先頭 4 バイト・末尾の目録・小さな 1 部品）。<code>SheetFormat.probe</code> → <code>FormatProbe</code> が形式・開けない理由・不明を 1 回で答える。フォルダー形式の Numbers 書類を開けるようにした（それまで「ディレクトリです」で失敗）。文字の判定をバイト列で行う。テスト 977 件</td></tr>
+    <tr><td>4.15 Draft</td><td>2026-09-04</td><td><strong>手戻りの小さい手直し</strong>を付録 B.39.5 に記録。日付書式の判定を書式番号ごとに 1 回・書式の索引を共有スタイルの同一性で・逐次書きの 64 KiB 束ね・ODS 段落の早道・Snappy と IWA の配列写しの廃止。形式は変えない。同時刻比で読み −25%、逐次読み −37%、書き −13%。テスト 977 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4835,6 +4836,28 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
       UTF-16 の代用対・制御文字を見る。窓の端で切れた多バイト文字は欠陥でなく境目として扱う。判定の結果は変えていない
       （既存のテストがそのまま通る）。</li>
   </ul>
+
+  <h4>B.39.5 手戻りの小さい手直し — 呼び出しの記録が名指ししたもの</h4>
+  <p>
+    着手前の記録で上位に出ていた、形式を 1 バイトも変えない手直し。前後を<strong>同じ時刻に同じ機械で</strong>比べた
+    （長時間の負荷で機械自体が 1 割ほど遅くなっていたため、時刻の違う基準との比較は割り引く）。
+  </p>
+  <ul>
+    <li><strong>日付書式の判定を書式番号ごとに 1 回</strong>。数値セルごとに 384 バイトの書式を取り出して書式コードを走査していた
+      （記録の 8%）。<code>StylesParser.numericKind</code> が <code>xf</code> 番号 → 平文／日付／経過時間 を覚える。</li>
+    <li><strong>書式の索引を共有スタイルの同一性で引く</strong>。書き出しはセルごとに <code>CellStyle</code> をハッシュしていた
+      （記録の約 2 割）。<code>StyleRegistry.index(for: Cell)</code> / <code>ODSStyleRegistry.cell(of:)</code> は
+      セルが指す <code>SharedStyle</code> の同一性で引き、同じ物体なら再計算しない。</li>
+    <li><strong>逐次書きは 64 KiB ためてから圧縮器へ</strong>。行ごとに渡していたのが全量書きより遅かった原因。</li>
+    <li><strong>ODS の段落生成の早道</strong>: 空白・タブ・改行を含まない文字列（ほとんどの値）は文字配列を作らず
+      そのままエスケープする。</li>
+    <li><strong>Numbers の Snappy と IWA の枠を、配列に写さず読む</strong>。展開先も配列でなく <code>Data</code> に直接書く。</li>
+  </ul>
+  <p>
+    実測（100 万マス）: 読み <strong>5.58 → 4.17 秒</strong>（同時刻比 −25%）、逐次読み 5.1 → 3.2 秒、書き 2.0 → 1.7 秒、
+    逐次書き 2.4 → 1.9 秒、ODS 書き 4.0 → 3.3 秒、Numbers 書き（10 万マス）0.94 → 0.81 秒。
+    メモリは変わらない（次の段の主題）。ODS の読みは対象外で変化なし。
+  </p>
 
 </section>
 

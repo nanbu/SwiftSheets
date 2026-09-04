@@ -36,30 +36,35 @@ struct IWAFile: Hashable {
     var archives: [IWAArchive] = []
 
     static func isIWA(_ data: Data) -> Bool {
-        var i = 0
-        let b = [UInt8](data)
-        while i < b.count {
-            guard i + 4 <= b.count, b[i] == 0 else { return false }
-            let len = Int(b[i + 1]) | Int(b[i + 2]) << 8 | Int(b[i + 3]) << 16
-            i += 4 + len
+        data.withUnsafeBytes { raw -> Bool in
+            let b = raw.bindMemory(to: UInt8.self)
+            var i = 0
+            while i < b.count {
+                guard i + 4 <= b.count, b[i] == 0 else { return false }
+                let len = Int(b[i + 1]) | Int(b[i + 2]) << 8 | Int(b[i + 3]) << 16
+                i += 4 + len
+            }
+            return i == b.count && !b.isEmpty
         }
-        return i == b.count && !b.isEmpty
     }
 
-    /// The decompressed archive stream (what byte-level round-trip tests compare).
+    /// The decompressed archive stream (what byte-level round-trip tests compare). Read where it lies: the file
+    /// is not copied into an array to be walked, and each block is expanded straight from it.
     static func payload(of data: Data) throws -> Data {
-        let b = [UInt8](data)
-        var i = 0
-        var out = Data()
-        while i < b.count {
-            guard i + 4 <= b.count, b[i] == 0 else { throw SheetError.corruptedContainer(detail: "IWA chunk header") }
-            let len = Int(b[i + 1]) | Int(b[i + 2]) << 8 | Int(b[i + 3]) << 16
-            guard i + 4 + len <= b.count else { throw SheetError.corruptedContainer(detail: "IWA chunk truncated") }
-            let chunk = Data(b[(i + 4)..<(i + 4 + len)])
-            if let d = try? Snappy.decompress(chunk) { out.append(d) } else { out.append(chunk) }   // some writers leave chunks uncompressed
-            i += 4 + len
+        try data.withUnsafeBytes { raw -> Data in
+            let b = raw.bindMemory(to: UInt8.self)
+            var i = 0
+            var out = Data()
+            while i < b.count {
+                guard i + 4 <= b.count, b[i] == 0 else { throw SheetError.corruptedContainer(detail: "IWA chunk header") }
+                let len = Int(b[i + 1]) | Int(b[i + 2]) << 8 | Int(b[i + 3]) << 16
+                guard i + 4 + len <= b.count else { throw SheetError.corruptedContainer(detail: "IWA chunk truncated") }
+                let chunk = UnsafeBufferPointer(rebasing: b[(i + 4)..<(i + 4 + len)])
+                if let d = try? Snappy.decompress(chunk) { out.append(d) } else { out.append(chunk) }   // some writers leave chunks uncompressed
+                i += 4 + len
+            }
+            return out
         }
-        return out
     }
 
     init(data: Data, path: String) throws {

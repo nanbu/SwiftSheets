@@ -72,6 +72,18 @@ final class ODSStyleRegistry {
     }
 
     /// Nil for the default style (no attribute needed).
+    /// The style name of a cell's formatting, by the shared object the cell points at when it has one (the same
+    /// identity table the XLSX writer keeps: one hash per distinct style rather than one per cell).
+    private var sharedCells: [ObjectIdentifier: (style: SharedStyle, name: String?)] = [:]
+    func cell(of cell: Cell) -> String? {
+        guard let shared = cell.sharedStyle else { return self.cell(cell.style) }
+        let id = ObjectIdentifier(shared)
+        if let known = sharedCells[id], known.style === shared { return known.name }
+        let name = self.cell(shared.style)
+        sharedCells[id] = (shared, name)
+        return name
+    }
+
     func cell(_ style: CellStyle) -> String? {
         if style == .default { return nil }
         if let n = cells[style] { return n }
@@ -735,7 +747,7 @@ enum ODSWriter {
                         detective: CellDetective? = nil, sheet: String, styles: ODSStyleRegistry,
                         sink: ODSWarningSink) -> String {
         var attrs = ""
-        if let n = styles.cell(cell.style) { attrs += " table:style-name=\"\(n)\"" }
+        if let n = styles.cell(of: cell) { attrs += " table:style-name=\"\(n)\"" }
         if let v = validation { attrs += " table:content-validation-name=\"\(v)\"" }
         if let m = merge, !m.isSingleCell { attrs += " table:number-columns-spanned=\"\(m.size.cols)\" table:number-rows-spanned=\"\(m.size.rows)\"" }
         // an array formula: ODF puts the span on the cell that holds it (`table:number-matrix-*-spanned`)
@@ -831,6 +843,10 @@ enum ODSWriter {
     /// `<text:p>` elements for a string: one per line, with ODF's white-space rules (leading / trailing / repeated
     /// spaces as `text:s`, tabs as `text:tab`).
     static func paragraphsXML(_ text: String) -> [String] {
+        // the common case — a word, a name, a code — has none of the characters the rules below are about
+        if !text.utf8.contains(where: { $0 == 0x20 || $0 == 0x09 || $0 == 0x0A || $0 == 0x0D }) {
+            return ["<text:p>" + XML.esc(text) + "</text:p>"]
+        }
         let lines = text.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false)
         return lines.map { line in
             var out = "<text:p>"

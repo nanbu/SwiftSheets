@@ -385,6 +385,19 @@ final class StylesParser: SAXHandler {
 
     func style(_ index: Int) -> CellStyle { cellXfs.indices.contains(index) ? cellXfs[index] : CellStyle() }
 
+    /// What a number under this `xf` means: a plain number, a date, or an elapsed time. Decided once per `xf`
+    /// rather than once per cell — the format code has to be scanned to decide, and a sheet asks the same
+    /// question a million times over a handful of formats.
+    enum NumericKind { case plain, date, duration }
+    private var numericKinds: [Int: NumericKind] = [:]
+    func numericKind(_ index: Int) -> NumericKind {
+        if let known = numericKinds[index] { return known }
+        let fmt = style(index).numberFormat
+        let kind: NumericKind = NumberFormat.isTimedeltaFormat(fmt) ? .duration : NumberFormat.isDateFormat(fmt) ? .date : .plain
+        numericKinds[index] = kind
+        return kind
+    }
+
     private var sharedStyles: [Int: SharedStyle] = [:]
     /// One shared instance per `xf`: a sheet's cells reference a handful of styles between them, and each of those
     /// is 384 bytes.
@@ -852,9 +865,11 @@ final class SheetParser: SAXHandler {
         default:
             let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty, let d = Double(raw) else { return nil }
-            let fmt = styles.style(cellStyle).numberFormat
-            if NumberFormat.isTimedeltaFormat(fmt) { return ExcelDate.durationFromSerial(d).map { .duration($0) } }
-            if NumberFormat.isDateFormat(fmt) { return ExcelDate.fromSerial(d, epoch: epoch) }
+            switch styles.numericKind(cellStyle) {
+            case .duration: return ExcelDate.durationFromSerial(d).map { .duration($0) }
+            case .date: return ExcelDate.fromSerial(d, epoch: epoch)
+            case .plain: break
+            }
             if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
             return .number(Decimal(string: raw, locale: nil).flatMap { $0.isNaN ? nil : $0 } ?? Decimal(d))
         }

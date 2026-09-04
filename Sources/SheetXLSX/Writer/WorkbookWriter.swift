@@ -859,7 +859,7 @@ enum WorkbookWriter {
             s += ">"
             for ref in (byRow[r] ?? []).sorted(by: { $0.col < $1.col }) {
                 guard let c = table.cells[ref] else { continue }
-                let styleIndex = styles.index(for: c.style)
+                let styleIndex = styles.index(for: c)
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
                 let a1 = ref.a1
                 if let h = c.hyperlink { hyperlinks.append((a1, h)) }
