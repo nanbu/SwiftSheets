@@ -3,7 +3,7 @@
 # scripts/build-spec-feature-matrix.py を走らせること（手で編集しない）。
 meta:
   title: "形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応"
-  library_version: "0.11.2"
+  library_version: "0.12.0"
   as_of: "2026-08-31"
   commit: "0.11.1"
   axis: "各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。docs/format-support.html（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。"

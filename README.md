@@ -45,14 +45,14 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.11.2")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.12.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
 ]
 ```
 
-Status: **0.11.2** — all five formats are usable; the API may still change before 1.0. What changed in each release
+Status: **0.12.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
 test keeps the constant, this line and the pin above in step.
 

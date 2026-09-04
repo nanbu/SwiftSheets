@@ -9,6 +9,8 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-05
+
 ### Added
 
 - **ZIP64** (spec Appendix B.39.1). Packages with a part past 4 GB, or more than 65,535 parts, are read and
@@ -583,6 +585,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.12.0]: https://github.com/nanbu/SwiftSheets/compare/0.11.2...0.12.0
 [0.11.2]: https://github.com/nanbu/SwiftSheets/compare/0.11.1...0.11.2
 [0.11.1]: https://github.com/nanbu/SwiftSheets/compare/0.11.0...0.11.1
 [0.11.0]: https://github.com/nanbu/SwiftSheets/compare/0.10.0...0.11.0
