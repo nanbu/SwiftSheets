@@ -125,6 +125,129 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>逐次読み（numbers）</td><td>1.79 秒</td><td>91.1 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
 <tr><td>逐次書き（numbers）</td><td>10.30 秒</td><td>60.3 MB</td><td>StreamingWriter で 1 行ずつ</td></tr>
 </tbody></table>
+<h2>200 列の基準 — 5,000 行 / 50,000 行 / 500,000 行</h2>
+<p>同じ操作を、列数を 200 に固定し行数だけ 10 倍ずつ増やして測った値（2026-09-05、コミット <code>dfce785</code>）。測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。</p>
+<div style="overflow-x:auto"><table><thead><tr><th>計測</th>
+<th colspan="2">5,000 行（1,000,000 マス）</th>
+<th colspan="2">50,000 行（10,000,000 マス）</th>
+<th colspan="2">500,000 行（100,000,000 マス）</th>
+</tr><tr><th></th><th>時間</th><th>ピークメモリ</th><th>時間</th><th>ピークメモリ</th><th>時間</th><th>ピークメモリ</th></tr></thead><tbody>
+<tr><td>模型を組み立てる</td>
+<td>0.63 秒</td><td>203.0 MB</td>
+<td>6.69 秒</td><td>973.2 MB</td>
+<td colspan="2"><small>測れない（見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える）</small></td>
+</tr>
+<tr><td>書き出し（xlsx）</td>
+<td>1.51 秒</td><td>251.3 MB</td>
+<td>17.31 秒</td><td>1076.9 MB</td>
+<td colspan="2"><small>測れない（見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える）</small></td>
+</tr>
+<tr><td>読み込み（xlsx）</td>
+<td>2.60 秒</td><td>214.6 MB</td>
+<td>28.43 秒</td><td>1034.8 MB</td>
+<td colspan="2"><small>測れない（write を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>逐次読み（xlsx）</td>
+<td>1.78 秒</td><td>19.0 MB</td>
+<td>18.42 秒</td><td>60.3 MB</td>
+<td>192.63 秒</td><td>452.0 MB</td>
+</tr>
+<tr><td>開いて 1 マス直して保存</td>
+<td>3.63 秒</td><td>227.8 MB</td>
+<td>38.86 秒</td><td>1197.7 MB</td>
+<td colspan="2"><small>測れない（write を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>形式の判定</td>
+<td>1 ミリ秒未満</td><td>7.0 MB</td>
+<td>1 ミリ秒未満</td><td>6.9 MB</td>
+<td>1 ミリ秒未満</td><td>7.0 MB</td>
+</tr>
+<tr><td>読む前の問い合わせ</td>
+<td>2.0 ミリ秒</td><td>10.8 MB</td>
+<td>3.0 ミリ秒</td><td>10.8 MB</td>
+<td>6.0 ミリ秒</td><td>10.9 MB</td>
+</tr>
+<tr><td>逐次書き（xlsx）</td>
+<td>1.77 秒</td><td>10.5 MB</td>
+<td>20.37 秒</td><td>10.1 MB</td>
+<td>190.63 秒</td><td>10.1 MB</td>
+</tr>
+<tr><td>書き出し（xlsx・8 シート）</td>
+<td>1.49 秒</td><td>208.5 MB</td>
+<td>15.86 秒</td><td>1015.6 MB</td>
+<td colspan="2"><small>測れない（見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える）</small></td>
+</tr>
+<tr><td>読み込み（xlsx・8 シート・1 枚ずつ）</td>
+<td>2.63 秒</td><td>140.4 MB</td>
+<td>26.72 秒</td><td>1000.8 MB</td>
+<td colspan="2"><small>測れない（writeSheets を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>読み込み（xlsx・8 シート・同時）</td>
+<td>1.15 秒</td><td>250.6 MB</td>
+<td>11.18 秒</td><td>1182.3 MB</td>
+<td colspan="2"><small>測れない（writeSheets を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>書き出し（ods）</td>
+<td>3.17 秒</td><td>212.7 MB</td>
+<td>33.05 秒</td><td>1109.0 MB</td>
+<td colspan="2"><small>測れない（見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える）</small></td>
+</tr>
+<tr><td>読み込み（ods）</td>
+<td>3.77 秒</td><td>256.7 MB</td>
+<td>39.40 秒</td><td>1062.3 MB</td>
+<td colspan="2"><small>測れない（writeODS を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>逐次読み（ods）</td>
+<td>4.14 秒</td><td>201.5 MB</td>
+<td>39.89 秒</td><td>919.0 MB</td>
+<td>424.09 秒</td><td>950.8 MB</td>
+</tr>
+<tr><td>逐次書き（ods）</td>
+<td>3.35 秒</td><td>16.6 MB</td>
+<td>35.98 秒</td><td>16.6 MB</td>
+<td>360.48 秒</td><td>16.8 MB</td>
+</tr>
+<tr><td>書き出し（csv）</td>
+<td>0.92 秒</td><td>237.1 MB</td>
+<td>11.43 秒</td><td>1100.2 MB</td>
+<td colspan="2"><small>測れない（見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える）</small></td>
+</tr>
+<tr><td>読み込み（csv）</td>
+<td>1.77 秒</td><td>244.8 MB</td>
+<td>20.21 秒</td><td>1107.3 MB</td>
+<td colspan="2"><small>測れない（writeCSV を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>逐次読み（csv）</td>
+<td>1.24 秒</td><td>10.1 MB</td>
+<td>12.74 秒</td><td>10.0 MB</td>
+<td>132.51 秒</td><td>10.0 MB</td>
+</tr>
+<tr><td>逐次書き（csv）</td>
+<td>0.77 秒</td><td>7.3 MB</td>
+<td>8.34 秒</td><td>7.3 MB</td>
+<td>87.49 秒</td><td>7.3 MB</td>
+</tr>
+<tr><td>書き出し（numbers）</td>
+<td>3.40 秒</td><td>315.3 MB</td>
+<td>39.79 秒</td><td>1368.0 MB</td>
+<td colspan="2"><small>測れない（見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える）</small></td>
+</tr>
+<tr><td>読み込み（numbers）</td>
+<td>1.30 秒</td><td>278.2 MB</td>
+<td>13.97 秒</td><td>1492.3 MB</td>
+<td colspan="2"><small>測れない（writeNumbers を測っていないので材料が無い）</small></td>
+</tr>
+<tr><td>逐次読み（numbers）</td>
+<td>0.71 秒</td><td>54.0 MB</td>
+<td>6.79 秒</td><td>311.2 MB</td>
+<td>82.02 秒</td><td>1196.8 MB</td>
+</tr>
+<tr><td>逐次書き（numbers）</td>
+<td>3.27 秒</td><td>30.0 MB</td>
+<td>33.16 秒</td><td>47.7 MB</td>
+<td>339.52 秒</td><td>227.5 MB</td>
+</tr>
+</tbody></table></div>
 <h2>計測の条件</h2><ul>
 <li>日付: 2026-09-05、コミット: <code>714fe7f</code></li>
 <li>機械: Apple M2、メモリ 8 GB、26.6.2</li>

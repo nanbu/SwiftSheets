@@ -174,5 +174,729 @@
    "sec": 10.3,
    "peakMB": 60.3
   }
- ]
+ ],
+ "grid": {
+  "columns": 200,
+  "date": "2026-09-05",
+  "commit": "dfce785",
+  "memory_gb": 8,
+  "material": "synthetic, 200 columns: the ten-column pattern of the million-cell record repeated across the width with the numbers offset per block; the text columns past the first block draw on a vocabulary of fifty",
+  "runs": [
+   {
+    "rows": 5000,
+    "cells": 1000000,
+    "results": [
+     {
+      "op": "build",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.634,
+      "peakMB": 203.0,
+      "note": "cells=1000000",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "write",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.506,
+      "peakMB": 251.3,
+      "note": "modelMB=202.8",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "read",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 2.601,
+      "peakMB": 214.6,
+      "note": "sum=3568923980",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "streamRead",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.782,
+      "peakMB": 19.0,
+      "note": "sum=3568923980",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "edit",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 3.634,
+      "peakMB": 227.8,
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "detect",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.0,
+      "peakMB": 7.0,
+      "note": "format=xlsx",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "inspect",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.002,
+      "peakMB": 10.8,
+      "note": "declaredCells=1000000",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "streamWrite",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.768,
+      "peakMB": 10.5,
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "streamRead",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.86,
+      "peakMB": 19.4,
+      "note": "sum=3568923980",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "detect",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.0,
+      "peakMB": 7.0,
+      "note": "format=xlsx",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "inspect",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.002,
+      "peakMB": 10.9,
+      "note": "declaredCells=-1",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "writeSheets",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.494,
+      "peakMB": 208.5,
+      "note": "sheets=8 modelMB=196.5",
+      "file": "sheets.xlsx"
+     },
+     {
+      "op": "readSheetsSerial",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 2.627,
+      "peakMB": 140.4,
+      "note": "sheets=8 sum=3568923980",
+      "file": "sheets.xlsx"
+     },
+     {
+      "op": "readSheets",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.152,
+      "peakMB": 250.6,
+      "note": "sheets=8 sum=3568923980",
+      "file": "sheets.xlsx"
+     },
+     {
+      "op": "writeODS",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 3.166,
+      "peakMB": 212.7,
+      "note": "modelMB=202.8",
+      "file": "bench.ods"
+     },
+     {
+      "op": "readODS",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 3.767,
+      "peakMB": 256.7,
+      "note": "sum=3568923980",
+      "file": "bench.ods"
+     },
+     {
+      "op": "streamReadODS",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 4.136,
+      "peakMB": 201.5,
+      "note": "sum=3568923980",
+      "file": "bench.ods"
+     },
+     {
+      "op": "streamWriteODS",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 3.35,
+      "peakMB": 16.6,
+      "file": "stream.ods"
+     },
+     {
+      "op": "streamReadODS",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 4.102,
+      "peakMB": 201.6,
+      "note": "sum=3568923980",
+      "file": "stream.ods"
+     },
+     {
+      "op": "writeCSV",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.924,
+      "peakMB": 237.1,
+      "note": "modelMB=202.8",
+      "file": "bench.csv"
+     },
+     {
+      "op": "readCSV",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.773,
+      "peakMB": 244.8,
+      "note": "sum=3568923980",
+      "file": "bench.csv"
+     },
+     {
+      "op": "streamReadCSV",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.239,
+      "peakMB": 10.1,
+      "note": "sum=3568923980",
+      "file": "bench.csv"
+     },
+     {
+      "op": "streamWriteCSV",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.771,
+      "peakMB": 7.3,
+      "file": "stream.csv"
+     },
+     {
+      "op": "streamReadCSV",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.242,
+      "peakMB": 10.1,
+      "note": "sum=3568923980",
+      "file": "stream.csv"
+     },
+     {
+      "op": "writeNumbers",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 3.395,
+      "peakMB": 315.3,
+      "note": "modelMB=202.8",
+      "file": "bench.numbers"
+     },
+     {
+      "op": "readNumbers",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 1.303,
+      "peakMB": 278.2,
+      "note": "sum=3568923980",
+      "file": "bench.numbers"
+     },
+     {
+      "op": "streamReadNumbers",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.712,
+      "peakMB": 54.0,
+      "note": "sum=3568923980",
+      "file": "bench.numbers"
+     },
+     {
+      "op": "streamWriteNumbers",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 3.274,
+      "peakMB": 30.0,
+      "file": "stream.numbers"
+     },
+     {
+      "op": "streamReadNumbers",
+      "rows": 5000,
+      "columns": 200,
+      "sec": 0.73,
+      "peakMB": 54.3,
+      "note": "sum=3568923980",
+      "file": "stream.numbers"
+     }
+    ],
+    "skipped": []
+   },
+   {
+    "rows": 50000,
+    "cells": 10000000,
+    "results": [
+     {
+      "op": "build",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 6.694,
+      "peakMB": 973.2,
+      "note": "cells=10000000",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "write",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 17.311,
+      "peakMB": 1076.9,
+      "note": "modelMB=1050.2",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "read",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 28.425,
+      "peakMB": 1034.8,
+      "note": "sum=350689360414",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "streamRead",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 18.419,
+      "peakMB": 60.3,
+      "note": "sum=350689360414",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "edit",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 38.859,
+      "peakMB": 1197.7,
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "detect",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 0.0,
+      "peakMB": 6.9,
+      "note": "format=xlsx",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "inspect",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 0.003,
+      "peakMB": 10.8,
+      "note": "declaredCells=10000000",
+      "file": "bench.xlsx"
+     },
+     {
+      "op": "streamWrite",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 20.374,
+      "peakMB": 10.1,
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "streamRead",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 19.587,
+      "peakMB": 58.9,
+      "note": "sum=350689360414",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "detect",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 0.0,
+      "peakMB": 7.0,
+      "note": "format=xlsx",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "inspect",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 0.003,
+      "peakMB": 10.9,
+      "note": "declaredCells=-1",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "writeSheets",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 15.861,
+      "peakMB": 1015.6,
+      "note": "sheets=8 modelMB=993.8",
+      "file": "sheets.xlsx"
+     },
+     {
+      "op": "readSheetsSerial",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 26.718,
+      "peakMB": 1000.8,
+      "note": "sheets=8 sum=350689360414",
+      "file": "sheets.xlsx"
+     },
+     {
+      "op": "readSheets",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 11.175,
+      "peakMB": 1182.3,
+      "note": "sheets=8 sum=350689360414",
+      "file": "sheets.xlsx"
+     },
+     {
+      "op": "writeODS",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 33.045,
+      "peakMB": 1109.0,
+      "note": "modelMB=1109.0",
+      "file": "bench.ods"
+     },
+     {
+      "op": "readODS",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 39.396,
+      "peakMB": 1062.3,
+      "note": "sum=350689360414",
+      "file": "bench.ods"
+     },
+     {
+      "op": "streamReadODS",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 39.89,
+      "peakMB": 919.0,
+      "note": "sum=350689360414",
+      "file": "bench.ods"
+     },
+     {
+      "op": "streamWriteODS",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 35.976,
+      "peakMB": 16.6,
+      "file": "stream.ods"
+     },
+     {
+      "op": "streamReadODS",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 41.366,
+      "peakMB": 705.2,
+      "note": "sum=350689360414",
+      "file": "stream.ods"
+     },
+     {
+      "op": "writeCSV",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 11.43,
+      "peakMB": 1100.2,
+      "note": "modelMB=1071.6",
+      "file": "bench.csv"
+     },
+     {
+      "op": "readCSV",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 20.214,
+      "peakMB": 1107.3,
+      "note": "sum=350689360414",
+      "file": "bench.csv"
+     },
+     {
+      "op": "streamReadCSV",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 12.745,
+      "peakMB": 10.0,
+      "note": "sum=350689360414",
+      "file": "bench.csv"
+     },
+     {
+      "op": "streamWriteCSV",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 8.339,
+      "peakMB": 7.3,
+      "file": "stream.csv"
+     },
+     {
+      "op": "streamReadCSV",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 12.685,
+      "peakMB": 10.0,
+      "note": "sum=350689360414",
+      "file": "stream.csv"
+     },
+     {
+      "op": "writeNumbers",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 39.793,
+      "peakMB": 1368.0,
+      "note": "modelMB=1209.7",
+      "file": "bench.numbers"
+     },
+     {
+      "op": "readNumbers",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 13.975,
+      "peakMB": 1492.3,
+      "note": "sum=350689360414",
+      "file": "bench.numbers"
+     },
+     {
+      "op": "streamReadNumbers",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 6.791,
+      "peakMB": 311.2,
+      "note": "sum=350689360414",
+      "file": "bench.numbers"
+     },
+     {
+      "op": "streamWriteNumbers",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 33.155,
+      "peakMB": 47.7,
+      "file": "stream.numbers"
+     },
+     {
+      "op": "streamReadNumbers",
+      "rows": 50000,
+      "columns": 200,
+      "sec": 7.122,
+      "peakMB": 310.3,
+      "note": "sum=350689360414",
+      "file": "stream.numbers"
+     }
+    ],
+    "skipped": []
+   },
+   {
+    "rows": 500000,
+    "cells": 100000000,
+    "results": [
+     {
+      "op": "streamWrite",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 190.635,
+      "peakMB": 10.1,
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "streamRead",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 192.634,
+      "peakMB": 452.0,
+      "note": "sum=35006893739970",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "detect",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 0.0,
+      "peakMB": 7.0,
+      "note": "format=xlsx",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "inspect",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 0.006,
+      "peakMB": 10.9,
+      "note": "declaredCells=-1",
+      "file": "stream.xlsx"
+     },
+     {
+      "op": "streamWriteODS",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 360.477,
+      "peakMB": 16.8,
+      "file": "stream.ods"
+     },
+     {
+      "op": "streamReadODS",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 424.089,
+      "peakMB": 950.8,
+      "note": "sum=35006893739970",
+      "file": "stream.ods"
+     },
+     {
+      "op": "streamWriteCSV",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 87.487,
+      "peakMB": 7.3,
+      "file": "stream.csv"
+     },
+     {
+      "op": "streamReadCSV",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 132.508,
+      "peakMB": 10.0,
+      "note": "sum=35006893739970",
+      "file": "stream.csv"
+     },
+     {
+      "op": "streamWriteNumbers",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 339.522,
+      "peakMB": 227.5,
+      "file": "stream.numbers"
+     },
+     {
+      "op": "streamReadNumbers",
+      "rows": 500000,
+      "columns": 200,
+      "sec": 82.021,
+      "peakMB": 1196.8,
+      "note": "sum=35006893739970",
+      "file": "stream.numbers"
+     }
+    ],
+    "skipped": [
+     {
+      "op": "build",
+      "file": "bench.xlsx",
+      "reason": "見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える"
+     },
+     {
+      "op": "write",
+      "file": "bench.xlsx",
+      "reason": "見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える"
+     },
+     {
+      "op": "read",
+      "file": "bench.xlsx",
+      "reason": "write を測っていないので材料が無い"
+     },
+     {
+      "op": "streamRead",
+      "file": "bench.xlsx",
+      "reason": "write を測っていないので材料が無い"
+     },
+     {
+      "op": "edit",
+      "file": "bench.xlsx",
+      "reason": "write を測っていないので材料が無い"
+     },
+     {
+      "op": "detect",
+      "file": "bench.xlsx",
+      "reason": "write を測っていないので材料が無い"
+     },
+     {
+      "op": "inspect",
+      "file": "bench.xlsx",
+      "reason": "write を測っていないので材料が無い"
+     },
+     {
+      "op": "writeSheets",
+      "file": "sheets.xlsx",
+      "reason": "見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える"
+     },
+     {
+      "op": "readSheetsSerial",
+      "file": "sheets.xlsx",
+      "reason": "writeSheets を測っていないので材料が無い"
+     },
+     {
+      "op": "readSheets",
+      "file": "sheets.xlsx",
+      "reason": "writeSheets を測っていないので材料が無い"
+     },
+     {
+      "op": "writeODS",
+      "file": "bench.ods",
+      "reason": "見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える"
+     },
+     {
+      "op": "readODS",
+      "file": "bench.ods",
+      "reason": "writeODS を測っていないので材料が無い"
+     },
+     {
+      "op": "streamReadODS",
+      "file": "bench.ods",
+      "reason": "writeODS を測っていないので材料が無い"
+     },
+     {
+      "op": "writeCSV",
+      "file": "bench.csv",
+      "reason": "見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える"
+     },
+     {
+      "op": "readCSV",
+      "file": "bench.csv",
+      "reason": "writeCSV を測っていないので材料が無い"
+     },
+     {
+      "op": "streamReadCSV",
+      "file": "bench.csv",
+      "reason": "writeCSV を測っていないので材料が無い"
+     },
+     {
+      "op": "writeNumbers",
+      "file": "bench.numbers",
+      "reason": "見込みピーク 29.8 GB が実メモリ 8 GB の 6 割を超える"
+     },
+     {
+      "op": "readNumbers",
+      "file": "bench.numbers",
+      "reason": "writeNumbers を測っていないので材料が無い"
+     },
+     {
+      "op": "streamReadNumbers",
+      "file": "bench.numbers",
+      "reason": "writeNumbers を測っていないので材料が無い"
+     }
+    ]
+   }
+  ]
+ }
 }

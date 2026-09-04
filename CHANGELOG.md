@@ -18,6 +18,9 @@ writes, so the constant, the README's status line and the tag always name the sa
   of physical memory, and a write only when the free disk is 1.5× the room it needs; anything else is recorded
   as skipped with the reason, never as a blank. The bench takes its width from `SWIFTSHEETS_BENCH_COLUMNS` and
   gains a streaming CSV write.
+  On the 8 GB machine the record was made on, the hundred-million-cell tier could be measured only row by
+  row — written and read back: XLSX 191 s / 10 MB and 193 s / 452 MB, ODS 360 s / 17 MB and 424 s / 951 MB, Numbers 340 s / 228 MB and 82 s / 1197 MB, CSV 87 s / 7 MB and 133 s / 10 MB — and the
+  row-by-row reads' peaks grow with the rows, which is the next thing to look at.
 
 ### Fixed
 
