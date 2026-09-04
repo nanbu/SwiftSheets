@@ -126,7 +126,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>逐次書き（numbers）</td><td>10.30 秒</td><td>60.3 MB</td><td>StreamingWriter で 1 行ずつ</td></tr>
 </tbody></table>
 <h2>200 列の基準 — 5,000 行 / 50,000 行 / 500,000 行</h2>
-<p>同じ操作を、列数を 200 に固定し行数だけ 10 倍ずつ増やして測った値（2026-09-05、コミット <code>dfce785</code>）。測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。</p>
+<p>同じ操作を、列数を 200 に固定し行数だけ 10 倍ずつ増やして測った値（2026-09-05、コミット <code>dfce785</code>）。測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。読みの値は、逐次で書いたファイルを読んだもの。</p>
 <div style="overflow-x:auto"><table><thead><tr><th>計測</th>
 <th colspan="2">5,000 行（1,000,000 マス）</th>
 <th colspan="2">50,000 行（10,000,000 マス）</th>
@@ -148,8 +148,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <td colspan="2"><small>測れない（write を測っていないので材料が無い）</small></td>
 </tr>
 <tr><td>逐次読み（xlsx）</td>
-<td>1.78 秒</td><td>19.0 MB</td>
-<td>18.42 秒</td><td>60.3 MB</td>
+<td>1.86 秒</td><td>19.4 MB</td>
+<td>19.59 秒</td><td>58.9 MB</td>
 <td>192.63 秒</td><td>452.0 MB</td>
 </tr>
 <tr><td>開いて 1 マス直して保存</td>
@@ -159,12 +159,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </tr>
 <tr><td>形式の判定</td>
 <td>1 ミリ秒未満</td><td>7.0 MB</td>
-<td>1 ミリ秒未満</td><td>6.9 MB</td>
+<td>1 ミリ秒未満</td><td>7.0 MB</td>
 <td>1 ミリ秒未満</td><td>7.0 MB</td>
 </tr>
 <tr><td>読む前の問い合わせ</td>
-<td>2.0 ミリ秒</td><td>10.8 MB</td>
-<td>3.0 ミリ秒</td><td>10.8 MB</td>
+<td>2.0 ミリ秒</td><td>10.9 MB</td>
+<td>3.0 ミリ秒</td><td>10.9 MB</td>
 <td>6.0 ミリ秒</td><td>10.9 MB</td>
 </tr>
 <tr><td>逐次書き（xlsx）</td>
@@ -198,8 +198,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <td colspan="2"><small>測れない（writeODS を測っていないので材料が無い）</small></td>
 </tr>
 <tr><td>逐次読み（ods）</td>
-<td>4.14 秒</td><td>201.5 MB</td>
-<td>39.89 秒</td><td>919.0 MB</td>
+<td>4.10 秒</td><td>201.6 MB</td>
+<td>41.37 秒</td><td>705.2 MB</td>
 <td>424.09 秒</td><td>950.8 MB</td>
 </tr>
 <tr><td>逐次書き（ods）</td>
@@ -219,7 +219,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </tr>
 <tr><td>逐次読み（csv）</td>
 <td>1.24 秒</td><td>10.1 MB</td>
-<td>12.74 秒</td><td>10.0 MB</td>
+<td>12.69 秒</td><td>10.0 MB</td>
 <td>132.51 秒</td><td>10.0 MB</td>
 </tr>
 <tr><td>逐次書き（csv）</td>
@@ -238,8 +238,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <td colspan="2"><small>測れない（writeNumbers を測っていないので材料が無い）</small></td>
 </tr>
 <tr><td>逐次読み（numbers）</td>
-<td>0.71 秒</td><td>54.0 MB</td>
-<td>6.79 秒</td><td>311.2 MB</td>
+<td>0.73 秒</td><td>54.3 MB</td>
+<td>7.12 秒</td><td>310.3 MB</td>
 <td>82.02 秒</td><td>1196.8 MB</td>
 </tr>
 <tr><td>逐次書き（numbers）</td>

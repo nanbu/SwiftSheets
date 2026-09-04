@@ -112,7 +112,8 @@ def render_grid(grid, w):
     runs = grid["runs"]
     w("<h2>%s 列の基準 — %s</h2>" % (e(grid["columns"]), e(" / ".join("{:,} 行".format(r["rows"]) for r in runs))))
     w("<p>同じ操作を、列数を %s に固定し行数だけ 10 倍ずつ増やして測った値（%s、コミット <code>%s</code>）。"
-      "測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。</p>"
+      "測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。"
+      "読みの値は、逐次で書いたファイルを読んだもの。</p>"
       % (e(grid["columns"]), e(grid["date"]), e(grid["commit"])))
     w("<div style=\"overflow-x:auto\"><table><thead><tr><th>計測</th>")
     for r in runs:
@@ -128,7 +129,10 @@ def render_grid(grid, w):
         label, _ = LABELS.get(op, (op, ""))
         w("<tr><td>%s</td>" % e(label))
         for r in runs:
-            hit = next((x for x in r["results"] if x["op"] == op), None)
+            hits = [x for x in r["results"] if x["op"] == op]
+            # a reader is measured on the whole-model writer's file and on the streamed one; the streamed one is
+            # the number that goes with the streaming writes beside it
+            hit = next((x for x in hits if x.get("file", "").startswith("stream")), hits[0] if hits else None)
             if hit:
                 w("<td>%s</td><td>%s MB</td>" % (e(fmt_sec(hit["sec"])), e(hit["peakMB"])))
             else:

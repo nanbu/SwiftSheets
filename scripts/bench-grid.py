@@ -117,7 +117,8 @@ def main(argv):
         subprocess.run("swift build -c release 2>&1 | tail -1 >&2", shell=True, cwd=BENCH_DIR, check=True)
     binary = os.path.join(BENCH_DIR, ".build", "release", "swiftsheets-bench")
     runs = []
-    with open(os.path.join(ROOT, "docs", "performance-grid.log"), "w", encoding="utf-8") as log:
+    log_path = os.path.join(tempfile.gettempdir(), "swiftsheets-bench-grid.log")
+    with open(log_path, "w", encoding="utf-8") as log:
         for rows in sizes:
             outdir = tempfile.mkdtemp(prefix="swiftsheets-grid-")
             try:
@@ -125,7 +126,6 @@ def main(argv):
                 runs.append(measure(binary, rows, outdir, log))
             finally:
                 shutil.rmtree(outdir, ignore_errors=True)
-    os.remove(os.path.join(ROOT, "docs", "performance-grid.log"))
     with open(TARGET, encoding="utf-8") as fh:
         doc = json.load(fh)
     doc["grid"] = {
