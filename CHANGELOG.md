@@ -7,7 +7,7 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.15.0] — 2026-09-05
 
 ### Added
 
@@ -707,6 +707,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.15.0]: https://github.com/nanbu/SwiftSheets/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/nanbu/SwiftSheets/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/nanbu/SwiftSheets/compare/0.12.0...0.13.0
 [0.12.0]: https://github.com/nanbu/SwiftSheets/compare/0.11.2...0.12.0

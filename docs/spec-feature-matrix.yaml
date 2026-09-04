@@ -3,9 +3,9 @@
 # scripts/build-spec-feature-matrix.py を走らせること（手で編集しない）。
 meta:
   title: "形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応"
-  library_version: "0.14.0"
+  library_version: "0.15.0"
   as_of: "2026-09-05"
-  commit: "0.14.0"
+  commit: "0.15.0"
   axis: "各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。docs/format-support.html（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。"
   granularity: "「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。"
   caveat: "「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 10 件 / numbers 23 件）。"
