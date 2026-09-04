@@ -964,12 +964,14 @@ formats:
             read: "na"
             write: "partial"
             api:
-              - "StreamingWriter(url:sheetName:)"
+              - "StreamingWriter(url:)"
+              - "XLSXStreamingWriter"
               - "append(_:)"
               - "close()"
+              - "warnings"
             warning: "なし"
             evidence: "readme"
-            note: "行数によらず +3MB。値と書式だけ。"
+            note: "行数によらず数 MB。値と書式だけ。傘の StreamingWriter は拡張子で形式を決め、ODS・Numbers・CSV にも同じ呼び方で書く（付録 B.42）。"
           - id: "xlsx.limit.cells"
             name: "セル数の上限"
             spec_anchor: "ReadOptions.cellLimit（既定は上限なし — 付録 B.39.2）"
@@ -987,9 +989,9 @@ formats:
       public: true
       note: "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
     totals:
-      read: {full: 36, partial: 12, preserved: 1, none: 3, na: 5, unverified: 0}
-      write: {full: 32, partial: 9, preserved: 0, none: 14, na: 2, unverified: 0}
-      rows: 57
+      read: {full: 36, partial: 12, preserved: 1, none: 3, na: 6, unverified: 0}
+      write: {full: 32, partial: 10, preserved: 0, none: 14, na: 2, unverified: 0}
+      rows: 58
     areas:
       - id: "package"
         name: "パッケージ"
@@ -1648,6 +1650,20 @@ formats:
             warning: "なし（値と書式だけと明記）"
             evidence: "measured"
             note: "本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。"
+          - id: "ods.stream.write"
+            name: "行ごとの書き出し"
+            spec_anchor: "content.xml（office:automatic-styles が表より前）"
+            read: "na"
+            write: "partial"
+            api:
+              - "StreamingWriter(url:)"
+              - "ODSStreamingWriter"
+              - "append(_:)"
+              - "close()"
+              - "warnings"
+            warning: "ODF に無い書式・色は全載せの書き手と同じ警告"
+            evidence: "measured"
+            note: "行は来るたびに XML にして退避し（8 MiB までメモリ・超えたら一時ファイル）、close で様式の後ろに流す。メモリは行数によらず数 MB、ディスクに本文 1 回分。値と書式だけ。付録 B.42。"
   - id: "numbers"
     name: "Apple Numbers（.numbers）"
     spec:
@@ -1655,9 +1671,9 @@ formats:
       public: false
       note: "Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。"
     totals:
-      read: {full: 21, partial: 12, preserved: 0, none: 10, na: 15, unverified: 0}
-      write: {full: 18, partial: 8, preserved: 0, none: 28, na: 4, unverified: 0}
-      rows: 58
+      read: {full: 21, partial: 12, preserved: 0, none: 10, na: 16, unverified: 0}
+      write: {full: 18, partial: 9, preserved: 0, none: 28, na: 4, unverified: 0}
+      rows: 59
     areas:
       - id: "package"
         name: "書類とパッケージ"
@@ -2300,3 +2316,17 @@ formats:
             warning: "なし（値と書式だけと明記）"
             evidence: "measured"
             note: "部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる。1 枚のシートの 2 枚目以降の表は table: で。値と書式だけ。付録 B.40.3。"
+          - id: "num.stream.write"
+            name: "行ごとの書き出し"
+            spec_anchor: "Index/Tables/Tile-*.iwa を 256 行ごとに書き出す"
+            read: "na"
+            write: "partial"
+            api:
+              - "StreamingWriter(url:)"
+              - "NumbersStreamingWriter"
+              - "append(_:)"
+              - "close()"
+              - "warnings"
+            warning: "数式はキャッシュ値・リッチテキストは平文・リンクと注釈と制御は落とす（枚数つき）"
+            evidence: "measured"
+            note: "タイルは埋まるたびに封筒へ書いて手放す。残るのは文字列一覧・様式一覧・行ごと約 12 バイトの行ヘッダ。表の幅は最も広い行で、書き出し済みのタイルより広い行は refuse。付録 B.42。"

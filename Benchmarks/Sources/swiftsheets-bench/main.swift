@@ -90,7 +90,8 @@ do {
             try reader.forEachRow(inSheet: reader.sheetNames[0]) { r in for c in r.cells { if let n = c.value?.numberValue { total += n } } }
         }
         report(op, rows, seconds(t), "sum=\(total)")
-    case "streamWrite":
+    case "streamWrite", "streamWriteODS", "streamWriteNumbers":
+        // the one streaming writer for every format (spec Appendix B.42): the path's extension decides the writer
         let t = try clock.measure {
             let w = try StreamingWriter(url: url, sheetName: "Sheet1")
             for i in 0..<rows { try w.append(row(i)) }

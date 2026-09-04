@@ -342,3 +342,13 @@ extension CSVStreamingReader: StreamingRowSource {
         }
     }
 }
+
+/// The delimited-text writer behind the umbrella `StreamingWriter` (spec Appendix B.42): one sheet, values only.
+extension CSVStreamingWriter: StreamingRowSink {
+    /// Delimited text holds one sheet: a second one is refused rather than folded into the first.
+    public func addSheet(named name: String) throws {
+        throw SheetError.unsupportedFeature("delimited text holds one sheet; a second sheet (\(name)) has nowhere to go")
+    }
+    /// The cells' values; their formatting has no spelling in delimited text.
+    public func append(_ cells: [Cell]) throws { try append(cells.map(\.value)) }
+}

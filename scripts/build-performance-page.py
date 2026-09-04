@@ -6,7 +6,7 @@
     python3 scripts/build-performance-page.py --check # ページが JSON と一致し、README の数字も JSON と一致するか（CI 向け）
 
 数字は覚えるものではなく確かめるもの（付録 B.39.11）。README の Limits の行が名乗る数字
-（逐次書き・逐次読み xlsx / ods / numbers・全載せ・8 シートを 1 枚ずつ／同時に読んだピーク MB）は JSON の "readme" に
+（逐次書き xlsx / ods / numbers・逐次読み xlsx / ods / numbers・全載せ・8 シートを 1 枚ずつ／同時に読んだピーク MB）は JSON の "readme" に
 名前つきで置き、--check が README の文章と突き合わせる。見た目は docs/format-support.html の <style> を借りる（隣の文書と勝手にずれないため）。
 """
 import json
@@ -36,12 +36,14 @@ LABELS = {
     "writeODS": ("書き出し（ods）", "模型 → .ods"),
     "readODS": ("読み込み（ods）", ".ods → 模型"),
     "streamReadODS": ("逐次読み（ods）", "StreamingReader で 1 行ずつ、全マスの合計"),
+    "streamWriteODS": ("逐次書き（ods）", "StreamingWriter で 1 行ずつ"),
     "writeCSV": ("書き出し（csv）", "模型 → .csv"),
     "readCSV": ("読み込み（csv）", ".csv → 模型（型の推定つき）"),
     "streamReadCSV": ("逐次読み（csv）", "CSVStreamingReader で 1 行ずつ"),
     "writeNumbers": ("書き出し（numbers）", "模型 → .numbers"),
     "readNumbers": ("読み込み（numbers）", ".numbers → 模型、全マスの合計"),
     "streamReadNumbers": ("逐次読み（numbers）", "StreamingReader で 1 行ずつ、全マスの合計"),
+    "streamWriteNumbers": ("逐次書き（numbers）", "StreamingWriter で 1 行ずつ"),
 }
 
 

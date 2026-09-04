@@ -11,6 +11,10 @@ struct ProtoMessage: Hashable {
         case fixed64(UInt64)
         case fixed32(UInt32)
         case bytes(Data)
+        /// Fields already on the wire — tags and all — emitted as they are. A writer that gathers a great many
+        /// small submessages (a header per row, spec Appendix B.42) keeps them as bytes rather than as a message
+        /// each; the field number beside it is not used. Never produced by decoding.
+        case raw(Data)
     }
     struct Field: Hashable {
         var number: Int
@@ -77,6 +81,7 @@ struct ProtoMessage: Hashable {
             case .fixed64(let v): put(UInt64(f.number) << 3 | 1); for k in 0..<8 { out.append(UInt8((v >> (8 * UInt64(k))) & 0xFF)) }
             case .bytes(let d): put(UInt64(f.number) << 3 | 2); put(UInt64(d.count)); out.append(contentsOf: d)
             case .fixed32(let v): put(UInt64(f.number) << 3 | 5); for k in 0..<4 { out.append(UInt8((v >> (8 * UInt32(k))) & 0xFF)) }
+            case .raw(let d): out.append(contentsOf: d)
             }
         }
         return Data(out)
@@ -108,6 +113,7 @@ struct ProtoMessage: Hashable {
             switch f.value {
             case .varint(let v): return info.type == "sint32" || info.type == "sint64" ? Int(ProtoMessage.zigzag(v)) : Int(Int64(bitPattern: v))
             case .fixed32(let v): return Int(v)
+            case .raw: break
             case .fixed64(let v): return Int(Int64(bitPattern: v))
             default: continue
             }
@@ -121,6 +127,7 @@ struct ProtoMessage: Hashable {
             switch f.value {
             case .varint(let v): out.append(info.type == "sint32" || info.type == "sint64" ? Int(ProtoMessage.zigzag(v)) : Int(Int64(bitPattern: v)))
             case .fixed32(let v): out.append(Int(v))
+            case .raw: break
             case .fixed64(let v): out.append(Int(Int64(bitPattern: v)))
             case .bytes(let d):   // packed
                 var i = 0; let b = [UInt8](d)

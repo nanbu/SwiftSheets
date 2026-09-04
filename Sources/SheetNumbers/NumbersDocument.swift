@@ -174,6 +174,33 @@ final class NumbersDocument {
         return id
     }
 
+    /// Adds an object whose bytes leave at once instead of staying in the package (spec Appendix B.42): the id
+    /// and the place are recorded as `add` records them, so the component metadata can name it, but the archive
+    /// comes back encoded as an IWA file of its own and is not held. The object cannot be read, updated or removed
+    /// afterwards — it is for the tiles a row-by-row writer hands to the file as they fill.
+    func addStreamed(_ obj: ProtoMessage, file: String, version: [Int] = [1, 0, 5]) throws -> (id: Int, path: String, bytes: Data) {
+        let id = nextID()
+        guard let type = obj.typeName, let typeID = NumbersSchema.shared.registryByName[type] else {
+            throw SheetError.unsupportedFeature("object type \(obj.typeName ?? "unknown") is not in the bundled Numbers registry")
+        }
+        var info = ProtoMessage(typeName: "TSP.MessageInfo")
+        info.set("type", int: typeID)
+        for v in version { info.fields.append(ProtoMessage.Field(number: NumbersSchema.shared.fieldNumber("TSP.MessageInfo", "version")!, value: .varint(UInt64(v)))) }
+        info.set("length", int: obj.encodedSize)
+        var header = ProtoMessage(typeName: "TSP.ArchiveInfo")
+        header.set("identifier", int: id)
+        header.set("message_infos", messages: [info])
+        var a = IWAArchive(header: header, objects: [obj])
+        syncReferences(&a)
+        let path = file.replacingOccurrences(of: "{id}", with: String(id))
+        guard files[path] == nil, !streamed.contains(path) else { throw SheetError.invalidWorkbook("a streamed object needs a file of its own (\(path) exists)") }
+        locations[id] = (path, 0)
+        streamed.insert(path)
+        return (id, path, IWAFile(archives: [a]).encoded())
+    }
+    /// The files `addStreamed` has handed out, which `encoded(into:)` must not write again.
+    private var streamed: Set<String> = []
+
     /// Removes an object, its archive and — when the file becomes empty — the file itself. The package metadata is
     /// kept in step: a component that no longer has an object, or an external reference to it, makes Numbers declare
     /// the document damaged.
@@ -281,6 +308,18 @@ final class NumbersDocument {
 
     /// The single-file `.numbers` package. Every entry is stored, not deflated — that is what Numbers itself writes
     /// (the IWA payload is already Snappy-compressed) and what Numbers expects to find.
+    /// Writes the package's files into a file already holding the streamed ones (spec Appendix B.42): the same
+    /// entries `encoded()` makes, stored, in the same order.
+    func encoded(into zip: ZipFileWriter) throws {
+        for name in order {
+            switch files[name] {
+            case .iwa(let f)?: try zip.add(name, f.encoded(), stored: true)
+            case .blob(let d)?: try zip.add(name, d, stored: true)
+            case nil: continue
+            }
+        }
+    }
+
     func encoded() -> Data {
         var zip = ZipWriter()
         for name in order {

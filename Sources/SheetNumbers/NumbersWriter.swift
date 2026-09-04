@@ -1828,3 +1828,276 @@ struct NumbersWriter {
         }
     }
 }
+
+// MARK: - Row by row (spec Appendix B.42)
+
+/// What `NumbersStreamingWriter` needs of the writer: the template, the cloning, the record encoder and the
+/// component bookkeeping, used a table at a time instead of over a whole workbook. Everything here mirrors a
+/// piece of `write()` / `patch(tableInfo:with:)`; the difference is that the rows arrive one at a time and the
+/// tiles leave as they fill, so nothing grows with the row count but the string list and the column counts.
+extension NumbersWriter {
+    /// The template's own sheet, which the first streamed sheet is written into (as `write()` does).
+    var streamTemplateSheet: Int { templateSheet }
+
+    /// A further sheet, copied from the template's — after the first streamed sheet has been written into it.
+    /// `write()` copies every sheet before any is filled, because a copy of a filled sheet carries its second
+    /// table (Appendix B.18); a streamed sheet holds one table, and everything the copy inherits from a filled
+    /// one — the lists, the counts, the frame — is overwritten by its own `streamFinish`. The tiles it cannot
+    /// inherit: the ones already written are not objects in the document, so the copy's references to them are
+    /// dropped with the rest of the tile storage when it finishes.
+    mutating func streamCloneSheet() throws -> Int { try cloneSheet() }
+
+    /// The date origin, on the calculation engine where the reader expects it.
+    mutating func streamEpoch(_ epoch: DateEpoch) {
+        if let engine = doc.identifiers(ofType: "TSCE.CalculationEngineArchive").first {
+            doc.update(engine) { $0.set("base_date_1904", bool: epoch == .mac1904) }
+        }
+    }
+
+    /// A table being filled a row at a time: what `patch` gathers over a whole table, gathered as the rows come.
+    struct StreamedTable {
+        let sheetID: Int
+        let tableInfo: Int
+        let modelID: Int
+        var model: ProtoMessage
+        var store: ProtoMessage
+        var styleWriter: NumbersStyleWriter
+        let sheetName: String
+        let defaultRowHeight: Double
+        let defaultColumnWidth: Double
+        var stringKeys: [String: Int] = [:]
+        var stringEntries: [ProtoMessage] = []
+        /// The rows of the tile being filled, as (offsets, storage) — packed when the tile is full.
+        var tileRows: [(offsets: [Int16], storage: Data, cells: Int)] = []
+        var tileRefs: [ProtoMessage] = []
+        var rows = 0
+        /// The widest row so far; the width every packed tile was written at.
+        var cols = 0
+        var packedCols = 0
+        var columnCells: [Int] = []
+        /// The row headers, one per row, already on the wire: Numbers finds a row's storage through them, and a
+        /// million of them as messages would be the one thing here that grows with the row count.
+        var rowHeaders = Data()
+        var formulasAsValues = 0, formulasWithoutValue = 0, richAsPlain = 0, linksDropped = 0, notesDropped = 0, controlsDropped = 0
+    }
+
+    mutating func streamBegin(sheet sid: Int, name: String) throws -> StreamedTable {
+        doc.update(sid) { $0.set("name", string: name) }
+        guard let info = doc.object(sid)?.references("drawable_infos").first(where: { doc.typeName($0) == "TST.TableInfoArchive" }),
+              let modelID = doc.object(info)?.reference("tableModel"), let model = doc.object(modelID),
+              let store = model.message("base_data_store") else {
+            throw SheetError.malformedPart(path: "empty.numbers", detail: "the sheet has no table")
+        }
+        return StreamedTable(sheetID: sid, tableInfo: info, modelID: modelID, model: model, store: store,
+                             styleWriter: NumbersStyleWriter(doc: doc, model: model), sheetName: name,
+                             defaultRowHeight: model.double("default_row_height") ?? NumbersWriter.defaultRowHeight,
+                             defaultColumnWidth: model.double("default_column_width") ?? NumbersWriter.defaultColumnWidth)
+    }
+
+    /// Encodes one row's records and, every `tileSize` rows, packs a tile and hands it out through `output`.
+    mutating func streamAppend(_ cells: [Cell], to t: inout StreamedTable, output: (_ path: String, _ bytes: Data) throws -> Void) throws {
+        guard t.rows < 1_000_000 else { throw SheetError.unsupportedFeature("Numbers tables are limited to 1,000,000 rows") }
+        guard cells.count <= 1000 else { throw SheetError.unsupportedFeature("Numbers tables are limited to 1,000 columns (\(cells.count) in row \(t.rows + 1))") }
+        // a tile's rows are written at one width, and a tile that has left cannot be widened: the table is as wide
+        // as its widest row, and a row wider than the tiles already written is refused rather than written short
+        if cells.count > t.packedCols, !t.tileRefs.isEmpty {
+            throw SheetError.unsupportedFeature("row \(t.rows + 1) has \(cells.count) columns, more than the \(t.packedCols) the table's first rows had; give the first row every column the table will need")
+        }
+        var storage = Data(), offsets: [Int16] = [], count = 0
+        for (c, cell) in cells.enumerated() {
+            var value = cell.value
+            if case .formula(_, let cached)? = value {
+                if let cached { value = cached; t.formulasAsValues += 1 } else { value = nil; t.formulasWithoutValue += 1 }
+            }
+            if case .richText(let runs)? = value { value = .text(runs.map(\.text).joined()); t.richAsPlain += 1 }
+            if cell.hyperlink != nil { t.linksDropped += 1 }
+            if cell.comment != nil { t.notesDropped += 1 }
+            if cell.control != nil { t.controlsDropped += 1 }
+            let style = cell.style
+            let keys = try t.styleWriter.keys(for: style)
+            let formatKey = style.numberFormat == NumberFormat.general ? nil : t.styleWriter.formatKey(for: style.numberFormat)
+            // the string list grows in place: a copy taken per cell made every new string cost the whole list
+            let rec = record(for: value, key: { text in
+                if let k = t.stringKeys[text] { return k }
+                let k = t.stringEntries.count + 1
+                var e = ProtoMessage(typeName: "TST.TableDataList.ListEntry")
+                e.set("key", int: k); e.set("refcount", int: 1); e.set("string", string: text)
+                t.stringEntries.append(e); t.stringKeys[text] = k
+                return k
+            }, cellStyleID: keys.cell, textStyleID: keys.text, formatKey: formatKey, code: style.numberFormat)
+            guard let rec else { offsets.append(-1); continue }
+            offsets.append(Int16(storage.count >> 2))
+            storage.append(rec)
+            count += 1
+            if c >= t.columnCells.count { t.columnCells.append(contentsOf: repeatElement(0, count: c + 1 - t.columnCells.count)) }
+            t.columnCells[c] += 1
+        }
+        t.cols = Swift.max(t.cols, cells.count)
+        t.tileRows.append((offsets, storage, count))
+        var header = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
+        header.set("index", int: t.rows); header.set("size", float: Float(t.defaultRowHeight)); header.set("hidingState", int: 0)
+        header.set("numberOfCells", int: count)
+        NumbersWriter.appendField(number: NumbersWriter.headersFieldNumber, message: header, to: &t.rowHeaders)
+        t.rows += 1
+        if t.tileRows.count == NumbersWriter.tileSize { try streamPackTile(&t, output: output) }
+    }
+
+    static let headersFieldNumber = NumbersSchema.shared.fieldNumber("TST.HeaderStorageBucket", "headers")!
+    /// One length-delimited field, tag and all, appended to bytes already on the wire.
+    static func appendField(number: Int, message: ProtoMessage, to data: inout Data) {
+        let body = message.encoded()
+        func put(_ v: UInt64) { var n = v; repeat { var b = UInt8(n & 0x7F); n >>= 7; if n > 0 { b |= 0x80 }; data.append(b) } while n > 0 }
+        put(UInt64(number) << 3 | 2); put(UInt64(body.count)); data.append(body)
+    }
+
+    /// The tile of the rows gathered so far, every row's offsets padded to the table's width, as its own IWA file.
+    private mutating func streamPackTile(_ t: inout StreamedTable, output: (String, Data) throws -> Void) throws {
+        guard !t.tileRows.isEmpty else { return }
+        let width = Swift.max(1, t.cols)
+        t.packedCols = width
+        var tile = ProtoMessage(typeName: "TST.Tile")
+        tile.set("maxColumn", int: 0); tile.set("maxRow", int: 0); tile.set("numCells", int: 0); tile.set("numrows", int: t.tileRows.count)
+        tile.set("storage_version", int: 5); tile.set("last_saved_in_BNC", bool: true); tile.set("should_use_wide_rows", bool: true)
+        var infos: [ProtoMessage] = []
+        for (i, row) in t.tileRows.enumerated() {
+            var info = ProtoMessage(typeName: "TST.TileRowInfo")
+            info.set("tile_row_index", int: i)
+            info.set("cell_count", int: row.cells)
+            var offsetBytes = Data()
+            for c in 0..<width {
+                let o = c < row.offsets.count ? row.offsets[c] : -1
+                let u = UInt16(bitPattern: o); offsetBytes.append(UInt8(u & 0xFF)); offsetBytes.append(UInt8(u >> 8))
+            }
+            info.set("cell_offsets", bytes: offsetBytes)
+            info.set("cell_offsets_pre_bnc", bytes: NumbersWriter.preBNCBytes)
+            info.set("storage_version", int: 5)
+            info.set("cell_storage_buffer", bytes: row.storage)
+            info.set("cell_storage_buffer_pre_bnc", bytes: NumbersWriter.preBNCBytes)
+            info.set("has_wide_offsets", bool: true)
+            infos.append(info)
+        }
+        tile.set("rowInfos", messages: infos)
+        let (tileID, path, bytes) = try doc.addStreamed(tile, file: "Index/Tables/Tile-{id}.iwa")
+        try output(path, bytes)
+        registerTileComponent(tileID)
+        var ref = ProtoMessage(typeName: "TST.TileStorage.Tile")
+        ref.set("tileid", int: t.tileRefs.count); ref.set("tile", reference: tileID)
+        t.tileRefs.append(ref)
+        t.tileRows.removeAll(keepingCapacity: true)
+    }
+
+    /// The last tile, the model's size and lists, the column headers, and the table's place on the sheet.
+    mutating func streamFinish(_ t: inout StreamedTable, output: (String, Data) throws -> Void) throws {
+        if t.rows == 0 {   // a table has at least one row, and every row has its header
+            t.tileRows.append(([], Data(), 0))
+            var header = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
+            header.set("index", int: 0); header.set("size", float: Float(t.defaultRowHeight)); header.set("hidingState", int: 0); header.set("numberOfCells", int: 0)
+            NumbersWriter.appendField(number: NumbersWriter.headersFieldNumber, message: header, to: &t.rowHeaders)
+            t.rows = 1
+        }
+        try streamPackTile(&t, output: output)
+        let rows = t.rows, cols = Swift.max(1, t.cols)
+        t.model.set("number_of_rows", int: rows)
+        t.model.set("number_of_columns", int: cols)
+        t.model.set("table_name", string: "Table 1")
+        t.model.set("table_name_enabled", bool: true)
+        t.model.remove("base_column_row_uids")
+        var mergeMap = ProtoMessage(typeName: "TST.MergeRegionMapArchive")
+        let mergeID = try doc.add(mergeMap, file: "Index/CalculationEngine.iwa")
+        mergeMap = ProtoMessage(typeName: "TST.MergeRegionMapArchive")
+        t.store.set("merge_region_map", reference: mergeID)
+        // the tiles: the template's own are dropped from the package, ours referenced in order
+        for old in t.store.message("tiles")?.messages("tiles").compactMap({ $0.reference("tile") }) ?? [] { doc.remove(old) }
+        var tileStorage = t.store.message("tiles") ?? ProtoMessage(typeName: "TST.TileStorage")
+        tileStorage.remove("tiles")
+        tileStorage.set("tile_size", int: NumbersWriter.tileSize)
+        tileStorage.set("should_use_wide_rows", bool: true)
+        tileStorage.set("tiles", messages: t.tileRefs)
+        t.store.set("tiles", message: tileStorage)
+        t.model.set("base_data_store", message: t.store)
+        doc.replace(t.modelID, with: t.model)
+        // the lists: strings, styles, formats
+        if let sid = t.store.reference("stringTable") {
+            let entries = t.stringEntries
+            doc.update(sid) { list in list.set("entries", messages: entries); list.set("nextListID", int: entries.count + 1) }
+        }
+        if let sid = t.store.reference("styleTable") {
+            let entries = t.styleWriter.styleEntries
+            doc.update(sid) { list in list.set("entries", messages: entries); list.set("nextListID", int: entries.count + 1) }
+            pendingCrossings.append((from: sid, to: t.styleWriter.styleObjects))
+        }
+        if let fid = t.store.reference("format_table") {
+            let entries = t.styleWriter.formatEntries
+            doc.update(fid) { list in list.set("entries", messages: entries); list.set("nextListID", int: entries.count + 1) }
+        }
+        // the headers: a row's is the way to its storage (numbers-parser maps rows through them, and so does
+        // Numbers), kept on the wire as the rows went by; a column's carries its cell count
+        if let bucket = t.store.message("rowHeaders")?.references("buckets").first {
+            let headers = t.rowHeaders
+            doc.update(bucket) { b in
+                b.remove("headers")
+                b.fields.append(ProtoMessage.Field(number: NumbersWriter.headersFieldNumber, value: .raw(headers)))
+            }
+        }
+        if let cb = t.store.reference("columnHeaders") {
+            let counts = t.columnCells, width = t.defaultColumnWidth
+            doc.update(cb) { b in
+                var headers: [ProtoMessage] = []
+                for c in 0..<cols {
+                    var h = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
+                    h.set("index", int: c); h.set("size", float: Float(width)); h.set("hidingState", int: 0)
+                    h.set("numberOfCells", int: c < counts.count ? counts[c] : 0)
+                    headers.append(h)
+                }
+                b.set("headers", messages: headers)
+            }
+        }
+        // the table's frame on the sheet
+        let size = (width: Double(cols) * t.defaultColumnWidth, height: Double(rows) * t.defaultRowHeight)
+        doc.update(t.tableInfo) { m in
+            var d = m.message("super") ?? ProtoMessage(typeName: "TSD.DrawableArchive")
+            var g = d.message("geometry") ?? ProtoMessage(typeName: "TSD.GeometryArchive")
+            var p = ProtoMessage(typeName: "TSP.Point"); p.set("x", float: 0); p.set("y", float: 0)
+            var s = ProtoMessage(typeName: "TSP.Size"); s.set("width", float: Float(size.width)); s.set("height", float: Float(size.height))
+            g.set("position", message: p); g.set("size", message: s)
+            d.set("geometry", message: g)
+            m.set("super", message: d)
+        }
+        // what the rows carried that this writer does not: said, never silent
+        let sheet = t.sheetName
+        if t.formulasAsValues + t.formulasWithoutValue > 0 {
+            warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: sheet,
+                                              message: "\(t.formulasAsValues + t.formulasWithoutValue) formula(s) written as their cached values (\(t.formulasWithoutValue) without one, left empty): the row-by-row Numbers writer does not encode formulas"))
+        }
+        if t.richAsPlain > 0 {
+            warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet, message: "\(t.richAsPlain) rich-text cell(s) written as plain text: the row-by-row Numbers writer carries one format per cell"))
+        }
+        if t.linksDropped > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet, message: "\(t.linksDropped) link(s) dropped: the row-by-row Numbers writer carries values and formatting only"))
+        }
+        if t.notesDropped > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet, message: "\(t.notesDropped) note(s) dropped: the row-by-row Numbers writer carries values and formatting only"))
+        }
+        if t.controlsDropped > 0 {
+            warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet, message: "\(t.controlsDropped) cell control(s) dropped: the row-by-row Numbers writer carries values and formatting only"))
+        }
+        for code in t.styleWriter.unexpressibleFormats {
+            warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheet, message: "number format \(code) has no Numbers equivalent; the cells keep their value unformatted"))
+        }
+        for code in t.styleWriter.literalFormats {
+            warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheet, message: "number format \(code): Numbers does not draw the literal text beside the number, though the code survives a round trip and the value is never rescaled"))
+        }
+        for code in t.styleWriter.partialFormats {
+            warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheet, message: "number format \(code): Numbers describes one presentation, so its colours, conditions and negative section are dropped"))
+        }
+    }
+
+    /// The sheet list, the component metadata and the crossings — the tail of `write()` for a document whose
+    /// tiles have already left.
+    mutating func streamFinishDocument(sheets: [Int]) throws {
+        doc.update(NumbersDocument.documentID) { $0.set("sheets", references: sheets) }
+        flushComponents()
+        registerPendingCrossings()
+        doc.setBlob("Metadata/DocumentIdentifier", Data(UUID().uuidString.utf8))
+    }
+}

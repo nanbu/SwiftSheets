@@ -171,7 +171,7 @@ import Testing
 
     /// The streaming writer's output, for openpyxl to read as an ordinary workbook.
     @Test(.enabled(if: dir != nil)) func writesStreamedWorkbook() throws {
-        let writer = try StreamingWriter(url: Self.dir!.appendingPathComponent("streamed.xlsx"), sheetName: "Big")
+        let writer = try XLSXStreamingWriter(url: Self.dir!.appendingPathComponent("streamed.xlsx"), sheetName: "Big")
         try writer.append([.text("n"), .text("square"), .text("note")])
         for i in 1...2000 { try writer.append([.integer(i), .integer(i * i), .text("行 \(i)")]) }
         var styled = Cell(); styled.value = .text("見出し"); styled.font.bold = true

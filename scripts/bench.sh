@@ -36,12 +36,14 @@ run inspect "$ROWS" "$X"
 run writeODS "$ROWS" "$O"
 run readODS "$ROWS" "$O"
 run streamReadODS "$ROWS" "$O"
+run streamWriteODS "$ROWS" "$OUT/stream.ods"
 run writeCSV "$ROWS" "$C"
 run readCSV "$ROWS" "$C"
 run streamReadCSV "$ROWS" "$C"
 run writeNumbers "$ROWS" "$OUT/bench.numbers"
 run readNumbers "$ROWS" "$OUT/bench.numbers"
 run streamReadNumbers "$ROWS" "$OUT/bench.numbers"
+run streamWriteNumbers "$ROWS" "$OUT/stream.numbers"
 
 python3 - "$OUT/lines.jsonl" "$ROOT/docs/performance.json" "$ROWS" <<'PY'
 import json, platform, re, subprocess, sys, datetime
@@ -65,6 +67,8 @@ by = {r["op"]: r for r in results}
 # the numbers the README quotes, by name, so a test can hold the README to them
 readme = {
     "streaming_write_peak_mb": round(by["streamWrite"]["peakMB"]),
+    "streaming_write_ods_peak_mb": round(by["streamWriteODS"]["peakMB"]),
+    "streaming_write_numbers_peak_mb": round(by["streamWriteNumbers"]["peakMB"]),
     "streaming_read_peak_mb": round(by["streamRead"]["peakMB"]),
     "streaming_read_ods_peak_mb": round(by["streamReadODS"]["peakMB"]),
     "streaming_read_numbers_peak_mb": round(by["streamReadNumbers"]["peakMB"]),

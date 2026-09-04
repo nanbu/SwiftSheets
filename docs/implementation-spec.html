@@ -1655,7 +1655,7 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
     <tr><td>名前付きの表（<code>ws.tables</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.excelTables</code>・Rev 2.0・B.15）</td></tr>
     <tr><td>絞り込みの応用（色・アイコン・上位10・動的・日付グループ）</td><td><strong>読み書き対応済み</strong>（<code>FilterColumn</code>・Rev 2.0・B.15）。<code>&lt;extLst&gt;</code> 拡張だけは元の XML のまま</td></tr>
     <tr><td>文書の自由項目（<code>custom_doc_props</code>）</td><td><strong>読み書き対応済み</strong>（<code>Workbook.customProperties</code>・Rev 2.0・B.15）。ODF の <code>meta:user-defined</code> とも往復する</td></tr>
-    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きは XLSX / XLSM と CSV</td></tr>
+    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きも Rev 4.25（B.42）で同じ 4 形式が 1 つの入口（<code>StreamingWriter(url:)</code>、拡張子で形式を決める）</td></tr>
     <tr><td>シート保護・シナリオ</td><td><strong>読み書き対応済み</strong>（<code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code>・Rev 2.0・B.15）。合鍵は旧来の 16 ビット式のみ生成する</td></tr>
     <tr><td>ブック暗号化</td><td>非対応（明示的エラー — 第1章）</td></tr>
     <tr><td>ピボットテーブル</td><td><strong>配置の読み書き対応済み</strong>（<code>Sheet.pivotTables</code>・Rev 2.0・B.15）。<strong>集計はしない</strong> — 「開いたときに再計算」を立てて書くので、数字は開いた側が入れる</td></tr>
@@ -1905,6 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.25 Draft</td><td>2026-09-05</td><td><strong>逐次書きを 3 形式へ</strong>を付録 B.42 に記録。傘の <code>StreamingWriter(url:)</code> が拡張子で形式を決めて <code>XLSXStreamingWriter</code>（旧 <code>StreamingWriter</code> を改名）/ <code>ODSStreamingWriter</code> / <code>NumbersStreamingWriter</code> / <code>CSVStreamingWriter</code> に渡す。ODS は行を <code>TextSpill</code> に退避して close で様式の後ろに流す。Numbers はタイルを埋まるたびに封筒へ（<code>NumbersDocument.addStreamed</code>）、行ヘッダはワイヤ形式のまま貯める（<code>ProtoMessage.Value.raw</code>）。運べないものは枚数つきで警告</td></tr>
     <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ。fuzz の的に 3 形式の逐次読みを追加</td></tr>
     <tr><td>4.21 Draft</td><td>2026-09-05</td><td><strong>計測台を公開の物に</strong>を付録 B.39.11 に記録。<code>Benchmarks/</code>・<code>scripts/bench.sh</code>・<code>docs/performance.json</code> → <code>docs/performance.html</code>。CI の <code>--check</code> が README の 3 つの MB を出所と照合する。0.12.0 の記録: 読み 2.8 秒・221 MB、逐次読み 1.9 秒・23 MB、書き 1.7 秒・258 MB、ODS 書き 3.4 秒・313 MB、ODS 読み 3.9 秒</td></tr>
   </table></div>
@@ -2246,7 +2247,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   <div class="compare"><table>
     <tr><th>項目</th><th>いまの状態</th><th>実装しない理由</th></tr>
     <tr><td>ストリーミング読み書き（<code>read_only</code> / <code>write_only</code>）</td>
-      <td><strong>Rev 2.0 で実装（B.15）</strong> — <code>StreamingReader</code> / <code>StreamingWriter</code>。読みは Rev 4.22（B.40）で ODS・Numbers・CSV も同じ入口から</td>
+      <td><strong>Rev 2.0 で実装（B.15）</strong> — <code>StreamingReader</code> / <code>StreamingWriter</code>。読みは Rev 4.22（B.40）、書きは Rev 4.25（B.42）で ODS・Numbers・CSV も同じ入口から</td>
       <td>（かつての理由: 全載せモデルの上に積んだ最適化と契約が違う）。実際には<strong>モデルを作り直さずに済んだ</strong> —
         既存のコーデックはそのままに、値と書式だけを扱う別経路を並べた。保全はしないと決めたことで契約の衝突が消えた。</td></tr>
     <tr><td>条件付き書式の API</td><td><strong>Rev 2.0 で実装（B.15）</strong> — <code>Sheet.conditionalFormatting</code></td>
@@ -2425,7 +2426,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>ピボット表</td><td><code>Sheet.pivotTables</code>（<code>PivotTable</code> ＋ <code>PivotCache</code>）。配置パーツ・キャッシュ定義・関係・<code>&lt;pivotCaches&gt;</code> を生成し、範囲から作る <code>Workbook.addPivotTable</code> も用意</td>
       <td><strong>集計はしない</strong>。新しく作るキャッシュは <code>saveData="0" refreshOnLoad="1"</code> を立て、レコードのパーツを持たない — 開いた側が元の範囲を読んで計算する。計算していない数字を書かない、が理由。<strong>審判は openpyxl の読み戻しと LibreOffice</strong>（変換後の値が正しく集計されていることまで確認した）。<strong>Excel 実機では開いていない</strong> — Numbers と同じく MAINTENANCE.md のリリース確認項目に置く</td></tr>
     <tr><td>逐次読み書き</td><td><code>StreamingReader</code>（openpyxl の <code>read_only</code>）・<code>StreamingWriter</code>（<code>write_only</code>）。書き出しは <code>ZipFileWriter</code> で 1 行ずつ圧縮しながらファイルへ流す</td>
-      <td>Rev 2.0 の時点では XLSX / XLSM のみ（読みは Rev 4.22・B.40 で ODS と Numbers にも広がった）。値と書式のみ。結合・注釈・保全は扱わない。文字列は共有表ではなくセルに直接書く（最初の行の時点で最後の行が何を繰り返すか分からないため）ので、繰り返しの多いファイルは通常のライターより大きくなる。<strong>実測</strong>（75 万セル）: 逐次書き出し <strong>+3 MB</strong>・逐次読み取り <strong>+54 MB</strong>（展開後の 1 シート分の XML）に対し、全載せ読み込みは <strong>+190 MB</strong></td></tr>
+      <td>Rev 2.0 の時点では XLSX / XLSM のみ（読みは Rev 4.22・B.40、書きは Rev 4.25・B.42 で ODS と Numbers にも広がった）。値と書式のみ。結合・注釈・保全は扱わない。文字列は共有表ではなくセルに直接書く（最初の行の時点で最後の行が何を繰り返すか分からないため）ので、繰り返しの多いファイルは通常のライターより大きくなる。<strong>実測</strong>（75 万セル）: 逐次書き出し <strong>+3 MB</strong>・逐次読み取り <strong>+54 MB</strong>（展開後の 1 シート分の XML）に対し、全載せ読み込みは <strong>+190 MB</strong></td></tr>
   </table></div>
 
   <ul>
@@ -5338,6 +5339,78 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   <p>
     <strong>やらなかったこと</strong>: Numbers のタイルを同時に戻す（読みは 2.5 秒で、目次づくりが先に終わる構造上、次に測ってから）。
     書き側の並列（上記）。ODS（1 部品）。
+  </p>
+
+
+  <h3>B.42 逐次書きを 3 形式へ — 傘の StreamingWriter、ODS の一時退避、Numbers のタイル流し（Rev 4.25）</h3>
+  <p>
+    2026-09-05。逐次読み（B.40）と同じ形を書き側にも作った。呼び手は <code>StreamingWriter(url:)</code> に行を渡して
+    <code>close()</code> するだけで、XLSX / XLSM・ODS・Numbers・CSV のどれにでも、ブックを組み立てずに書ける。
+  </p>
+  <p><strong>形（読みの写し）</strong>:</p>
+  <ul>
+    <li>SheetCore に package の約束 <code>StreamingRowSink</code>（<code>addSheet(named:)</code> / <code>append([Cell])</code> /
+      <code>close()</code> / <code>warnings</code>）。値だけの <code>append([CellValue?])</code> は既定実装。</li>
+    <li>SwiftSheets の傘 <code>StreamingWriter(url:format:sheetName:epoch:csv:)</code>。形式は拡張子から、
+      <code>Workbook.write(to:)</code> と同じ規則で決め（無ければ XLSX）、<code>format:</code> で上書きできる。
+      形式ごとの書き手 <code>XLSXStreamingWriter</code>（旧 <code>SheetXLSX.StreamingWriter</code> を改名 —
+      読み手の <code>XLSXStreamingReader</code> と対にした）/ <code>ODSStreamingWriter</code> / <code>NumbersStreamingWriter</code> /
+      <code>CSVStreamingWriter</code> は単独でも使える。</li>
+    <li><code>warnings</code> は全員が持ち、<code>close()</code> で確定する。形式が運べないものは必ずここに出る（§6）。
+      CSV への 2 枚目の <code>addSheet</code> は黙って 1 枚に畳まず throw。</li>
+  </ul>
+  <p>
+    <strong>ODS の急所 — 1 部品で、様式が本文より前</strong>: ODS の本文は <code>content.xml</code> 1 つで、セルが着る様式
+    （<code>office:automatic-styles</code>）は表より前に置く決まりなので、XLSX のように行を来た順に封筒へ流すことができない。
+    行は来るたびに XML にして（<code>ODSWriter.cellXML</code> を共有。様式は登録簿 <code>ODSStyleRegistry</code> に育つ）
+    <code>TextSpill</code>（8 MiB まではメモリ、超えたら一時ファイル）に退避し、<code>close()</code> で頭・育った様式・シートごとの
+    <code>table:table</code> と列の宣言（列数は最も広い行）・退避した行・尾の順に 1 つの streamed entry へ流す。
+    行末の空セルは書かず、途中の空セルは反復で書き、セルの無い行は空セル 1 つ（ODF の表の行はセルを 1 つ以上持つ）。
+    メモリは行数によらず数 MB、<strong>ディスクに本文の非圧縮 1 回分</strong>が <code>close()</code> まで残る — 1 部品の形式が払う代金。
+  </p>
+  <p>
+    <strong>退避を読み戻す口は read(2)</strong>（計測で見つけた）: 最初の実装は退避ファイルを <code>FileHandle.read(upToCount:)</code>
+    で 1 MiB ずつ読み戻していたが、逐次書き ODS のピークは 2 万行で 42 MB、10 万行（100 万マス）で 123 MB と
+    <strong>行数に比例して伸びた</strong>。行を退避している間は 19 MB で平らなので、伸びるのは <code>close()</code> の読み戻し側。
+    切り分けの実験（55 MB の一時ファイルを書いて読み戻すだけの 30 行）で、Darwin の <code>FileHandle</code> は読んだ分を
+    プロセスに常駐させたままにすると分かった（<code>read(upToCount:)</code> も <code>readData(ofLength:)</code> も 59 MB、
+    <code>read(2)</code> なら 8 MB）。<code>TextSpill.forEachPiece</code> は 1 MiB の buffer を 1 つ使い回して <code>read(2)</code>
+    で読む —— 逐次書き ODS は 123 → 23 MB（10 万行）で行数によらず、全載せの ODS 書き（同じ退避を使う）も 246 → 217 MB。
+  </p>
+  <p>
+    <strong>Numbers の急所 — 256 行のタイルが部品</strong>: タイルは埋まるたびに IWA にして封筒へ書き、本体は持たない
+    （<code>NumbersDocument.addStreamed</code> が id と場所だけ記録してバイト列を返し、<code>encoded(into:)</code> が残りの部品を
+    同じ封筒へ書く）。最後まで残るのは、表の模型・<strong>文字列一覧</strong>（一意な文字列ごとに 1 件 — XLSX 読みの共有文字列表と
+    同じ性質で避けられない）・様式と書式の一覧・列ごとのセル数・<strong>行ヘッダ</strong>（Numbers も numbers-parser も行の記録へは
+    行ヘッダ経由で辿るので省けない。行ごとに約 12 バイトをワイヤ形式のまま貯める — <code>ProtoMessage.Value.raw</code> を
+    このために足した。100 万行で 12 MB）。数式はキャッシュ値で書き、リッチテキストは平文、リンク・注釈・セルの制御は落とし、
+    それぞれ枚数を数えて警告する（B.18 の数式アーカイブは表の UUID を要し、全載せの書き手に任せた）。
+    2 枚目以降のシートは、書き込み済みのテンプレートのシートを複製する: 1 シート 1 表なので B.18 の「2 つ目の表を継ぐ」
+    問題は起きず、継いだ一覧・寸法・枠は自分の <code>close</code> で上書きする（書き出し済みのタイルはオブジェクトでないので
+    複製に持ち込まれない）。
+  </p>
+  <p>
+    <strong>Numbers の幅の規則</strong>: タイルの行の <code>cell_offsets</code> は表の列数ぶん並ぶ決まり（numbers-parser は
+    <code>number_of_columns</code> ぶん読む）。書き出したタイルは広げられないので、表の幅は最も広い行で決め、
+    <strong>書き出し済みのタイルより広い行は refuse</strong>する（<code>unsupportedFeature</code>、「最初の行に全列を」と言う）。
+    最初のタイル（256 行）の中で広がるのは構わない。
+  </p>
+  <p>
+    <strong>実測</strong>（100 万マス・計測台に <code>streamWriteODS</code> / <code>streamWriteNumbers</code> を追加）:
+    逐次書き XLSX 1.9 秒・11 MB、ODS 4.1 秒・66 MB、Numbers 8.5 秒・64 MB
+    （全載せの書きは XLSX 1.8 秒・258 MB、ODS 3.8 秒・246 MB、Numbers 8.7 秒・388 MB）。README の Limits は 3 つの MB を
+    <code>docs/performance.json</code> の <code>readme</code> から機械照合つきで名乗る。
+  </p>
+  <p>
+    <strong>検査</strong>: <code>StreamingWriteFormatsTests</code> — 3 形式で 2 シート 700 行（Numbers のタイル 3 枚分）を流して
+    全載せと逐次の両方で読み戻す／Numbers の書類の整合（部品と参照・各表の 3 タイルが別部品）／numbers-parser が読む
+    （入っていなければ skip）／LibreOffice が読んで XLSX に書き戻す（無ければ skip）／幅の規則／CSV の 2 枚目／拡張子と
+    <code>format:</code>（.tsv・拡張子なし・.dat + ods・.xlsm）／運べないものの警告（数式・リンク・注釈の枚数、XLSX は警告なし）／
+    行の無いシート。
+  </p>
+  <p>
+    <strong>やらなかったこと</strong>: Numbers の数式の逐次書き（上記）。行の高さ・列幅（Cell に無い）。結合・注釈・条件付き書式
+    （逐次読みと同じ線引き — 値と書式だけ）。
   </p>
 
 </section>

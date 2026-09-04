@@ -150,3 +150,26 @@ package final class PieceFedRowWalk: StreamingRowWalk {
         return nil
     }
 }
+
+/// The writers that put rows into a file as they arrive (spec Appendix B.42): one per format, behind the umbrella
+/// `StreamingWriter` in the SwiftSheets module. A row is written once and cannot be gone back to; `close()`
+/// completes the file, and only then are the warnings final.
+package protocol StreamingRowSink: AnyObject {
+    /// Finishes the sheet being written and starts another. A format that holds one sheet throws.
+    func addSheet(named name: String) throws
+    /// Appends a row of cells, formatting and all, at whatever row comes next.
+    func append(_ cells: [Cell]) throws
+    /// Writes what is pending and completes the file. Calling it twice is harmless; not calling it leaves the file
+    /// unfinished.
+    func close() throws
+    /// What the format could not carry as asked — a number format it has no spelling for, a formula written as
+    /// its value. Never silent (spec §6).
+    var warnings: [ConversionWarning] { get }
+}
+
+extension StreamingRowSink {
+    /// Appends a row of values, unformatted.
+    package func append(_ values: [CellValue?]) throws {
+        try append(values.map { value in var c = Cell(); c.value = value; return c })
+    }
+}

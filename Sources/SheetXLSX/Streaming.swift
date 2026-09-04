@@ -273,7 +273,7 @@ final class StreamingSheetParser: StreamingRowParser {
 /// workbook of any size costs the same handful of megabytes. What that buys is paid for in what it gives up —
 /// this writes values and formatting and nothing else, and once a row is written it cannot be gone back to.
 ///
-///     let writer = try StreamingWriter(url: url, sheetName: "売上")
+///     let writer = try XLSXStreamingWriter(url: url, sheetName: "売上")
 ///     try writer.append([.text("品目"), .text("数量")])
 ///     for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
 ///     try writer.close()
@@ -284,7 +284,10 @@ final class StreamingSheetParser: StreamingRowParser {
 ///
 /// **What it does not do.** One grid per sheet and nothing beside it: no merges, no notes, no conditional formats,
 /// no named tables, no pivot tables, no preserved parts. `close()` must be called, or the file is left truncated.
-public final class StreamingWriter {
+///
+/// The umbrella `StreamingWriter` in the SwiftSheets module picks this writer for a `.xlsx` / `.xlsm` path and
+/// the ODS, Numbers and delimited-text writers for theirs (spec Appendix B.42).
+public final class XLSXStreamingWriter: StreamingRowSink {
     private let zip: ZipFileWriter
     private let styles = StyleRegistry()
     private var sheets: [(name: String, path: String)] = []
@@ -292,11 +295,17 @@ public final class StreamingWriter {
     private var row = 0
     private var closed = false
     private var epoch: DateEpoch
+    private let macroEnabled: Bool
+    /// Nothing this writer is handed is beyond the format: the list stays empty, and exists so that every
+    /// row-by-row writer answers the same question.
+    public private(set) var warnings: [ConversionWarning] = []
 
-    /// Starts a workbook whose first sheet is `sheetName`.
-    public init(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900) throws {
+    /// Starts a workbook whose first sheet is `sheetName`. `macroEnabled` writes the package as a macro-enabled
+    /// workbook (`.xlsm`) — one with no macros in it, since nothing here can add any.
+    public init(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, macroEnabled: Bool = false) throws {
         zip = try ZipFileWriter(url: url)
         self.epoch = epoch
+        self.macroEnabled = macroEnabled
         try startSheet(named: sheetName)
     }
 
@@ -325,15 +334,15 @@ public final class StreamingWriter {
             case nil: xml += "<c r=\"\(ref)\"\(style)/>"
             case .formula(let f, let cached)?:
                 var t = "", v = ""
-                if let cached { (t, v) = StreamingWriter.inlineValueXML(cached, epoch: epoch) }
+                if let cached { (t, v) = XLSXStreamingWriter.inlineValueXML(cached, epoch: epoch) }
                 xml += "<c r=\"\(ref)\"\(style)\(t)><f>\(XML.esc(f.rendered(as: .xlsx)))</f>\(v)</c>"
             case let value?:
-                let (t, v) = StreamingWriter.inlineValueXML(value, epoch: epoch)
+                let (t, v) = XLSXStreamingWriter.inlineValueXML(value, epoch: epoch)
                 xml += "<c r=\"\(ref)\"\(style)\(t)>\(v)</c>"
             }
         }
         pending.append(contentsOf: (xml + "</row>").utf8)
-        if pending.count >= StreamingWriter.pieceSize { try flushPending() }
+        if pending.count >= XLSXStreamingWriter.pieceSize { try flushPending() }
     }
 
     /// Rows are handed to the compressor in pieces of about this many bytes: one call per row was measured slower
@@ -355,7 +364,7 @@ public final class StreamingWriter {
         var ct = XMLWriter.header + "<Types xmlns=\"\(XMLWriter.nsContentTypes)\">"
         ct += "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
         ct += "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
-        ct += "<Override PartName=\"/xl/workbook.xml\" ContentType=\"\(WorkbookWriter.ctWorkbook)\"/>"
+        ct += "<Override PartName=\"/xl/workbook.xml\" ContentType=\"\(macroEnabled ? WorkbookWriter.ctWorkbookMacro : WorkbookWriter.ctWorkbook)\"/>"
         for sheet in sheets {
             ct += "<Override PartName=\"/\(sheet.path)\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
         }

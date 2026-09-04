@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 
 /// Text that may outgrow memory on its way to a compressor (spec Appendix B.39.7). It is kept as pieces while
 /// it is small, and spilled to a temporary file once it is not — so a body of any size costs the same few
@@ -53,10 +58,18 @@ package final class TextSpill {
     package func forEachPiece(_ body: (Data) throws -> Void) throws {
         if let file, let url {
             try file.synchronize()
-            let reader = try FileHandle(forReadingFrom: url)
-            defer { try? reader.close() }
-            while let piece = try reader.read(upToCount: TextSpill.pieceSize), !piece.isEmpty { try body(piece) }
-            return
+            // read(2) into one reused buffer, not FileHandle: on Darwin, FileHandle maps what it reads and the
+            // whole file stays resident until the process is done with it — the opposite of a spill
+            let fd = open(url.path, O_RDONLY)
+            guard fd >= 0 else { throw SheetError.ioFailure(detail: "cannot read the spilled rows back") }
+            defer { close(fd) }
+            var buffer = [UInt8](repeating: 0, count: TextSpill.pieceSize)
+            while true {
+                let n = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
+                if n < 0 { throw SheetError.ioFailure(detail: "reading the spilled rows back failed") }
+                if n == 0 { return }
+                try body(Data(buffer[0..<n]))
+            }
         }
         for piece in pieces {
             var offset = 0

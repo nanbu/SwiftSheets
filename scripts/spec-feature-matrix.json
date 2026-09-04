@@ -1234,13 +1234,15 @@
        "read": "na",
        "write": "partial",
        "api": [
-        "StreamingWriter(url:sheetName:)",
+        "StreamingWriter(url:)",
+        "XLSXStreamingWriter",
         "append(_:)",
-        "close()"
+        "close()",
+        "warnings"
        ],
        "warning": "なし",
        "evidence": "readme",
-       "note": "行数によらず +3MB。値と書式だけ。"
+       "note": "行数によらず数 MB。値と書式だけ。傘の StreamingWriter は拡張子で形式を決め、ODS・Numbers・CSV にも同じ呼び方で書く（付録 B.42）。"
       },
       {
        "id": "xlsx.limit.cells",
@@ -2134,6 +2136,23 @@
        "warning": "なし（値と書式だけと明記）",
        "evidence": "measured",
        "note": "本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。"
+      },
+      {
+       "id": "ods.stream.write",
+       "name": "行ごとの書き出し",
+       "spec_anchor": "content.xml（office:automatic-styles が表より前）",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "StreamingWriter(url:)",
+        "ODSStreamingWriter",
+        "append(_:)",
+        "close()",
+        "warnings"
+       ],
+       "warning": "ODF に無い書式・色は全載せの書き手と同じ警告",
+       "evidence": "measured",
+       "note": "行は来るたびに XML にして退避し（8 MiB までメモリ・超えたら一時ファイル）、close で様式の後ろに流す。メモリは行数によらず数 MB、ディスクに本文 1 回分。値と書式だけ。付録 B.42。"
       }
      ]
     }
@@ -2990,6 +3009,23 @@
        "warning": "なし（値と書式だけと明記）",
        "evidence": "measured",
        "note": "部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる。1 枚のシートの 2 枚目以降の表は table: で。値と書式だけ。付録 B.40.3。"
+      },
+      {
+       "id": "num.stream.write",
+       "name": "行ごとの書き出し",
+       "spec_anchor": "Index/Tables/Tile-*.iwa を 256 行ごとに書き出す",
+       "read": "na",
+       "write": "partial",
+       "api": [
+        "StreamingWriter(url:)",
+        "NumbersStreamingWriter",
+        "append(_:)",
+        "close()",
+        "warnings"
+       ],
+       "warning": "数式はキャッシュ値・リッチテキストは平文・リンクと注釈と制御は落とす（枚数つき）",
+       "evidence": "measured",
+       "note": "タイルは埋まるたびに封筒へ書いて手放す。残るのは文字列一覧・様式一覧・行ごと約 12 バイトの行ヘッダ。表の幅は最も広い行で、書き出し済みのタイルより広い行は refuse。付録 B.42。"
       }
      ]
     }

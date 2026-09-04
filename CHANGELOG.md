@@ -7,6 +7,46 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **One streaming writer for every format** (spec Appendix B.42). `StreamingWriter(url:)` in the `SwiftSheets`
+  module takes the format from the path's extension, as `Workbook.write(to:)` does, or from `format:`, and
+  writes rows as they arrive whether the file is XLSX / XLSM, ODS, Numbers or delimited text; `addSheet(named:)`,
+  `append(_:)` and `close()` are the same for all of them, and `warnings` says what the format could not carry.
+  Behind it stand `XLSXStreamingWriter`, the new `ODSStreamingWriter` and `NumbersStreamingWriter`, and
+  `CSVStreamingWriter`, each usable on its own.
+- **ODS row by row.** An ODS document is one part whose styles come before its tables, so the rows are turned
+  into XML as they arrive (registering the styles they wear) and set aside — in memory while small, on disk once
+  not — and `close()` writes the head, the styles and then each sheet's rows a piece at a time. Memory stays a
+  few megabytes whatever the row count; the disk holds the rows once until the end. Over a million cells:
+  4.1 s and 66 MB.
+- **Numbers row by row.** A tile of 256 rows is packed and written into the file the moment it fills and let
+  go; what waits for the end is the table model, the string list (one entry per distinct text), the style list
+  and a row header of about a dozen bytes per row. A formula is written as its cached value, rich text as plain
+  text, and links, notes and cell controls are dropped — each counted in `warnings`. A tile's rows are written
+  at one width, so the table is as wide as its widest row and a row wider than the tiles already written is
+  refused: give the first row every column the table will need. Over a million cells: 8.5 s and
+  64 MB.
+- `XLSXStreamingWriter` writes a macro-enabled package (`.xlsm`, with no macros in it) on request, which is what
+  the umbrella does for an `.xlsm` path.
+
+### Changed
+
+- **`SheetXLSX.StreamingWriter` is `XLSXStreamingWriter`**, the pair of `XLSXStreamingReader`. Anyone importing
+  `SwiftSheets` keeps writing `StreamingWriter(url:sheetName:)` — the umbrella writer of that name takes the
+  same arguments and writes XLSX for an `.xlsx` path — and gains the other formats; anyone importing `SheetXLSX`
+  alone renames.
+
+### Fixed
+
+- **The rows an ODS write sets aside on disk are read back with `read(2)`.** `TextSpill` read them back through
+  `FileHandle`, which on Darwin keeps what it has read resident: the streaming ODS write's peak grew with the
+  row count (42 MB at 20,000 rows, 123 MB at 100,000) although the rows were on disk. One reused buffer and
+  `read(2)` bring it to 23 MB whatever the row count, and the whole-workbook ODS write, which spills the same
+  way, drops by 30 MB.
+
 ## [0.14.0] — 2026-09-05
 
 ### Added
