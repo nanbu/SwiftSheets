@@ -117,11 +117,14 @@ import SwiftSheets
             #expect(warnings.contains { $0.message.contains("consolidation") })
             #expect(warnings.contains { $0.message.contains("tracing arrows") })
             // one sentence per setting that is in force and would be read differently there (Appendix B.23) —
-            // this workbook sets case sensitivity, regular expressions, wildcards, precision-as-shown and iteration
+            // this workbook sets case sensitivity, regular expressions, wildcards, precision-as-shown and iteration.
+            // XLSX keeps the last two in <calcPr> (Appendix B.40.4), so only the formats with no calculation
+            // settings at all are told about the circular references
             let calc = warnings.filter { $0.message.contains("a calculation setting is dropped") }
-            #expect(calc.count >= 4, Comment(rawValue: "\(format.rawValue): \(calc.map(\.message))"))
+            #expect(calc.count >= (format == .xlsx ? 3 : 4), Comment(rawValue: "\(format.rawValue): \(calc.map(\.message))"))
             #expect(calc.contains { $0.message.contains("regular expression") })
-            #expect(calc.contains { $0.message.contains("circular reference") })
+            #expect(calc.contains { $0.message.contains("circular reference") } == (format != .xlsx),
+                    Comment(rawValue: "\(format.rawValue): iteration is OOXML's own setting, and nobody else's"))
         }
         // …and ODS says nothing, because ODS keeps them
         #expect(try !wb.write(as: .ods).warnings.contains { $0.message.contains("only OpenDocument has it") })
@@ -134,11 +137,11 @@ import SwiftSheets
     /// workbook's settings?" — reported a loss on every ODS conversion anyone ever made, whether or not a single
     /// formula would evaluate differently. A warning everybody sees every time is a warning nobody reads.
     @Test func aCalculationSettingIsReportedOnlyWhenItWouldChangeSomething() throws {
-        func warnings(_ settings: CalculationSettings) throws -> [String] {
+        func warnings(_ settings: CalculationSettings, as format: SheetFormat = .xlsx) throws -> [String] {
             var wb = Workbook()
             wb.sheets[0]["A1"] = "x"
             wb.calculationSettings = settings
-            return try wb.write(as: .xlsx).warnings.map(\.message).filter { $0.contains("calculation setting") }
+            return try wb.write(as: format).warnings.map(\.message).filter { $0.contains("calculation setting") }
         }
 
         #expect(try warnings(CalculationSettings()).isEmpty, "a brand-new workbook has nothing to report")
@@ -165,12 +168,14 @@ import SwiftSheets
         regex.useRegularExpressions = true
         #expect(try warnings(regex).count == 1)
 
-        // the iteration detail stays quiet while iteration is off, and speaks once it is on
+        // the iteration detail stays quiet while iteration is off, and speaks once it is on — to a format that
+        // has no such setting; XLSX carries it in <calcPr> and has nothing to report (Appendix B.40.4)
         var iterating = CalculationSettings()
         iterating.iterationSteps = 42
-        #expect(try warnings(iterating).isEmpty, "a step count no engine will reach is not a loss")
+        #expect(try warnings(iterating, as: .csv).isEmpty, "a step count no engine will reach is not a loss")
         iterating.iterationEnabled = true
-        #expect(try warnings(iterating).count == 2, "the switch and the step count")
+        #expect(try warnings(iterating, as: .csv).count == 2, "the switch and the step count")
+        #expect(try warnings(iterating).isEmpty, "XLSX keeps iteration in <calcPr>")
     }
 
     /// A date origin ODF allows and the model cannot hold is read as the 1900 system, and says so.

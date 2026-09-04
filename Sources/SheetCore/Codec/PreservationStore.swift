@@ -33,6 +33,9 @@ public struct PreservationStore: Sendable, Hashable {
     public var workbookRootAttributes: [String: String] = [:]
     /// Attributes of `<workbookPr>` other than the ones the model owns.
     public var workbookPrAttributes: [String: String] = [:]
+    /// The attributes of `<calcPr>` as the source file had them. The writer regenerates the element from the
+    /// model's calculation settings and carries the rest of these along (spec Appendix B.40.4).
+    public var calcPrAttributes: [String: String] = [:]
     /// Parts of styles.xml that index-reference each other and must be re-emitted verbatim (`tableStyles`,
     /// `cellStyles`, `cellStyleXfs`, `extLst`), plus the source style tables in their original order.
     public var styleFragments: [XMLFragment] = []

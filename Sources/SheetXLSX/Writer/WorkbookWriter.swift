@@ -483,7 +483,17 @@ enum WorkbookWriter {
             }
         }
         if !names.isEmpty { generated.append(("definedNames", "<definedNames>" + names.joined() + "</definedNames>")) }
-        generated.append(("calcPr", "<calcPr calcId=\"124519\" fullCalcOnLoad=\"1\"/>"))
+        // <calcPr>: the source's own attributes when the write stays in the family, the model's calculation
+        // settings over them (spec Appendix B.40.4), and a full recalculation asked for — this library computes nothing
+        var calc = sameFamily ? preserved.calcPrAttributes : [:]
+        if calc["calcId"] == nil { calc["calcId"] = "124519" }
+        calc["fullCalcOnLoad"] = "1"
+        let settings = wb.calculationSettings
+        calc["iterate"] = settings.iterationEnabled ? "1" : nil
+        calc["iterateCount"] = settings.iterationSteps.map(String.init)
+        calc["iterateDelta"] = settings.iterationMaximumDifference.map(XML.num)
+        calc["fullPrecision"] = settings.precisionAsShown ? "0" : nil
+        generated.append(("calcPr", "<calcPr" + calc.keys.sorted().map { " \($0)=\"\(XML.esc(calc[$0]!))\"" }.joined() + "/>"))
         if !cachePlans.isEmpty {
             generated.append(("pivotCaches", "<pivotCaches>" + cachePlans.map {
                 "<pivotCache cacheId=\"\($0.cacheId)\" r:id=\"\($0.relationshipId)\"/>"

@@ -100,17 +100,17 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <body>
 <main>
 <h1>形式ごとの機能対応表</h1>
-<p class="lede">Excel・OpenDocument・Numbers それぞれの<strong>公開仕様が持っている機能</strong>を並べ、SwiftSheets が読めるか・書けるか・どの API で触るのかを 191 行にしたものです。隣の<a href="format-support.html">形式ごとの対応表</a>が「モデルの 48 項目 → 3 形式」を測るのに対し、この表は<strong>逆向き</strong>に「形式の仕様 → SwiftSheets」を見ます。</p>
-<p class="meta">2026-08-31 時点 / SwiftSheets 0.12.0 / 検証環境: macOS 15・Swift 6.2 / Xcode 26・openpyxl 3.1.5（XLSX の審判）・LibreOffice 26.2.3（ODF の審判）・numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）・Microsoft Excel 16.112.2（保護の審判・付録 B.31）</p>
+<p class="lede">Excel・OpenDocument・Numbers それぞれの<strong>公開仕様が持っている機能</strong>を並べ、SwiftSheets が読めるか・書けるか・どの API で触るのかを 193 行にしたものです。隣の<a href="format-support.html">形式ごとの対応表</a>が「モデルの 48 項目 → 3 形式」を測るのに対し、この表は<strong>逆向き</strong>に「形式の仕様 → SwiftSheets」を見ます。</p>
+<p class="meta">2026-09-05 時点 / SwiftSheets 0.12.0 / 検証環境: macOS 15・Swift 6.2 / Xcode 26・openpyxl 3.1.5（XLSX の審判）・LibreOffice 26.2.3（ODF の審判）・numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）・Microsoft Excel 16.112.2（保護の審判・付録 B.31）</p>
 <hr class="rule">
 <section>
 <h2>この表の向き</h2>
 <p>各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。形式ごとの対応表（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。</p>
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
-<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○45 △10 ▣17 ×3 ／ 書き ○47 △9 ▣16 ×2<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">56<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○35 △11 ▣1 ×3 ／ 書き ○31 △9 ▣0 ×15<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">57<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △11 ▣0 ×10 ／ 書き ○18 △8 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
+<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○46 △10 ▣17 ×2 ／ 書き ○48 △9 ▣16 ×1<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">57<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○36 △12 ▣1 ×3 ／ 書き ○32 △9 ▣0 ×14<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">58<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △8 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
 <section>
@@ -189,12 +189,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>件数</h2>
 <div class="tablewrap"><table>
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">45</td><td class="m">10</td><td class="m">17</td><td class="m">3</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">47</td><td class="m">9</td><td class="m">16</td><td class="m">2</td><td class="m">4</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">35</td><td class="m">11</td><td class="m">1</td><td class="m">3</td><td class="m">6</td><td class="m">0</td><td class="m">56</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">31</td><td class="m">9</td><td class="m">0</td><td class="m">15</td><td class="m">1</td><td class="m">0</td><td class="m">56</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">11</td><td class="m">0</td><td class="m">10</td><td class="m">15</td><td class="m">0</td><td class="m">57</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">8</td><td class="m">0</td><td class="m">28</td><td class="m">3</td><td class="m">0</td><td class="m">57</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">46</td><td class="m">10</td><td class="m">17</td><td class="m">2</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">48</td><td class="m">9</td><td class="m">16</td><td class="m">1</td><td class="m">4</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">36</td><td class="m">12</td><td class="m">1</td><td class="m">3</td><td class="m">5</td><td class="m">0</td><td class="m">57</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">32</td><td class="m">9</td><td class="m">0</td><td class="m">14</td><td class="m">2</td><td class="m">0</td><td class="m">57</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">15</td><td class="m">0</td><td class="m">58</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">8</td><td class="m">0</td><td class="m">28</td><td class="m">4</td><td class="m">0</td><td class="m">58</td></tr>
 </tbody></table></div>
 <p class="meta">「—」はその形式に概念が無い行です。Numbers に「—」が多いのは能力差ではなく、Excel・OpenDocument 側の機能を並べた行に Numbers 側の対応物が無い、という意味です。</p>
 </section>
@@ -207,7 +207,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr class="group"><td colspan="6">パッケージと部品</td></tr>
 <tr><td>OPC パッケージ（ZIP・コンテンツタイプ・リレーション）</td><td class="m y">○</td><td class="m y">○</td><td><code>[Content_Types].xml, _rels/.rels</code></td><td><code>Workbook(contentsOf:)</code> <code>wb.write(to:)</code></td><td>書き出しでは [Content_Types].xml が実在するパートだけを宣言し、r:id は全て解決する（PreservationTests）。 <span class="chip">実測</span></td></tr>
 <tr><td>解釈しないパートの保全（F3）</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/charts/, xl/theme/, xl/drawings/, vbaProject.bin ほか</code></td><td><code>wb.preserved</code> <code>PreservationStore</code> <code>sheet.preserved</code></td><td><strong>言うこと</strong>: 他形式へ変換すると「N part(s) … cannot be carried into …」 触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。 <span class="chip">コード確認</span></td></tr>
-<tr><td>ZIP64（4GB 超・65,535 パート超）</td><td class="m n">×</td><td class="m n">×</td><td><code>ZIP64 end of central directory</code></td><td><code>SheetError.corruptedContainer</code></td><td><strong>言うこと</strong>: throw（警告ではなくエラー） README の Limits に明記。壊れたファイルと区別して報告する。 <span class="chip">文書</span></td></tr>
+<tr><td>ZIP64（4GB 超・65,535 パート超）</td><td class="m y">○</td><td class="m y">○</td><td><code>ZIP64 end of central directory</code></td><td><code>ZipLimits</code> <code>ReadOptions.limits</code></td><td>0.12.0（付録 B.39.1）で読み書きする。4 GB 超の部品・65,535 超の部品数。ZIP64 の記録は必要な封筒にだけ書く。ZipTests が往復を固定する。この行は 0.12.0 の後も「none」のまま残っていたのを Rev 4.22 で直した。 <span class="chip">実測</span></td></tr>
 <tr><td>パスワードによる暗号化</td><td class="m h">△</td><td class="m y">○</td><td><code>ECMA-376 Part 2 agile / standard encryption（[MS-OFFCRYPTO]）</code></td><td><code>ReadOptions.password</code> <code>WriteOptions.password</code> <code>SheetError.wrongPassword</code> <code>UnopenableInput.encryptedOOXML</code></td><td><strong>言うこと</strong>: パスワードなしは throw（暗号化されていると名指し）。誤ったパスワードは wrongPassword。Excel 2007 の standard 形式と RC4 は名指しで断る agile 形式（AES-256 / SHA-512、Excel 2010 以降が書く形）を読み書きする。審判は msoffcrypto-tool（付録 B.39.9）。旧 .xls（BIFF）は UnopenableInput.legacyCompoundFile として別扱いで報告する。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">ブック（xl/workbook.xml）</td></tr>
 <tr><td>シートの一覧・順序・名前・複製</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;sheets&gt;/&lt;sheet&gt;</code></td><td><code>wb.sheets</code> <code>wb.sheetNames</code> <code>addSheet(named:at:)</code> <code>removeSheet(named:)</code> <code>moveSheet(named:to:)</code> <code>duplicateSheet(named:as:)</code> <code>renameSheet(_:to:)</code></td><td>シート名を変えると、そのシートを指す数式が追従する。 <span class="chip">実測</span></td></tr>
@@ -293,9 +293,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr class="group"><td colspan="6">ワークシート以外のシート</td></tr>
 <tr><td>グラフシート・ダイアログシート・マクロシート</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/chartsheets/, &lt;chartsheet&gt;</code></td><td><code>sheet.preserved.foreignSheet</code> <code>ForeignSheet</code></td><td><strong>言うこと</strong>: 読むと「a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived」。そのシートにセルを書き込むと「N cell(s) … are not saved」。他形式へ変換すると dropped ワークシートではないシート。ブックはワークシートと並べて挙げるが、部品の根は &lt;chartsheet&gt; で、モデルには中身を言う言葉がない。だから解釈せずに運ぶ——部品はバイトのまま出入りし、コンテンツタイプと関係の種別も元のまま。検体は Excel 16.112.2 自身に作らせ（Tests/FixtureGenerator/make_chartsheet_fixture.py）、書き戻した結果は LibreOffice が元と同じページ数に描くことで確かめている（付録 B.35）。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>
-<tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>xl/worksheets/sheetN.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>forEachRow(inSheet:)</code> <code>StreamedRow</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 75 万セルで +54MB（モデル全体は +190MB）。結合・メモ・保全は運ばない。 <span class="chip">文書</span></td></tr>
+<tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>xl/worksheets/sheetN.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>forEachRow(inSheet:)</code> <code>rows(inSheet:)</code> <code>StreamedRow</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 100 万マスで 23 MB（モデル全体は 221 MB — docs/performance.json）。結合・メモ・保全は運ばない。傘の StreamingReader は ODS・Numbers・CSV も同じ呼び方で開く（付録 B.40）。 <span class="chip">文書</span></td></tr>
 <tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>同上</code></td><td><code>StreamingWriter(url:sheetName:)</code> <code>append(_:)</code> <code>close()</code></td><td><strong>言うこと</strong>: なし 行数によらず +3MB。値と書式だけ。 <span class="chip">文書</span></td></tr>
-<tr><td>セル数の上限</td><td class="m h">△</td><td class="m">—</td><td><code>ReadOptions.cellLimit（既定 1,000,000）</code></td><td><code>ReadOptions(cellLimit:)</code></td><td><strong>言うこと</strong>: degraded の警告で「読み取りをここで止めた」と言う 黙って途中で止めない。 <span class="chip">文書</span></td></tr>
+<tr><td>セル数の上限</td><td class="m h">△</td><td class="m">—</td><td><code>ReadOptions.cellLimit（既定は上限なし — 付録 B.39.2）</code></td><td><code>ReadOptions(cellLimit:)</code></td><td><strong>言うこと</strong>: degraded の警告で「読み取りをここで止めた」と言う 黙って途中で止めない。上限は読む側が決め、Workbook.inspect が決める材料を出す。 <span class="chip">文書</span></td></tr>
 </tbody></table></div>
 </section>
 <section>
@@ -353,7 +353,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr class="group"><td colspan="6">保護</td></tr>
 <tr><td>表の保護</td><td class="m y">○</td><td class="m y">○</td><td><code>table:protected, table:protection-key</code></td><td><code>sheet.protection</code> <code>SheetProtection</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>保護シート内の編集できる窓</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.protectedRanges</code></td><td><strong>言うこと</strong>: 「N protected range(s) dropped: ODF protects a whole table …」 ODF は表全体を守り、その中に窓を持たない。 <span class="chip">実測</span></td></tr>
-<tr><td>ブックの保護（シート構成の固定）</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.protection</code></td><td><strong>言うこと</strong>: 「workbook protection is dropped: ODF locks a document, not its sheet list」 <span class="chip">実測</span></td></tr>
+<tr><td>ブックの保護（シート構成の固定）</td><td class="m y">○</td><td class="m y">○</td><td><code>office:spreadsheet の table:structure-protected（ODF 1.3 §9.1.2）</code></td><td><code>wb.protection.lockStructure</code></td><td>シートの追加・削除・改名・並べ替えを禁じる旗。鍵（table:protection-key）は Excel の合鍵と互換が無いので運ばず、旗だけを往復する。LibreOffice が読み戻しで保持する（付録 B.40.4）。以前は「ODF に概念なし」と書いていたが誤りだった。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">印刷</td></tr>
 <tr><td>向き・用紙・拡大率・余白・中央寄せ</td><td class="m y">○</td><td class="m y">○</td><td><code>style:page-layout-properties, style:print-orientation, style:scale-to</code></td><td><code>sheet.pageSetup</code> <code>sheet.pageMargins</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>ヘッダー／フッター（左・中央・右の 3 領域）</td><td class="m y">○</td><td class="m h">△</td><td><code>style:header, style:footer, style:region-left/center/right</code></td><td><code>sheet.headerFooter</code></td><td><strong>言うこと</strong>: フォント指定だけ落ちる Excel の &amp;L&amp;C&amp;R と ODF の 3 領域を相互に訳す。 <span class="chip">実測</span></td></tr>
@@ -373,6 +373,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>描画オブジェクト（画像・グラフ・図形・テキストボックス）</td><td class="m n">×</td><td class="m n">×</td><td><code>draw:frame, draw:image, draw:object, draw:custom-shape</code></td><td><code>sheet.addImage(_:at:sizing:)</code> <code>sheet.addChart(_:over:)</code></td><td><strong>言うこと</strong>: 「N image(s) added by addImage dropped: writing pictures into ODS is not implemented yet」ほか 読み込みは draw:frame の中を読み飛ばす。addImage / addChart で作った絵とグラフも ODS には書けない（.xlsx なら書ける）。 <span class="chip">コード確認</span></td></tr>
 <tr><td>シナリオ</td><td class="m n">×</td><td class="m n">×</td><td><code>table:scenario</code></td><td><code>sheet.scenarios</code></td><td><strong>言うこと</strong>: 「N scenario(s) dropped: an ODF scenario is a whole shadow sheet …」 ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増えてしまうので書かない。 <span class="chip">実測</span></td></tr>
 <tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」 <span class="chip">実測</span></td></tr>
+<tr class="group"><td colspan="6">大きなファイル</td></tr>
+<tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>content.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>ODSStreamingReader</code> <code>forEachRow(inSheet:)</code> <code>rows(inSheet:)</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。 <span class="chip">実測</span></td></tr>
 </tbody></table></div>
 </section>
 <section>
@@ -450,6 +452,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>1904 の日付原点</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.epoch</code></td><td><strong>言うこと</strong>: 「the 1904 date origin is dropped: the template has no calculation engine to record it on」 <span class="chip">コード確認</span></td></tr>
 <tr><td>VBA マクロ</td><td class="m">—</td><td class="m n">×</td><td>—</td><td>—</td><td><strong>言うこと</strong>: 「VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)」 <span class="chip">コード確認</span></td></tr>
 <tr><td>共同編集の履歴</td><td class="m n">×</td><td class="m n">×</td><td><code>TSCK.* （collaboration）</code></td><td>—</td><td><strong>言うこと</strong>: なし（モデルに対応物が無い） 型は名簿に実在するが、読み書きの対象にしていない。 <span class="chip">コード確認</span></td></tr>
+<tr class="group"><td colspan="6">大きなファイル</td></tr>
+<tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>Index/Tables/Tile-*.iwa の逐次復号</code></td><td><code>StreamingReader(contentsOf:)</code> <code>NumbersStreamingReader</code> <code>forEachRow(inSheet:table:)</code> <code>tableCount(inSheet:)</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる。1 枚のシートの 2 枚目以降の表は table: で。値と書式だけ。付録 B.40.3。 <span class="chip">実測</span></td></tr>
 </tbody></table></div>
 </section>
 <section>
@@ -464,7 +468,7 @@ python3 scripts/build-spec-feature-matrix.py --check   # この表が出所と�
 <p class="meta">YAML の先頭には UTF-8 の印（BOM）が入っています。HTML と違って文字コードを名乗る場所が無く、GitHub Pages は <code>text/yaml</code> を文字コードなしで返すため、印が無いとブラウザが日本語を化けさせるからです。YAML 1.2 が先頭の印を認めているので、読み込む側は今までどおりで構いません。</p>
 </section>
 <footer>
-SwiftSheets — 形式ごとの機能対応表。SwiftSheets 0.12.0（commit 0.11.1）時点の実測とコード確認。<br>
+SwiftSheets — 形式ごとの機能対応表。SwiftSheets 0.12.0（commit 0.12.0）時点の実測とコード確認。<br>
 モデルの側から測った表は <a href="format-support.html">形式ごとの対応表</a>、方向ごと（A → B）の挙動は <a href="interoperability.html">相互運用ガイド</a> に。<br>
 実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B に。
 </footer>

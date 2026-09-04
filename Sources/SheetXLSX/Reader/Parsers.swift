@@ -42,6 +42,9 @@ final class WorkbookXMLParser: SAXHandler {
     var activeTab = 0
     var definedNames: [String: String] = [:]
     var protection = WorkbookProtection()
+    /// Every attribute of `<calcPr>`: the four the model reads (iteration and full precision, spec Appendix
+    /// B.40.4) and the rest, carried for a same-format write.
+    var calcPrAttributes: [String: String] = [:]
     /// `<pivotCache cacheId r:id>` — the caches the workbook declares, in order.
     var pivotCaches: [(cacheId: Int, rId: String)] = []
     /// Sheet-scoped names: localSheetId → (name → text).
@@ -71,6 +74,7 @@ final class WorkbookXMLParser: SAXHandler {
             let rId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value ?? ""
             if let id = Int(a["cacheId"] ?? "") { pivotCaches.append((id, rId)) }
         case "workbookView": activeTab = Int(a["activeTab"] ?? "0") ?? 0
+        case "calcPr": calcPrAttributes = a
         case "sheet":
             let rId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value ?? a["id"] ?? ""
             let state = SheetState(rawValue: a["state"] ?? "visible") ?? .visible

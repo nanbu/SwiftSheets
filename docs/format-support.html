@@ -125,9 +125,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
     <div class="sub">表計算の仕掛けは全部通ります。通らない 7 件は、Numbers か OpenDocument にしか無い考え方です。</div>
   </div>
   <div class="card score">
-    <div class="num">41<small> / 48</small></div>
+    <div class="num">42<small> / 48</small></div>
     <div class="lab">ODS（OpenDocument）</div>
-    <div class="sub">Excel と<strong>同点</strong>。落とす 7 件と拾う 7 件が違うだけで、優劣ではありません。</div>
+    <div class="sub">Excel より 1 つ多く通ります。落とす 6 件と拾う 7 件が違うだけで、優劣ではありません。</div>
   </div>
   <div class="card score">
     <div class="num">20<small> / 48</small></div>
@@ -178,12 +178,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <text x="450" y="178" class="sv-tb" text-anchor="middle">ODS</text>
   <rect x="365" y="192" width="170" height="18" rx="5" class="sv-soft"/>
   <rect x="365" y="192" width="148" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="439" y="205" class="sv-inv" text-anchor="middle">41 / 48</text>
-  <text x="365" y="238" class="sv-t2">Excel と同点（拾う物が違う）</text>
+  <text x="439" y="205" class="sv-inv" text-anchor="middle">42 / 48</text>
+  <text x="365" y="238" class="sv-t2">Excel より 1 つ多い（拾う物が違う）</text>
   <text x="365" y="260" class="sv-t2">条件付き書式は拡張名前空間</text>
   <text x="365" y="282" class="sv-t2">ピボット表 = データパイロット</text>
   <text x="365" y="312" class="sv-t3">通らない: 保護範囲・シナリオ・</text>
-  <text x="365" y="332" class="sv-t3">タブ色・ブック保護・セルの制御</text>
+  <text x="365" y="332" class="sv-t3">タブ色・セルの制御</text>
 
   <!-- numbers -->
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
@@ -293,7 +293,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>印刷範囲・タイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>改ページ</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は行・列スタイルの <code>fo:break-before</code></td></tr>
 <tr><td>定義名（ブック・シート）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
-<tr><td>ブック保護（シート構成の固定）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>ブック保護（シート構成の固定）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は <code>table:structure-protected</code>（旗だけ。鍵は Excel の合鍵と互換が無いので運びません）</td></tr>
 <tr><td>文書の自由項目（部署・案件番号など）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
   <td>ODF は <code>meta:user-defined</code>。定義名へのリンク型だけは文字に落とします</td></tr>
 <tr><td>隠しシート</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>Numbers にシートを隠す考え方がありません</td></tr>
@@ -523,7 +523,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 7 件・ODS 10 件・Numbers 23 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 7 件・ODS 9 件・Numbers 23 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)

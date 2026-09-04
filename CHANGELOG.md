@@ -29,6 +29,16 @@ writes, so the constant, the README's status line and the tag always name the sa
   archive headers once, decodes objects on demand, and lets go of the parts that hold nothing but tiles (the
   256-row blocks a table's cells live in), expanding each again only when a walk reaches it. Over a million
   cells: 1.5 s and 86 MB, against 2.5 s and 323 MB for the whole model.
+- **ODS carries the workbook structure lock** (spec Appendix B.40.4): `wb.protection.lockStructure` is written as
+  `office:spreadsheet table:structure-protected="true"` (ODF 1.3 §9.1.2) and read back; LibreOffice keeps it
+  when it re-saves the file. The key is not carried — ODF's is a digest of another kind than Excel's — and the
+  window lock, the revision lock and the passwords, which ODF has no spelling for, are still reported. The
+  feature matrix had this row as "no concept in ODF", which was wrong.
+- **XLSX carries iteration and full precision** (spec Appendix B.40.4): `<calcPr iterate iterateCount
+  iterateDelta fullPrecision>` is read into `CalculationSettings` and written from it, so a workbook that
+  iterates its circular references keeps doing so across a save, and one converted from ODS keeps the setting
+  instead of a warning that wrongly called it OpenDocument-only. The rest of `<calcPr>` (`calcMode`, `refMode`,
+  …) travels through a same-format save in `PreservationStore.calcPrAttributes`.
 - **A million-cell Numbers document is on the performance record** for the first time: writing 10.0 s and
   413 MB, reading 2.5 s and 323 MB, row by row 1.5 s and 86 MB.
 
@@ -43,6 +53,8 @@ writes, so the constant, the README's status line and the tag always name the sa
   in 64 bits (nearly every number a spreadsheet holds) now goes straight in, and whether it is a whole number is
   decided on the integers. The general road stays for wider significands, and a test holds the two to the same
   answer at the edges. Over a million cells, reading 5.9 → 2.5 s; over a hundred thousand, 0.58 → 0.29 s.
+- The feature matrix says ZIP64 is read and written (it has been since 0.12.0; the row still said "none") and
+  has a row-by-row-reading row for ODS and Numbers as well as XLSX.
 
 ## [0.12.0] — 2026-09-05
 

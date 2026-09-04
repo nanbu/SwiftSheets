@@ -50,6 +50,14 @@ enum WorkbookReader {
         wb.definedNames = wbParser.definedNames
         wb.codeName = wbParser.codeName
         wb.protection = wbParser.protection
+        // the calculation settings OOXML shares with ODF (spec Appendix B.40.4): iteration and full precision;
+        // the rest of <calcPr> (calcMode, refMode, …) travels for a same-format write
+        let calc = wbParser.calcPrAttributes
+        wb.preserved.calcPrAttributes = calc
+        if XMLBool.isTrue(calc["iterate"]) { wb.calculationSettings.iterationEnabled = true }
+        if let n = Int(calc["iterateCount"] ?? "") { wb.calculationSettings.iterationSteps = n }
+        if let d = Double(calc["iterateDelta"] ?? "") { wb.calculationSettings.iterationMaximumDifference = d }
+        if let full = calc["fullPrecision"] { wb.calculationSettings.precisionAsShown = full == "0" || full.lowercased() == "false" }
         wb.preserved.workbookFragments = wbParser.fragments
         wb.preserved.workbookRootAttributes = wbParser.rootAttributes
         wb.preserved.workbookPrAttributes = wbParser.workbookPrAttributes

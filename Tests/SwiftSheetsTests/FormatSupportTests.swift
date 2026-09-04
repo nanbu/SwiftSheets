@@ -159,7 +159,7 @@ import SwiftSheets
     /// What each format is *expected* to lose. Everything not named here has to survive.
     static let expectedLosses: [SheetFormat: Set<String>] = [
         .xlsx: ["株価・為替の関数", "セルの制御", "1シート複数テーブル", "ラベル範囲", "統合の定義", "探偵の矢印", "計算設定"],
-        .ods: ["株価・為替の関数", "セルの制御", "保護範囲", "シナリオ", "タブ色", "ブック保護", "1シート複数テーブル"],
+        .ods: ["株価・為替の関数", "セルの制御", "保護範囲", "シナリオ", "タブ色", "1シート複数テーブル"],
         .numbers: [
             "配列数式", "グループ化",
             "CF・カラースケール", "CF・データバー", "CF・アイコンセット",
@@ -172,7 +172,7 @@ import SwiftSheets
     ]
 
     /// How many warnings each format's write returns for this workbook — the number the published table quotes.
-    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 7, .ods: 10, .numbers: 23]
+    static let expectedWarningCount: [SheetFormat: Int] = [.xlsx: 7, .ods: 9, .numbers: 23]
 
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func matchesThePublishedTable(_ format: SheetFormat) throws {

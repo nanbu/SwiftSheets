@@ -77,6 +77,7 @@ enum ODSReader {
         if let e = content.epoch { wb.epoch = e }
         wb.labelRanges = content.labelRanges
         wb.consolidation = content.consolidation
+        wb.protection.lockStructure = content.structureProtected
         wb.noteUnmodelledODFFeatures(content.unmodelledODF)
         wb.dataOnly = options.dataOnly
         wb.definedNames = content.definedNames
@@ -289,6 +290,9 @@ final class ContentParser: SAXHandler {
     // ODF's own features (spec Appendix B.17)
     var calculationSettings = CalculationSettings()
     var epoch: DateEpoch?
+    /// `office:spreadsheet table:structure-protected` (ODF 1.3 §9.1.2): the sheet list is locked — Excel's
+    /// `lockStructure` (spec Appendix B.40.4).
+    var structureProtected = false
     var labelRanges: [LabelRange] = []
     var consolidation: Consolidation?
     var unmodelledODF: UnmodelledODFFeatures = []
@@ -317,6 +321,8 @@ final class ContentParser: SAXHandler {
         if inCell, cellText.start(name, a) { return }
 
         switch name {
+        case "spreadsheet":
+            if ODSAttr.bool(a, "table:structure-protected") == true { structureProtected = true }
         case "table":
             if inTable { skipDepth = 1; return }   // a sub-table inside a cell
             // a sheet the caller did not ask for: named, left empty, and marked as unread (spec Appendix B.39.10)

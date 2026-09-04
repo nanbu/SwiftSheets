@@ -15,7 +15,7 @@ The design is written down in [the implementation spec](https://nanbu.github.io/
 (Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
 [the format support table](https://nanbu.github.io/SwiftSheets/format-support.html). The same question from the other
 side — every feature each format's own specification names, how far this library carries it, and the API for each — is
-[the spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html) (191 rows; read and write kept
+[the spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html) (193 rows; read and write kept
 apart, and also published as [YAML](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml)). All are at
 **<https://nanbu.github.io/SwiftSheets/>**.
 

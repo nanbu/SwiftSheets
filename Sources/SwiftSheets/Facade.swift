@@ -136,7 +136,16 @@ extension Workbook {
         // Not "these settings differ from ours" but "the destination will read this document differently" — the
         // question a warning is worth. LibreOffice writes its own defaults into every ODS, so the older test
         // reported a loss on every ODS conversion ever made (spec Appendix B.23).
-        for difference in calculationSettings.differences(from: .asAssumedOutsideODF) {
+        var settings = calculationSettings
+        if format == .xlsx || format == .xlsm {
+            // <calcPr> has the iteration and full-precision settings (spec Appendix B.40.4): not a loss there
+            let outside = CalculationSettings.asAssumedOutsideODF
+            settings.iterationEnabled = outside.iterationEnabled
+            settings.iterationSteps = outside.iterationSteps
+            settings.iterationMaximumDifference = outside.iterationMaximumDifference
+            settings.precisionAsShown = outside.precisionAsShown
+        }
+        for difference in settings.differences(from: .asAssumedOutsideODF) {
             out.append(ConversionWarning(.dropped, subject: .other,
                                          message: "a calculation setting is dropped — \(difference); only OpenDocument keeps it in the file"))
         }

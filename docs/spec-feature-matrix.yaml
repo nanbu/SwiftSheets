@@ -4,8 +4,8 @@
 meta:
   title: "形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応"
   library_version: "0.12.0"
-  as_of: "2026-08-31"
-  commit: "0.11.1"
+  as_of: "2026-09-05"
+  commit: "0.12.0"
   axis: "各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。docs/format-support.html（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。"
   granularity: "「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。"
   caveat: "「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 10 件 / numbers 23 件）。"
@@ -54,8 +54,8 @@ formats:
       public: true
       note: "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
     totals:
-      read: {full: 45, partial: 10, preserved: 17, none: 3, na: 3, unverified: 0}
-      write: {full: 47, partial: 9, preserved: 16, none: 2, na: 4, unverified: 0}
+      read: {full: 46, partial: 10, preserved: 17, none: 2, na: 3, unverified: 0}
+      write: {full: 48, partial: 9, preserved: 16, none: 1, na: 4, unverified: 0}
       rows: 78
     areas:
       - id: "package"
@@ -87,13 +87,14 @@ formats:
           - id: "xlsx.package.zip64"
             name: "ZIP64（4GB 超・65,535 パート超）"
             spec_anchor: "ZIP64 end of central directory"
-            read: "none"
-            write: "none"
+            read: "full"
+            write: "full"
             api:
-              - "SheetError.corruptedContainer"
-            warning: "throw（警告ではなくエラー）"
-            evidence: "readme"
-            note: "README の Limits に明記。壊れたファイルと区別して報告する。"
+              - "ZipLimits"
+              - "ReadOptions.limits"
+            warning: null
+            evidence: "measured"
+            note: "0.12.0（付録 B.39.1）で読み書きする。4 GB 超の部品・65,535 超の部品数。ZIP64 の記録は必要な封筒にだけ書く。ZipTests が往復を固定する。この行は 0.12.0 の後も「none」のまま残っていたのを Rev 4.22 で直した。"
           - id: "xlsx.package.encryption"
             name: "パスワードによる暗号化"
             spec_anchor: "ECMA-376 Part 2 agile / standard encryption（[MS-OFFCRYPTO]）"
@@ -952,10 +953,11 @@ formats:
             api:
               - "StreamingReader(contentsOf:)"
               - "forEachRow(inSheet:)"
+              - "rows(inSheet:)"
               - "StreamedRow"
             warning: "なし（値と書式だけと明記）"
             evidence: "readme"
-            note: "75 万セルで +54MB（モデル全体は +190MB）。結合・メモ・保全は運ばない。"
+            note: "100 万マスで 23 MB（モデル全体は 221 MB — docs/performance.json）。結合・メモ・保全は運ばない。傘の StreamingReader は ODS・Numbers・CSV も同じ呼び方で開く（付録 B.40）。"
           - id: "xlsx.stream.write"
             name: "行ごとの書き出し"
             spec_anchor: "同上"
@@ -970,14 +972,14 @@ formats:
             note: "行数によらず +3MB。値と書式だけ。"
           - id: "xlsx.limit.cells"
             name: "セル数の上限"
-            spec_anchor: "ReadOptions.cellLimit（既定 1,000,000）"
+            spec_anchor: "ReadOptions.cellLimit（既定は上限なし — 付録 B.39.2）"
             read: "partial"
             write: "na"
             api:
               - "ReadOptions(cellLimit:)"
             warning: "degraded の警告で「読み取りをここで止めた」と言う"
             evidence: "readme"
-            note: "黙って途中で止めない。"
+            note: "黙って途中で止めない。上限は読む側が決め、Workbook.inspect が決める材料を出す。"
   - id: "ods"
     name: "OpenDocument 表計算（.ods）"
     spec:
@@ -985,9 +987,9 @@ formats:
       public: true
       note: "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
     totals:
-      read: {full: 35, partial: 11, preserved: 1, none: 3, na: 6, unverified: 0}
-      write: {full: 31, partial: 9, preserved: 0, none: 15, na: 1, unverified: 0}
-      rows: 56
+      read: {full: 36, partial: 12, preserved: 1, none: 3, na: 5, unverified: 0}
+      write: {full: 32, partial: 9, preserved: 0, none: 14, na: 2, unverified: 0}
+      rows: 57
     areas:
       - id: "package"
         name: "パッケージ"
@@ -1443,14 +1445,14 @@ formats:
             note: "ODF は表全体を守り、その中に窓を持たない。"
           - id: "ods.protect.workbook"
             name: "ブックの保護（シート構成の固定）"
-            spec_anchor: "—"
-            read: "na"
-            write: "none"
+            spec_anchor: "office:spreadsheet の table:structure-protected（ODF 1.3 §9.1.2）"
+            read: "full"
+            write: "full"
             api:
-              - "wb.protection"
-            warning: "「workbook protection is dropped: ODF locks a document, not its sheet list」"
-            evidence: "measured"
-            note: null
+              - "wb.protection.lockStructure"
+            warning: null
+            evidence: "judge"
+            note: "シートの追加・削除・改名・並べ替えを禁じる旗。鍵（table:protection-key）は Excel の合鍵と互換が無いので運ばず、旗だけを往復する。LibreOffice が読み戻しで保持する（付録 B.40.4）。以前は「ODF に概念なし」と書いていたが誤りだった。"
       - id: "print"
         name: "印刷"
         features:
@@ -1630,6 +1632,22 @@ formats:
             warning: "「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」"
             evidence: "measured"
             note: null
+      - id: "streaming"
+        name: "大きなファイル"
+        features:
+          - id: "ods.stream.read"
+            name: "行ごとの読み出し（全体をメモリに載せない）"
+            spec_anchor: "content.xml の逐次解析"
+            read: "partial"
+            write: "na"
+            api:
+              - "StreamingReader(contentsOf:)"
+              - "ODSStreamingReader"
+              - "forEachRow(inSheet:)"
+              - "rows(inSheet:)"
+            warning: "なし（値と書式だけと明記）"
+            evidence: "measured"
+            note: "本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。"
   - id: "numbers"
     name: "Apple Numbers（.numbers）"
     spec:
@@ -1637,9 +1655,9 @@ formats:
       public: false
       note: "Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。"
     totals:
-      read: {full: 21, partial: 11, preserved: 0, none: 10, na: 15, unverified: 0}
-      write: {full: 18, partial: 8, preserved: 0, none: 28, na: 3, unverified: 0}
-      rows: 57
+      read: {full: 21, partial: 12, preserved: 0, none: 10, na: 15, unverified: 0}
+      write: {full: 18, partial: 8, preserved: 0, none: 28, na: 4, unverified: 0}
+      rows: 58
     areas:
       - id: "package"
         name: "書類とパッケージ"
@@ -2266,3 +2284,19 @@ formats:
             warning: "なし（モデルに対応物が無い）"
             evidence: "code"
             note: "型は名簿に実在するが、読み書きの対象にしていない。"
+      - id: "streaming"
+        name: "大きなファイル"
+        features:
+          - id: "num.stream.read"
+            name: "行ごとの読み出し（全体をメモリに載せない）"
+            spec_anchor: "Index/Tables/Tile-*.iwa の逐次復号"
+            read: "partial"
+            write: "na"
+            api:
+              - "StreamingReader(contentsOf:)"
+              - "NumbersStreamingReader"
+              - "forEachRow(inSheet:table:)"
+              - "tableCount(inSheet:)"
+            warning: "なし（値と書式だけと明記）"
+            evidence: "measured"
+            note: "部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる。1 枚のシートの 2 枚目以降の表は table: で。値と書式だけ。付録 B.40.3。"
