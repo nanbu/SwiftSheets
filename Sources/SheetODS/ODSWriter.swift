@@ -270,12 +270,35 @@ enum ODSWriter {
         // label ranges
         // the body is kept as the pieces it was made of — a table's XML is most of a document, and joining the
         // pieces into one string would hold it twice
+        // pictures placed with addImage (spec Appendix B.43): one part each under Pictures/, named past whatever a
+        // source ODS brought along, and a draw:frame in the anchor cell — collected before the tables are written,
+        // because the cells name the parts
+        let taken: Set<String> = wb.preserved.sourceFormat == .ods ? Set(wb.preserved.parts.keys) : []
+        var pictures: [ODSPicture] = []
+        var framesBySheet: [[CellRef: [ODSPicture]]] = []
+        var pictureNumber = 0
+        for sheet in wb.sheets {
+            var frames: [CellRef: [ODSPicture]] = [:]
+            for (z, image) in sheet.images.enumerated() {
+                // the number steps past any Pictures/imageN.* the source brought, whatever its extension
+                repeat { pictureNumber += 1 } while taken.contains { $0.hasPrefix("Pictures/image\(pictureNumber).") }
+                let name = "Pictures/image\(pictureNumber).\(ODSPicture.fileExtension(image.format))"
+                let picture = ODSPicture(image: image, href: name, number: pictureNumber, zIndex: z)
+                pictures.append(picture)
+                // a cell inside a merge is written as a covered cell, which holds nothing: a picture anchored there
+                // moves to the merge's first cell, as LibreOffice moves it
+                var anchor = picture.anchor
+                if let merge = sheet.table.merges.first(where: { $0.contains(anchor) && $0.topLeft != anchor }) { anchor = merge.topLeft }
+                frames[anchor, default: []].append(picture)
+            }
+            framesBySheet.append(frames)
+        }
         let body = TextSpill()
         body.write(ODSFeatures.calculationSettingsXML(wb))
         body.write(ODSValidation.xml(wb, names: &validationNames, sink: sink))
         body.write(ODSFeatures.labelRangesXML(wb, sink: sink))
         for (i, sheet) in wb.sheets.enumerated() {
-            tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [],
+            tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [], frames: framesBySheet[i],
                      styles: styles, conditionalStyles: conditionalStyles, sink: sink, into: body)
         }
         body.write(namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name))
@@ -316,9 +339,6 @@ enum ODSWriter {
             }
             if sheet.hasUnmodelledValidations {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "a data validation the model could not read is dropped: ODS is regenerated, not patched")
-            }
-            if !sheet.images.isEmpty {
-                sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.images.count) image(s) added by addImage dropped: writing pictures into ODS is not implemented yet (write .xlsx to keep them)")
             }
             if !sheet.charts.isEmpty {
                 sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into ODS is not implemented yet (write .xlsx to keep them)")
@@ -366,9 +386,9 @@ enum ODSWriter {
             sink.add(.dropped, subject: .macros, "VBA project dropped: an OpenDocument spreadsheet has no place for it (write .xlsm to keep the macros)")
         }
 
-        var archive = ZipWriter()
+        let archive = ZipWriter()
         archive.add("mimetype", Data(mimeType.utf8), stored: true)
-        archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides).utf8))
+        archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides, pictures: pictures).utf8))
         // the body — most of the document — goes to the compressor in slices rather than as one more copy
         try archive.beginEntry("content.xml")
         try archive.write(contentHead)
@@ -384,6 +404,7 @@ enum ODSWriter {
         archive.add("meta.xml", Data(metaXML(wb.metadata, custom: wb.customProperties).utf8))
         archive.add("settings.xml", Data(settingsXML(wb).utf8))
         for name in opaque.keys.sorted() { archive.add(name, part: opaque[name]!) }
+        for picture in pictures { archive.add(picture.href, picture.image.data) }
 
         let warnings = sink.warnings
         return WriteResult(data: archive.finish(), warnings: warnings, suggestion: WriteResult.suggest(from: warnings, target: .ods, options: options))
@@ -397,12 +418,15 @@ enum ODSWriter {
         return names.map { "<style:font-face style:name=\"\(XML.esc($0))\" svg:font-family=\"\(XML.esc($0.contains(" ") ? "'" + $0 + "'" : $0))\"/>" }.joined()
     }
 
-    static func manifestXML(opaque: [String: OpaquePart], mediaTypes: [String: String]) -> String {
+    static func manifestXML(opaque: [String: OpaquePart], mediaTypes: [String: String], pictures: [ODSPicture] = []) -> String {
         var s = xmlHeader + "<manifest:manifest" + ns(["manifest"]) + " manifest:version=\"1.3\">"
         s += "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.3\" manifest:media-type=\"\(mimeType)\"/>"
         for p in ["content.xml", "styles.xml", "meta.xml", "settings.xml"] { s += "<manifest:file-entry manifest:full-path=\"\(p)\" manifest:media-type=\"text/xml\"/>" }
         for name in opaque.keys.sorted() {
             s += "<manifest:file-entry manifest:full-path=\"\(XML.esc(name))\" manifest:media-type=\"\(XML.esc(mediaTypes[name] ?? ""))\"/>"
+        }
+        for p in pictures {
+            s += "<manifest:file-entry manifest:full-path=\"\(XML.esc(p.href))\" manifest:media-type=\"\(p.image.format.contentType)\"/>"
         }
         return s + "</manifest:manifest>"
     }
@@ -621,6 +645,7 @@ enum ODSWriter {
     // MARK: - Tables
 
     static func tableXML(_ sheet: Sheet, masterPage: String, validations: [(ranges: MultiCellRange, name: String)],
+                         frames: [CellRef: [ODSPicture]] = [:],
                          styles: ODSStyleRegistry, conditionalStyles: ODSConditionalStyleRegistry,
                          sink: ODSWarningSink, into out: TextSpill) {
         let t = sheet.table
@@ -649,6 +674,9 @@ enum ODSWriter {
                 wideMerges.append(m)
             }
         }
+        // a picture's frame lives in its anchor cell, so that cell — and its row — are written even when empty
+        for ref in frames.keys { anchorRows.insert(ref.row) }
+        let frameMaxCol = frames.keys.map(\.col).max() ?? -1, frameMaxRow = frames.keys.map(\.row).max() ?? -1
         func isCovered(_ ref: CellRef) -> Bool {
             covered.contains(ref) || wideMerges.contains { $0.contains(ref) && $0.topLeft != ref }
         }
@@ -667,9 +695,9 @@ enum ODSWriter {
 
         // a manual break past the last cell still has to be written, so the grid reaches it
         let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1, validationMaxCol + 1,
-                              (sheet.columnBreaks.max() ?? -1) + 1)
+                              (sheet.columnBreaks.max() ?? -1) + 1, frameMaxCol + 1)
         let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1, validationMaxRow + 1,
-                              (sheet.rowBreaks.max() ?? -1) + 1)
+                              (sheet.rowBreaks.max() ?? -1) + 1, frameMaxRow + 1)
         var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage))\""
         if sheet.protection.enabled { s += " table:protected=\"true\"" }
         if !sheet.printArea.isEmpty {
@@ -739,15 +767,17 @@ enum ODSWriter {
                     while c + n < ncols, isCovered(CellRef(row: r, col: c + n)), t.cells[CellRef(row: r, col: c + n)] == nil { n += 1 }
                     s += "<table:covered-table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n
-                } else if let cell = t.cells[ref] ?? (anchors[ref] != nil ? Cell() : nil) {
-                    // an anchor with no cell of its own still has to be written: the span hangs on it
+                } else if let cell = t.cells[ref] ?? (anchors[ref] != nil || frames[ref] != nil ? Cell() : nil) {
+                    // an anchor with no cell of its own still has to be written: the span, or the picture, hangs on it
                     s += cellXML(cell, at: ref, merge: anchors[ref], matrix: t.arrayFormulas[ref], validation: validationName(ref),
-                                 detective: t.detective[ref], sheet: sheet.name, styles: styles, sink: sink)
+                                 detective: t.detective[ref], sheet: sheet.name, styles: styles, sink: sink,
+                                 frames: frames[ref].map { ODSPicture.framesXML($0, in: sheet) } ?? "")
                     c += 1
                 } else {
                     let rule = validationName(ref)
                     var n = 1
                     while c + n < ncols, t.cells[CellRef(row: r, col: c + n)] == nil, anchors[CellRef(row: r, col: c + n)] == nil,
+                          frames[CellRef(row: r, col: c + n)] == nil,
                           !isCovered(CellRef(row: r, col: c + n)), validationName(CellRef(row: r, col: c + n)) == rule { n += 1 }
                     s += "<table:table-cell"
                     if let rule { s += " table:content-validation-name=\"\(rule)\"" }
@@ -768,7 +798,7 @@ enum ODSWriter {
 
     static func cellXML(_ cell: Cell, at ref: CellRef, merge: CellRange?, matrix: CellRange?, validation: String?,
                         detective: CellDetective? = nil, sheet: String, styles: ODSStyleRegistry,
-                        sink: ODSWarningSink) -> String {
+                        sink: ODSWarningSink, frames: String = "") -> String {
         var attrs = ""
         if let n = styles.cell(of: cell) { attrs += " table:style-name=\"\(n)\"" }
         if let v = validation { attrs += " table:content-validation-name=\"\(v)\"" }
@@ -827,6 +857,8 @@ enum ODSWriter {
         }
         // ODF 1.3 §9.1.4 puts the detective's arrows after the annotation and before the text
         if let detective { s += ODSFeatures.detectiveXML(detective, sheet: sheet) }
+        // …and a picture's frame after them, before the text (spec Appendix B.43)
+        s += frames
         s += paragraphs.joined()
         return s + "</table:table-cell>"
     }

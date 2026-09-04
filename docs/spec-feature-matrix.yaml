@@ -989,9 +989,9 @@ formats:
       public: true
       note: "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
     totals:
-      read: {full: 36, partial: 12, preserved: 1, none: 3, na: 6, unverified: 0}
-      write: {full: 32, partial: 10, preserved: 0, none: 14, na: 2, unverified: 0}
-      rows: 58
+      read: {full: 36, partial: 12, preserved: 1, none: 4, na: 6, unverified: 0}
+      write: {full: 33, partial: 10, preserved: 0, none: 14, na: 2, unverified: 0}
+      rows: 59
     areas:
       - id: "package"
         name: "パッケージ"
@@ -1039,6 +1039,18 @@ formats:
             warning: "「N embedded object(s)/picture(s) of the source ODS are not re-linked」"
             evidence: "code"
             note: "ODS の書き出しは content.xml を作り直すので、元の絵や図の参照は張り直せない。持ってはいるが繋がらない、と正直に言う。"
+          - id: "ods.draw.image"
+            name: "画像の埋め込み（マスに置く・範囲に合わせる）"
+            spec_anchor: "Pictures/, draw:frame, draw:image, table:end-cell-address"
+            read: "none"
+            write: "full"
+            api:
+              - "sheet.addImage(try SheetImage(data:), at: \"B2\", sizing: .resizeCellToFit)"
+              - "addImage(_:over:)"
+              - "SheetImage"
+            warning: "読みは draw:frame を読み飛ばす — 書いた絵はこの読み手では戻らない（XLSX は preserved に持つ）"
+            evidence: "judge"
+            note: "PNG / JPEG / GIF を Pictures/ の部品（manifest に media-type）と、錨のセルの中の draw:frame / draw:image で書く（付録 B.43）。寸法は 96 dpi で cm。範囲に合わせる絵は table:end-cell-address を添え、LibreOffice は範囲いっぱいに広げる。元の ODS の Pictures/ とは番号がぶつからない。"
       - id: "table"
         name: "表・行・列"
         features:
@@ -1604,16 +1616,15 @@ formats:
             evidence: "code"
             note: null
           - id: "ods.un.draw"
-            name: "描画オブジェクト（画像・グラフ・図形・テキストボックス）"
-            spec_anchor: "draw:frame, draw:image, draw:object, draw:custom-shape"
+            name: "描画オブジェクト（グラフ・図形・テキストボックス）"
+            spec_anchor: "draw:frame, draw:object, draw:custom-shape"
             read: "none"
             write: "none"
             api:
-              - "sheet.addImage(_:at:sizing:)"
               - "sheet.addChart(_:over:)"
-            warning: "「N image(s) added by addImage dropped: writing pictures into ODS is not implemented yet」ほか"
+            warning: "「N chart(s) added by addChart dropped: writing charts into ODS is not implemented yet」ほか"
             evidence: "code"
-            note: "読み込みは draw:frame の中を読み飛ばす。addImage / addChart で作った絵とグラフも ODS には書けない（.xlsx なら書ける）。"
+            note: "読み込みは draw:frame の中を読み飛ばす。addChart で作ったグラフは ODS には書けない（.xlsx なら書ける）。addImage の絵は書ける（ods.draw.image・付録 B.43）が、読みは同じく読み飛ばす。"
           - id: "ods.un.scenario"
             name: "シナリオ"
             spec_anchor: "table:scenario"

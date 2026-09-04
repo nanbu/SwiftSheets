@@ -1905,6 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.26 Draft</td><td>2026-09-05</td><td><strong>ODS への画像の書き</strong>を付録 B.43 に記録して本体へ。<code>addImage</code> の絵を <code>Pictures/</code> の部品と錨のセルの中の <code>draw:frame</code> / <code>draw:image</code> で書き、manifest に media-type を載せる。寸法は 96 dpi で cm、範囲に合わせる絵は <code>table:end-cell-address</code>。読みは変えない（自分の読み手では戻らない、と対応表に明記）。審判は LibreOffice</td></tr>
     <tr><td>4.25 Draft</td><td>2026-09-05</td><td><strong>逐次書きを 3 形式へ</strong>を付録 B.42 に記録。傘の <code>StreamingWriter(url:)</code> が拡張子で形式を決めて <code>XLSXStreamingWriter</code>（旧 <code>StreamingWriter</code> を改名）/ <code>ODSStreamingWriter</code> / <code>NumbersStreamingWriter</code> / <code>CSVStreamingWriter</code> に渡す。ODS は行を <code>TextSpill</code> に退避して close で様式の後ろに流す。Numbers はタイルを埋まるたびに封筒へ（<code>NumbersDocument.addStreamed</code>）、行ヘッダはワイヤ形式のまま貯める（<code>ProtoMessage.Value.raw</code>）。運べないものは枚数つきで警告</td></tr>
     <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ。fuzz の的に 3 形式の逐次読みを追加</td></tr>
     <tr><td>4.21 Draft</td><td>2026-09-05</td><td><strong>計測台を公開の物に</strong>を付録 B.39.11 に記録。<code>Benchmarks/</code>・<code>scripts/bench.sh</code>・<code>docs/performance.json</code> → <code>docs/performance.html</code>。CI の <code>--check</code> が README の 3 つの MB を出所と照合する。0.12.0 の記録: 読み 2.8 秒・221 MB、逐次読み 1.9 秒・23 MB、書き 1.7 秒・258 MB、ODS 書き 3.4 秒・313 MB、ODS 読み 3.9 秒</td></tr>
@@ -4377,7 +4378,7 @@ sheet.addImage(img, over: <span class="st">"B2:D6"</span>)            <span clas
 
   <h4>他形式 — 置き場が無いものは数えて落とす</h4>
   <p>
-    ODS・Numbers・CSV への書き出しでは、画像は枚数を数えて <code>dropped</code> で報告する
+    Numbers・CSV への書き出しでは、画像は枚数を数えて <code>dropped</code> で報告する（ODS は Rev 4.26・B.43 で書けるようになった）
     （黙って消さない・§6）。ODS の <code>draw:frame</code> と Numbers の描画オブジェクトへの
     対応は将来の段に譲る。ストリーミング書き（値と書式のみ）も対象外のまま。
   </p>
@@ -4451,7 +4452,7 @@ sheet.addChart(chart, over: <span class="st">"D2:K16"</span>)     <span class="c
 
   <h4>他形式と 2 回目の保存</h4>
   <p>
-    ODS・Numbers・CSV へは枚数を数えて <code>dropped</code>（画像と同じ扱い）。
+    ODS・Numbers・CSV へは枚数を数えて <code>dropped</code>（画像は Rev 4.26・B.43 で ODS に書けるようになったが、グラフは従来どおり）。
     自分の書いたグラフ入りブックを読み戻すと <code>charts</code> は空になり
     （chart 部品と紙は保全バイトへ）、もう一度保存しても byte 一致——B.22 の釘を
     グラフにも打つ。
@@ -5203,7 +5204,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     <tr><th>項目</th><th>公開仕様</th><th>入れなかった理由</th></tr>
     <tr><td>Numbers の配列数式の書き</td><td>ある（関数 337 の撒き）</td><td>B.26 のとおり、337 は再計算で値を作れず、古い版テンプレートの設計と両立しない。読みだけ</td></tr>
     <tr><td>Numbers のフィルタ・並べ替え・カテゴリの書き</td><td>ある</td><td>B.26・B.29 のとおり、Numbers 自身が Excel の取り込みでフィルタを捨てる。Numbers が認めない置き換えは発明しない</td></tr>
-    <tr><td>ODS への画像の書き</td><td>ある（<code>draw:frame</code> / <code>draw:image</code>）</td><td>XLSX は書ける（B.32）ので穴ではある。ただし ODS の読みも画像を模型化していない（保全のみ）ので、片道の機能になる。次の候補</td></tr>
+    <tr><td>ODS への画像の書き</td><td>ある（<code>draw:frame</code> / <code>draw:image</code>）</td><td>XLSX は書ける（B.32）ので穴ではある。ただし ODS の読みも画像を模型化していない（保全のみ）ので、片道の機能になる。<strong>→ Rev 4.26・B.43 で書きを実装した</strong>（読みは据え置き）</td></tr>
     <tr><td>Numbers の 1904 の日付原点の書き</td><td><code>base_date_1904</code> はある</td><td>Numbers は日付を 2001 年起点の秒で持ち、旗の意味（Excel 互換の読み替えか）を確かめる見本が無い。読みは B.28 のまま</td></tr>
     <tr><td>Numbers の印刷設定・フッタ行・表の様式</td><td>ある</td><td>模型に言葉が無い（印刷は Excel / ODS の語で書けるが、Numbers の印刷情報の置き場を確かめた見本が無い）</td></tr>
   </table></div>
@@ -5411,6 +5412,53 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   <p>
     <strong>やらなかったこと</strong>: Numbers の数式の逐次書き（上記）。行の高さ・列幅（Cell に無い）。結合・注釈・条件付き書式
     （逐次読みと同じ線引き — 値と書式だけ）。
+  </p>
+
+  <h3>B.43 ODS への画像の書き — 錨のセルに draw:frame、Pictures/ に部品（Rev 4.26）</h3>
+  <p>
+    <strong>目的</strong>: B.32 で XLSX に置けるようにした画像（<code>addImage(_:at:sizing:)</code> /
+    <code>addImage(_:over:)</code>）を、同じ API のまま ODS にも書く。これまで ODS への書き出しは枚数を数えて
+    <code>dropped</code> と言うだけだった（B.32・B.39.10 の穴の表「ODS への画像の書き」）。
+  </p>
+  <p>
+    <strong>仕組み</strong>。① LibreOffice はこうする: 絵のバイト列を封筒の <code>Pictures/</code> に 1 部品ずつ置き、
+    <code>META-INF/manifest.xml</code> に <code>manifest:file-entry</code>（<code>manifest:media-type</code> つき）を足す。
+    本文では絵を置く<strong>セルの中に</strong> <code>draw:frame</code>（<code>svg:width</code> / <code>svg:height</code>、
+    セル左上からの <code>svg:x</code> / <code>svg:y</code>）を置き、その中の <code>draw:image</code> が
+    <code>xlink:href="Pictures/…"</code> で部品を指す。範囲に合わせて伸ばす絵は、frame に
+    <code>table:end-cell-address</code>（範囲の右下の 1 つ先のセル）と <code>table:end-x</code> / <code>table:end-y</code> を
+    添える —— LibreOffice はこれを「セルに合わせて大きさを変える」錨として読む。
+    ② 真似ないとこう壊れる: manifest に無い部品は LibreOffice が「壊れた文書」として修復にかける。frame をセルの外
+    （<code>table:shapes</code>）に置くと錨が無くなり、行を挿すと絵が動かない。
+    ③ だからこうした: 部品の名前は文書全体で <code>Pictures/image1.png</code> から番号を振り、元の ODS から
+    <code>preserved</code> で運んできた <code>Pictures/</code> の名前は避ける（元の絵は繋ぎ直せないまま運ぶ —— その警告は
+    従来どおり）。frame は B.8 の書き手の <code>cellXML</code> に差し込む: 注釈と探偵の矢印の後、本文の段落の前
+    （ODF 1.3 §9.1.4 の順）。絵だけあってセルの無い位置も、結合の錨と同じく行とセルを書く。結合の中に錨を置いた絵は、結合の起点セルへ寄せる
+    （覆われたセルの要素は空で何も置けない —— LibreOffice も同じく起点へ寄せる）。
+  </p>
+  <p>
+    <strong>寸法の換算</strong>: 画素は 96 dpi で cm に直す（<code>px × 2.54 / 96</code>、小数 3 桁 —— LibreOffice の書き方）。
+    <code>.original</code> は画素数のまま、<code>.scaled</code> は指定の画素数、<code>.fitCell</code> は錨のセルの現在の大きさ
+    （列幅は字数 × 7 + 5 px、行高は pt / 0.75 px —— B.32 と同じ換算）に収まる最大。範囲に合わせる絵の
+    <code>svg:width</code> / <code>svg:height</code> は範囲の列幅（B.8 の 2.0 mm / 字）と行高（pt）の合計を仮に書き、
+    実際の大きさは <code>table:end-cell-address</code> から LibreOffice が決める。審判の結果: LibreOffice は <code>end-cell-address</code> を優先して絵を<strong>範囲いっぱいに広げた</strong> —— C3:D4 に置いた絵を xlsx に変換すると <code>twoCellAnchor editAs="twoCell"</code>、終点は D4 の右下（列幅 2.267 cm × 2・行高 0.452 cm × 2 の範囲。こちらが書いた <code>svg:width</code> 3.372 cm ではない）。列幅を明示しないブックでは LibreOffice の既定の列幅のほうがこちらの 2.0 mm / 字より広いので、仮の寸法と実際の範囲は違うが、絵は範囲に合う。
+  </p>
+  <p>
+    <strong>読みは変えない</strong>: B.8 の読み手は <code>draw:frame</code> を読み飛ばすので、この書き手が置いた絵は
+    <strong>自分の読み手では戻らない</strong>（XLSX の読みが絵を <code>preserved</code> に持つのとも違う）。対応表の
+    <code>ods.draw.image</code> は書き full・読み none と正直に名乗る。ODS の逐次書き（B.42）に画像の口は無い。
+  </p>
+  <p>
+    <strong>検査</strong>（<code>ODSImageTests</code>）: 封筒に部品が呼び手のバイトのまま入り manifest に media-type つきで
+    載ること、錨のセルの中に frame があること、3 つの寸法（原寸・指定・セルに収める）の cm、範囲の
+    <code>end-cell-address</code>、セルの無い位置の絵、1 セルに 2 枚、元の ODS の <code>Pictures/</code> と名前が
+    ぶつからないこと。審判は LibreOffice（無ければ <code>.enabled(if:)</code> で見えるように skip）:
+    <code>--convert-to xlsx</code> で絵が <code>xl/media/</code> に渡ること、<code>--convert-to ods</code> で保存し直しても
+    <code>draw:image</code> が残ること。
+  </p>
+  <p>
+    <strong>やらなかったこと</strong>: グラフ・図形・テキストボックス（<code>addChart</code> は ODS では従来どおり
+    <code>dropped</code>）。ODS の読みで絵を模型に上げること。逐次書きの画像。
   </p>
 
 </section>

@@ -129,13 +129,14 @@ import SwiftSheets
         }
     }
 
-    /// The formats that cannot hold a picture say what they lost, counted, never in silence.
+    /// The formats that cannot hold a picture say what they lost, counted, never in silence. (ODS holds one
+    /// since spec Appendix B.43 — `ODSImageTests`.)
     @Test func formatsWithoutPicturesCountTheLoss() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
         wb.sheets[0].addImage(try Self.image("tiny.gif"), over: "C3:D4")
-        for format in [SheetFormat.ods, .numbers, .csv] {
+        for format in [SheetFormat.numbers, .csv] {
             let result = try wb.write(to: URL(filePath: NSTemporaryDirectory() + "img-drop.\(format.rawValue)"), as: format)
             #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("2 image(s)") },
                     "\(format.rawValue) must count both images out loud")

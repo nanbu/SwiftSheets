@@ -100,7 +100,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <body>
 <main>
 <h1>形式ごとの機能対応表</h1>
-<p class="lede">Excel・OpenDocument・Numbers それぞれの<strong>公開仕様が持っている機能</strong>を並べ、SwiftSheets が読めるか・書けるか・どの API で触るのかを 195 行にしたものです。隣の<a href="format-support.html">形式ごとの対応表</a>が「モデルの 48 項目 → 3 形式」を測るのに対し、この表は<strong>逆向き</strong>に「形式の仕様 → SwiftSheets」を見ます。</p>
+<p class="lede">Excel・OpenDocument・Numbers それぞれの<strong>公開仕様が持っている機能</strong>を並べ、SwiftSheets が読めるか・書けるか・どの API で触るのかを 196 行にしたものです。隣の<a href="format-support.html">形式ごとの対応表</a>が「モデルの 48 項目 → 3 形式」を測るのに対し、この表は<strong>逆向き</strong>に「形式の仕様 → SwiftSheets」を見ます。</p>
 <p class="meta">2026-09-05 時点 / SwiftSheets 0.15.0 / 検証環境: macOS 15・Swift 6.2 / Xcode 26・openpyxl 3.1.5（XLSX の審判）・LibreOffice 26.2.3（ODF の審判）・numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）・Microsoft Excel 16.112.2（保護の審判・付録 B.31）</p>
 <hr class="rule">
 <section>
@@ -109,7 +109,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
 <div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○46 △10 ▣17 ×2 ／ 書き ○48 △9 ▣16 ×1<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">58<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○36 △12 ▣1 ×3 ／ 書き ○32 △10 ▣0 ×14<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○36 △12 ▣1 ×4 ／ 書き ○33 △10 ▣0 ×14<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △9 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
@@ -191,8 +191,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
 <tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">46</td><td class="m">10</td><td class="m">17</td><td class="m">2</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">48</td><td class="m">9</td><td class="m">16</td><td class="m">1</td><td class="m">4</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">36</td><td class="m">12</td><td class="m">1</td><td class="m">3</td><td class="m">6</td><td class="m">0</td><td class="m">58</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">32</td><td class="m">10</td><td class="m">0</td><td class="m">14</td><td class="m">2</td><td class="m">0</td><td class="m">58</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">36</td><td class="m">12</td><td class="m">1</td><td class="m">4</td><td class="m">6</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">33</td><td class="m">10</td><td class="m">0</td><td class="m">14</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">9</td><td class="m">0</td><td class="m">28</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
 </tbody></table></div>
@@ -309,6 +309,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>文書の 4 つの部品</td><td class="m y">○</td><td class="m y">○</td><td><code>content.xml, styles.xml, meta.xml, settings.xml</code></td><td>—</td><td>settings.xml も読み書きする（ウィンドウ枠の固定など、表示の設定がここに入る）。 <span class="chip">コード確認</span></td></tr>
 <tr><td>パスワードによる暗号化</td><td class="m h">△</td><td class="m y">○</td><td><code>manifest:encryption-data（ODF 1.3 §4.3）</code></td><td><code>ReadOptions.password</code> <code>WriteOptions.password</code> <code>SheetError.wrongPassword</code> <code>UnopenableInput.encryptedODF</code></td><td><strong>言うこと</strong>: パスワードなしは throw（暗号化されていると名指し）。誤ったパスワードは wrongPassword。ODF 1.1 の Blowfish 形式は名指しで断る AES-CBC ＋ PBKDF2（ODF 1.2 以降、LibreOffice が書く形）を読み書きする。審判は cryptography ライブラリで ODF 1.3 §4.3 を辿る独立実装（付録 B.39.9）。 <span class="chip">実機の審判</span></td></tr>
 <tr><td>埋め込みオブジェクト・画像のパート</td><td class="m">▣</td><td class="m n">×</td><td><code>Pictures/, Object N/, ObjectReplacements/</code></td><td><code>wb.preserved</code></td><td><strong>言うこと</strong>: 「N embedded object(s)/picture(s) of the source ODS are not re-linked」 ODS の書き出しは content.xml を作り直すので、元の絵や図の参照は張り直せない。持ってはいるが繋がらない、と正直に言う。 <span class="chip">コード確認</span></td></tr>
+<tr><td>画像の埋め込み（マスに置く・範囲に合わせる）</td><td class="m n">×</td><td class="m y">○</td><td><code>Pictures/, draw:frame, draw:image, table:end-cell-address</code></td><td><code>sheet.addImage(try SheetImage(data:), at: &quot;B2&quot;, sizing: .resizeCellToFit)</code> <code>addImage(_:over:)</code> <code>SheetImage</code></td><td><strong>言うこと</strong>: 読みは draw:frame を読み飛ばす — 書いた絵はこの読み手では戻らない（XLSX は preserved に持つ） PNG / JPEG / GIF を Pictures/ の部品（manifest に media-type）と、錨のセルの中の draw:frame / draw:image で書く（付録 B.43）。寸法は 96 dpi で cm。範囲に合わせる絵は table:end-cell-address を添え、LibreOffice は範囲いっぱいに広げる。元の ODS の Pictures/ とは番号がぶつからない。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">表・行・列</td></tr>
 <tr><td>表（シート）と名前・表示／非表示</td><td class="m y">○</td><td class="m y">○</td><td><code>table:table, table:name, table:display=&quot;false&quot;</code></td><td><code>wb.sheets</code> <code>sheet.name</code> <code>sheet.isHidden</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>繰り返しによる圧縮（同じ行・同じ列をまとめて書く）</td><td class="m y">○</td><td class="m y">○</td><td><code>table:number-rows-repeated, table:number-columns-repeated</code></td><td><code>ReadOptions(cellLimit:)</code></td><td><strong>言うこと</strong>: 上限を超えると degraded で「ここで読み取りを止めた」 ODF はこの圧縮で 170 億セルを 1KB の XML に書ける。既定 100 万セルで止め、必ずそう言う。 <span class="chip">コード確認</span></td></tr>
@@ -370,7 +371,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>DDE リンク（別の動いているアプリが値を供給する）</td><td class="m h">△</td><td class="m n">×</td><td><code>table:dde-links</code></td><td><code>UnmodelledODFFeatures.ddeLinks</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
 <tr><td>別の文書から取り込んだシート</td><td class="m h">△</td><td class="m n">×</td><td><code>table:table-source</code></td><td><code>UnmodelledODFFeatures.linkedSheet</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
 <tr><td>別の文書から取り込んだ範囲</td><td class="m h">△</td><td class="m n">×</td><td><code>table:cell-range-source</code></td><td><code>UnmodelledODFFeatures.linkedRange</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
-<tr><td>描画オブジェクト（画像・グラフ・図形・テキストボックス）</td><td class="m n">×</td><td class="m n">×</td><td><code>draw:frame, draw:image, draw:object, draw:custom-shape</code></td><td><code>sheet.addImage(_:at:sizing:)</code> <code>sheet.addChart(_:over:)</code></td><td><strong>言うこと</strong>: 「N image(s) added by addImage dropped: writing pictures into ODS is not implemented yet」ほか 読み込みは draw:frame の中を読み飛ばす。addImage / addChart で作った絵とグラフも ODS には書けない（.xlsx なら書ける）。 <span class="chip">コード確認</span></td></tr>
+<tr><td>描画オブジェクト（グラフ・図形・テキストボックス）</td><td class="m n">×</td><td class="m n">×</td><td><code>draw:frame, draw:object, draw:custom-shape</code></td><td><code>sheet.addChart(_:over:)</code></td><td><strong>言うこと</strong>: 「N chart(s) added by addChart dropped: writing charts into ODS is not implemented yet」ほか 読み込みは draw:frame の中を読み飛ばす。addChart で作ったグラフは ODS には書けない（.xlsx なら書ける）。addImage の絵は書ける（ods.draw.image・付録 B.43）が、読みは同じく読み飛ばす。 <span class="chip">コード確認</span></td></tr>
 <tr><td>シナリオ</td><td class="m n">×</td><td class="m n">×</td><td><code>table:scenario</code></td><td><code>sheet.scenarios</code></td><td><strong>言うこと</strong>: 「N scenario(s) dropped: an ODF scenario is a whole shadow sheet …」 ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増えてしまうので書かない。 <span class="chip">実測</span></td></tr>
 <tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」 <span class="chip">実測</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>

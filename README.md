@@ -15,7 +15,7 @@ The design is written down in [the implementation spec](https://nanbu.github.io/
 (Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
 [the format support table](https://nanbu.github.io/SwiftSheets/format-support.html). The same question from the other
 side — every feature each format's own specification names, how far this library carries it, and the API for each — is
-[the spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html) (195 rows; read and write kept
+[the spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html) (196 rows; read and write kept
 apart, and also published as [YAML](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml)). All are at
 **<https://nanbu.github.io/SwiftSheets/>**.
 
@@ -77,7 +77,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | XLSX | ✅ | ✅ | ✅ F3 — uninterpreted parts re-packed byte for byte, ids kept | P1 done |
 | XLSM | ✅ | ✅ | ✅ VBA kept as opaque bytes (never run); dropped with a warning when writing .xlsx | P2 done |
 | CSV / TSV | ✅ | ✅ | — (values only by definition) | P1 done |
-| ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, and the six things only ODF has; pictures / objects of a source ODS are not re-linked | P3 done |
+| ODS | ✅ | ✅ | F2 — values, formulas, styles, conditional formats, validations, print setup, tables, filters, pivots, merges, sizes, the six things only ODF has, and pictures placed with `addImage`; pictures / objects of a source ODS are not re-linked | P3 done |
 | Numbers | ✅ values, formulas (as text, cross-table references included), cell formatting, number formats, conditional formats, pop-up menus as list validations, cell controls (checkbox, stepper, slider, rating), hyperlinks, formatting runs, notes, merges, sizes, several tables per sheet | ✅ values, formulas, cell formatting, number formats, conditional formats, inline-list validations as pop-up menus, cell controls, pivot tables (several fields per axis, one summarised value), hyperlinks, formatting runs, notes, merges, sizes, several sheets / tables (template patch) | — (every write starts from the template) | P4 / P5 done, with cuts (below) |
 
 `SheetFormat.detect(from:)` identifies all five from content, and `SheetFormat.detect(contentsOf:)` does the same for a file without reading it — the first four bytes, the ZIP directory at the end and one small entry, whatever the file's size. `SheetFormat.probe` answers in one call whether a file is a spreadsheet, something the library recognises but will not open (encrypted, or a legacy `.xls`) and why, or nothing it knows. A Numbers document saved as a folder opens like its single-file twin. Numbers support is reverse-engineered (no public

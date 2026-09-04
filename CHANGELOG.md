@@ -7,6 +7,19 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **Pictures written into ODS** (spec Appendix B.43). `addImage(_:at:sizing:)` and `addImage(_:over:)` — the
+  same calls that place a picture in an XLSX — now write it into an ODS document: one part under `Pictures/`
+  per picture, named in the manifest with its media type, and a `draw:frame` in the anchor cell sized in
+  centimetres from the pixel size (96 dpi). A picture over a range names the cell past its far corner as its
+  end, which LibreOffice reads as an anchor that resizes with its cells and stretches the picture over the
+  range. The ODS writer no longer reports pictures as dropped; the pictures of a source ODS are still carried
+  unlinked, as before. Reading is unchanged: the ODS reader skips `draw:frame`, so a picture written this way
+  does not come back through it — the feature matrix says so.
+
 ## [0.15.0] — 2026-09-05
 
 ### Added
