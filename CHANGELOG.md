@@ -21,14 +21,14 @@ writes, so the constant, the README's status line and the tag always name the sa
   into XML as they arrive (registering the styles they wear) and set aside — in memory while small, on disk once
   not — and `close()` writes the head, the styles and then each sheet's rows a piece at a time. Memory stays a
   few megabytes whatever the row count; the disk holds the rows once until the end. Over a million cells:
-  4.1 s and 66 MB.
+  4.2 s and 22 MB.
 - **Numbers row by row.** A tile of 256 rows is packed and written into the file the moment it fills and let
   go; what waits for the end is the table model, the string list (one entry per distinct text), the style list
   and a row header of about a dozen bytes per row. A formula is written as its cached value, rich text as plain
   text, and links, notes and cell controls are dropped — each counted in `warnings`. A tile's rows are written
   at one width, so the table is as wide as its widest row and a row wider than the tiles already written is
-  refused: give the first row every column the table will need. Over a million cells: 8.5 s and
-  64 MB.
+  refused: give the first row every column the table will need. Over a million cells: 10.3 s and
+  60 MB.
 - `XLSXStreamingWriter` writes a macro-enabled package (`.xlsm`, with no macros in it) on request, which is what
   the umbrella does for an `.xlsm` path.
 
