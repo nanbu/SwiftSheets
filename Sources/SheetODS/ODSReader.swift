@@ -20,13 +20,20 @@ enum ODSReader {
 
     static func read(_ data: Data, options: ReadOptions) throws -> (Workbook, [ConversionWarning]) {
         let zip = try ZipArchive(data: data, limits: options.limits)
-        // An encrypted ODF package keeps `mimetype` in the clear, so it detects as .ods and every part after it is
-        // ciphertext. The manifest says as much (ODF 1.3 §4.3) — read that before trying to parse the ciphertext.
-        if let unopenable = UnopenableInput.probe(in: try ZipInspection(data: data)) { throw unopenable.error }
         guard zip.contains("content.xml") else { throw SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package") }
 
         let manifest = ManifestParser()
         if zip.contains("META-INF/manifest.xml") { try? manifest.run(try zip.read("META-INF/manifest.xml"), part: "META-INF/manifest.xml") }
+        // An encrypted ODF package keeps `mimetype` in the clear, so it detects as .ods and every part after it is
+        // ciphertext. The manifest says as much (ODF 1.3 §4.3): with a password the entries are decrypted into a
+        // plain package and read as one; without, the file is refused by name (spec Appendix B.39.9).
+        let encryptedEntries = manifest.encryptedEntries
+        if !encryptedEntries.isEmpty {
+            guard let password = options.password else { throw UnopenableInput.encryptedODF.error }
+            var plainOptions = options
+            plainOptions.password = nil
+            return try read(try ODSEncryption.decrypt(zip, entries: encryptedEntries, password: password), options: plainOptions)
+        }
 
         let catalog = ODSStyleCatalog()
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }
@@ -120,9 +127,40 @@ final class ManifestParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
     var mediaTypes: [String: String] = [:]
+    /// The entries the manifest says are encrypted, with everything decrypting them needs.
+    var encrypted: [String: ODSEncryption.EntryEncryption] = [:]
+    private var current: String?
     func start(_ name: String, _ a: [String: String]) {
-        if name == "file-entry", let p = ODSAttr.get(a, "manifest:full-path"), let t = ODSAttr.get(a, "manifest:media-type") { mediaTypes[p] = t }
+        switch name {
+        case "file-entry":
+            current = ODSAttr.get(a, "manifest:full-path")
+            if let p = current, let t = ODSAttr.get(a, "manifest:media-type") { mediaTypes[p] = t }
+            if let p = current, let size = ODSAttr.get(a, "manifest:size").flatMap(Int.init) { encrypted[p, default: .init()].size = size }
+        case "encryption-data":
+            guard let p = current else { return }
+            encrypted[p, default: .init()].checksumType = ODSAttr.get(a, "manifest:checksum-type")
+            encrypted[p, default: .init()].checksum = ODSAttr.get(a, "manifest:checksum").flatMap { Data(base64Encoded: $0) }
+            encrypted[p, default: .init()].algorithm = encrypted[p]?.algorithm ?? ""
+        case "algorithm":
+            guard let p = current else { return }
+            encrypted[p, default: .init()].algorithm = ODSAttr.get(a, "manifest:algorithm-name")
+            encrypted[p, default: .init()].iv = ODSAttr.get(a, "manifest:initialisation-vector").flatMap { Data(base64Encoded: $0) }
+        case "key-derivation":
+            guard let p = current else { return }
+            encrypted[p, default: .init()].keyDerivation = ODSAttr.get(a, "manifest:key-derivation-name")
+            encrypted[p, default: .init()].keySize = ODSAttr.get(a, "manifest:key-size").flatMap(Int.init)
+            encrypted[p, default: .init()].iterations = ODSAttr.get(a, "manifest:iteration-count").flatMap(Int.init)
+            encrypted[p, default: .init()].salt = ODSAttr.get(a, "manifest:salt").flatMap { Data(base64Encoded: $0) }
+        case "start-key-generation":
+            guard let p = current else { return }
+            encrypted[p, default: .init()].startKeyGeneration = ODSAttr.get(a, "manifest:start-key-generation-name")
+            encrypted[p, default: .init()].startKeySize = ODSAttr.get(a, "manifest:key-size").flatMap(Int.init)
+        default: break
+        }
     }
+    func end(_ name: String) { if name == "file-entry" { current = nil } }
+    /// Entries that really carry encryption (a `manifest:size` alone does not make one).
+    var encryptedEntries: [String: ODSEncryption.EntryEncryption] { encrypted.filter { $0.value.algorithm != nil } }
 }
 
 // MARK: - styles.xml

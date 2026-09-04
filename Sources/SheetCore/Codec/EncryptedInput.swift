@@ -42,11 +42,11 @@ public enum UnopenableInput: Sendable, Hashable {
     var reason: String {
         switch self {
         case .encryptedOOXML:
-            "the OOXML package is encrypted (ECMA-376 Part 2 / MS-OFFCRYPTO); SwiftSheets does not decrypt files — decrypt it first"
+            "the OOXML package is encrypted (ECMA-376 Part 2 / MS-OFFCRYPTO); pass the password in ReadOptions.password"
         case .legacyCompoundFile:
             "an OLE compound file: the legacy .xls (BIFF) generation is out of scope — save it as .xlsx first"
         case .encryptedODF:
-            "the ODF package is encrypted (ODF 1.3 §4.3); SwiftSheets does not decrypt files — decrypt it first"
+            "the ODF package is encrypted (ODF 1.3 §4.3); pass the password in ReadOptions.password"
         case .encryptedNumbers:
             "the Numbers document is password-protected (an .iwph package); SwiftSheets does not decrypt Numbers documents — remove the password in Numbers first"
         }

@@ -25,7 +25,10 @@ The library is expected to read hostile input safely. In scope:
 
 ## What is not in scope
 
-- Refusing to read encrypted or password-protected files. This is intentional: they throw `unsupportedFeature`.
+- Refusing to read a protected file without its password, or the older encryption forms named in the README's
+  Limits table. Password-protected files are read and written (`ReadOptions.password` / `WriteOptions.password`);
+  a defect in that arithmetic — a file that opens with the wrong password, or a written file that does not protect
+  what it claims to — **is** in scope, and so is a crafted protected file that crashes the reader.
 - Exceeding a documented limit (formula nesting depth, the package limits in `ReadOptions.limits`) and reporting it.
   See [Limits](README.md#limits).
 - Memory used by a file that stays within those limits. There is no cell ceiling by default; a reader of untrusted

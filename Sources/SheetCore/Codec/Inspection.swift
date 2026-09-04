@@ -62,9 +62,11 @@ public struct InspectOptions: Sendable, Hashable {
     public var filename: String?
     /// What the container may declare about itself (`ReadOptions.limits`).
     public var limits = ZipLimits()
+    /// The password of a protected Office package (`ReadOptions.password`).
+    public var password: String?
 
-    public init(countCells: Bool = false, filename: String? = nil, limits: ZipLimits = ZipLimits()) {
-        self.countCells = countCells; self.filename = filename; self.limits = limits
+    public init(countCells: Bool = false, filename: String? = nil, limits: ZipLimits = ZipLimits(), password: String? = nil) {
+        self.countCells = countCells; self.filename = filename; self.limits = limits; self.password = password
     }
 }
 
@@ -114,7 +116,7 @@ package struct ScannedTag {
         return nil
     }
 
-    static func decodeEntities(_ s: String) -> String {
+    package static func decodeEntities(_ s: String) -> String {
         var out = ""
         var rest = Substring(s)
         while let amp = rest.firstIndex(of: "&") {

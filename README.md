@@ -68,7 +68,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | Hostile packages | What a package declares about itself is bounded before any of it is expanded: at most 100,000 parts, 16 GiB expanded in total, a thousandfold expansion for any part over 16 MiB, and no two parts sharing bytes. Past any of these the file is reported as `corruptedContainer`; `ReadOptions.limits` raises them for a package you know. ZIP64 (parts past 4 GB, more than 65,535 parts) is read and written. |
 | visionOS | Not built or tested. Nothing in the library is Apple-only any more — DEFLATE comes from the system zlib where Apple's Compression framework is absent, and SHA-512 is written out rather than taken from CryptoKit — but a platform nobody runs the suite on is not a platform this README claims (spec Appendix B.1). Linux is claimed because CI runs the whole suite there on every push. |
-| Encrypted files | Not decrypted. A password-protected package is recognised for what it is and throws `unsupportedFeature`, not `corruptedContainer` — as does a legacy `.xls`, which is a different format, not a broken one. |
+| Encrypted files | Read and written with `ReadOptions.password` / `WriteOptions.password`: Excel's agile encryption (AES-256, SHA-512 — what Excel 2010 and later write) and ODF 1.2 / 1.3 package encryption (AES-CBC, PBKDF2 — what LibreOffice writes). A protected file read without a password throws `unsupportedFeature` naming the fact; a wrong password throws `wrongPassword`. Excel 2007's older "standard" encryption, ODF 1.1's Blowfish form, a password-protected Numbers document and a legacy `.xls` are recognised and refused by name. |
 
 ## Formats
 
@@ -228,6 +228,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ws.tables`, `Table(displayName:ref:)` | `sheet.excelTables`, `sheet.addExcelTable(named:over:)` — the part, its content type, its relationship and `<tableParts>` are all generated |
 | `ws.protection`, `wb.security`, `ws.scenarios` | `sheet.protection`, `wb.protection`, `sheet.protectedRanges`, `sheet.scenarios` — named for what is **allowed**, since the file's own booleans say what is forbidden. `setModernPassword(_:)` generates the SHA-512 hash Excel 2010+ verifies (the legacy 16-bit hash stays on `setPassword(_:)`) |
 | `wb.custom_doc_props` | `wb.customProperties` — text, integers, numbers, booleans, dates and defined-name links (ODS keeps them as `meta:user-defined`) |
+| `load_workbook(path)` on a protected file (openpyxl cannot; msoffcrypto-tool decrypts first) | `Workbook(contentsOf: url, options: ReadOptions(password: "…"))` / `wb.write(to: url, options: WriteOptions(password: "…"))` — XLSX / XLSM as Excel's agile encryption, ODS as ODF package encryption; judged by msoffcrypto-tool and an independent ODF decryptor |
 | pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
 | `ws.add_image(Image(path), 'B2')` | `sheet.addImage(try SheetImage(data:), at: "B2", sizing: .resizeCellToFit)` / `addImage(_:over: "B2:D6")` — PNG / JPEG / GIF, format and pixel size read from the bytes; a sheet that already carries a drawing (a chart) gets the anchors spliced in, everything there staying byte for byte. Charts: `sheet.addChart(Chart(.column), over: "D2:K16")` — column / bar / line / pie with series, title and legend (`chart.addSeries(values: "B2:B13", categories: "A2:A13", name:)`; unqualified ranges gain the sheet name and absolute dollars). Other kinds and charts already in a file: preserved unchanged (F3), `dropped` warnings when converting |
 | `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)`, `StreamingWriter(url:sheetName:)` + `append(_:)` / `close()` — XLSX only, values and formatting only (see [Limits](#limits)) |
@@ -320,7 +321,7 @@ on who typed the code; it rests on the same things it would have to rest on anyw
   implementation decision with the reason behind it — including the ones that were measured and then rejected.
 - **Independent implementations are the judges.** openpyxl, LibreOffice, numbers-parser and Numbers.app read what
   SwiftSheets writes. A format is not called supported until something that did not come from this project agrees.
-- **900+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
+- **1,000+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
   within a hundred of the count.
 - **Nothing is dropped in silence.** Every read and every write answers with the list of what it could not keep.
 

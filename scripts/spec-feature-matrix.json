@@ -114,15 +114,17 @@
        "id": "xlsx.package.encryption",
        "name": "パスワードによる暗号化",
        "spec_anchor": "ECMA-376 Part 2 agile / standard encryption（[MS-OFFCRYPTO]）",
-       "read": "none",
-       "write": "none",
+       "read": "partial",
+       "write": "full",
        "api": [
-        "SheetError.unsupportedFeature",
+        "ReadOptions.password",
+        "WriteOptions.password",
+        "SheetError.wrongPassword",
         "UnopenableInput.encryptedOOXML"
        ],
-       "warning": "throw。壊れたファイルではなく「暗号化されている」と名指しする",
-       "evidence": "code",
-       "note": "旧 .xls（BIFF）も UnopenableInput.legacyOLE として別扱いで報告する。"
+       "warning": "パスワードなしは throw（暗号化されていると名指し）。誤ったパスワードは wrongPassword。Excel 2007 の standard 形式と RC4 は名指しで断る",
+       "evidence": "judge",
+       "note": "agile 形式（AES-256 / SHA-512、Excel 2010 以降が書く形）を読み書きする。審判は msoffcrypto-tool（付録 B.39.9）。旧 .xls（BIFF）は UnopenableInput.legacyCompoundFile として別扱いで報告する。"
       }
      ]
     },
@@ -1297,15 +1299,17 @@
        "id": "ods.package.encryption",
        "name": "パスワードによる暗号化",
        "spec_anchor": "manifest:encryption-data（ODF 1.3 §4.3）",
-       "read": "none",
-       "write": "none",
+       "read": "partial",
+       "write": "full",
        "api": [
-        "SheetError.unsupportedFeature",
+        "ReadOptions.password",
+        "WriteOptions.password",
+        "SheetError.wrongPassword",
         "UnopenableInput.encryptedODF"
        ],
-       "warning": "throw。暗号化されていると名指しする",
-       "evidence": "code",
-       "note": null
+       "warning": "パスワードなしは throw（暗号化されていると名指し）。誤ったパスワードは wrongPassword。ODF 1.1 の Blowfish 形式は名指しで断る",
+       "evidence": "judge",
+       "note": "AES-CBC ＋ PBKDF2（ODF 1.2 以降、LibreOffice が書く形）を読み書きする。審判は cryptography ライブラリで ODF 1.3 §4.3 を辿る独立実装（付録 B.39.9）。"
       },
       {
        "id": "ods.package.opaque",

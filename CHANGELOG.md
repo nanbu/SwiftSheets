@@ -28,6 +28,17 @@ writes, so the constant, the README's status line and the tag always name the sa
   own row and column counts. `InspectOptions(countCells: true)` walks the markup and counts what is really
   there. This is how a reader of untrusted files chooses a `ReadOptions.cellLimit`.
 
+- **Password-protected files are read and written** (spec Appendix B.39.9). `ReadOptions.password` opens an
+  Excel workbook protected the way Excel 2010 and later do it (ECMA-376 agile encryption: AES in CBC mode under
+  a key derived by SHA-1 / SHA-256 / SHA-512, the package integrity checked by HMAC) and an OpenDocument
+  package encrypted as ODF 1.2 / 1.3 say (AES-CBC per entry, PBKDF2 from a SHA-1 / SHA-256 start key);
+  `WriteOptions.password` writes the same forms with what Excel and LibreOffice themselves use (AES-256 and
+  SHA-512 over 100,000 rounds; AES-256 with PBKDF2 over 1,024 rounds per entry). A wrong password is
+  `SheetError.wrongPassword`; the older forms — Excel 2007's "standard" encryption, RC4, ODF 1.1's Blowfish, a
+  password-protected Numbers document — are named and refused. The arithmetic (AES, SHA-1, SHA-256, SHA-512,
+  HMAC, PBKDF2, the OLE compound file) is written out in `SheetCore`, checked against the standards' own
+  vectors, and judged from outside: msoffcrypto-tool decrypts what this library protects, and an independent
+  ODF decryptor built on the `cryptography` library does the same for ODS.
 - **Detection without reading the file** (spec Appendix B.39.4). `SheetFormat.detect(contentsOf:)` reads the
   first four bytes, the ZIP directory at the end of the file and one small entry — under 16 KiB for a workbook
   of any size, and never the file itself. `SheetFormat.probe` answers in one call: a spreadsheet of some

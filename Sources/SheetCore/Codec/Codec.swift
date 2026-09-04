@@ -49,11 +49,15 @@ public struct ReadOptions: Sendable, Hashable {
     /// What the container may declare about itself before it is refused as hostile — entry count, expanded size,
     /// compression ratio. Raise them for a package you know; the defaults are far past any real spreadsheet.
     public var limits = ZipLimits()
+    /// The password of a protected file (spec Appendix B.39.9): an Excel workbook encrypted the way Excel 2010
+    /// and later do it (ECMA-376 agile encryption), or an OpenDocument package encrypted as ODF 1.2 / 1.3 say.
+    /// A wrong one is `SheetError.wrongPassword`; a protected file read without one is `unsupportedFeature`.
+    public var password: String?
 
     public init(dataOnly: Bool = false, preserveUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
-                filename: String? = nil, cellLimit: Int = Int.max, limits: ZipLimits = ZipLimits()) {
+                filename: String? = nil, cellLimit: Int = Int.max, limits: ZipLimits = ZipLimits(), password: String? = nil) {
         self.dataOnly = dataOnly; self.preserveUnknownParts = preserveUnknownParts; self.csv = csv
-        self.filename = filename; self.cellLimit = cellLimit; self.limits = limits
+        self.filename = filename; self.cellLimit = cellLimit; self.limits = limits; self.password = password
     }
 }
 
@@ -62,9 +66,13 @@ public struct WriteOptions: Sendable, Hashable {
     public var csv = CSVWriteOptions()
     /// Warnings at or above this count (or any dropped VBA / chart) make `WriteResult.suggestion` propose another format.
     public var suggestionThreshold = 10
+    /// Protect the file with a password (spec Appendix B.39.9): XLSX / XLSM as ECMA-376 agile encryption
+    /// (AES-256, SHA-512, the form Excel 2010 and later write), ODS as ODF 1.3 §4.3 (AES-256-CBC per entry).
+    /// CSV and Numbers cannot be protected and throw `unsupportedFeature`.
+    public var password: String?
 
-    public init(csv: CSVWriteOptions = CSVWriteOptions(), suggestionThreshold: Int = 10) {
-        self.csv = csv; self.suggestionThreshold = suggestionThreshold
+    public init(csv: CSVWriteOptions = CSVWriteOptions(), suggestionThreshold: Int = 10, password: String? = nil) {
+        self.csv = csv; self.suggestionThreshold = suggestionThreshold; self.password = password
     }
 }
 

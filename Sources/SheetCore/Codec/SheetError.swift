@@ -21,6 +21,8 @@ public enum SheetError: Error, Sendable, CustomStringConvertible, LocalizedError
     case sheetNotFound(name: String)
     /// Reading or writing the file itself failed (the streaming writer's only failure mode of its own).
     case ioFailure(detail: String)
+    /// The file is password-protected and the password given does not open it (spec Appendix B.39.9).
+    case wrongPassword
 
     public var description: String {
         switch self {
@@ -33,6 +35,7 @@ public enum SheetError: Error, Sendable, CustomStringConvertible, LocalizedError
         case .invalidWorkbook(let s): "invalid workbook: \(s)"
         case .sheetNotFound(let n): "no sheet named \(n)"
         case .ioFailure(let d): "input/output failure: \(d)"
+        case .wrongPassword: "the password does not open this file"
         }
     }
 

@@ -45,7 +45,7 @@ def encrypt_odf(source, destination, password):
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     from cryptography.hazmat.primitives import hashes
 
-    ITERATIONS = 100_000
+    ITERATIONS = 1024   # what LibreOffice itself writes; the count is per entry, so it decides how long a document takes to open
     start_key = hashlib.sha256(password.encode("utf-8")).digest()
     entries, encryption = {}, {}
     with zipfile.ZipFile(source) as zin:

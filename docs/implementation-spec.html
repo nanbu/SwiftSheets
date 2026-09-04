@@ -1899,6 +1899,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.16 Draft</td><td>2026-09-05</td><td><strong>自前の字句解析器</strong> <code>XMLScanner</code> を付録 B.39.6 に記録。UTF-8 の部品は既定でこれが読み、UTF-16 と別符号化の部品は Foundation へ。受け手の約束は不変、保全の断片は元のバイト列そのものに。<code>-DSWIFTSHEETS_FOUNDATION_XML</code> で旧経路に戻せ、CI が 3 経路で全件を走らせる。見本全冊 289 部品で両機関の出来事が同一。読み 5.5 → 2.6 秒、逐次読み 4.6 → 1.8 秒、ODS 読み 13.9 → 3.7 秒。テスト 984 件</td></tr>
     <tr><td>4.17 Draft</td><td>2026-09-05</td><td><strong>書き出しを持たない</strong>を付録 B.39.7 に記録。解釈しない部品は縮めたまま運ぶ（<code>OpaquePart.compressed</code>・<code>opaqueParts</code> は取り出したときだけ戻す）。XLSX のシートは行を 64 KiB ごとに圧縮器へ流し、ODS の本文は 8 MiB を超えたら一時ファイルへ落として後から流す（<code>TextSpill</code>）。書きのピーク 360 → 258 MB、ODS 書き 641 → 313 MB、開いて 1 マス直して保存 6.9 → 3.8 秒・397 → 288 MB。テスト 988 件</td></tr>
     <tr><td>4.18 Draft</td><td>2026-09-05</td><td><strong>読み込みも持たない</strong>を付録 B.39.8 に記録。字句解析器を再開可能にし（<code>feed(startingAt:final:)</code>）、<code>ZipEntryStream</code> の切れ端ごとに読む。XLSX のシート・共有文字列表・逐次読み・ODS 本文が載る。逐次読みのピーク 61 → 23 MB、読み 254 → 221 MB、ODS 読み 318 → 233 MB。同時に持つ最大バイト数をテストで釘打ち。テスト 988 件</td></tr>
+    <tr><td>4.19 Draft</td><td>2026-09-05</td><td><strong>パスワード付きのファイルの読み書き</strong>を付録 B.39.9 に記録。Excel の agile 形式（AES-256 / SHA-512、10 万回）と ODF 1.2〜1.3 の包（AES-CBC ＋ PBKDF2、LibreOffice と同じ 1,024 回）を <code>ReadOptions.password</code> / <code>WriteOptions.password</code> で。AES・SHA-1・SHA-256・HMAC・PBKDF2・OLE 複合ファイルを自前で書き、規格の既知解で照合。審判は msoffcrypto-tool（双方向）と cryptography による独立の ODF 復号器。§1.3 の非スコープから暗号化を外し、Excel 2007 の standard 形式・RC4・Blowfish・Numbers は名指しで断る。対応表の 2 行を更新。テスト 1,008 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4949,6 +4950,54 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     ODS 読み 318 → 233 MB、開いて 1 マス直して保存 288 → 262 MB。時間は変わらない（2.8 / 1.9 / 4.0 秒）。
     100 万マスの読み込みは着手前の 5.7 秒・256 MB から <strong>2.8 秒・221 MB</strong>、逐次読みは 5.1 秒・61 MB から
     <strong>1.9 秒・23 MB</strong> になった。残る 221 MB のうち 203 MB は模型そのもの。
+  </p>
+
+  <h4>B.39.9 パスワード付きのファイルを読み書きする — 暗号化の 2 形式と、自前の算術</h4>
+  <p>
+    §1.3 は「暗号化ファイル — 将来検討。v1 では明示的エラー」としていた。0.12.0 で検討を終えた。
+    着手前に 1 つ訂正しておく: <strong>封筒（ZIP）を作り替えても暗号化ファイルは開けない</strong>。Excel のパスワード保護は
+    ZIP の暗号化ではなく、<strong>ZIP 全体を別の容器（OLE 複合ファイル）に入れて AES で包む</strong>ものであり、ODF の保護は
+    ZIP の各部品を個別に AES で包むものである。どちらも封筒とは別の仕事で、B.39.1 の作り替えが役に立ったのは
+    「部品を縮めたまま取り出せる」点だけだった。
+  </p>
+  <h5>読み書きする 2 形式</h5>
+  <ul>
+    <li><strong>Excel（ECMA-376 Part 2 / [MS-OFFCRYPTO] §2.3.4、agile 形式）</strong> — Excel 2010 以降が書く形。
+      <code>EncryptionInfo</code> という小さな XML が全ての助変数（塩・反復回数・ハッシュ・鍵長）を名乗り、
+      <code>EncryptedPackage</code> が 4096 バイトごとに AES-CBC で包んだ ZIP を持つ。鍵はパスワードを 10 万回ハッシュした
+      値から用途ごとに派生させ、包の改竄は HMAC で検出する。読みは XML が名乗るもの（SHA-1 / 256 / 512、AES-128 / 192 / 256）を受け、
+      書きは Excel 自身の組み合わせ（AES-256・SHA-512・10 万回）で出す。Excel 2007 の standard 形式（SHA-1・AES-ECB）と
+      それ以前の RC4 形式は<strong>名指しで断る</strong> — 見本を作れる道具が手元に無く、審判の無い実装は載せない（B.6）。</li>
+    <li><strong>ODF（ODF 1.2 §3.4 / 1.3 §4.3）</strong> — LibreOffice が書く形。部品ごとに deflate → W3C 詰め物 → AES-CBC、
+      鍵はパスワードの SHA-256（開始鍵）から PBKDF2-HMAC-SHA1 で部品ごとの塩を使って派生、圧縮済みバイトの先頭 1024 バイトの
+      SHA-256 を manifest に記す。<code>mimetype</code> と manifest は平文のまま（だから <code>.ods</code> と判定され続ける）。
+      書きの反復回数は LibreOffice と同じ <strong>1,024</strong> — 派生は部品ごとなので、Excel の 10 万回を部品数ぶん払うと
+      開くのに数秒かかる。ODF 1.1 の Blowfish 形式は名指しで断る。</li>
+  </ul>
+  <h5>自前の算術</h5>
+  <p>
+    B.38 の理由がそのまま当てはまる: CryptoKit は Apple のもので、Linux には何も無く、SwiftPM の依存は増やさない。
+    <code>SheetCore/Crypto</code> に AES（FIPS 197、表引きの形）・SHA-1・SHA-256（FIPS 180-4）・HMAC（RFC 2104）・
+    PBKDF2（RFC 8018）と、OLE 複合ファイル（[MS-CFB]）の読み書きを書いた。既存の SHA-512 は塊単位の状態を持つ形に直し、
+    パスワードの 10 万回で割り付けを払わないようにした。<strong>審判は各規格自身の既知解</strong>: FIPS 197 付録 C、
+    SP 800-38A F.2、FIPS 180-4、RFC 4231 / 2202、RFC 6070、RFC 7914 §11（<code>CryptoTests</code>）。
+  </p>
+  <h5>外の審判</h5>
+  <ul>
+    <li><strong>msoffcrypto-tool が作った保護ファイル</strong>（<code>Fixtures/encrypted/agile.xlsx</code>）を、パスワードで開く。</li>
+    <li><strong>この library が保護したファイルを、msoffcrypto-tool が開く</strong>（<code>EncryptionParityTests</code>・
+      <code>Tests/EncryptionParity/verify_encryption.py</code>、uv で走らせる）。複合ファイルの DataSpaces の 4 部品は
+      msoffcrypto-tool の出力に含まれていた固定のバイト列をそのまま書く。</li>
+    <li><strong>ODS は cryptography ライブラリで ODF 1.3 §4.3 を辿る独立の復号器</strong>が読む（同スクリプト）。
+      LibreOffice 自身を審判にする道は 2 つとも塞がれた — 同梱 Python は macOS に殺され（署名の検証）、
+      headless の変換にはパスワードを渡す口が無い。GUI での確認を公開前チェックに載せる。</li>
+    <li>改竄した包は HMAC で断り、誤ったパスワードは <code>SheetError.wrongPassword</code>（新設）で答える。</li>
+  </ul>
+  <p>
+    API は <code>ReadOptions.password</code> / <code>WriteOptions.password</code> / <code>InspectOptions.password</code> と、
+    逐次読みの <code>StreamingReader(data:password:)</code>。CSV と Numbers へのパスワードは <code>unsupportedFeature</code>
+    （CSV は定義上平文、Numbers の暗号化は非公開）。テストは保護ファイルを短い反復回数で書いて時間を抑え（読みはファイルが名乗る回数に従うので
+    開ける範囲は変わらない）、1 本だけ Excel と同じ回数で往復する。
   </p>
 
 </section>
