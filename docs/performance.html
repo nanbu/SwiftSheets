@@ -102,29 +102,29 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h1>速さの記録</h1>
 <p class="lead">10 列 × 100,000 行 ＝ 1,000,000 マスの合成データで、読み書きにかかる時間とピークメモリを測った値。この数字は覚えたものでなく <code>scripts/bench.sh</code> が測ったもので、README が名乗る数字はこのページの出所と機械で照合される。</p>
 <table><thead><tr><th>計測</th><th>時間</th><th>ピークメモリ</th><th>何をしたか</th></tr></thead><tbody>
-<tr><td>模型を組み立てる</td><td>0.61 秒</td><td>202.8 MB</td><td>Workbook に 100 万マスを入れる（ファイルなし）</td></tr>
-<tr><td>書き出し（xlsx）</td><td>1.72 秒</td><td>257.7 MB（うち模型 202.7 MB）</td><td>模型 → .xlsx</td></tr>
-<tr><td>読み込み（xlsx）</td><td>2.82 秒</td><td>213.4 MB</td><td>.xlsx → 模型、全マスの合計</td></tr>
-<tr><td>逐次読み（xlsx）</td><td>1.96 秒</td><td>23.5 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
-<tr><td>書き出し（xlsx・8 シート）</td><td>1.61 秒</td><td>216.5 MB（うち模型 196.5 MB）</td><td>同じ 100 万マスを 8 シートに分けた模型 → .xlsx</td></tr>
-<tr><td>読み込み（xlsx・8 シート・1 枚ずつ）</td><td>2.69 秒</td><td>145.4 MB</td><td>ReadOptions(concurrency: 1)、全マスの合計</td></tr>
-<tr><td>読み込み（xlsx・8 シート・同時）</td><td>1.16 秒</td><td>255.3 MB</td><td>既定（シートを同時に読む）、全マスの合計</td></tr>
-<tr><td>逐次書き（xlsx）</td><td>1.93 秒</td><td>10.7 MB</td><td>StreamingWriter で 1 行ずつ</td></tr>
-<tr><td>開いて 1 マス直して保存</td><td>4.53 秒</td><td>224.7 MB</td><td>.xlsx → 模型 → .xlsx</td></tr>
+<tr><td>模型を組み立てる</td><td>0.63 秒</td><td>202.9 MB</td><td>Workbook に 100 万マスを入れる（ファイルなし）</td></tr>
+<tr><td>書き出し（xlsx）</td><td>1.76 秒</td><td>257.7 MB（うち模型 202.7 MB）</td><td>模型 → .xlsx</td></tr>
+<tr><td>読み込み（xlsx）</td><td>2.84 秒</td><td>213.5 MB</td><td>.xlsx → 模型、全マスの合計</td></tr>
+<tr><td>逐次読み（xlsx）</td><td>1.99 秒</td><td>23.5 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
+<tr><td>書き出し（xlsx・8 シート）</td><td>1.65 秒</td><td>215.4 MB（うち模型 196.5 MB）</td><td>同じ 100 万マスを 8 シートに分けた模型 → .xlsx</td></tr>
+<tr><td>読み込み（xlsx・8 シート・1 枚ずつ）</td><td>2.72 秒</td><td>145.3 MB</td><td>ReadOptions(concurrency: 1)、全マスの合計</td></tr>
+<tr><td>読み込み（xlsx・8 シート・同時）</td><td>1.15 秒</td><td>256.7 MB</td><td>既定（シートを同時に読む）、全マスの合計</td></tr>
+<tr><td>逐次書き（xlsx）</td><td>1.92 秒</td><td>10.6 MB</td><td>StreamingWriter で 1 行ずつ</td></tr>
+<tr><td>開いて 1 マス直して保存</td><td>4.21 秒</td><td>250.8 MB</td><td>.xlsx → 模型 → .xlsx</td></tr>
 <tr><td>形式の判定</td><td>1 ミリ秒未満</td><td>6.8 MB</td><td>SheetFormat.detect(contentsOf:)、1 回あたり</td></tr>
-<tr><td>読む前の問い合わせ</td><td>2.0 ミリ秒</td><td>10.7 MB</td><td>Workbook.inspect(contentsOf:)</td></tr>
-<tr><td>書き出し（ods）</td><td>3.81 秒</td><td>245.6 MB（うち模型 202.7 MB）</td><td>模型 → .ods</td></tr>
-<tr><td>読み込み（ods）</td><td>4.07 秒</td><td>218.9 MB</td><td>.ods → 模型</td></tr>
-<tr><td>逐次読み（ods）</td><td>4.22 秒</td><td>46.0 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
-<tr><td>書き出し（csv）</td><td>0.98 秒</td><td>236.1 MB（うち模型 202.7 MB）</td><td>模型 → .csv</td></tr>
-<tr><td>読み込み（csv）</td><td>1.81 秒</td><td>244.4 MB</td><td>.csv → 模型（型の推定つき）</td></tr>
-<tr><td>逐次読み（csv）</td><td>1.32 秒</td><td>10.3 MB</td><td>CSVStreamingReader で 1 行ずつ</td></tr>
-<tr><td>書き出し（numbers）</td><td>8.14 秒</td><td>365.8 MB（うち模型 202.7 MB）</td><td>模型 → .numbers</td></tr>
-<tr><td>読み込み（numbers）</td><td>2.47 秒</td><td>320.4 MB</td><td>.numbers → 模型、全マスの合計</td></tr>
-<tr><td>逐次読み（numbers）</td><td>1.87 秒</td><td>85.8 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
+<tr><td>読む前の問い合わせ</td><td>2.0 ミリ秒</td><td>10.8 MB</td><td>Workbook.inspect(contentsOf:)</td></tr>
+<tr><td>書き出し（ods）</td><td>3.36 秒</td><td>235.6 MB（うち模型 202.7 MB）</td><td>模型 → .ods</td></tr>
+<tr><td>読み込み（ods）</td><td>4.13 秒</td><td>199.3 MB</td><td>.ods → 模型</td></tr>
+<tr><td>逐次読み（ods）</td><td>4.23 秒</td><td>69.6 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
+<tr><td>書き出し（csv）</td><td>0.99 秒</td><td>236.0 MB（うち模型 202.7 MB）</td><td>模型 → .csv</td></tr>
+<tr><td>読み込み（csv）</td><td>1.85 秒</td><td>244.3 MB</td><td>.csv → 模型（型の推定つき）</td></tr>
+<tr><td>逐次読み（csv）</td><td>1.35 秒</td><td>10.5 MB</td><td>CSVStreamingReader で 1 行ずつ</td></tr>
+<tr><td>書き出し（numbers）</td><td>8.90 秒</td><td>365.8 MB（うち模型 202.7 MB）</td><td>模型 → .numbers</td></tr>
+<tr><td>読み込み（numbers）</td><td>2.92 秒</td><td>322.8 MB</td><td>.numbers → 模型、全マスの合計</td></tr>
+<tr><td>逐次読み（numbers）</td><td>1.54 秒</td><td>85.4 MB</td><td>StreamingReader で 1 行ずつ、全マスの合計</td></tr>
 </tbody></table>
 <h2>計測の条件</h2><ul>
-<li>日付: 2026-09-05、コミット: <code>9549c38</code></li>
+<li>日付: 2026-09-05、コミット: <code>16c8638</code></li>
 <li>機械: Apple M2、メモリ 8 GB、26.6.2</li>
 <li>ツールチェーン: swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)、release ビルド</li>
 <li>素材: synthetic: a label, five integers, three decimals and a Japanese category per row; one sheet; no formatting。<strong>合成データの数字は合成データの数字</strong>で、書式や図の多い実務のブックはこれより重い。</li>

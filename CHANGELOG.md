@@ -18,13 +18,14 @@ writes, so the constant, the README's status line and the tag always name the sa
   caps it (`1` reads one sheet at a time, `n` at most `n` at once, and does so even for a small workbook). The
   number is also the handle on memory: what reading side by side adds is the working room of the sheets in
   flight, never more than that many. Over a million cells in eight sheets: 2.7 s and
-  145 MB one at a time, 1.2 s and 255 MB side by side; a one-sheet workbook
+  145 MB one at a time, 1.2 s and 257 MB side by side; a one-sheet workbook
   reads as it did. ODS and Numbers ignore the option (one part; read from an index).
 
 ### Changed
 
-- The performance record was taken again at this commit; the README's Limits row quotes it (the row-by-row
-  figures moved by a few megabytes between runs, as they do).
+- The performance record was taken again at the parallel-read commit; the README's Limits row quotes it. The
+  ODS row-by-row read's peak moves between about 40 and 70 MB from one run to the next (the same code, the
+  same file — when the expanded pieces are let go is not deterministic), and the record quotes the run it made.
 
 ## [0.13.0] — 2026-09-05
 

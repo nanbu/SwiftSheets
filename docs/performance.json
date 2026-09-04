@@ -1,7 +1,7 @@
 {
  "meta": {
   "date": "2026-09-05",
-  "commit": "9549c38",
+  "commit": "16c8638",
   "rows": 100000,
   "columns": 10,
   "cells": 1000000,
@@ -15,73 +15,73 @@
  "readme": {
   "streaming_write_peak_mb": 11,
   "streaming_read_peak_mb": 24,
-  "streaming_read_ods_peak_mb": 46,
-  "streaming_read_numbers_peak_mb": 86,
-  "whole_model_read_peak_mb": 213,
+  "streaming_read_ods_peak_mb": 70,
+  "streaming_read_numbers_peak_mb": 85,
+  "whole_model_read_peak_mb": 214,
   "read_8_sheets_serial_peak_mb": 145,
-  "read_8_sheets_parallel_peak_mb": 255
+  "read_8_sheets_parallel_peak_mb": 257
  },
  "results": [
   {
    "op": "build",
    "rows": 100000,
-   "sec": 0.609,
-   "peakMB": 202.8,
+   "sec": 0.634,
+   "peakMB": 202.9,
    "note": "cells=1000000"
   },
   {
    "op": "write",
    "rows": 100000,
-   "sec": 1.718,
+   "sec": 1.763,
    "peakMB": 257.7,
    "note": "modelMB=202.7"
   },
   {
    "op": "read",
    "rows": 100000,
-   "sec": 2.824,
-   "peakMB": 213.4,
+   "sec": 2.839,
+   "peakMB": 213.5,
    "note": "sum=70055637110"
   },
   {
    "op": "streamRead",
    "rows": 100000,
-   "sec": 1.96,
+   "sec": 1.991,
    "peakMB": 23.5,
    "note": "sum=70055637110"
   },
   {
    "op": "writeSheets",
    "rows": 100000,
-   "sec": 1.61,
-   "peakMB": 216.5,
+   "sec": 1.651,
+   "peakMB": 215.4,
    "note": "sheets=8 modelMB=196.5"
   },
   {
    "op": "readSheetsSerial",
    "rows": 100000,
-   "sec": 2.695,
-   "peakMB": 145.4,
+   "sec": 2.72,
+   "peakMB": 145.3,
    "note": "sheets=8 sum=70055637110"
   },
   {
    "op": "readSheets",
    "rows": 100000,
-   "sec": 1.163,
-   "peakMB": 255.3,
+   "sec": 1.153,
+   "peakMB": 256.7,
    "note": "sheets=8 sum=70055637110"
   },
   {
    "op": "streamWrite",
    "rows": 100000,
-   "sec": 1.933,
-   "peakMB": 10.7
+   "sec": 1.915,
+   "peakMB": 10.6
   },
   {
    "op": "edit",
    "rows": 100000,
-   "sec": 4.53,
-   "peakMB": 224.7
+   "sec": 4.212,
+   "peakMB": 250.8
   },
   {
    "op": "detect",
@@ -94,70 +94,70 @@
    "op": "inspect",
    "rows": 100000,
    "sec": 0.002,
-   "peakMB": 10.7,
+   "peakMB": 10.8,
    "note": "declaredCells=1000000"
   },
   {
    "op": "writeODS",
    "rows": 100000,
-   "sec": 3.813,
-   "peakMB": 245.6,
+   "sec": 3.359,
+   "peakMB": 235.6,
    "note": "modelMB=202.7"
   },
   {
    "op": "readODS",
    "rows": 100000,
-   "sec": 4.071,
-   "peakMB": 218.9,
+   "sec": 4.134,
+   "peakMB": 199.3,
    "note": "sum=70055637110"
   },
   {
    "op": "streamReadODS",
    "rows": 100000,
-   "sec": 4.216,
-   "peakMB": 46.0,
+   "sec": 4.232,
+   "peakMB": 69.6,
    "note": "sum=70055637110"
   },
   {
    "op": "writeCSV",
    "rows": 100000,
-   "sec": 0.979,
-   "peakMB": 236.1,
+   "sec": 0.994,
+   "peakMB": 236.0,
    "note": "modelMB=202.7"
   },
   {
    "op": "readCSV",
    "rows": 100000,
-   "sec": 1.806,
-   "peakMB": 244.4,
+   "sec": 1.849,
+   "peakMB": 244.3,
    "note": "sum=70055637110"
   },
   {
    "op": "streamReadCSV",
    "rows": 100000,
-   "sec": 1.316,
-   "peakMB": 10.3,
+   "sec": 1.352,
+   "peakMB": 10.5,
    "note": "sum=70055637110"
   },
   {
    "op": "writeNumbers",
    "rows": 100000,
-   "sec": 8.141,
+   "sec": 8.897,
    "peakMB": 365.8,
    "note": "modelMB=202.7"
   },
   {
    "op": "readNumbers",
    "rows": 100000,
-   "sec": 2.467,
-   "peakMB": 320.4,
+   "sec": 2.917,
+   "peakMB": 322.8,
    "note": "sum=70055637110"
   },
   {
    "op": "streamReadNumbers",
    "rows": 100000,
-   "sec": 1.87,
-   "peakMB": 85.8,
+   "sec": 1.539,
+   "peakMB": 85.4,
    "note": "sum=70055637110"
   }
  ]
