@@ -27,6 +27,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   ODS row-by-row read's peak moves between about 40 and 70 MB from one run to the next (the same code, the
   same file — when the expanded pieces are let go is not deterministic), and the record quotes the run it made.
 
+### Fixed
+
+- **The Snappy decoder keeps its state in plain locals and caps a block's declared length at 256 MiB.** The
+  Linux build trapped inside the decoder's nested copy on a fuzzed Numbers part that the macOS build passed;
+  the loop now captures nothing, every index is checked before use, and the decoder is fuzzed on its own
+  (`SnappyFuzzTests`) apart from any document.
+
 ## [0.13.0] — 2026-09-05
 
 ### Added
