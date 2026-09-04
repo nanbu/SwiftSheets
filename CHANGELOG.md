@@ -28,7 +28,7 @@ writes, so the constant, the README's status line and the tag always name the sa
 - **Numbers row by row, from an index rather than a decoded tree.** `NumbersObjectIndex` reads every part's
   archive headers once, decodes objects on demand, and lets go of the parts that hold nothing but tiles (the
   256-row blocks a table's cells live in), expanding each again only when a walk reaches it. Over a million
-  cells: 1.5 s and 86 MB, against 2.5 s and 323 MB for the whole model.
+  cells: 1.6 s and 85 MB, against 2.6 s and 323 MB for the whole model.
 - **ODS carries the workbook structure lock** (spec Appendix B.40.4): `wb.protection.lockStructure` is written as
   `office:spreadsheet table:structure-protected="true"` (ODF 1.3 §9.1.2) and read back; LibreOffice keeps it
   when it re-saves the file. The key is not carried — ODF's is a digest of another kind than Excel's — and the
@@ -39,8 +39,8 @@ writes, so the constant, the README's status line and the tag always name the sa
   iterates its circular references keeps doing so across a save, and one converted from ODS keeps the setting
   instead of a warning that wrongly called it OpenDocument-only. The rest of `<calcPr>` (`calcMode`, `refMode`,
   …) travels through a same-format save in `PreservationStore.calcPrAttributes`.
-- **A million-cell Numbers document is on the performance record** for the first time: writing 10.0 s and
-  413 MB, reading 2.5 s and 323 MB, row by row 1.5 s and 86 MB.
+- **A million-cell Numbers document is on the performance record** for the first time: writing 8.0 s and
+  413 MB, reading 2.6 s and 323 MB, row by row 1.6 s and 85 MB.
 
 ### Changed
 
@@ -52,7 +52,7 @@ writes, so the constant, the README's status line and the tag always name the sa
   decimal128 into a `Decimal` by fourteen multiplications and a round trip through text; a significand that fits
   in 64 bits (nearly every number a spreadsheet holds) now goes straight in, and whether it is a whole number is
   decided on the integers. The general road stays for wider significands, and a test holds the two to the same
-  answer at the edges. Over a million cells, reading 5.9 → 2.5 s; over a hundred thousand, 0.58 → 0.29 s.
+  answer at the edges. Over a million cells, reading 5.9 → 2.6 s; over a hundred thousand, 0.58 → 0.29 s.
 - The feature matrix says ZIP64 is read and written (it has been since 0.12.0; the row still said "none") and
   has a row-by-row-reading row for ODS and Numbers as well as XLSX.
 
