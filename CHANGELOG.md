@@ -28,6 +28,14 @@ writes, so the constant, the README's status line and the tag always name the sa
   own row and column counts. `InspectOptions(countCells: true)` walks the markup and counts what is really
   there. This is how a reader of untrusted files chooses a `ReadOptions.cellLimit`.
 
+- **The bench is public** (spec Appendix B.39.11). `Benchmarks/` is a package that measures the checkout it
+  sits in; `scripts/bench.sh` runs each measurement in its own process from a fresh release build and writes
+  `docs/performance.json` with the machine, toolchain and commit; `scripts/build-performance-page.py` turns it
+  into [the performance record](https://nanbu.github.io/SwiftSheets/performance.html), and its `--check` runs in
+  CI so the README's numbers cannot drift from what was measured. Over a million synthetic cells at this
+  release: reading 2.8 s and 221 MB (was 5.7 s and 256 MB), streaming reads 1.9 s and 23 MB (was 5.1 s and
+  61 MB), writing 1.7 s and 258 MB (was 2.0 s and 360 MB), ODS reads 3.9 s (was 13.0 s), ODS writes 313 MB
+  (was 641 MB).
 - **Read only the sheets you ask for** (spec Appendix B.39.10). `ReadOptions(sheets: .named([…]))` or
   `.indices([…])` parses those sheets and no other. An XLSX sheet left out is carried as the bytes it arrived
   in and written back unchanged — the writer keeps the shared-string table and the cell formats at their
