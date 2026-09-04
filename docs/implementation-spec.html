@@ -1482,6 +1482,7 @@ pre .vr { color: var(--code-var); }
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>load_workbook(path)</code></td><td><code>try Workbook(contentsOf: url)</code></td><td>読み込み。形式は内容から自動判別（第4章）</td></tr>
+    <tr><td>（概念なし）</td><td><code>try Workbook.inspect(contentsOf: url)</code></td><td>読む前に問い合わせる: シート・申告セル数・展開後のバイト数・生成元（Rev 4.13・B.39.3）。<code>cellLimit</code> を決める材料</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
     <tr><td><code>Workbook()</code></td><td><code>Workbook()</code></td><td>新規作成。空シート "Sheet1" を1枚持つ</td></tr>
@@ -1882,6 +1883,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.9 Draft</td><td>2026-08-31</td><td><strong>圧縮の差し替え口</strong>を付録 B.38 に記録。Linux を塞いでいたのは自前 ZIP ではなく、その中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった —— <code>Compression</code> と <code>CryptoKit</code>。畳む道具を <code>Deflate</code> の向こうへ移し、Compression の無い機械では system zlib が答えるようにした（<code>Sources/CZlib</code> はモジュールマップ 1 枚・SwiftPM 依存は増えない）。SHA-512 は自前へ戻す（10 万回反復が release で 0.29 秒）。<code>XMLParser</code> は Linux では <code>FoundationXML</code> にあるので条件つき import を 8 ファイルに追加。審判は <code>-DSWIFTSHEETS_ZLIB</code> —— <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>。Linux 対応は CI が緑になるまで名乗らない</td></tr>
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
     <tr><td>4.12 Draft</td><td>2026-09-04</td><td><strong>速さと大きさの第二段</strong>を付録 B.39 に開き、その第 1・第 2 小節を記録。着手前の実測（100 万マスで読み 5.7 秒の約 7 割が Foundation の XML 部品まわり、圧縮を戻すのは 0.02 秒）を前提に、<strong>封筒（ZIP）を作り替えた</strong>: バイトの出所の抽象化（写像／位置指定読み）・ZIP64 の読み書き・切れ端ごとの展開・申告の妥当性検査（部品数・合計・圧縮率・重なり）と <code>ReadOptions.limits</code>・縮めたままの写し・CRC-32 を zlib へ。<strong>セル数の既定の天井を外した</strong>（<code>cellLimit</code> は <code>Int.max</code>、設定は残す）。README の Limits から ZIP64 の行が消え、Cell budget の行が「既定なし」になった。テスト 960 件</td></tr>
+    <tr><td>4.13 Draft</td><td>2026-09-04</td><td><strong>読む前に問い合わせる API</strong> <code>Workbook.inspect</code> を付録 B.39.3 に記録。シート・申告セル数・展開後のバイト数・生成元を、セルを作らずに返す。XLSX は部品の先頭の切れ端だけ、ODS は本文をバイト列で 1 度歩いて反復回数を掛ける、Numbers は表の archive の行数×列数。<code>InspectOptions.countCells</code> で実数も数える。タグだけを拾うバイト走査器 <code>TagScanner</code> を新設（後段の字句解析器の先触れ）。テスト 971 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4776,6 +4778,30 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     超えれば従来どおりシートごとに 1 件の <code>degraded</code> 警告で止まる。ODS の「中身のない反復は指定であって
     内容ではない」の判定（<code>paddingRepeat</code>・§8.3）は不変。読む前に何マスあるかを問い合わせる入口は
     次の小節（B.39.3）で足す。
+  </p>
+
+  <h4>B.39.3 読む前に問い合わせる — <code>Workbook.inspect</code></h4>
+  <p>
+    B.39.2 で天井を外した以上、<strong>読む側が決めるための材料</strong>が要る。
+    <code>Workbook.inspect(contentsOf:)</code> / <code>inspect(_:)</code> は、セルを 1 つも作らずに
+    「どのシートがあり、各シートは何マスと申告しているか、封筒は展開すると何バイトか、誰が書いたか」を
+    <code>WorkbookSummary</code> で返す。呼び手はこれを見て <code>ReadOptions.cellLimit</code> を決めるか、読むのをやめる。
+  </p>
+  <ul>
+    <li><strong>XLSX</strong>: <code>workbook.xml</code> でシートを、各シート部品の先頭の <code>&lt;dimension&gt;</code> で
+      申告範囲を読む。部品は<strong>最初の切れ端だけ</strong>を戻す（B.39.1 の <code>ZipEntryStream</code>）。
+      申告は嘘をつく（"A1" と書いて 10 万行を持つ書き手がある）ので、<code>InspectOptions.countCells</code> で
+      部品全体をバイト列のまま歩いて <code>&lt;c&gt;</code> を数える経路を別に持つ — 読み込みが実際に持つ数と一致する。</li>
+    <li><strong>ODS</strong>: 範囲の申告が無いので <code>content.xml</code> を 1 度バイト列で歩き、値を持つセルの数を
+      反復回数を<strong>掛けて</strong>（展開せずに）数える。1 KB で 10 億マスを名乗る細工は、その数がそのまま返る。</li>
+    <li><strong>Numbers</strong>: 表の archive が行数・列数を名乗るので、その積。ただし IWA の復号は読み込みと同じだけ掛かる
+      （タイルの中身は触らない）。</li>
+    <li><strong>CSV</strong>: 行数（改行の数）だけ。</li>
+  </ul>
+  <p>
+    歩くのは XML の字句解析器ではなく、タグだけを拾う<strong>バイト走査器</strong>（<code>TagScanner</code>）である。
+    切れ端の境目でタグが割れても持ち越して繋ぐ。B.39 の後段で作る本物の字句解析器の先触れで、
+    「文字列も辞書も作らずにバイト列を読む」形はここで先に試した。
   </p>
 
 </section>

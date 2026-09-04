@@ -21,6 +21,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   and expansion that stops at exactly the size an entry declares — the shapes a decompression bomb takes. A
   package past any of them is `corruptedContainer`; the limits can be raised for a package you know.
 
+- **Ask before reading** (spec Appendix B.39.3). `Workbook.inspect(contentsOf:)` answers with the sheets a
+  file declares, how many cells each says it holds, what the package expands to and who wrote it — without
+  making a single cell. XLSX reads the head of each sheet part for its `<dimension>`; ODS walks its content
+  once as bytes and multiplies the run-length counts instead of expanding them; Numbers reads each table's
+  own row and column counts. `InspectOptions(countCells: true)` walks the markup and counts what is really
+  there. This is how a reader of untrusted files chooses a `ReadOptions.cellLimit`.
+
 ### Changed
 
 - **No cell ceiling by default** (spec Appendix B.39.2). `ReadOptions.cellLimit` used to stop a read at a

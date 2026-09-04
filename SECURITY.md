@@ -26,6 +26,8 @@ The library is expected to read hostile input safely. In scope:
 ## What is not in scope
 
 - Refusing to read encrypted or password-protected files. This is intentional: they throw `unsupportedFeature`.
-- Exceeding a documented limit (cell budget, formula nesting depth, ZIP64) and reporting it. See
-  [Limits](README.md#limits).
+- Exceeding a documented limit (formula nesting depth, the package limits in `ReadOptions.limits`) and reporting it.
+  See [Limits](README.md#limits).
+- Memory used by a file that stays within those limits. There is no cell ceiling by default; a reader of untrusted
+  files sets `ReadOptions.cellLimit` (and can ask `Workbook.inspect` how many cells a file declares before reading it).
 - Formula evaluation. The library parses formulas; it does not execute them.

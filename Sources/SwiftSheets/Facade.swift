@@ -42,6 +42,39 @@ extension Workbook {
         }
     }
 
+    /// What a file says about itself, before any cell of it is read: its sheets, how many cells each declares,
+    /// what the package expands to, who wrote it (spec Appendix B.39.3). For a file you do not trust, this is how
+    /// to choose a `ReadOptions.cellLimit` — or to decline. Reads the package directory and the head of each
+    /// sheet part; with `InspectOptions.countCells`, walks each sheet's markup as bytes to count what is there.
+    public static func inspect(contentsOf url: URL, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+        var opts = options
+        if opts.filename == nil { opts.filename = url.lastPathComponent }
+        return try inspect(try Data(contentsOf: url, options: .mappedIfSafe), format: nil, options: opts)
+    }
+
+    public static func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
+        guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
+        switch f {
+        case .xlsx, .xlsm:
+            return try XLSXInspector.inspect(try ZipArchive(data: data, limits: options.limits), format: f, options: options)
+        case .ods:
+            return try ODSInspector.inspect(try ZipArchive(data: data, limits: options.limits), options: options)
+        case .numbers:
+            return try NumbersInspector.inspect(data, options: options)
+        case .csv:
+            var sheet = SheetSummary(name: "Sheet1")
+            var lines = 0
+            var lastWasNewline = true
+            data.withUnsafeBytes { raw in
+                for b in raw { if b == 0x0A { lines += 1; lastWasNewline = true } else { lastWasNewline = false } }
+            }
+            if !lastWasNewline { lines += 1 }
+            sheet.rowCount = lines
+            return WorkbookSummary(format: .csv, sheets: [sheet], producer: nil, expandedBytes: data.count, partCount: 1)
+        }
+    }
+
     /// Serializes in a format. The result carries every warning about what the format could not express.
     public func write(as format: SheetFormat, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         let result: WriteResult
