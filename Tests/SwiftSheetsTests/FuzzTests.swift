@@ -161,6 +161,21 @@ import SwiftSheets
                 do { _ = try Workbook.read(mutant, format: format, options: ReadOptions(cellLimit: 50_000)) }
                 catch is SheetError {}
                 catch { Issue.record(Comment(rawValue: "\(source.name) as \(format) round \(round) seed \(seed): \(type(of: error)) — \(error)")) }
+                // …and the row-by-row reader of the same format (spec Appendix B.40), which has its own index
+                // (Numbers), its own body walk (ODS) and its own record slicing: a mutant must land on a SheetError
+                // there too, never on a trap
+                do {
+                    let reader = try StreamingReader(data: mutant, format: format)
+                    if let first = reader.sheetNames.first {
+                        var rows = 0
+                        try reader.forEachRow(inSheet: first, options: StreamingReadOptions(includeStyles: round % 2 == 0)) { _ in
+                            rows += 1
+                            if rows >= 2_000 { throw SheetError.invalidWorkbook("enough") }
+                        }
+                    }
+                }
+                catch is SheetError {}
+                catch { Issue.record(Comment(rawValue: "\(source.name) streamed as \(format) round \(round) seed \(seed): \(type(of: error)) — \(error)")) }
             }
         }
     }

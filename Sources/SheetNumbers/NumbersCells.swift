@@ -32,7 +32,7 @@ enum NumbersCells {
         let offsets = NumbersReader.offsets(offsetsData, wide: rowInfo.bool("has_wide_offsets") ?? false)
         try storage.withUnsafeBytes { raw in
             let b = raw.bindMemory(to: UInt8.self)
-            for col in 0..<Swift.min(cols, offsets.count) {
+            for col in 0..<Swift.max(0, Swift.min(cols, offsets.count)) {
                 let start = offsets[col]
                 guard start >= 0, start < b.count else { continue }
                 var end = b.count

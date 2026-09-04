@@ -245,6 +245,40 @@ import SwiftSheets
         #expect(index.reexpansions == tiles + 1, "only the first tile was expanded for the walk that stopped")
     }
 
+    /// A part whose archive header or object declares a length the part cannot hold — huge, or negative — is refused
+    /// as malformed, and a table model claiming a negative column count yields no record. Without the guards
+    /// (spec B.40.3) the index overflowed an addition or handed out a negative length, and the record slicer built
+    /// a range that traps.
+    @Test func hostileLengthsInANumbersPartAreRefusedNotTrapped() throws {
+        // an archive header declaring Int.max bytes: nine varint bytes, the last without a continuation bit
+        let hugeHeader = Data([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F])
+        #expect(throws: SheetError.self) {
+            try NumbersObjectIndex.walkArchives(hugeHeader, path: "Index/Hostile.iwa") { _, _, _, _ in }
+        }
+        // a well-formed header whose one object claims a negative length, then more bytes than the part has left
+        var info = ProtoMessage(typeName: "TSP.MessageInfo")
+        info.set("type", int: 1)
+        var header = ProtoMessage(typeName: "TSP.ArchiveInfo")
+        header.set("identifier", int: 7)
+        for length in [-1, 1 << 40] {
+            info.set("length", int: length)
+            header.set("message_infos", messages: [info])
+            let payload = IWAArchive(header: header, objects: []).encoded()
+            #expect(throws: SheetError.self) {
+                try NumbersObjectIndex.walkArchives(payload, path: "Index/Hostile.iwa") { _, _, _, length in
+                    Issue.record(Comment(rawValue: "an object of length \(length) was handed out"))
+                }
+            }
+        }
+        // a tile row under a table model claiming a negative column count
+        var rowInfo = ProtoMessage(typeName: "TST.TileRowInfo")
+        rowInfo.set("cell_offsets", bytes: Data([0, 0]))
+        rowInfo.set("cell_storage_buffer", bytes: Data([0x05, 0, 0, 0]))
+        var visited = 0
+        NumbersCells.forEachRecord(in: rowInfo, cols: -1) { _, _ in visited += 1 }
+        #expect(visited == 0)
+    }
+
     /// A document saved as a folder opens through the same door.
     @Test func numbersFolderThroughTheSameDoor() throws {
         var wb = Workbook()

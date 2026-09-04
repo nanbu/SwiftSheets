@@ -1902,7 +1902,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.18 Draft</td><td>2026-09-05</td><td><strong>読み込みも持たない</strong>を付録 B.39.8 に記録。字句解析器を再開可能にし（<code>feed(startingAt:final:)</code>）、<code>ZipEntryStream</code> の切れ端ごとに読む。XLSX のシート・共有文字列表・逐次読み・ODS 本文が載る。逐次読みのピーク 61 → 23 MB、読み 254 → 221 MB、ODS 読み 318 → 233 MB。同時に持つ最大バイト数をテストで釘打ち。テスト 988 件</td></tr>
     <tr><td>4.19 Draft</td><td>2026-09-05</td><td><strong>パスワード付きのファイルの読み書き</strong>を付録 B.39.9 に記録。Excel の agile 形式（AES-256 / SHA-512、10 万回）と ODF 1.2〜1.3 の包（AES-CBC ＋ PBKDF2、LibreOffice と同じ 1,024 回）を <code>ReadOptions.password</code> / <code>WriteOptions.password</code> で。AES・SHA-1・SHA-256・HMAC・PBKDF2・OLE 複合ファイルを自前で書き、規格の既知解で照合。審判は msoffcrypto-tool（双方向）と cryptography による独立の ODF 復号器。§1.3 の非スコープから暗号化を外し、Excel 2007 の standard 形式・RC4・Blowfish・Numbers は名指しで断る。対応表の 2 行を更新。テスト 1,008 件</td></tr>
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
-    <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ</td></tr>
+    <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ。fuzz の的に 3 形式の逐次読みを追加</td></tr>
     <tr><td>4.21 Draft</td><td>2026-09-05</td><td><strong>計測台を公開の物に</strong>を付録 B.39.11 に記録。<code>Benchmarks/</code>・<code>scripts/bench.sh</code>・<code>docs/performance.json</code> → <code>docs/performance.html</code>。CI の <code>--check</code> が README の 3 つの MB を出所と照合する。0.12.0 の記録: 読み 2.8 秒・221 MB、逐次読み 1.9 秒・23 MB、書き 1.7 秒・258 MB、ODS 書き 3.4 秒・313 MB、ODS 読み 3.9 秒</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
@@ -5125,6 +5125,10 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     もう一度戻す。他の部品（書類・シート・表の模型・文字列一覧・様式）は戻した本体を持つ。通常の読み手の <code>NumbersDocument</code>
     （書き手と <code>inspect</code> も使う可変の器）には手を入れず、両方が満たす小さな約束 <code>NumbersObjectStore</code> を置いて、
     様式の解決（<code>NumbersStyleResolver</code>）・文字の書式の切れ目・値の読み（<code>cellValue</code>）を共有した。
+    §12 の fuzz は 3 形式の逐次読みにも掛かる（変異させた見本を <code>StreamingReader</code> に渡して先頭の表を歩く）。
+    目次づくりは、部品が申告する見出しやオブジェクトの長さが負・残りより大きいときに <code>malformedPart</code> を返す
+    （足し算で溢れないよう「残り」と比べる）。記録の切り出しは列数が負なら 0 とみなす。壊れた入力は必ず <code>SheetError</code> で返し、
+    落ちない — これは通常の読み手と共有している部品なので、両方に効く。
   </p>
   <p>
     <strong>行の順序は約束</strong>: 通常の読み手はタイルと行を来た順に <code>store(at:)</code> するので順不同でも困らないが、逐次読みは

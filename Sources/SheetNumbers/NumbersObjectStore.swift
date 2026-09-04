@@ -132,14 +132,14 @@ final class NumbersObjectIndex: NumbersObjectStore {
             }
             while i < b.count {
                 let hlen = try varint()
-                guard i + hlen <= b.count else { throw SheetError.malformedPart(path: path, detail: "truncated ArchiveInfo") }
+                guard hlen >= 0, hlen <= b.count - i else { throw SheetError.malformedPart(path: path, detail: "truncated ArchiveInfo") }
                 let header = try ProtoMessage(decoding: Data(UnsafeBufferPointer(rebasing: b[i..<(i + hlen)])), typeName: "TSP.ArchiveInfo")
                 i += hlen
                 let identifier = header.int("identifier") ?? 0
                 var first = true
                 for info in header.messages("message_infos") {
                     let len = info.int("length") ?? 0
-                    guard i + len <= b.count else { throw SheetError.malformedPart(path: path, detail: "truncated object payload") }
+                    guard len >= 0, len <= b.count - i else { throw SheetError.malformedPart(path: path, detail: "truncated object payload") }
                     if first {
                         let type = info.int("type") ?? 0
                         try body(identifier, type == 0 ? nil : NumbersSchema.shared.registry[type], i, len)
