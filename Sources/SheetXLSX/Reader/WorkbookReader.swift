@@ -109,13 +109,33 @@ enum WorkbookReader {
 
         // sheets
         var sheets: [Sheet] = []
-        for info in wbParser.sheets {
+        for (index, info) in wbParser.sheets.enumerated() {
             guard let rel = rels.first(where: { $0.id == info.rId }) else { throw SheetError.malformedPart(path: workbookPath, detail: "sheet \(info.name) has no relationship") }
             let part = resolve(rel.target)
             guard zip.contains(part) else { throw SheetError.malformedPart(path: part, detail: "sheet part missing") }
             let sheetRelsPath = relsPath(of: part)
             let sheetRels = (try? parseRels(zip, sheetRelsPath)) ?? []
             consumed.insert(part); consumed.insert(sheetRelsPath)
+
+            // a sheet the caller did not ask for is carried as it arrived and never parsed: its part, its
+            // relationships (all of them — the part still names them) and everything they point at stay bytes
+            if let selection = options.sheets, !selection.includes(name: info.name, index: index), rel.type.hasSuffix(relWorksheet) {
+                let body = try zip.read(part)
+                var sheet = Sheet(name: info.name)
+                sheet.state = info.state
+                sheet.preserved.partPath = part
+                sheet.preserved.relationshipId = info.rId
+                sheet.preserved.sheetId = info.sheetId
+                sheet.preserved.relationships = sheetRels
+                sheet.preserved.foreignSheet = ForeignSheet(root: "worksheet", relationshipType: rel.type,
+                                                            contentType: ct.overrides[part] ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+                                                            body: body)
+                sheet.preserved.isUnread = true
+                warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheet.name,
+                                                  message: "the sheet was not read (left out by ReadOptions.sheets); it has no cells here and is written back to .xlsx exactly as it arrived"))
+                sheets.append(sheet)
+                continue
+            }
 
             // Not every sheet is a grid: SpreadsheetML also has chart sheets, dialog sheets and macro sheets, and
             // the workbook lists them beside the worksheets. Parsing one as a worksheet would find no cells and,
@@ -208,6 +228,9 @@ enum WorkbookReader {
             sheets.append(sheet)
         }
         guard !sheets.isEmpty else { throw SheetError.invalidWorkbook("workbook has no sheets") }
+        // an unread sheet's cells index the shared strings and the cell formats by position: keep both tables
+        // whole so a write-back leaves those positions where they were
+        if sheets.contains(where: { $0.preserved.isUnread }) { wb.preserved.sharedStrings = sst.strings }
         wb.sheets = Sheets(sheets)
         // names the file gave that Sheets de-duplicated are an upstream defect; keep the file's order regardless
         wb.activeIndex = Swift.min(wbParser.activeTab, sheets.count - 1)

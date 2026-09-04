@@ -67,10 +67,10 @@ public struct StreamingReadOptions: Sendable, Hashable {
 public struct StreamingReader {
     /// The most bytes of a sheet part held at once by the last walk — the number the memory promise rests on.
     nonisolated(unsafe) package static var lastLargestCarry = 0
-    private let zip: ZipArchive
-    private let sst: [CellValue]
-    private let styles: StylesParser
-    private let epoch: DateEpoch
+    let zip: ZipArchive
+    let sst: [CellValue]
+    let styles: StylesParser
+    let epoch: DateEpoch
     /// The sheets of the workbook, in the file's order.
     public let sheetNames: [String]
     private let partPaths: [String: String]
@@ -143,6 +143,43 @@ public struct StreamingReader {
             }
             if let thrown = parser.thrown { throw thrown }
         }
+    }
+
+    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` — pulled
+    /// one piece of the part at a time as the loop asks for them, so a walk that stops early reads no further
+    /// (spec Appendix B.39.10). The rows arrive in the sheet's order; the sequence is asynchronous only because that
+    /// is the shape Swift gives a sequence that can throw.
+    public func rows(inSheet name: String, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
+        /// The walk's state. One consumer pulls on it, one row at a time, so its access is sequential by
+        /// construction; the sequence is asynchronous in shape only.
+        final class Walk: @unchecked Sendable {
+            var queue: [StreamedRow] = []
+            var feeder: SAXDriver.PieceFeeder?
+            var parser: StreamingSheetParser?
+            var finished = false
+            var setupError: Error?
+        }
+        let walk = Walk()
+        do {
+            guard let part = partPaths[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
+            let parser = StreamingSheetParser(sst: sst, styles: styles, epoch: epoch, options: options) { [walk] in walk.queue.append($0) }
+            let driver = SAXDriver(handler: parser)
+            parser.driver = driver
+            walk.parser = parser
+            walk.feeder = try SAXDriver.PieceFeeder(driver: driver, stream: try zip.stream(part), part: part)
+        } catch {
+            walk.setupError = error
+        }
+        return AsyncThrowingStream(unfolding: {
+            if let error = walk.setupError { walk.setupError = nil; throw error }
+            while walk.queue.isEmpty, !walk.finished {
+                if try !walk.feeder!.feedNext() { walk.finished = true }
+            }
+            if !walk.queue.isEmpty { return walk.queue.removeFirst() }
+            // the parser stops itself at the end of <sheetData>; that stop is not a failure
+            if let failure = walk.feeder?.failure, !(walk.parser?.reachedEnd ?? false) { throw failure }
+            return nil
+        })
     }
 
     /// The same walk, as dense value arrays (openpyxl's `values_only=True`). `width` pads every row to that many

@@ -419,6 +419,7 @@ final class StylesParser: SAXHandler {
         t.numberFormats = numFmts.filter { $0.key >= NumberFormat.firstCustomID }
         t.rootAttributes = rootAttributes
         t.cellStyleXfs = cellStyleXfs
+        t.cellXfs = cellXfs
         t.cellStyleXfXML = cellStyleXfXML.count == cellStyleXfs.count ? cellStyleXfXML : []
         t.namedStyleXfIndex = namedStyleXfIndex
         t.dxfs = dxfs

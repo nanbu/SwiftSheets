@@ -292,6 +292,9 @@ enum ODSWriter {
         // sheet features the ODS writer does not express (all of them read and written for XLSX; none of them
         // silently dropped)
         for sheet in wb.sheets {
+            if sheet.preserved.isUnread {
+                sink.add(.dropped, subject: .sheets, sheet: sheet.name, "the sheet was never read (ReadOptions.sheets left it out) and is written empty")
+            }
             if sheet.hasUnmodelledFilters {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "an auto-filter the model could not read is dropped: ODS is regenerated, not patched")
             }

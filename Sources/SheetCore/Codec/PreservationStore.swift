@@ -39,6 +39,10 @@ public struct PreservationStore: Sendable, Hashable {
     public var styleTables: StyleTables?
     /// The generating application's declared name / version (docProps/app.xml), informational.
     public var application: String?
+    /// The source's shared-string table, kept only when a sheet was left unread (`ReadOptions.sheets`): the
+    /// unread sheet's cells name their text by index into it, so the writer starts the table with these entries
+    /// in their order and appends after them (spec Appendix B.39.10).
+    public var sharedStrings: [CellValue]?
 
     public init() {}
 
@@ -139,6 +143,9 @@ public struct StyleTables: Sendable, Hashable {
     /// Named style name → its index in `cellStyleXfs`, as the source file had it. Names the file already knew keep
     /// their index on a write-back; new ones are appended.
     public var namedStyleXfIndex: [String: Int] = [:]
+    /// The source `cellXfs`, entry by entry. A sheet left unread names its formatting by index into this table,
+    /// so a write-back that carries such a sheet keeps every entry at its index (spec Appendix B.39.10).
+    public var cellXfs: [CellStyle] = []
     /// The differential formats (`<dxfs>`), parsed and raw. Conditional formats, tables and colour filters address
     /// them by index, so the source entries keep their positions and new ones are appended after them.
     public var dxfs: [DifferentialStyle] = []
@@ -168,6 +175,10 @@ public struct SheetPreservation: Sendable, Hashable {
     /// Set when the sheet's part is not a `<worksheet>` — a chart sheet, a dialog sheet, a macro sheet. See
     /// `ForeignSheet`.
     public var foreignSheet: ForeignSheet?
+    /// True when the sheet is a worksheet that was left unread by `ReadOptions.sheets`: its part is carried in
+    /// `foreignSheet` as the bytes it arrived in, and it has no cells here because nobody looked, not because it
+    /// is empty (spec Appendix B.39.10).
+    public var isUnread = false
     public init() {}
     public var isEmpty: Bool { fragments.isEmpty && relationships.isEmpty && foreignSheet == nil }
 }
@@ -197,6 +208,7 @@ public struct ForeignSheet: Sendable, Hashable {
     /// What to call it in a message: "a chart sheet", "a dialog sheet".
     public var description: String {
         switch root {
+        case "worksheet": return "an unread worksheet"
         case "chartsheet": return "a chart sheet"
         case "dialogsheet": return "a dialog sheet"
         case "macrosheet": return "a macro sheet"

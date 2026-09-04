@@ -75,6 +75,14 @@ struct NumbersReader {
             guard let archive = doc.object(sid) else { continue }
             var sheet = Sheet(name: archive.string("name") ?? "Sheet \(sheets.count + 1)")
             sheet.tables = []
+            // a sheet the caller did not ask for: named, left empty, and marked as unread (spec Appendix B.39.10)
+            if let selection = options.sheets, !selection.includes(name: sheet.name, index: sheets.count) {
+                sheet.preserved.isUnread = true
+                warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheet.name,
+                                                  message: "the sheet was not read (left out by ReadOptions.sheets); it has no cells here, and writing this workbook back writes it empty"))
+                sheets.append(sheet)
+                continue
+            }
             for tid in tableModels(inSheet: sid) {
                 if let t = table(tid, sheetName: sheet.name) { sheet.tables.append(t) }
             }

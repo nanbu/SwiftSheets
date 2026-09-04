@@ -75,12 +75,13 @@ enum WorkbookWriter {
         var archive = ZipWriter()
         let preserved = wb.preserved
         let sameFamily = preserved.sourceFormat == .xlsx || preserved.sourceFormat == .xlsm
-        let styles = StyleRegistry(seed: sameFamily ? preserved.styleTables : nil)
+        let carriesUnreadSheets = sameFamily && wb.sheets.contains { $0.preserved.isUnread && $0.preserved.foreignSheet != nil }
+        let styles = StyleRegistry(seed: sameFamily ? preserved.styleTables : nil, keepCellXfs: carriesUnreadSheets)
         styles.indexedColors = wb.indexedColors
         styles.registerNamedStyles(wb.namedStyles)
         styles.applyDifferentialStyles(sameFamily ? wb.differentialStyles : [])
         if sameFamily { styles.fragments = preserved.styleFragments }
-        let strings = SharedStringTable()
+        let strings = SharedStringTable(seed: carriesUnreadSheets ? preserved.sharedStrings ?? [] : [])
 
         // opaque parts that travel along (VBA only into .xlsm)
         var opaque: [String: OpaquePart] = sameFamily ? preserved.parts : [:]
@@ -95,6 +96,10 @@ enum WorkbookWriter {
         }
         if !sameFamily, preserved.opaquePartCount > 0 {
             sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
+        }
+        // a sheet that was never read, from a source this writer cannot carry as bytes, goes out empty — and says so
+        for sheet in wb.sheets where sheet.preserved.isUnread && !(sameFamily && sheet.preserved.foreignSheet != nil) {
+            sink.add(.dropped, subject: .sheets, sheet: sheet.name, "the sheet was never read (ReadOptions.sheets left it out) and is written empty")
         }
         // a Numbers word with no OOXML spelling: the value under the control is written, the control is named
         for sheet in wb.sheets {
@@ -383,7 +388,8 @@ enum WorkbookWriter {
         let themeId = needsGeneratedTheme ? freshId() : nil
         // the rows are written after the workbook's own parts now, so whether a shared-string table will exist
         // is decided from the model: any text value outside a formula goes into it
-        let hasStrings = wb.sheets.contains { sheet in
+        // …and a seeded table is written whether or not a cell adds to it
+        let hasStrings = !strings.isEmpty || wb.sheets.contains { sheet in
             sheet.preserved.foreignSheet == nil && sheet.table.cells.values.contains { cell in
                 switch cell.value { case .text?, .richText?: return true; default: return false }
             }
@@ -1196,6 +1202,15 @@ final class SharedStringTable {
     private var items: [CellValue] = []
     private var index: [CellValue: Int] = [:]
     var isEmpty: Bool { items.isEmpty }
+
+    /// Starts from a source table, entry by entry in its order (duplicates included), so that a sheet carried as
+    /// bytes finds its strings where it left them; new strings are appended after.
+    init(seed: [CellValue] = []) {
+        for value in seed {
+            items.append(value)
+            if index[value] == nil { index[value] = items.count - 1 }
+        }
+    }
 
     func index(for value: CellValue) -> Int {
         if let i = index[value] { return i }

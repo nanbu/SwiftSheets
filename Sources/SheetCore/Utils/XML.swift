@@ -105,12 +105,12 @@ extension SAXHandler {
 
 /// Foundation `XMLParser` → `SAXHandler` events, with subtree capture.
 package final class SAXDriver: NSObject, XMLParserDelegate {
-    private unowned let handler: SAXHandler
-    private var failure: SheetError?
+    unowned let handler: SAXHandler
+    private(set) var failure: SheetError?
     private weak var parser: XMLParser?
     private var currentQualifiedName = ""
     private var currentAttributes: [String: String] = [:]
-    private var captureDepth = 0
+    private(set) var captureDepth = 0
     private var captureBuffer = ""
     private var captureElement = ""
     private var openTagPending = false
@@ -157,51 +157,83 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     /// whatever token or preserved subtree straddles a boundary (spec Appendix B.39.8). The first piece decides
     /// the engine; a part Foundation has to read is gathered whole for it.
     package func run(stream: ZipEntryStream, part: String) throws {
-        var carry: [UInt8] = []
-        if let first = try stream.next() { carry.append(contentsOf: first) }
-        let head = Data(carry.prefix(256))
-        var useScanner = true
-        #if SWIFTSHEETS_FOUNDATION_XML
-        useScanner = false
-        #else
-        if let (encoding, _) = TextEncodingSniffer.bom(in: head), encoding != .utf8 { useScanner = false }
-        else if SAXDriver.declaresOtherEncoding(head) { useScanner = false }
-        #endif
-        guard useScanner else {
-            var whole = Data(carry)
-            while let piece = try stream.next() { whole.append(piece) }
-            try run(whole, part: part, engine: .foundation)
-            return
+        let feeder = try PieceFeeder(driver: self, stream: stream, part: part)
+        while try feeder.feedNext() {}
+        if let failure { throw failure }
+    }
+
+    /// The same, one piece at a time: `feedNext` expands the next piece and delivers its events, and answers
+    /// false once the part is exhausted or the handler has stopped the walk. What a lazy row sequence pulls on.
+    package final class PieceFeeder {
+        private let driver: SAXDriver
+        private let stream: ZipEntryStream
+        private let part: String
+        private var scanner: XMLScanner?
+        private var carry: [UInt8] = []
+        private var scanned = 0            // bytes of `carry` already turned into events (kept only for an open capture)
+        private var offset = 0             // bytes of the part before `carry`
+        private var final = false
+        private var checkedUpTo = 0        // bytes of `carry` already checked for UTF-8
+        private var done = false
+
+        package init(driver: SAXDriver, stream: ZipEntryStream, part: String) throws {
+            self.driver = driver; self.stream = stream; self.part = part
+            if let first = try stream.next() { carry.append(contentsOf: first) }
+            let head = Data(carry.prefix(256))
+            var useScanner = true
+            #if SWIFTSHEETS_FOUNDATION_XML
+            useScanner = false
+            #else
+            if let (encoding, _) = TextEncodingSniffer.bom(in: head), encoding != .utf8 { useScanner = false }
+            else if SAXDriver.declaresOtherEncoding(head) { useScanner = false }
+            #endif
+            if useScanner {
+                scanner = XMLScanner(handler: driver.handler, driver: driver, part: part)
+                final = carry.isEmpty
+            }
         }
-        let scanner = XMLScanner(handler: handler, driver: self, part: part)
-        var scanned = 0            // bytes of `carry` already turned into events (kept only for an open capture)
-        var offset = 0             // bytes of the part before `carry`
-        var final = carry.isEmpty
-        var checkedUpTo = 0        // bytes of `carry` already checked for UTF-8
-        while true {
+
+        package func feedNext() throws -> Bool {
+            guard !done else { return false }
+            guard let scanner else {
+                // Foundation's parser takes the whole part at once
+                var whole = Data(carry)
+                while let piece = try stream.next() { whole.append(piece) }
+                done = true
+                do {
+                    try driver.run(whole, part: part, engine: .foundation)
+                } catch {
+                    // a stop the handler asked for is reported through `failure`, as the scanner path does;
+                    // anything else is the parser's own verdict
+                    guard driver.failure != nil else { throw error }
+                }
+                return false
+            }
             if !final, let piece = try stream.next() { carry.append(contentsOf: piece) } else { final = true }
-            largestCarry = Swift.max(largestCarry, carry.count)
+            driver.largestCarry = Swift.max(driver.largestCarry, carry.count)
             // UTF-8 is checked as the bytes arrive; a sequence cut by a piece boundary waits for the next piece
             try SAXDriver.checkUTF8(carry, from: checkedUpTo, final: final, offset: offset, part: part)
             checkedUpTo = Swift.max(0, carry.count - 3)
             let consumed = try carry.withUnsafeBufferPointer { b -> Int in
-                scannerBuffer = b
-                defer { scannerBuffer = nil }
+                driver.scannerBuffer = b
+                defer { driver.scannerBuffer = nil }
                 return try scanner.feed(b, startingAt: scanned, final: final)
             }
-            if stopped { break }
-            if final { break }
+            if driver.stopped || final { done = true; return false }
             var keep = consumed
-            if captureDepth > 0 { keep = Swift.min(keep, captureStart) }
+            if driver.captureDepth > 0 { keep = Swift.min(keep, driver.captureStart) }
             carry.removeFirst(keep)
             scanned = consumed - keep
-            captureStart -= keep
-            currentTagStart -= keep
+            driver.captureStart -= keep
+            driver.currentTagStart -= keep
             checkedUpTo = Swift.max(0, checkedUpTo - keep)
             scanner.advance(by: keep)
             offset += keep
+            return true
         }
-        if let failure { throw failure }
+
+        /// The failure the handler raised, if any, once the walk has stopped.
+        package var failure: SheetError? { driver.failure }
     }
 
     /// `rejectUndecodableBytes` for a part arriving in pieces: the bytes from `from` on are checked, and an
@@ -222,10 +254,10 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     /// Set by `fail` while the scanner runs: it stops at the next event.
     package private(set) var stopped = false
     /// The most bytes of a part held at once while it was read in pieces — what a test can hold the reader to.
-    package private(set) var largestCarry = 0
-    private var scannerBuffer: UnsafeBufferPointer<UInt8>?
-    private var currentTagStart = 0
-    private var captureStart = 0
+    package internal(set) var largestCarry = 0
+    var scannerBuffer: UnsafeBufferPointer<UInt8>?
+    var currentTagStart = 0
+    var captureStart = 0
 
     private func runScanner(_ data: Data, part: String) throws {
         try data.withUnsafeBytes { raw in

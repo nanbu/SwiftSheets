@@ -123,6 +123,9 @@ struct NumbersWriter {
 
     mutating func write() throws -> Data {
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
+        for sheet in workbook.sheets where sheet.preserved.isUnread {
+            warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name, message: "the sheet was never read (ReadOptions.sheets left it out) and is written empty"))
+        }
         if let src = workbook.preserved.sourceFormat, src != .numbers, workbook.preserved.opaquePartCount > 0 {
             warnings.append(ConversionWarning(.dropped, subject: .objects, message: "\(workbook.preserved.opaquePartCount) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
         }

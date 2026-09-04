@@ -28,6 +28,16 @@ writes, so the constant, the README's status line and the tag always name the sa
   own row and column counts. `InspectOptions(countCells: true)` walks the markup and counts what is really
   there. This is how a reader of untrusted files chooses a `ReadOptions.cellLimit`.
 
+- **Read only the sheets you ask for** (spec Appendix B.39.10). `ReadOptions(sheets: .named([…]))` or
+  `.indices([…])` parses those sheets and no other. An XLSX sheet left out is carried as the bytes it arrived
+  in and written back unchanged — the writer keeps the shared-string table and the cell formats at their
+  original indices so the untouched sheet still finds them — and reported as `degraded`; an ODS or Numbers
+  sheet left out comes back empty, and writing such a workbook reports it as `dropped`.
+- **Delimited text one record at a time**: `CSVStreamingReader` (`forEachRow`, or `for try await row in
+  reader.rows()`) decodes and parses the file in 256 KiB pieces; `CSVStreamingWriter` puts each record straight
+  into the file.
+- **Rows as a sequence**: `for try await row in reader.rows(inSheet:)` on `StreamingReader` pulls the sheet one
+  piece at a time as the loop asks, and stops reading when the loop does. `forEachRow` stays.
 - **Password-protected files are read and written** (spec Appendix B.39.9). `ReadOptions.password` opens an
   Excel workbook protected the way Excel 2010 and later do it (ECMA-376 agile encryption: AES in CBC mode under
   a key derived by SHA-1 / SHA-256 / SHA-512, the package integrity checked by HMAC) and an OpenDocument

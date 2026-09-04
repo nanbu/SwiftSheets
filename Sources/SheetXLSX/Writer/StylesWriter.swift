@@ -38,7 +38,9 @@ final class StyleRegistry {
     var namedStyles: [NamedStyle] = [.normal]
     var rootAttributes: [String: String] = [:]
 
-    init(seed: StyleTables? = nil) {
+    /// `keepCellXfs` keeps every source `cellXfs` entry at its index (a sheet carried as bytes names its
+    /// formatting by that index); otherwise the table is rebuilt from the cells that are written.
+    init(seed: StyleTables? = nil, keepCellXfs: Bool = false) {
         if let seed, seed.fills.count >= 2 {
             fonts = seed.fonts; fills = seed.fills; borders = seed.borders
             fontXML = seed.fontXML.count == seed.fonts.count ? seed.fontXML : []
@@ -62,6 +64,15 @@ final class StyleRegistry {
         for (i, d) in dxfs.enumerated() where dxfIndex[d] == nil { dxfIndex[d] = i }
         // index 0 of cellXfs is the default style; its font / fill / border are whatever sits at index 0 of each table
         xfs = [CellStyle.default]; xfIndex = [CellStyle.default: 0]
+        if keepCellXfs, let seed, !seed.cellXfs.isEmpty {
+            xfs = []; xfIndex = [:]
+            for style in seed.cellXfs {
+                _ = fontID(style.font); _ = fillID(style.fill); _ = borderID(style.border); _ = numFmtID(style.numberFormat)
+                xfs.append(style)
+                if xfIndex[style] == nil { xfIndex[style] = xfs.count - 1 }
+            }
+            if xfIndex[CellStyle.default] == nil { xfs.append(CellStyle.default); xfIndex[CellStyle.default] = xfs.count - 1 }
+        }
     }
 
     private func fontID(_ f: Font) -> Int {

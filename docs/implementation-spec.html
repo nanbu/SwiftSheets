@@ -1900,6 +1900,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.17 Draft</td><td>2026-09-05</td><td><strong>書き出しを持たない</strong>を付録 B.39.7 に記録。解釈しない部品は縮めたまま運ぶ（<code>OpaquePart.compressed</code>・<code>opaqueParts</code> は取り出したときだけ戻す）。XLSX のシートは行を 64 KiB ごとに圧縮器へ流し、ODS の本文は 8 MiB を超えたら一時ファイルへ落として後から流す（<code>TextSpill</code>）。書きのピーク 360 → 258 MB、ODS 書き 641 → 313 MB、開いて 1 マス直して保存 6.9 → 3.8 秒・397 → 288 MB。テスト 988 件</td></tr>
     <tr><td>4.18 Draft</td><td>2026-09-05</td><td><strong>読み込みも持たない</strong>を付録 B.39.8 に記録。字句解析器を再開可能にし（<code>feed(startingAt:final:)</code>）、<code>ZipEntryStream</code> の切れ端ごとに読む。XLSX のシート・共有文字列表・逐次読み・ODS 本文が載る。逐次読みのピーク 61 → 23 MB、読み 254 → 221 MB、ODS 読み 318 → 233 MB。同時に持つ最大バイト数をテストで釘打ち。テスト 988 件</td></tr>
     <tr><td>4.19 Draft</td><td>2026-09-05</td><td><strong>パスワード付きのファイルの読み書き</strong>を付録 B.39.9 に記録。Excel の agile 形式（AES-256 / SHA-512、10 万回）と ODF 1.2〜1.3 の包（AES-CBC ＋ PBKDF2、LibreOffice と同じ 1,024 回）を <code>ReadOptions.password</code> / <code>WriteOptions.password</code> で。AES・SHA-1・SHA-256・HMAC・PBKDF2・OLE 複合ファイルを自前で書き、規格の既知解で照合。審判は msoffcrypto-tool（双方向）と cryptography による独立の ODF 復号器。§1.3 の非スコープから暗号化を外し、Excel 2007 の standard 形式・RC4・Blowfish・Numbers は名指しで断る。対応表の 2 行を更新。テスト 1,008 件</td></tr>
+    <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4999,6 +5000,29 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     （CSV は定義上平文、Numbers の暗号化は非公開）。テストは保護ファイルを短い反復回数で書いて時間を抑え（読みはファイルが名乗る回数に従うので
     開ける範囲は変わらない）、1 本だけ Excel と同じ回数で往復する。
   </p>
+
+  <h4>B.39.10 API を 3 件足す — 読むシートの選択・CSV の逐次読み書き・行の列挙</h4>
+  <ul>
+    <li><strong>読むシートの選択</strong> <code>ReadOptions.sheets</code>（<code>.named</code> / <code>.indices</code>）。
+      XLSX では選ばれなかったシートを<strong>解析せず、届いたバイト列のまま運ぶ</strong>（B.35 の <code>ForeignSheet</code> の
+      仕組みに <code>root: "worksheet"</code> と <code>isUnread</code> の印を足した）。書き戻しは 1 バイトも変えない — ただし、
+      そのシートのセルは<strong>共有文字列表と書式表を番号で指している</strong>ので、書き手は元の共有文字列表を先頭に
+      そのまま置き（<code>PreservationStore.sharedStrings</code>）、<code>cellXfs</code> も元の並びで保つ
+      （<code>StyleTables.cellXfs</code>・<code>StyleRegistry(keepCellXfs:)</code>）。番号を保たなかった最初の実装は、
+      読み戻しで「one」が別の文字列になり、テストが赤くして教えた。ODS と Numbers はバイト列を運べないので、
+      選ばれなかったシートは名前だけの空のシートになり、読みで <code>degraded</code>、書きで <code>dropped</code> を言う。
+      読まないシートへ書いたセルも <code>dropped</code>。</li>
+    <li><strong>CSV の逐次読み書き</strong> <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>（SheetCSV）。
+      256 KiB ずつ読み、切れ端の境目で割れた多バイト文字・代用対・CR LF を次の切れ端へ持ち越す。
+      方言の推定は最初の切れ端で（通常の読み手が最初の行でするのと同じ）。UTF-8 と BOM つき UTF-16 は切れ端ごとに復号し、
+      自己同期しない旧符号化（Shift_JIS 等）は丸ごと復号する。RFC 4180 の状態機械を再開可能にした
+      （引用符つきの欄が切れ端をまたぐ・切れ端の末尾の引用符が閉じか二重かは次の切れ端で決まる）。
+      書き手は 1 行ずつ描画して 64 KiB ごとにファイルへ。</li>
+    <li><strong>行の列挙</strong> <code>StreamingReader.rows(inSheet:)</code> / <code>CSVStreamingReader.rows()</code> —
+      <code>for try await row in …</code> で回せる。B.39.8 の切れ端送り（<code>SAXDriver.PieceFeeder</code>）を 1 切れ端ずつ
+      引く形にし、ループが求めた分だけ読む（途中で <code>break</code> すれば先は読まない）。非同期なのは
+      「throw できる列挙」に Swift が与える形がそれだからで、並列性は無い。<code>forEachRow</code> は残る。</li>
+  </ul>
 
 </section>
 

@@ -39,6 +39,7 @@ enum ODSReader {
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }
 
         let content = ContentParser(catalog: catalog, dataOnly: options.dataOnly, cellLimit: options.cellLimit)
+        content.selection = options.sheets
         try content.run(stream: try zip.stream("content.xml"), part: "content.xml")   // a piece at a time
         guard !content.sheets.isEmpty else { throw SheetError.invalidWorkbook("the spreadsheet has no tables") }
 
@@ -309,6 +310,9 @@ final class ContentParser: SAXHandler {
     // the table style of the sheet being read, so its master page can be applied afterwards
     var tableStyleNames: [String] = []
 
+    /// Which sheets to materialise (`ReadOptions.sheets`); nil is all of them.
+    var selection: SheetSelection?
+
     init(catalog: ODSStyleCatalog, dataOnly: Bool, cellLimit: Int) {
         self.catalog = catalog
         self.dataOnly = dataOnly
@@ -325,8 +329,20 @@ final class ContentParser: SAXHandler {
         switch name {
         case "table":
             if inTable { skipDepth = 1; return }   // a sub-table inside a cell
+            // a sheet the caller did not ask for: named, left empty, and marked as unread (spec Appendix B.39.10)
+            let tableName = ODSAttr.get(a, "table:name") ?? "Sheet\(sheets.count + 1)"
+            if let selection, !selection.includes(name: tableName, index: sheets.count) {
+                var unread = Sheet(name: tableName)
+                unread.preserved.isUnread = true
+                sheets.append(unread)
+                tableStyleNames.append(ODSAttr.get(a, "table:style-name") ?? "")
+                warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: tableName,
+                                                  message: "the sheet was not read (left out by ReadOptions.sheets); it has no cells here, and writing this workbook back writes it empty"))
+                skipDepth = 1
+                return
+            }
             inTable = true
-            var s = Sheet(name: ODSAttr.get(a, "table:name") ?? "Sheet\(sheets.count + 1)")
+            var s = Sheet(name: tableName)
             let styleName = ODSAttr.get(a, "table:style-name")
             if catalog.isTableHidden(styleName) { s.state = .hidden }
             tableStyleNames.append(styleName ?? "")
