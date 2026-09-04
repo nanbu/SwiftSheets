@@ -74,13 +74,14 @@ public struct StreamingReader {
     private let partPaths: [String: String]
 
     /// Maps the file rather than reading it, so a workbook far larger than memory can be walked.
-    public init(contentsOf url: URL) throws {
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe))
+    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits)
     }
 
-    public init(data: Data) throws {
+    /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`).
+    public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
-        zip = try ZipArchive(data: data)
+        zip = try ZipArchive(data: data, limits: limits)
         let rootRels = (try? WorkbookReader.parseRels(zip, "_rels/.rels")) ?? []
         let workbookPath = rootRels.first { $0.type.hasSuffix(WorkbookReader.relOfficeDocument) }
             .map { WorkbookReader.resolvePart($0.target, relativeTo: "") } ?? "xl/workbook.xml"

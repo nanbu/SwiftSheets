@@ -49,7 +49,7 @@ import SwiftSheets
         #expect(small.workbook.sheets[0].cells.count <= 5_000)
         #expect(larger.workbook.sheets[0].cells.count > small.workbook.sheets[0].cells.count)
         #expect(larger.workbook.sheets[0].cells.count <= 50_000)
-        #expect(ReadOptions().cellLimit == 1_000_000)
+        #expect(ReadOptions().cellLimit == Int.max, "no cell ceiling by default (spec Appendix B.39)")
     }
 
     // MARK: - A suggestion names the format that would have kept the thing

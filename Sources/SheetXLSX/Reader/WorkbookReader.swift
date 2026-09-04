@@ -28,7 +28,7 @@ enum WorkbookReader {
         var warnings: [ConversionWarning] = []
         // A password-protected workbook is an OLE compound file, not a ZIP; say so instead of "corrupted container".
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
-        let zip = try ZipArchive(data: data)
+        let zip = try ZipArchive(data: data, limits: options.limits)
         var consumed = Set<String>()
         var wb = Workbook(sheets: [])
         wb.dataOnly = options.dataOnly

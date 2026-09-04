@@ -9,7 +9,7 @@ public enum NumbersCodec: SpreadsheetCodec {
     public static var templateURL: URL { Bundle.module.url(forResource: "empty", withExtension: "numbers")! }
     /// Reading is tolerant (spec §10.3): whatever could not be interpreted is reported in the result rather than thrown.
     public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        let doc = try NumbersDocument(data: data)
+        let doc = try NumbersDocument(data: data, limits: options.limits)
         var reader = NumbersReader(doc: doc, options: options)
         let wb = try reader.workbook()
         return ReadResult(workbook: wb, warnings: reader.warnings)

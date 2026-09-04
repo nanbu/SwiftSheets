@@ -38,15 +38,22 @@ public struct ReadOptions: Sendable, Hashable {
     public var csv = CSVReadOptions()
     /// The original file name, when known — an extension hint for text files (`.tsv` → tab dialect).
     public var filename: String?
-    /// The most cells one document may expand to. ODS compresses runs of rows and cells, so a kilobyte of XML can
-    /// ask for 16,384 × 1,048,576 of them; reading stops at this many and says so with a `degraded` warning.
-    /// Raise it for a genuinely huge sheet, lower it where memory is tight — every cell costs about 100–200 bytes.
-    public var cellLimit = 1_000_000
+    /// The most cells one document may expand to before reading stops (with a `degraded` warning naming the
+    /// sheet). ODS compresses runs of rows and cells, so a kilobyte of XML can ask for 16,384 × 1,048,576 of them.
+    ///
+    /// There is no ceiling by default: how many cells are worth holding is the caller's decision, and
+    /// `Workbook.inspect` says how many a file declares before any of them is read. Set it for input you do not
+    /// trust — every cell costs about 100–200 bytes in memory (spec Appendix B.39).
+    public var cellLimit = Int.max
+
+    /// What the container may declare about itself before it is refused as hostile — entry count, expanded size,
+    /// compression ratio. Raise them for a package you know; the defaults are far past any real spreadsheet.
+    public var limits = ZipLimits()
 
     public init(dataOnly: Bool = false, preserveUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
-                filename: String? = nil, cellLimit: Int = 1_000_000) {
+                filename: String? = nil, cellLimit: Int = Int.max, limits: ZipLimits = ZipLimits()) {
         self.dataOnly = dataOnly; self.preserveUnknownParts = preserveUnknownParts; self.csv = csv
-        self.filename = filename; self.cellLimit = cellLimit
+        self.filename = filename; self.cellLimit = cellLimit; self.limits = limits
     }
 }
 

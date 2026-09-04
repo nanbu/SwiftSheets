@@ -247,11 +247,13 @@ import SwiftSheets
         var zip = ZipWriter()
         zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
         zip.add("content.xml", Data(content.utf8))
+        // the ceiling is the caller's (spec Appendix B.39.2): without one, this file really would expand to
+        // seventeen billion cells — which `Workbook.inspect` reports without making any of them
         let start = Date()
-        let result = try ODSCodec.read(zip.finish())
+        let result = try ODSCodec.read(zip.finish(), options: ReadOptions(cellLimit: 1_000_000))
         let (wb, warnings) = (result.workbook, result.warnings)
         #expect(Date().timeIntervalSince(start) < 30.0)
-        #expect(wb.sheets[0].cells.count <= ODSReader.maxCells)
+        #expect(wb.sheets[0].cells.count <= 1_000_000)
         #expect(warnings.contains { $0.kind == .degraded && $0.message.contains("stopped there") })
         #expect(wb.sheets[0]["A1"] == .text("x"))
     }

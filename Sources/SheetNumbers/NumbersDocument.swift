@@ -15,14 +15,14 @@ final class NumbersDocument {
     private var maxID = 0
     private(set) var lastZipEntryIsBundleIndex = false
 
-    init(data: Data) throws {
-        let zip = try ZipArchive(data: data)
+    init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+        let zip = try ZipArchive(data: data, limits: limits)
         if zip.contains(".iwph") { throw SheetError.unsupportedFeature("encrypted Numbers documents are not supported") }
         let names = zip.entries.keys.sorted { (zip.entries[$0]!.localHeaderOffset) < (zip.entries[$1]!.localHeaderOffset) }
         for name in names where !name.hasSuffix("/") {
             let blob = try zip.read(name)
             if name.lowercased().hasSuffix("index.zip") {   // a zipped package bundle: the IWAs live one level down
-                let inner = try ZipArchive(data: blob)
+                let inner = try ZipArchive(data: blob, limits: limits)
                 for n in inner.entries.keys.sorted() where !n.hasSuffix("/") { try store(n, try inner.read(n)) }
                 lastZipEntryIsBundleIndex = true
             } else {

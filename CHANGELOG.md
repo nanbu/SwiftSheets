@@ -9,6 +9,26 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Added
+
+- **ZIP64** (spec Appendix B.39.1). Packages with a part past 4 GB, or more than 65,535 parts, are read and
+  written; the ZIP64 records are written only when a package needs them. The container reader takes its bytes
+  from a source that can be a buffer, a mapped file, or a file read in pieces with positioned reads, and never
+  asks for the whole file. An entry can be expanded a piece at a time (`ZipEntryStream`), and copied into
+  another package still compressed, without expanding it.
+- **Limits on what a package may declare about itself** (`ZipLimits`, `ReadOptions.limits`): at most 100,000
+  parts, 16 GiB expanded in total, a thousandfold expansion for any part over 16 MiB, no two parts sharing bytes,
+  and expansion that stops at exactly the size an entry declares — the shapes a decompression bomb takes. A
+  package past any of them is `corruptedContainer`; the limits can be raised for a package you know.
+
+### Changed
+
+- **No cell ceiling by default** (spec Appendix B.39.2). `ReadOptions.cellLimit` used to stop a read at a
+  million cells; it now defaults to no limit, and is there to be set by a reader of untrusted input. How many
+  cells are worth holding is the caller's decision.
+- CRC-32 is computed by zlib (0.001 s over a 33 MB part where the Swift loop took 0.09 s), and the one-shot
+  compressor no longer copies its output to trim it.
+
 ## [0.11.2] — 2026-09-04
 
 ### Changed

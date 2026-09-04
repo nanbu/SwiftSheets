@@ -5,6 +5,7 @@ public struct ZipInspection: Sendable {
     let archive: ZipArchive
 
     public init(data: Data) throws { archive = try ZipArchive(data: data) }
+    package init(archive: ZipArchive) { self.archive = archive }
 
     /// "PK\u{03}\u{04}" — the local file header signature.
     public static func looksLikeZip(_ data: Data) -> Bool {

@@ -1881,6 +1881,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.10 Draft</td><td>2026-08-31</td><td><strong>Linux 達成</strong>（付録 B.38 に追記）。審判が 3 回赤を出し、最後に残ったのは <strong>Foundation 自身の XML 部品</strong>だった —— 要素名に UTF-8 として不正なバイトがあると <code>_NSXMLParserStartElementNs</code> でプロセスごと落ちる。検体（fuzz seed 1・round 174・4131 バイト）を 1 バイト違わず再現し、<strong>渡す前に UTF-8 として成立しているかを確かめる守り</strong>を入れた（別符号化を名乗る部品は素通し・走査は写さない）。Linux 944 件・macOS 945 件すべて緑、fuzz も除外なし。§1.1 の「Linux 上で動作する」を達成とし、B.1 の未達を解いた。visionOS は審判が無いため未達のまま</td></tr>
     <tr><td>4.9 Draft</td><td>2026-08-31</td><td><strong>圧縮の差し替え口</strong>を付録 B.38 に記録。Linux を塞いでいたのは自前 ZIP ではなく、その中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった —— <code>Compression</code> と <code>CryptoKit</code>。畳む道具を <code>Deflate</code> の向こうへ移し、Compression の無い機械では system zlib が答えるようにした（<code>Sources/CZlib</code> はモジュールマップ 1 枚・SwiftPM 依存は増えない）。SHA-512 は自前へ戻す（10 万回反復が release で 0.29 秒）。<code>XMLParser</code> は Linux では <code>FoundationXML</code> にあるので条件つき import を 8 ファイルに追加。審判は <code>-DSWIFTSHEETS_ZLIB</code> —— <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>。Linux 対応は CI が緑になるまで名乗らない</td></tr>
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
+    <tr><td>4.12 Draft</td><td>2026-09-04</td><td><strong>速さと大きさの第二段</strong>を付録 B.39 に開き、その第 1・第 2 小節を記録。着手前の実測（100 万マスで読み 5.7 秒の約 7 割が Foundation の XML 部品まわり、圧縮を戻すのは 0.02 秒）を前提に、<strong>封筒（ZIP）を作り替えた</strong>: バイトの出所の抽象化（写像／位置指定読み）・ZIP64 の読み書き・切れ端ごとの展開・申告の妥当性検査（部品数・合計・圧縮率・重なり）と <code>ReadOptions.limits</code>・縮めたままの写し・CRC-32 を zlib へ。<strong>セル数の既定の天井を外した</strong>（<code>cellLimit</code> は <code>Int.max</code>、設定は残す）。README の Limits から ZIP64 の行が消え、Cell budget の行が「既定なし」になった。テスト 960 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -2014,7 +2015,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
         設定値</strong>で、利用者が選ぶ理由ができた時点で移す。</li>
       <li><strong>ZIP は中央ディレクトリの自己申告長を全て検証する</strong>。名前長・extra・comment がバッファ外へ出る、
         ローカルヘッダのオフセットがファイル外を指す、は <code>corruptedContainer</code>。Numbers 側も同様に
-        length-delimited フィールド長と varint の桁数を検証する。</li>
+        length-delimited フィールド長と varint の桁数を検証する。Rev 4.12（B.39.1）からは<strong>申告そのものの妥当性</strong>
+        — 部品数・展開の合計・圧縮率・部品どうしの重なり — も <code>ReadOptions.limits</code> の既定で検査し、
+        展開は申告された大きさちょうどで止める。</li>
       <li><strong><code>write(to:)</code> はアトミック</strong>（<code>Data.WritingOptions.atomic</code>）。開いたファイルへの上書き保存が
         本ライブラリの存在理由である以上、書き込み途中の中断が元のファイルを壊してはならない。inode は差し替わる。</li>
     </ul>
@@ -2244,8 +2247,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
         2026-08-24 に方針を改めた。<strong>1.0 前の破壊的変更</strong>として B.15 に理由を固定する。</td></tr>
     <tr><td>拡張プロパティ（<code>app.xml</code>）</td><td>生成し直す</td>
       <td>openpyxl も作り直す。自由項目（<code>custom.xml</code>）は Rev 2.0 でモデル化した（B.15）。</td></tr>
-    <tr><td>ZIP64</td><td>4 GB / 65,535 パートを超えると <code>corruptedContainer</code></td>
-      <td>全載せモデルの上限（数百 MB）の方が先に来る。ストリーミングと同時に考えるべき項目。</td></tr>
+    <tr><td>ZIP64</td><td>読み書きする（Rev 4.12・B.39.1）</td>
+      <td>4 GB 超の部品・65,535 超の部品数を読み、必要なときだけ ZIP64 の記録を書く。かつては <code>corruptedContainer</code> だった。</td></tr>
     <tr><td>visionOS</td><td>未達（B.38 で Linux は達成）</td>
       <td>Apple 専用の部品はもう無く、塞いでいるものは何も無い。ただし全件を走らせる審判がこの環境に無い。
         <strong>誰も走らせていない platform は名乗らない</strong>。</td></tr>
@@ -4703,6 +4706,76 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     上流には <a href="https://github.com/swiftlang/swift-corelibs-foundation/pull/5536">swiftlang/swift-corelibs-foundation#5536</a>
     として報告した（2026-09-01・1 行の修正＋回帰テスト）。<strong>直っても、この守りは外さない</strong> ——
     古い Swift が載った機械では欠陥が残り続けるため。
+  </p>
+
+  <h3>B.39 速さと大きさの第二段 — 測ってから直す（Rev 4.12〜）</h3>
+  <p>
+    2026-09-04。0.12.0 の主題は<strong>速さと大きさ</strong>である。着手前に 100 万マス（10 列 × 10 万行）の合成データで
+    読み書きを実測し、呼び出しの記録を採った。分かったことは 3 つ: 読み込み 5.7 秒のうち<strong>約 7 割が
+    Foundation の XML 部品とその周りの文字列処理</strong>で、圧縮を戻す時間は 0.02 秒に過ぎない。書き出しは
+    同じ 33 MB のシート XML を 5 回写している。形式の判定は既に 0.1 ミリ秒で、足すべきは速さでなく
+    「ファイル全体を読まない入口」である。計測台と生データは工房に置き、公開側には計測の結果だけを載せる
+    （数字は「覚える」のでなく機械で照合する — B.6 の方針のとおり）。
+    本節は 0.12.0 の各段を、着手した順に小節として記す。
+  </p>
+
+  <h4>B.39.1 封筒（ZIP）の作り替え — 4 GiB 超・切れ端ごとの展開・爆弾</h4>
+  <p>
+    B.38 が「置き換えるべき外部の ZIP ライブラリは無い」と記した自前の封筒処理を、今回は<strong>中身から作り替えた</strong>。
+    動機は 3 つ。①<strong>4 GiB を超える部品・65,535 を超える部品数</strong>（ZIP64）を読めず、書けなかった
+    （README の Limits に「未対応」と明記していた）。②部品を展開するのに<strong>丸ごと</strong>しか戻せず、
+    逐次読みの +54 MB（B.15）はこの 1 点で決まっていた。③展開すると際限なく膨らむ細工（いわゆる ZIP 爆弾）への
+    備えが「申告された長さを検証する」だけで、<strong>申告そのものの妥当性</strong>を問うていなかった。
+  </p>
+  <h5>決めたこと</h5>
+  <ul>
+    <li><strong>バイトの出所を抽象化する</strong>（<code>ByteSource</code>）。メモリ上のバイト列（写像したファイルを含む）と、
+      位置指定読み（<code>pread</code>）でその都度読むファイルの 2 実装。読み手が求めるのは<strong>目録と、手元の
+      1 部品の範囲だけ</strong>で、ファイル全体を要求する経路は無い。写像が安全でない置き場（共有フォルダー等）でも、
+      メモリより大きな封筒でも開ける。Linux でも同じ実装（<code>Glibc</code> の <code>pread</code>）。</li>
+    <li><strong>ZIP64 を読み書きする</strong>。読みは目録末尾の locator → record、目録の各項目の 0xFFFFFFFF を
+      拡張フィールド（0x0001）から補う。書きは<strong>必要なときだけ</strong> ZIP64 の目録・record・locator を出す
+      （部品か位置が 4 GiB 以上、または部品数が 65,535 以上）。逐次で書く部品はローカルヘッダに 16 バイトの
+      拡張フィールドを<strong>予約</strong>しておき、終端で大きさを 32 ビット欄と拡張フィールドの両方へ刻む
+      （データ記述子は使わない — 読み手の互換性で最も安全な形）。テストは <code>forceZip64</code> で
+      ZIP64 の経路を小さなファイルに強制し、Info-ZIP が <code>-fz</code> で作った見本も読む。</li>
+    <li><strong>部品を切れ端ごとに展開する</strong>（<code>ZipEntryStream</code> / <code>DeflateDecoder</code>）。
+      圧縮バイトを 256 KiB ずつ読んで戻し、戻した分だけ渡す。Apple の Compression と zlib の両経路に
+      流し込み型の復号器を足した（B.38 の差し替え口の向こう側）。B.39 の後段（逐次処理）がこれに載る。</li>
+    <li><strong>申告を信じるが、申告の妥当性を問う</strong>（<code>ZipLimits</code>・<code>ReadOptions.limits</code>）。
+      展開は申告された大きさ<strong>ちょうど</strong>まで — 超えて出そうとする流れは腐敗として止める
+      （Apple 経路の一括展開は 1 バイト余分に器を取って超過を検出する）。加えて目録を読んだ時点で、
+      部品数（既定 100,000）・全部品の申告合計（既定 16 GiB）・圧縮率（展開 16 MiB 以上の部品で 1,000 倍）を
+      検査し、超えれば <code>corruptedContainer</code> で断る。<strong>部品どうしの重なり</strong>
+      — 1 つのローカルヘッダを複数の目録項目が指す、小さなファイルが大きな中身を名乗る細工 — も断る。
+      いずれも呼び手が自分のファイルを知っていれば <code>ReadOptions.limits</code> で緩められる。</li>
+    <li><strong>縮めたまま写す</strong>（<code>compressed(_:)</code> / <code>addCompressed</code>）。解釈しない部品
+      （グラフ・画像・集計表の記録・VBA）を戻さず縮め直さず、圧縮バイトのまま次の封筒へ入れられる。
+      F3 の「バイト一致」が文字どおりになり、往復の時間もメモリも部品の大きさに比例しなくなる。
+      保全（B.4）の書き手がこれに載り替えるのは後段。</li>
+    <li><strong>CRC-32 は zlib の実装で</strong>。Swift のテーブル走査は 33 MB で 0.09 秒、zlib の（プロセッサ命令を
+      使う）実装は 0.001 秒（実測）。zlib は B.38 のとおり両経路で最初から手元にある。</li>
+    <li><strong>一括圧縮の余分な写しをなくす</strong>。圧縮結果を切り詰めるときに <code>Data(prefix)</code> で
+      写していたのを、その場で長さを縮めるだけにした。</li>
+  </ul>
+  <h5>審判</h5>
+  <p>
+    <code>ZipTests</code>: Info-ZIP の ZIP64 見本、自前の ZIP64（強制）の往復、65,540 部品の往復、ファイルからの
+    位置指定読みと写像の一致、切れ端ごとの展開と一括の一致、縮めたままの写しのバイト一致、重なり・圧縮率・合計・
+    部品数の 4 種の細工の拒否、申告超過の流れの拒否。既存の <code>MalformedInputTests</code>・<code>FuzzTests</code>
+    はそのまま。両経路（Apple / zlib）で全件。
+  </p>
+
+  <h4>B.39.2 セル数の上限は読む側へ</h4>
+  <p>
+    B.9 が「本来は ReadOptions の設定値で、利用者が選ぶ理由ができた時点で移す」と記した <code>cellLimit</code> は
+    Rev 1.5 から既定 1,000,000 のまま来た。今回<strong>既定の天井を外す</strong>（<code>Int.max</code>）。
+    理由は 2 つ。①100 万マスは iOS の 1 枚として大きいが、Mac やサーバでは 1 ファイルとして珍しくない。
+    ②天井が要るかどうかは<strong>読む側の事情</strong>（メモリ・信頼できる送り手か）であって、ライブラリが
+    一律に決めることではない。設定は残る: 信頼できない入力には <code>ReadOptions(cellLimit:)</code> を置き、
+    超えれば従来どおりシートごとに 1 件の <code>degraded</code> 警告で止まる。ODS の「中身のない反復は指定であって
+    内容ではない」の判定（<code>paddingRepeat</code>・§8.3）は不変。読む前に何マスあるかを問い合わせる入口は
+    次の小節（B.39.3）で足す。
   </p>
 
 </section>
