@@ -1905,6 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.28 Draft</td><td>2026-09-05</td><td>付録 B.39.8 の逐次読みの UTF-8 検査を直した: 片が届くたびの再検査を「末尾から 3 バイト」の固定位置から始めていたため、そこが完結した 3 バイト文字の続きのバイトだと有効な部品を「UTF-8 でない」と断っていた。<strong>200 列の基準（4.27）が 1,000 万マスの逐次書き XLSX で見つけた</strong>。再検査は前回が止まった位置（境目に切られた文字の先頭）から始める。回帰テストは無圧縮の部品で 1 MiB の境目に文字を置く</td></tr>
     <tr><td>4.27 Draft</td><td>2026-09-05</td><td>付録 B.39.11 に <strong>200 列の基準</strong>を追記: 列数 200 固定・行数 5,000 / 50,000 / 500,000 で同じ操作を測る <code>scripts/bench.sh --grid</code>。機械に収まらない操作は見込み（マス × 320 B・空きディスク × 1.5）で落ちる前に測らず、理由を記録する。計測台は列数を環境変数で広げ、CSV の逐次書きを加えた</td></tr>
     <tr><td>4.26 Draft</td><td>2026-09-05</td><td><strong>ODS への画像の書き</strong>を付録 B.43 に記録して本体へ。<code>addImage</code> の絵を <code>Pictures/</code> の部品と錨のセルの中の <code>draw:frame</code> / <code>draw:image</code> で書き、manifest に media-type を載せる。寸法は 96 dpi で cm、範囲に合わせる絵は <code>table:end-cell-address</code>。読みは変えない（自分の読み手では戻らない、と対応表に明記）。審判は LibreOffice</td></tr>
     <tr><td>4.25 Draft</td><td>2026-09-05</td><td><strong>逐次書きを 3 形式へ</strong>を付録 B.42 に記録。傘の <code>StreamingWriter(url:)</code> が拡張子で形式を決めて <code>XLSXStreamingWriter</code>（旧 <code>StreamingWriter</code> を改名）/ <code>ODSStreamingWriter</code> / <code>NumbersStreamingWriter</code> / <code>CSVStreamingWriter</code> に渡す。ODS は行を <code>TextSpill</code> に退避して close で様式の後ろに流す。Numbers はタイルを埋まるたびに封筒へ（<code>NumbersDocument.addStreamed</code>）、行ヘッダはワイヤ形式のまま貯める（<code>ProtoMessage.Value.raw</code>）。運べないものは枚数つきで警告</td></tr>
@@ -4983,7 +4984,16 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     <strong>1.9 秒・23 MB</strong> になった。残る 221 MB のうち 203 MB は模型そのもの。
   </p>
 
-  <h4>B.39.9 パスワード付きのファイルを読み書きする — 暗号化の 2 形式と、自前の算術</h4>
+    <p>
+    <strong>境目の UTF-8 検査の直し（Rev 4.28・2026-09-05）</strong>: 片が届くたびに届いた分だけを UTF-8 として検査し、
+    境目に切られた文字は次の片を待つ —— この再検査の始点を「持っている分の末尾から 3 バイト」の固定位置にしていた。
+    そこが<strong>完結した 3 バイト文字の続きのバイト</strong>に当たると、続きのバイト単独は UTF-8 として不正なので、
+    有効な部品を「byte N is not valid UTF-8」と断っていた。B.39.11 の 200 列の基準が、1,000 万マスの逐次書き XLSX
+    （全行に「分類A」）で見つけた。再検査は<strong>前回の検査が止まった位置</strong>（全部通ったなら末尾、境目に切られた
+    文字があるならその先頭）から始める。回帰テストは無圧縮の部品（片がちょうど 1 MiB になる）で 2 MiB − 4 に
+    「分」を置き、修正前は byte 2097149 で落ちることを確かめた（<code>StreamingTests</code>）。
+  </p>
+<h4>B.39.9 パスワード付きのファイルを読み書きする — 暗号化の 2 形式と、自前の算術</h4>
   <p>
     §1.3 は「暗号化ファイル — 将来検討。v1 では明示的エラー」としていた。0.12.0 で検討を終えた。
     着手前に 1 つ訂正しておく: <strong>封筒（ZIP）を作り替えても暗号化ファイルは開けない</strong>。Excel のパスワード保護は

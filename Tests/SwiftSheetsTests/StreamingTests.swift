@@ -181,4 +181,74 @@ import SwiftSheets
         }
         #expect(SheetFormat.detect(from: data) == .xlsx)
     }
+
+    // MARK: - A character across a piece boundary
+
+    /// The smallest package the reader accepts, with the sheet stored uncompressed so that the pieces the
+    /// reader takes are exactly a mebibyte each and a byte can be placed on a boundary on purpose.
+    static func storedPackage(sheet: Data) -> Data {
+        let contentTypes = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\
+        <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\
+        <Default Extension="xml" ContentType="application/xml"/>\
+        <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>\
+        <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>\
+        </Types>
+        """
+        let rootRels = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\
+        <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>\
+        </Relationships>
+        """
+        let workbook = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">\
+        <sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>
+        """
+        let workbookRels = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\
+        <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>\
+        </Relationships>
+        """
+        var zip = ZipWriter()
+        zip.add("[Content_Types].xml", Data(contentTypes.utf8))
+        zip.add("_rels/.rels", Data(rootRels.utf8))
+        zip.add("xl/workbook.xml", Data(workbook.utf8))
+        zip.add("xl/_rels/workbook.xml.rels", Data(workbookRels.utf8))
+        zip.add("xl/worksheets/sheet1.xml", sheet, stored: true)
+        return zip.finish()
+    }
+
+    /// A three-byte character whose continuation byte sits exactly three bytes before the end of the second
+    /// piece (spec Appendix B.39.8). The part is valid UTF-8 from end to end; the reader used to resume its
+    /// check at a fixed three bytes from the end of what it held, land on that continuation byte and call the
+    /// part malformed — found by the 200-column bench on a streamed XLSX, where 分類A sits in every row.
+    @Test func aCharacterAcrossAPieceBoundaryIsNotMalformed() throws {
+        let piece = ZipEntryStream.pieceSize * 4          // what one next() hands over for a stored entry
+        let lead = 2 * piece - 4                          // 分 = E5 88 86: the 88 lands at 2 MiB − 3
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>"
+        func open(_ n: Int) -> String { "<row r=\"\(n)\"><c r=\"A\(n)\" t=\"inlineStr\"><is><t>" }
+        let close = "</t></is></c></row>"
+        var rows = 0
+        while xml.utf8.count + 200 < lead { rows += 1; xml += open(rows) + "分類A" + close }
+        rows += 1
+        let head = open(rows)
+        xml += head + String(repeating: "x", count: lead - xml.utf8.count - head.utf8.count) + "分y" + close
+        while xml.utf8.count < 3 * piece + 1000 { rows += 1; xml += open(rows) + "分類B" + close }
+        xml += "</sheetData></worksheet>"
+        let bytes = Array(xml.utf8)
+        try #require(bytes[lead] == 0xE5 && bytes[lead + 1] == 0x88 && bytes[lead + 2] == 0x86 && bytes[lead + 3] == UInt8(ascii: "y"))
+        let reader = try XLSXStreamingReader(data: Self.storedPackage(sheet: Data(xml.utf8)))
+        var seen = 0
+        var last = ""
+        try reader.forEachRow(inSheet: "S") { row in
+            seen += 1
+            if case .text(let s)? = row.cells.first?.value { last = s }
+        }
+        #expect(seen == rows)
+        #expect(last == "分類B")
+    }
 }

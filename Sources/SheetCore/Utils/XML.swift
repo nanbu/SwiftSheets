@@ -211,9 +211,10 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
             }
             if !final, let piece = try stream.next() { carry.append(contentsOf: piece) } else { final = true }
             driver.largestCarry = Swift.max(driver.largestCarry, carry.count)
-            // UTF-8 is checked as the bytes arrive; a sequence cut by a piece boundary waits for the next piece
-            try SAXDriver.checkUTF8(carry, from: checkedUpTo, final: final, offset: offset, part: part)
-            checkedUpTo = Swift.max(0, carry.count - 3)
+            // UTF-8 is checked as the bytes arrive; a sequence cut by a piece boundary waits for the next piece,
+            // and the next check starts exactly there — never at a fixed distance from the end, which can land
+            // inside a character that is complete (spec Appendix B.39.8; found by the 200-column bench)
+            checkedUpTo = try SAXDriver.checkUTF8(carry, from: checkedUpTo, final: final, offset: offset, part: part)
             let consumed = try carry.withUnsafeBufferPointer { b -> Int in
                 driver.scannerBuffer = b
                 defer { driver.scannerBuffer = nil }
@@ -237,15 +238,18 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     }
 
     /// `rejectUndecodableBytes` for a part arriving in pieces: the bytes from `from` on are checked, and an
-    /// incomplete sequence at the very end is only a fault when nothing more is coming.
-    static func checkUTF8(_ bytes: [UInt8], from: Int, final: Bool, offset: Int, part: String) throws {
-        guard from < bytes.count else { return }
+    /// incomplete sequence at the very end is only a fault when nothing more is coming. Returns how far the
+    /// bytes are known to be valid — the whole buffer, or the start of the sequence the boundary cut, which is
+    /// where the next check must begin: a check that started at a fixed distance from the end could land on
+    /// the continuation byte of a character that is complete, and call a valid part malformed.
+    static func checkUTF8(_ bytes: [UInt8], from: Int, final: Bool, offset: Int, part: String) throws -> Int {
+        guard from < bytes.count else { return bytes.count }
         let bad: Int? = bytes.withUnsafeBufferPointer { b in
             TextEncodingSniffer.firstInvalidUTF8Offset(in: UnsafeRawBufferPointer(UnsafeBufferPointer(rebasing: b[from...])))
         }
-        guard let bad else { return }
+        guard let bad else { return bytes.count }
         let at = from + bad
-        if !final, at >= bytes.count - 3 { return }
+        if !final, at >= bytes.count - 3 { return at }
         throw SheetError.malformedPart(path: part, detail: "byte \(offset + at) is not valid UTF-8")
     }
 

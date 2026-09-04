@@ -7,6 +7,26 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **The 200-column standard** (spec Appendix B.39.11). `scripts/bench.sh --grid` measures the same operations as
+  the million-cell record with the width fixed at 200 columns and the rows at 5,000 / 50,000 / 500,000 — a
+  million, ten million and a hundred million cells — into the `grid` of `docs/performance.json` and a second
+  table on the performance page. A whole-model operation is measured only when its projected peak fits in 60%
+  of physical memory, and a write only when the free disk is 1.5× the room it needs; anything else is recorded
+  as skipped with the reason, never as a blank. The bench takes its width from `SWIFTSHEETS_BENCH_COLUMNS` and
+  gains a streaming CSV write.
+
+### Fixed
+
+- **A streamed XLSX or ODS was refused as "not valid UTF-8" when a multi-byte character straddled a piece
+  boundary.** The row-by-row reader checks the bytes as they arrive and, after each piece, resumed the check a
+  fixed three bytes from the end of what it held — which can be the continuation byte of a character that is
+  complete, and a continuation byte is not valid UTF-8 on its own. Found by the 200-column bench on a streamed
+  ten-million-cell sheet with 分類A in every row; the check now resumes exactly where the previous one stopped.
+
 ## [0.16.0] — 2026-09-05
 
 ### Added
