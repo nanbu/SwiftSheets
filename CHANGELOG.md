@@ -29,9 +29,17 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Fixed
 
-- **The Snappy decoder keeps its state in plain locals and caps a block's declared length at 256 MiB.** The
-  Linux build trapped inside the decoder's nested copy on a fuzzed Numbers part that the macOS build passed;
-  the loop now captures nothing, every index is checked before use, and the decoder is fuzzed on its own
+- **A part naming an encoding nobody decodes is refused before the parser sees it.** The UTF-8 check that
+  keeps Foundation's libxml2-backed parser from trapping on an element name (spec Appendix B.38) let through
+  any part whose declaration named another encoding, on the grounds that the parser decodes those itself. It
+  does when it knows the name; a name it does not know — a fuzzed declaration — it reports and carries on
+  with the bytes as they are, and the same trap took the Linux CI down. The exemption is now the list of
+  8-bit encodings libxml2 decodes; any other name is `malformedPart`, and a declared UTF-16 on 8-bit bytes is
+  checked as UTF-8, which is how the parser reads it. The fuzz suite can leave the mutant it is reading on
+  disk (`SWIFTSHEETS_FUZZ_KEEP_DIR`), so the next trap hands back its cause.
+- **The Snappy decoder keeps its state in plain locals and caps a block's declared length at 256 MiB.** It was
+  rewritten for the trap above before the crashed thread had been read — the decoder was not the cause — and
+  the rewrite stays: every index is checked before use, and the decoder is fuzzed on its own
   (`SnappyFuzzTests`) apart from any document.
 
 ## [0.13.0] — 2026-09-05

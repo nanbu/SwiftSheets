@@ -1904,6 +1904,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.19 Draft</td><td>2026-09-05</td><td><strong>パスワード付きのファイルの読み書き</strong>を付録 B.39.9 に記録。Excel の agile 形式（AES-256 / SHA-512、10 万回）と ODF 1.2〜1.3 の包（AES-CBC ＋ PBKDF2、LibreOffice と同じ 1,024 回）を <code>ReadOptions.password</code> / <code>WriteOptions.password</code> で。AES・SHA-1・SHA-256・HMAC・PBKDF2・OLE 複合ファイルを自前で書き、規格の既知解で照合。審判は msoffcrypto-tool（双方向）と cryptography による独立の ODF 復号器。§1.3 の非スコープから暗号化を外し、Excel 2007 の standard 形式・RC4・Blowfish・Numbers は名指しで断る。対応表の 2 行を更新。テスト 1,008 件</td></tr>
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
+    <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
     <tr><td>4.22 Draft</td><td>2026-09-05</td><td><strong>逐次読みを 3 形式へ</strong>を付録 B.40 に記録。傘の <code>StreamingReader</code> が形式を判定して <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> / <code>NumbersStreamingReader</code> / <code>CSVStreamingReader</code> に渡し、行の型（<code>StreamedRow</code>）と選択肢は SheetCore へ。ODS は本文を 1 度歩いて頼まれた表の行だけ届ける（セルの文字の読みは通常の読み手と 1 つの部品 <code>ODSCellText</code> を共有）。Numbers は部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる（<code>NumbersObjectIndex</code>）。Numbers の 100 万マスを初めて計測し、decimal128 の復号を直した。共通仕様の穴 3 件（ODS のブック構造保護・XLSX の <code>calcPr</code> の反復計算と表示桁精度・対応表の ZIP64 行）。並列読み（第 6 段）の設計と試作の実測を B.40.6 に固定し、実装は次の版へ。fuzz の的に 3 形式の逐次読みを追加</td></tr>
     <tr><td>4.21 Draft</td><td>2026-09-05</td><td><strong>計測台を公開の物に</strong>を付録 B.39.11 に記録。<code>Benchmarks/</code>・<code>scripts/bench.sh</code>・<code>docs/performance.json</code> → <code>docs/performance.html</code>。CI の <code>--check</code> が README の 3 つの MB を出所と照合する。0.12.0 の記録: 読み 2.8 秒・221 MB、逐次読み 1.9 秒・23 MB、書き 1.7 秒・258 MB、ODS 書き 3.4 秒・313 MB、ODS 読み 3.9 秒</td></tr>
   </table></div>
@@ -4719,6 +4720,27 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     検体は <code>Fixtures/malformed/content-types-invalid-utf8.xlsx</code> として取り込み、
     手作りの同型（バイト位置を名乗ることの確認）と、素通しの 2 件（UTF-16 の BOM・Shift_JIS 宣言）を
     <code>MalformedInputTests</code> に置いた。
+  </p>
+  <h4>穴が 1 つ残っていた —— 「別の符号化を名乗る部品は素通し」（Rev 4.24・2026-09-05）</h4>
+  <p>
+    0.14.0 の審判（Linux）が、同じ関数（<code>_NSXMLParserStartElementNs</code>）でもう 1 度落ちた。
+    最初は同時に走っていた Snappy の復号を疑って書き換えたが、落ちたスレッドを読み直すと
+    <strong>犯人は上の守りの例外</strong>だった。仕組みはこうである。
+    ① XML 宣言が UTF-8 以外の名前を名乗る部品は、parser 自身が復号するものとして検査せずに渡していた。
+    ② fuzz の変異が宣言の名前そのものを壊すと（<code>UTF-8</code> の 1 文字が別の字になる）、libxml2 は
+    「対応していない符号化」と報告したうえで、Foundation が復旧モード（<code>XML_PARSE_RECOVER</code>）で
+    動かしているため<strong>バイトをそのまま読み続ける</strong>。その先の要素名に UTF-8 でないバイトが
+    あれば、最初の穴と同じ場所で落ちる。
+    ③ だから素通しは「parser が知っている 8 ビットの名前」に限った（<code>SAXDriver.decodableEncodings</code>:
+    ASCII・ISO-8859-x・Windows-125x・Shift_JIS・EUC-JP・ISO-2022-JP・GB・Big5・EUC-KR・KOI8-R）。
+    知らない名前は <code>malformedPart</code>（「encoding … is not one this library can decode」）。
+    BOM の無い 8 ビットのバイト列に UTF-16 / UTF-32 を名乗らせた部品は、libxml2 が UTF-8 として読むので
+    UTF-8 として検査する（<code>wideEncodings</code>）。
+  </p>
+  <p>
+    落ちた変異そのものは CI から回収できていない —— 次からは fuzz が読んでいる最中の変異をディスクに置き
+    （<code>SWIFTSHEETS_FUZZ_KEEP_DIR</code>・読み終えたら消す）、落ちたときだけ artifact として持ち帰る。
+    検査は <code>MalformedInputTests</code> に 2 件（知らない名前は断る・知っている名前と UTF-16 の嘘）。
   </p>
   <p>
     結果: <strong>Linux で 944 件・macOS で 945 件、いずれも緑</strong>（差の 1 件は CryptoKit と突き合わせる

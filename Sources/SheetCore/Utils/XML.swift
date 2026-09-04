@@ -313,8 +313,13 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     /// inside the word `Default`.
     ///
     /// A part that says it is something other than UTF-8 — by a byte-order mark, or by naming an encoding in
-    /// its XML declaration — is handed over untouched, as before. The parser decodes those itself, and this
-    /// question does not apply to them.
+    /// its XML declaration — is handed over untouched, **when the parser knows the name**: it decodes those
+    /// itself, and this question does not apply to them. A name it does not know is another matter. libxml2
+    /// reports an unsupported encoding and, run in recovery mode as Foundation runs it, carries on with the
+    /// bytes as they are — which puts the trap right back for any name among them that is not UTF-8. So the
+    /// exemption is `decodableEncodings`, and a stranger is a malformed part before the parser sees it.
+    /// A declaration naming UTF-16 or UTF-32 on bytes that have no byte-order mark and read as 8-bit text is
+    /// no encoding at all: the parser reads such a part as UTF-8, and so it is checked as UTF-8.
     ///
     /// Reported upstream as swiftlang/swift-corelibs-foundation#5536 (2026-09-01). This check stays either way:
     /// a machine with an older Swift on it will keep the fault long after the fix lands.
@@ -324,20 +329,48 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
             guard encoding == .utf8 else { return }
             body = data.dropFirst(length)
         }
-        guard !declaresOtherEncoding(body) else { return }
+        if let declared = declaredEncoding(body), declared != "utf-8", declared != "utf8" {
+            if decodableEncodings.contains(declared) { return }
+            guard wideEncodings.contains(declared) else {
+                throw SheetError.malformedPart(path: part, detail: "encoding \"\(declared)\" is not one this library can decode")
+            }
+        }
         guard let bad = TextEncodingSniffer.firstInvalidUTF8Offset(in: body) else { return }
         throw SheetError.malformedPart(path: part, detail: "byte \(bad + (data.count - body.count)) is not valid UTF-8")
     }
 
-    /// True when the XML declaration names an encoding that is not UTF-8.
-    static func declaresOtherEncoding(_ data: Data) -> Bool {
+    /// The 8-bit encodings a part may name in its declaration and be handed to the parser as it is: the ones
+    /// libxml2 decodes on every platform this library is tested on (spec Appendix B.38). Any other name is
+    /// refused before the parser sees it.
+    static let decodableEncodings: Set<String> = [
+        "us-ascii", "ascii", "latin1",
+        "iso-8859-1", "iso-8859-2", "iso-8859-3", "iso-8859-4", "iso-8859-5", "iso-8859-6", "iso-8859-7",
+        "iso-8859-8", "iso-8859-9", "iso-8859-10", "iso-8859-11", "iso-8859-13", "iso-8859-14", "iso-8859-15",
+        "iso-8859-16",
+        "windows-1250", "windows-1251", "windows-1252", "windows-1253", "windows-1254", "windows-1255",
+        "windows-1256", "windows-1257", "windows-1258",
+        "shift_jis", "shift-jis", "sjis", "euc-jp", "iso-2022-jp", "euc-kr", "gb2312", "gbk", "gb18030", "big5",
+        "koi8-r",
+    ]
+
+    /// Names of 16- and 32-bit encodings. A part actually in one of them announces it with a byte-order mark
+    /// and never reaches the declaration check; the names matter only on 8-bit bytes, where they are a lie.
+    static let wideEncodings: Set<String> = ["utf-16", "utf-16le", "utf-16be", "ucs-2", "utf-32", "utf-32le", "utf-32be", "ucs-4"]
+
+    /// The encoding the XML declaration names, lowercased; nil when there is no declaration or it names none.
+    static func declaredEncoding(_ data: Data) -> String? {
         // the declaration is the first thing in the part and is short; bad bytes further in cannot affect it
         let head = String(decoding: data.prefix(200), as: UTF8.self)
         guard head.hasPrefix("<?xml"), let close = head.range(of: "?>"),
-              let key = head.range(of: "encoding="), key.upperBound < close.lowerBound else { return false }
+              let key = head.range(of: "encoding="), key.upperBound < close.lowerBound else { return nil }
         let rest = head[key.upperBound...]
-        guard let quote = rest.first, quote == "\"" || quote == "'" else { return false }
-        return rest.dropFirst().prefix { $0 != quote }.lowercased() != "utf-8"
+        guard let quote = rest.first, quote == "\"" || quote == "'" else { return nil }
+        return rest.dropFirst().prefix { $0 != quote }.lowercased()
+    }
+
+    /// True when the XML declaration names an encoding that is not UTF-8.
+    static func declaresOtherEncoding(_ data: Data) -> Bool {
+        declaredEncoding(data).map { $0 != "utf-8" } ?? false
     }
 
     /// Aborts parsing; `run` rethrows the error (hooks cannot throw).

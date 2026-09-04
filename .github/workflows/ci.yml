@@ -78,6 +78,19 @@ jobs:
       #
       # Same as macOS, the fuzz suite included: nothing here is excluded, and nothing here is expected to
       # crash. The one thing that did — Foundation's parser trapping on an element name whose bytes are not
-      # valid UTF-8 — is turned away before it reaches the parser now (Appendix B.38).
+      # valid UTF-8 — is turned away before it reaches the parser now (Appendix B.38), and so is a part naming
+      # an encoding the parser does not know, which reopened the same trap.
       - name: Test
+        env:
+          SWIFTSHEETS_FUZZ_KEEP_DIR: ${{ github.workspace }}/.build/fuzz-mutants
         run: swift test --skip-build
+
+      # A trap in the fuzz suite leaves the mutant that trapped on disk (FuzzTests.keeping); hand it back, so
+      # the next one is diagnosed from the bytes and not from a backtrace alone.
+      - name: Keep the mutant a trap left behind
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-mutants-linux
+          path: .build/fuzz-mutants
+          if-no-files-found: ignore

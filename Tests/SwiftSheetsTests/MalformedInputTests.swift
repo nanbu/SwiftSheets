@@ -105,6 +105,37 @@ import SwiftSheets
         }
     }
 
+    /// The one the Linux CI found next (2026-09-05). A declaration naming an encoding nobody decodes — here a
+    /// corrupted `UTF-8` — used to be handed over like the Shift_JIS one above. The parser, not knowing the
+    /// name, reported it and carried on with the bytes as they were, and an element name among them that is
+    /// not UTF-8 took the process down in the same place as before. The name is checked against what the
+    /// parser decodes, and a stranger is refused before it.
+    @Test func aPartNamingAnEncodingNobodyDecodesIsTurnedAway() throws {
+        var xml = Data("<?xml version=\"1.0\" encoding=\"UTF-9\"?><Types><De".utf8)
+        xml.append(0xCD)
+        xml.append(Data("fault/></Types>".utf8))
+        #expect(throws: SheetError.self) { try SAXDriver.rejectUndecodableBytes(xml, part: "p.xml") }
+        do { try SilentSAX().run(xml, part: "p.xml"); Issue.record("a part naming UTF-9 was parsed") } catch let error as SheetError {
+            #expect(error.description.contains("utf-9"), Comment(rawValue: error.description))
+        }
+    }
+
+    /// The names the parser knows go through whatever their bytes — an 8-bit encoding is the parser's to
+    /// decode — and a 16-bit name on 8-bit bytes is no encoding at all: the parser reads such a part as UTF-8,
+    /// so the bytes are checked as UTF-8.
+    @Test func theEncodingsTheParserDecodesStillGoThrough() throws {
+        var latin = Data("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><Types name=\"".utf8)
+        latin.append(0xE9)
+        latin.append(Data("\"/>".utf8))
+        try SAXDriver.rejectUndecodableBytes(latin, part: "p.xml")
+        var lie = Data("<?xml version=\"1.0\" encoding=\"UTF-16\"?><Ty".utf8)
+        lie.append(0xCD)
+        lie.append(Data("pes/>".utf8))
+        #expect(throws: SheetError.self) { try SAXDriver.rejectUndecodableBytes(lie, part: "p.xml") }
+        let honest = Data("<?xml version=\"1.0\" encoding=\"UTF-16\"?><Types/>".utf8)
+        try SAXDriver.rejectUndecodableBytes(honest, part: "p.xml")
+    }
+
     // MARK: - Coordinates
 
     /// The accumulators in `CellRef` are bounded while they are being filled, not after: 20 letters or 20 digits

@@ -18,6 +18,18 @@ import SwiftSheets
 @Suite struct FuzzTests {
     static let seeds: [UInt64] = (ProcessInfo.processInfo.environment["SWIFTSHEETS_FUZZ_SEEDS"].map { $0.split(separator: ",").compactMap { UInt64($0) } }) ?? [1, 2, 3, 0x5417_5EED]
 
+    /// With `SWIFTSHEETS_FUZZ_KEEP_DIR` set, the mutant being read is on disk while it is read and gone once
+    /// it was survived — so what a trap leaves behind is the mutant that trapped, for the CI to hand back.
+    static let keepDirectory: URL? = ProcessInfo.processInfo.environment["SWIFTSHEETS_FUZZ_KEEP_DIR"].map { URL(fileURLWithPath: $0) }
+    static func keeping<T>(_ mutant: Data, _ label: String, _ body: () throws -> T) rethrows -> T {
+        guard let dir = keepDirectory else { return try body() }
+        let url = dir.appendingPathComponent(label.replacingOccurrences(of: "/", with: "_"))
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? mutant.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        return try body()
+    }
+
     /// Small files only: a fuzz round has to be cheap enough to run thousands of times in a `swift test`.
     static let corpus: [(name: String, data: Data)] = {
         let root = Bundle.module.resourceURL!.appendingPathComponent("Fixtures")
@@ -135,11 +147,13 @@ import SwiftSheets
                 ? Self.mutate(source.data, using: &rng)
                 : (Self.mutateInsidePackage(source.data, using: &rng) ?? Self.mutate(source.data, using: &rng))
             do {
-                let wb = try Workbook(data: mutant, options: ReadOptions(cellLimit: 50_000))
-                opened += 1
-                // a workbook we accepted must also survive being written back — the model must not hold values no
-                // writer can express
-                _ = try wb.data(as: SheetFormat.xlsx)
+                try Self.keeping(mutant, "\(source.name)-seed\(seed)-round\(round)") {
+                    let wb = try Workbook(data: mutant, options: ReadOptions(cellLimit: 50_000))
+                    opened += 1
+                    // a workbook we accepted must also survive being written back — the model must not hold
+                    // values no writer can express
+                    _ = try wb.data(as: SheetFormat.xlsx)
+                }
             } catch let error as SheetError {
                 _ = error.description   // every case must be able to describe itself
             } catch {
@@ -159,7 +173,7 @@ import SwiftSheets
             let mutant = Bool.random(using: &rng)
                 ? Self.mutate(source.data, using: &rng)
                 : (Self.mutateInsidePackage(source.data, using: &rng) ?? Self.mutate(source.data, using: &rng))
-            for format in SheetFormat.allCases {
+            Self.keeping(mutant, "\(source.name)-codecs-seed\(seed)-round\(round)") { for format in SheetFormat.allCases {
                 // concurrency 4: an XLSX mutant's sheets are parsed side by side however small it is
                 do { _ = try Workbook.read(mutant, format: format, options: ReadOptions(cellLimit: 50_000, concurrency: 4)) }
                 catch is SheetError {}
@@ -179,7 +193,7 @@ import SwiftSheets
                 }
                 catch is SheetError {}
                 catch { Issue.record(Comment(rawValue: "\(source.name) streamed as \(format) round \(round) seed \(seed): \(type(of: error)) — \(error)")) }
-            }
+            } }
         }
     }
 }
