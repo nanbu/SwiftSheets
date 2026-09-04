@@ -1898,6 +1898,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.15 Draft</td><td>2026-09-04</td><td><strong>手戻りの小さい手直し</strong>を付録 B.39.5 に記録。日付書式の判定を書式番号ごとに 1 回・書式の索引を共有スタイルの同一性で・逐次書きの 64 KiB 束ね・ODS 段落の早道・Snappy と IWA の配列写しの廃止。形式は変えない。同時刻比で読み −25%、逐次読み −37%、書き −13%。テスト 977 件</td></tr>
     <tr><td>4.16 Draft</td><td>2026-09-05</td><td><strong>自前の字句解析器</strong> <code>XMLScanner</code> を付録 B.39.6 に記録。UTF-8 の部品は既定でこれが読み、UTF-16 と別符号化の部品は Foundation へ。受け手の約束は不変、保全の断片は元のバイト列そのものに。<code>-DSWIFTSHEETS_FOUNDATION_XML</code> で旧経路に戻せ、CI が 3 経路で全件を走らせる。見本全冊 289 部品で両機関の出来事が同一。読み 5.5 → 2.6 秒、逐次読み 4.6 → 1.8 秒、ODS 読み 13.9 → 3.7 秒。テスト 984 件</td></tr>
     <tr><td>4.17 Draft</td><td>2026-09-05</td><td><strong>書き出しを持たない</strong>を付録 B.39.7 に記録。解釈しない部品は縮めたまま運ぶ（<code>OpaquePart.compressed</code>・<code>opaqueParts</code> は取り出したときだけ戻す）。XLSX のシートは行を 64 KiB ごとに圧縮器へ流し、ODS の本文は 8 MiB を超えたら一時ファイルへ落として後から流す（<code>TextSpill</code>）。書きのピーク 360 → 258 MB、ODS 書き 641 → 313 MB、開いて 1 マス直して保存 6.9 → 3.8 秒・397 → 288 MB。テスト 988 件</td></tr>
+    <tr><td>4.18 Draft</td><td>2026-09-05</td><td><strong>読み込みも持たない</strong>を付録 B.39.8 に記録。字句解析器を再開可能にし（<code>feed(startingAt:final:)</code>）、<code>ZipEntryStream</code> の切れ端ごとに読む。XLSX のシート・共有文字列表・逐次読み・ODS 本文が載る。逐次読みのピーク 61 → 23 MB、読み 254 → 221 MB、ODS 読み 318 → 233 MB。同時に持つ最大バイト数をテストで釘打ち。テスト 988 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4927,6 +4928,27 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     残りは模型そのもの（203 MB）と共有文字列表で、次の版の話（B.39 冒頭）。
     計測中に 1 度、計測台の<strong>差分ビルドが古い部品を混ぜ</strong>、書き出しが壊れて見えた（多バイト文字の途中で 2 バイトが重複）。
     作り直したら消えた。計測台の手引きに「測る前に .build を消す」を書いた。
+  </p>
+
+  <h4>B.39.8 読み込みも持たない — 部品を切れ端ごとに展開して読む</h4>
+  <p>
+    B.39.6 の字句解析器は部品全体のバイト列を前提にしていた。B.39.1 の <code>ZipEntryStream</code> と組み合わせ、
+    <strong>256 KiB の圧縮バイトを戻しては読み、読み終えた分は捨てる</strong>形にした（<code>XMLScanner.feed</code> ＋
+    <code>SAXDriver.run(stream:)</code>）。切れ端の境目で割れたタグ・途中の本文・開いている保全の切り出しは、
+    次の切れ端の先頭へ持ち越す。持ち越しは「まだ要る最初のバイト」からで、既に出来事にした分を二度読みしない
+    （<code>feed(startingAt:)</code>）。UTF-8 の検査（B.38）も切れ端ごとに行い、境目で切れた多バイト列は次の切れ端を待つ。
+    UTF-16 と別符号化の部品は、切れ端を集めてから Foundation へ。
+  </p>
+  <p>
+    載せ替えたのは XLSX のシート部品と共有文字列表、逐次読み、ODS の本文の 4 か所。受け手は 1 行も変えていない。
+    <code>StreamingTests</code> は 10 万行の逐次読みで「部品のうち同時に持った最大バイト数」を数え、切れ端 2 個分 ＋ 1 MiB 以下であることを釘打つ
+    — README の「+2 MB」はこの数字の上に立つ。
+  </p>
+  <p>
+    実測（100 万マス）: 逐次読みのピーク <strong>61 → 23 MB</strong>（うち共有文字列表が大半）、読み込み 254 → 221 MB、
+    ODS 読み 318 → 233 MB、開いて 1 マス直して保存 288 → 262 MB。時間は変わらない（2.8 / 1.9 / 4.0 秒）。
+    100 万マスの読み込みは着手前の 5.7 秒・256 MB から <strong>2.8 秒・221 MB</strong>、逐次読みは 5.1 秒・61 MB から
+    <strong>1.9 秒・23 MB</strong> になった。残る 221 MB のうち 203 MB は模型そのもの。
   </p>
 
 </section>

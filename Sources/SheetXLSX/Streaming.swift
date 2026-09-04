@@ -65,6 +65,8 @@ public struct StreamingReadOptions: Sendable, Hashable {
 /// **What it does not do.** Only XLSX and XLSM, only values and (on request) formatting: no merges, no notes, no
 /// charts, nothing preserved. Nothing is written back — for that, read the workbook the ordinary way.
 public struct StreamingReader {
+    /// The most bytes of a sheet part held at once by the last walk — the number the memory promise rests on.
+    nonisolated(unsafe) package static var lastLargestCarry = 0
     private let zip: ZipArchive
     private let sst: [CellValue]
     private let styles: StylesParser
@@ -96,7 +98,7 @@ public struct StreamingReader {
 
         let sstPath = rels.first { $0.type.hasSuffix(WorkbookReader.relSharedStrings) }.map { resolve($0.target) } ?? "xl/sharedStrings.xml"
         let sstParser = SharedStringsParser()
-        if zip.contains(sstPath) { try sstParser.run(try zip.read(sstPath), part: sstPath) }
+        if zip.contains(sstPath) { try sstParser.run(stream: try zip.stream(sstPath), part: sstPath) }
         sst = sstParser.strings
 
         let stylesPath = rels.first { $0.type.hasSuffix(WorkbookReader.relStyles) }.map { resolve($0.target) } ?? "xl/styles.xml"
@@ -120,12 +122,14 @@ public struct StreamingReader {
     public func forEachRow(inSheet name: String, options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: (StreamedRow) throws -> Void) throws {
         guard let part = partPaths[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
-        let xml = try zip.read(part)
+        // the part is expanded a piece at a time and never held whole: what this reader costs is the piece in
+        // hand, the shared strings, and the row on its way to the caller (spec Appendix B.39.8)
+        let stream = try zip.stream(part)
         // the parser holds the closure only for the length of `run`, so a caller may pass a non-escaping one
         try withoutActuallyEscaping(body) { handler in
             let parser = StreamingSheetParser(sst: sst, styles: styles, epoch: epoch, options: options, body: handler)
             do {
-                try parser.run(xml, part: part)
+                StreamingReader.lastLargestCarry = try parser.run(stream: stream, part: part)
             } catch {
                 // the parser is stopped on purpose twice over: when the handler throws, and at the end of <sheetData>
                 if let thrown = parser.thrown { throw thrown }

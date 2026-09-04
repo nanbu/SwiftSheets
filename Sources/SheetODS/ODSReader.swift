@@ -32,7 +32,7 @@ enum ODSReader {
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }
 
         let content = ContentParser(catalog: catalog, dataOnly: options.dataOnly, cellLimit: options.cellLimit)
-        try content.run(try zip.read("content.xml"), part: "content.xml")
+        try content.run(stream: try zip.stream("content.xml"), part: "content.xml")   // a piece at a time
         guard !content.sheets.isEmpty else { throw SheetError.invalidWorkbook("the spreadsheet has no tables") }
 
         var sheetsRead = content.sheets

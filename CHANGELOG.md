@@ -45,6 +45,11 @@ writes, so the constant, the README's status line and the tag always name the sa
   a VBA project is kept as the compressed bytes the package held, and a same-format write copies them as they
   lie: never expanded, never folded again, byte for byte in the literal sense. `PreservationStore.opaqueParts`
   expands them only when read; `opaquePartNames` and `opaquePartCount` answer without expanding.
+- **The readers no longer hold a part either** (spec Appendix B.39.8). A sheet part, the shared-string table
+  and an ODS body are expanded 256 KiB at a time and scanned as they arrive; what straddles a piece boundary
+  is carried to the next piece and nothing else is kept. Over a million cells the streaming reader peaks at
+  23 MB instead of 61 (the shared strings are most of it), the ordinary read at 221 MB instead of 254 (the
+  model itself is 203), an ODS read at 233 MB instead of 318. A test holds the reader to a couple of pieces.
 - **The writers no longer hold a sheet's XML.** Rows go to the compressor 64 KiB at a time; the ODS body, which
   has to exist before the styles it registers can be written, is kept in pieces and spilled to a temporary file
   past 8 MiB. Over a million cells: writing peaks at 258 MB instead of 360 (the model itself is 203), ODS

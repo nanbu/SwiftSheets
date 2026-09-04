@@ -65,7 +65,7 @@ enum WorkbookReader {
         let sstPath = rels.first { $0.type.hasSuffix(relSharedStrings) }.map { resolve($0.target) } ?? "xl/sharedStrings.xml"
         let stylesPath = rels.first { $0.type.hasSuffix(relStyles) }.map { resolve($0.target) } ?? "xl/styles.xml"
         let sst = SharedStringsParser()
-        if zip.contains(sstPath) { try sst.run(try zip.read(sstPath), part: sstPath); consumed.insert(sstPath) }
+        if zip.contains(sstPath) { try sst.run(stream: try zip.stream(sstPath), part: sstPath); consumed.insert(sstPath) }
         let styles = StylesParser()
         if zip.contains(stylesPath) { try styles.run(try zip.read(stylesPath), part: stylesPath); consumed.insert(stylesPath) }
         styles.resolveNamedStyleLinks()
@@ -142,7 +142,7 @@ enum WorkbookReader {
             }
 
             let p = SheetParser(name: info.name, sst: sst.strings, styles: styles, epoch: wb.epoch, dataOnly: options.dataOnly, rels: sheetRels)
-            try p.run(try zip.read(part), part: part)
+            try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
             var sheet = p.sheet
             sheet.state = info.state
             sheet.preserved.partPath = part

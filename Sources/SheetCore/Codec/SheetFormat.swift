@@ -154,7 +154,11 @@ public enum TextEncodingSniffer {
     /// Reads the buffer where it lies — a part can be tens of megabytes, and copying it to check it would cost
     /// more than the check.
     package static func firstInvalidUTF8Offset(in data: Data) -> Int? {
-        data.withUnsafeBytes { raw -> Int? in
+        data.withUnsafeBytes { firstInvalidUTF8Offset(in: $0) }
+    }
+
+    package static func firstInvalidUTF8Offset(in raw: UnsafeRawBufferPointer) -> Int? {
+        do {
             let bytes = raw.bindMemory(to: UInt8.self)
             var i = 0
             let n = bytes.count

@@ -90,6 +90,16 @@ extension SAXHandler {
         try d.run(data, part: part)
     }
     package func beginCapture(deliveringEvents: Bool = false) { driver?.beginCapture(deliveringEvents: deliveringEvents) }
+
+    /// Parses an entry as it is expanded, piece by piece (spec Appendix B.39.8).
+    @discardableResult
+    package func run(stream: ZipEntryStream, part: String) throws -> Int {
+        let d = SAXDriver(handler: self)
+        driver = d
+        defer { driver = nil }
+        try d.run(stream: stream, part: part)
+        return d.largestCarry
+    }
     package func fail(_ error: SheetError) { driver?.fail(error) }
 }
 
@@ -141,10 +151,78 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
         guard ok else { throw SheetError.malformedPart(path: part, detail: parser.parserError?.localizedDescription ?? "parse error") }
     }
 
+    // MARK: - A part read in pieces
+
+    /// Parses an entry as it is expanded, piece by piece, never holding more of it than the piece in hand plus
+    /// whatever token or preserved subtree straddles a boundary (spec Appendix B.39.8). The first piece decides
+    /// the engine; a part Foundation has to read is gathered whole for it.
+    package func run(stream: ZipEntryStream, part: String) throws {
+        var carry: [UInt8] = []
+        if let first = try stream.next() { carry.append(contentsOf: first) }
+        let head = Data(carry.prefix(256))
+        var useScanner = true
+        #if SWIFTSHEETS_FOUNDATION_XML
+        useScanner = false
+        #else
+        if let (encoding, _) = TextEncodingSniffer.bom(in: head), encoding != .utf8 { useScanner = false }
+        else if SAXDriver.declaresOtherEncoding(head) { useScanner = false }
+        #endif
+        guard useScanner else {
+            var whole = Data(carry)
+            while let piece = try stream.next() { whole.append(piece) }
+            try run(whole, part: part, engine: .foundation)
+            return
+        }
+        let scanner = XMLScanner(handler: handler, driver: self, part: part)
+        var scanned = 0            // bytes of `carry` already turned into events (kept only for an open capture)
+        var offset = 0             // bytes of the part before `carry`
+        var final = carry.isEmpty
+        var checkedUpTo = 0        // bytes of `carry` already checked for UTF-8
+        while true {
+            if !final, let piece = try stream.next() { carry.append(contentsOf: piece) } else { final = true }
+            largestCarry = Swift.max(largestCarry, carry.count)
+            // UTF-8 is checked as the bytes arrive; a sequence cut by a piece boundary waits for the next piece
+            try SAXDriver.checkUTF8(carry, from: checkedUpTo, final: final, offset: offset, part: part)
+            checkedUpTo = Swift.max(0, carry.count - 3)
+            let consumed = try carry.withUnsafeBufferPointer { b -> Int in
+                scannerBuffer = b
+                defer { scannerBuffer = nil }
+                return try scanner.feed(b, startingAt: scanned, final: final)
+            }
+            if stopped { break }
+            if final { break }
+            var keep = consumed
+            if captureDepth > 0 { keep = Swift.min(keep, captureStart) }
+            carry.removeFirst(keep)
+            scanned = consumed - keep
+            captureStart -= keep
+            currentTagStart -= keep
+            checkedUpTo = Swift.max(0, checkedUpTo - keep)
+            scanner.advance(by: keep)
+            offset += keep
+        }
+        if let failure { throw failure }
+    }
+
+    /// `rejectUndecodableBytes` for a part arriving in pieces: the bytes from `from` on are checked, and an
+    /// incomplete sequence at the very end is only a fault when nothing more is coming.
+    static func checkUTF8(_ bytes: [UInt8], from: Int, final: Bool, offset: Int, part: String) throws {
+        guard from < bytes.count else { return }
+        let bad: Int? = bytes.withUnsafeBufferPointer { b in
+            TextEncodingSniffer.firstInvalidUTF8Offset(in: UnsafeRawBufferPointer(UnsafeBufferPointer(rebasing: b[from...])))
+        }
+        guard let bad else { return }
+        let at = from + bad
+        if !final, at >= bytes.count - 3 { return }
+        throw SheetError.malformedPart(path: part, detail: "byte \(offset + at) is not valid UTF-8")
+    }
+
     // MARK: - The byte scanner's side
 
     /// Set by `fail` while the scanner runs: it stops at the next event.
     package private(set) var stopped = false
+    /// The most bytes of a part held at once while it was read in pieces — what a test can hold the reader to.
+    package private(set) var largestCarry = 0
     private var scannerBuffer: UnsafeBufferPointer<UInt8>?
     private var currentTagStart = 0
     private var captureStart = 0
