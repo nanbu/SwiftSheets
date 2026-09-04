@@ -52,6 +52,90 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
         if let f = detect(from: data) { return f }
         return filename.flatMap { SheetFormat(fileExtension: ($0 as NSString).pathExtension) }
     }
+
+    /// The same rules over a file, reading only what they need: the first bytes, the ZIP directory at the end and
+    /// the one or two small entries the rules look at — never the whole file, whatever its size (spec §4.2,
+    /// Appendix B.39.4). A directory is a Numbers document saved as a package (`Index.zip` inside). Throws only
+    /// when the file cannot be read at all; a file that is nothing recognisable answers nil.
+    public static func detect(contentsOf url: URL) throws -> SheetFormat? {
+        if url.isDirectoryOnDisk { return NumbersBundle.isBundle(url) ? .numbers : nil }
+        return try detect(source: try FileByteSource(url: url), filename: url.lastPathComponent)
+    }
+
+    /// Detection over any byte source: what `detect(contentsOf:)` does, for a test to count the bytes it reads.
+    package static func detect(source: any ByteSource, filename: String? = nil) throws -> SheetFormat? {
+        // four bytes decide whether this is a package; only text needs a window
+        if ZipInspection.looksLikeZip(try source.bytes(in: 0..<Swift.min(source.count, 4))) {
+            guard let zip = try? ZipArchive(source: source) else { return nil }
+            return detect(in: ZipInspection(archive: zip))
+        }
+        let head = try source.bytes(in: 0..<Swift.min(source.count, 64 * 1024))
+        if TextEncodingSniffer.looksLikeText(head, isWholeFile: source.count <= head.count) { return .csv }
+        return filename.flatMap { SheetFormat(fileExtension: ($0 as NSString).pathExtension) }
+    }
+
+    /// Everything detection can say in one answer: a spreadsheet of some format, a file this library recognises
+    /// but will not open (encrypted, or the legacy `.xls` generation) and why, or nothing it knows. One call
+    /// instead of `detect` followed by `UnopenableInput.probe`.
+    public static func probe(contentsOf url: URL) throws -> FormatProbe {
+        if url.isDirectoryOnDisk { return NumbersBundle.isBundle(url) ? .spreadsheet(.numbers) : .unrecognized }
+        return try probe(source: try FileByteSource(url: url), filename: url.lastPathComponent)
+    }
+
+    public static func probe(_ data: Data, filename: String? = nil) -> FormatProbe {
+        (try? probe(source: DataByteSource(data), filename: filename)) ?? .unrecognized
+    }
+
+    package static func probe(source: any ByteSource, filename: String? = nil) throws -> FormatProbe {
+        let signature = try source.bytes(in: 0..<Swift.min(source.count, 8))
+        if signature.count >= 8, [UInt8](signature) == UnopenableInput.compoundFileSignature {
+            // a compound file: the stream names sit in its first megabyte
+            let head = try source.bytes(in: 0..<Swift.min(source.count, 1 << 20))
+            if let unopenable = UnopenableInput.probe(head) { return .unopenable(unopenable) }
+        }
+        if ZipInspection.looksLikeZip(signature) {
+            guard let zip = try? ZipArchive(source: source) else { return .unrecognized }
+            let container = ZipInspection(archive: zip)
+            guard let format = detect(in: container) else { return .unrecognized }
+            if let unopenable = UnopenableInput.probe(in: container) { return .unopenable(unopenable) }
+            return .spreadsheet(format)
+        }
+        let head = try source.bytes(in: 0..<Swift.min(source.count, 64 * 1024))
+        if TextEncodingSniffer.looksLikeText(head, isWholeFile: source.count <= head.count) { return .spreadsheet(.csv) }
+        if let f = filename.flatMap({ SheetFormat(fileExtension: ($0 as NSString).pathExtension) }) { return .spreadsheet(f) }
+        return .unrecognized
+    }
+}
+
+/// What `SheetFormat.probe` answers.
+public enum FormatProbe: Sendable, Hashable {
+    /// A spreadsheet this library reads.
+    case spreadsheet(SheetFormat)
+    /// A file the library recognises and will not open — encrypted, or a legacy `.xls` — with the reason.
+    case unopenable(UnopenableInput)
+    /// Nothing the library knows.
+    case unrecognized
+
+    /// The format, when the answer is a spreadsheet.
+    public var format: SheetFormat? { if case .spreadsheet(let f) = self { return f }; return nil }
+}
+
+/// A Numbers document saved as a folder rather than a single file: `Index.zip` (or an `Index/` folder of IWA
+/// files) beside `Metadata/` and `Data/`.
+package enum NumbersBundle {
+    package static func isBundle(_ url: URL) -> Bool {
+        let fm = FileManager.default
+        return fm.fileExists(atPath: url.appendingPathComponent("Index.zip").path)
+            || fm.fileExists(atPath: url.appendingPathComponent("Index/Document.iwa").path)
+    }
+}
+
+extension URL {
+    /// True when the URL names an existing directory.
+    package var isDirectoryOnDisk: Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
+    }
 }
 
 /// How a text file is encoded, as far as its first bytes tell.
@@ -99,15 +183,50 @@ public enum TextEncodingSniffer {
     }
 
     /// True when the bytes decode as UTF-8 / UTF-16 text without control characters other than tab / newlines.
+    /// Looks at the first 64 KiB, as bytes — nothing is decoded into a `String` to be judged.
     public static func looksLikeText(_ data: Data) -> Bool {
-        guard !data.isEmpty else { return true }
-        var body = data
-        var encoding = String.Encoding.utf8
-        if let (enc, len) = bom(in: data) { encoding = enc; body = data.dropFirst(len) }
-        guard let text = String(data: body.prefix(64 * 1024), encoding: encoding) else {
-            // a truncated multi-byte sequence at the 64 KiB boundary is not a format verdict
-            return data.count > 64 * 1024 && String(data: body.prefix(32 * 1024), encoding: encoding) != nil
+        looksLikeText(data.prefix(64 * 1024), isWholeFile: data.count <= 64 * 1024)
+    }
+
+    /// `window` is the head of the file; `isWholeFile` says whether it is all of it, in which case a sequence
+    /// cut off at the window's end is a fault rather than a boundary.
+    package static func looksLikeText(_ window: Data, isWholeFile: Bool) -> Bool {
+        guard !window.isEmpty else { return true }
+        let encoding: String.Encoding
+        var body = window
+        if let (enc, len) = bom(in: window) { encoding = enc; body = window.dropFirst(len) } else { encoding = .utf8 }
+        switch encoding {
+        case .utf8:
+            if let bad = firstInvalidUTF8Offset(in: body) {
+                // a multi-byte sequence cut by the window's edge is not a verdict
+                guard !isWholeFile, bad >= body.count - 3 else { return false }
+            }
+            return !body.withUnsafeBytes { raw in raw.contains { $0 < 0x20 && $0 != 0x09 && $0 != 0x0A && $0 != 0x0D } }
+        case .utf16LittleEndian, .utf16BigEndian:
+            let little = encoding == .utf16LittleEndian
+            return body.withUnsafeBytes { raw -> Bool in
+                let b = raw.bindMemory(to: UInt8.self)
+                var i = 0
+                var expectTrail = false
+                while i + 1 < b.count {
+                    let unit = little ? UInt16(b[i]) | UInt16(b[i + 1]) << 8 : UInt16(b[i]) << 8 | UInt16(b[i + 1])
+                    if expectTrail {
+                        guard UTF16.isTrailSurrogate(unit) else { return false }
+                        expectTrail = false
+                    } else if UTF16.isLeadSurrogate(unit) {
+                        expectTrail = true
+                    } else if UTF16.isTrailSurrogate(unit) {
+                        return false
+                    } else if unit < 0x20, unit != 0x09, unit != 0x0A, unit != 0x0D {
+                        return false
+                    }
+                    i += 2
+                }
+                if isWholeFile { return i == b.count && !expectTrail }   // an odd byte or a lone lead is a fault
+                return true
+            }
+        default:
+            return false
         }
-        return !text.unicodeScalars.contains { $0.value < 0x20 && $0 != "\t" && $0 != "\n" && $0 != "\r" }
     }
 }

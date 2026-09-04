@@ -63,8 +63,12 @@ package struct ZipArchive: Sendable {
         let total = source.count
         guard total >= 22 else { throw SheetError.corruptedContainer(detail: "file too small") }
 
-        // the end-of-central-directory record is within the last 64 KiB + 22 bytes (the comment's maximum)
-        let tailStart = Swift.max(0, total - 22 - 65535)
+        // the end-of-central-directory record is within the last 64 KiB + 22 bytes (the comment's maximum); a
+        // package without a comment — every spreadsheet — has it in the last kilobyte, so that is read first
+        var tailStart = Swift.max(0, total - 1024)
+        if try !source.withBytes(in: tailStart..<total, { ZipArchive.containsEndRecord($0) }) {
+            tailStart = Swift.max(0, total - 22 - 65535)
+        }
         let (directory, count) = try source.withBytes(in: tailStart..<total) { tail -> (Range<Int>, Int) in
             let b = tail.bindMemory(to: UInt8.self)
             var eocd = -1
@@ -170,6 +174,16 @@ package struct ZipArchive: Sendable {
     }
 
     package func contains(_ name: String) -> Bool { entries[name] != nil }
+
+    static func containsEndRecord(_ tail: UnsafeRawBufferPointer) -> Bool {
+        let b = tail.bindMemory(to: UInt8.self)
+        var i = b.count - 22
+        while i >= 0 {
+            if b[i] == 0x50, b[i + 1] == 0x4b, b[i + 2] == 0x05, b[i + 3] == 0x06 { return true }
+            i -= 1
+        }
+        return false
+    }
 
     /// Where an entry's compressed bytes start: past its local header, whose own name / extra lengths may differ
     /// from the central directory's.

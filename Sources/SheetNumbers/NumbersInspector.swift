@@ -6,7 +6,18 @@ import SheetCore
 /// archives are decoded to find them, which is most of what a read costs before the cells themselves.
 package enum NumbersInspector {
     package static func inspect(_ data: Data, options: InspectOptions) throws -> WorkbookSummary {
-        let doc = try NumbersDocument(data: data, limits: options.limits)
+        let zip = try ZipArchive(data: data, limits: options.limits)
+        let expanded = zip.entries.values.reduce(0) { $0 + $1.uncompressedSize }
+        return try inspect(try NumbersDocument(data: data, limits: options.limits), options: options, expandedBytes: expanded, partCount: zip.entries.count)
+    }
+
+    /// A document saved as a folder.
+    package static func inspect(folder url: URL, options: InspectOptions) throws -> WorkbookSummary {
+        let doc = try NumbersDocument(folder: url, limits: options.limits)
+        return try inspect(doc, options: options, expandedBytes: doc.totalBytes, partCount: doc.fileCount)
+    }
+
+    static func inspect(_ doc: NumbersDocument, options: InspectOptions, expandedBytes: Int, partCount: Int) throws -> WorkbookSummary {
         let reader = NumbersReader(doc: doc, options: ReadOptions(limits: options.limits))
         guard let document = doc.object(NumbersDocument.documentID), document.typeName == "TN.DocumentArchive" else {
             throw SheetError.malformedPart(path: "Index/Document.iwa", detail: "object 1 is not a TN.DocumentArchive")
@@ -31,8 +42,6 @@ package enum NumbersInspector {
             if ranges.count == 1 { summary.declaredRange = ranges[0]; summary.rowCount = ranges[0].size.rows }
             sheets.append(summary)
         }
-        let zip = try ZipArchive(data: data, limits: options.limits)
-        let expanded = zip.entries.values.reduce(0) { $0 + $1.uncompressedSize }
-        return WorkbookSummary(format: .numbers, sheets: sheets, producer: reader.sourceInfo(), expandedBytes: expanded, partCount: zip.entries.count)
+        return WorkbookSummary(format: .numbers, sheets: sheets, producer: reader.sourceInfo(), expandedBytes: expandedBytes, partCount: partCount)
     }
 }

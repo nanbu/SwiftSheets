@@ -17,7 +17,7 @@ final class NumbersDocument {
 
     init(data: Data, limits: ZipLimits = ZipLimits()) throws {
         let zip = try ZipArchive(data: data, limits: limits)
-        if zip.contains(".iwph") { throw SheetError.unsupportedFeature("encrypted Numbers documents are not supported") }
+        if zip.contains(".iwph") { throw UnopenableInput.encryptedNumbers.error }
         let names = zip.entries.keys.sorted { (zip.entries[$0]!.localHeaderOffset) < (zip.entries[$1]!.localHeaderOffset) }
         for name in names where !name.hasSuffix("/") {
             let blob = try zip.read(name)
@@ -29,6 +29,42 @@ final class NumbersDocument {
                 try store(name, blob)
             }
         }
+        try finishLoading()
+    }
+
+    /// A document saved as a folder (a package on disk): `Index.zip` — or an `Index/` folder of IWA files —
+    /// beside `Metadata/` and `Data/`. The same objects as the single-file form, found on disk instead of in one
+    /// archive (spec §4.2).
+    init(folder url: URL, limits: ZipLimits = ZipLimits()) throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: url.appendingPathComponent(".iwph").path) { throw UnopenableInput.encryptedNumbers.error }
+        let indexZip = url.appendingPathComponent("Index.zip")
+        if fm.fileExists(atPath: indexZip.path) {
+            let inner = try ZipArchive(source: try FileByteSource(url: indexZip), limits: limits)
+            for n in inner.entries.keys.sorted() where !n.hasSuffix("/") { try store(n, try inner.read(n)) }
+            lastZipEntryIsBundleIndex = true
+        }
+        // the walker hands back resolved paths (/private/var for /var on macOS), so the base is resolved too
+        let base = url.resolvingSymlinksInPath()
+        guard let walker = fm.enumerator(at: base, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) else {
+            throw SheetError.ioFailure(detail: "cannot list \(url.lastPathComponent)")
+        }
+        var files: [(String, URL)] = []
+        for case let file as URL in walker {
+            guard (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
+            let resolved = file.resolvingSymlinksInPath().path
+            guard resolved.hasPrefix(base.path) else { continue }
+            let relative = resolved.dropFirst(base.path.count).drop { $0 == "/" }
+            guard relative != "Index.zip", !relative.hasPrefix(".") else { continue }
+            files.append((String(relative), file))
+        }
+        for (name, file) in files.sorted(by: { $0.0 < $1.0 }) {
+            try store(name, try Data(contentsOf: file, options: .mappedIfSafe))
+        }
+        try finishLoading()
+    }
+
+    private func finishLoading() throws {
         guard locations[NumbersDocument.documentID] != nil else { throw SheetError.malformedPart(path: "Index/Document.iwa", detail: "no document object (id 1)") }
         maxID = locations.keys.max() ?? 0
     }
@@ -62,6 +98,17 @@ final class NumbersDocument {
     }
 
     func blob(_ path: String) -> Data? { if case .blob(let d)? = files[path] { return d }; return nil }
+
+    /// What the package's files add up to, expanded (the IWA payloads before Snappy, blobs as they are).
+    var totalBytes: Int {
+        files.values.reduce(0) { total, entry in
+            switch entry {
+            case .iwa(let f): return total + f.archives.reduce(0) { $0 + $1.objects.reduce(0) { $0 + $1.encodedSize } }
+            case .blob(let d): return total + d.count
+            }
+        }
+    }
+    var fileCount: Int { files.count }
 
     // MARK: - Mutation
 

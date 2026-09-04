@@ -12,6 +12,8 @@ public enum UnopenableInput: Sendable, Hashable {
     case legacyCompoundFile
     /// An ODF package whose manifest says its entries are encrypted.
     case encryptedODF
+    /// A Numbers document saved with a password: its package carries an `.iwph` header and nothing readable.
+    case encryptedNumbers
 
     /// The eight bytes every OLE compound file starts with ([MS-CFB] §2.2).
     static let compoundFileSignature: [UInt8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
@@ -28,6 +30,7 @@ public enum UnopenableInput: Sendable, Hashable {
     /// What an already-open package is, when its manifest declares encryption (ODF 1.3 §4.3: the `mimetype` entry
     /// stays in the clear, so such a file still detects as `.ods`).
     public static func probe(in container: ZipInspection) -> UnopenableInput? {
+        if container.contains(".iwph") { return .encryptedNumbers }
         guard let manifest = container.entry(named: "META-INF/manifest.xml") else { return nil }
         return String(decoding: manifest, as: UTF8.self).contains("encryption-data") ? .encryptedODF : nil
     }
@@ -44,6 +47,8 @@ public enum UnopenableInput: Sendable, Hashable {
             "an OLE compound file: the legacy .xls (BIFF) generation is out of scope — save it as .xlsx first"
         case .encryptedODF:
             "the ODF package is encrypted (ODF 1.3 §4.3); SwiftSheets does not decrypt files — decrypt it first"
+        case .encryptedNumbers:
+            "the Numbers document is password-protected (an .iwph package); SwiftSheets does not decrypt Numbers documents — remove the password in Numbers first"
         }
     }
 }

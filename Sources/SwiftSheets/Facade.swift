@@ -23,6 +23,11 @@ extension Workbook {
     public static func read(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         var opts = options
         if opts.filename == nil { opts.filename = url.lastPathComponent }
+        // a Numbers document saved as a package is a folder on disk, not a file (spec §4.2)
+        if url.isDirectoryOnDisk {
+            guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
+            return try NumbersCodec.read(folder: url, options: opts)
+        }
         // the file is mapped rather than copied when it is big enough to matter and stable enough to be safe
         return try read(try Data(contentsOf: url, options: .mappedIfSafe), format: nil, options: opts)
     }
@@ -49,6 +54,10 @@ extension Workbook {
     public static func inspect(contentsOf url: URL, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         var opts = options
         if opts.filename == nil { opts.filename = url.lastPathComponent }
+        if url.isDirectoryOnDisk {
+            guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
+            return try NumbersInspector.inspect(folder: url, options: opts)
+        }
         return try inspect(try Data(contentsOf: url, options: .mappedIfSafe), format: nil, options: opts)
     }
 

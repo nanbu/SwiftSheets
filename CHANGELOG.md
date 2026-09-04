@@ -28,6 +28,14 @@ writes, so the constant, the README's status line and the tag always name the sa
   own row and column counts. `InspectOptions(countCells: true)` walks the markup and counts what is really
   there. This is how a reader of untrusted files chooses a `ReadOptions.cellLimit`.
 
+- **Detection without reading the file** (spec Appendix B.39.4). `SheetFormat.detect(contentsOf:)` reads the
+  first four bytes, the ZIP directory at the end of the file and one small entry — under 16 KiB for a workbook
+  of any size, and never the file itself. `SheetFormat.probe` answers in one call: a spreadsheet of some
+  format, a file the library recognises but will not open (encrypted OOXML, ODF or Numbers, or a legacy
+  `.xls`) and why, or nothing it knows. A Numbers document saved as a folder (a package with `Index.zip`) is
+  detected, read and inspected; it used to fail with "is a directory". Text is judged as bytes now, without
+  decoding a window into a string first.
+
 ### Changed
 
 - **No cell ceiling by default** (spec Appendix B.39.2). `ReadOptions.cellLimit` used to stop a read at a

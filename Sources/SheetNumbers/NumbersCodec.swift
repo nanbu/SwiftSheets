@@ -14,6 +14,14 @@ public enum NumbersCodec: SpreadsheetCodec {
         let wb = try reader.workbook()
         return ReadResult(workbook: wb, warnings: reader.warnings)
     }
+    /// A document saved as a folder (a package on disk) rather than a single file.
+    public static func read(folder url: URL, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        let doc = try NumbersDocument(folder: url, limits: options.limits)
+        var reader = NumbersReader(doc: doc, options: options)
+        let wb = try reader.workbook()
+        return ReadResult(workbook: wb, warnings: reader.warnings)
+    }
+
     public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         var writer = try NumbersWriter(workbook: workbook, options: options)
         let data = try writer.write()

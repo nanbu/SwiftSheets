@@ -949,7 +949,16 @@ pre .vr { color: var(--code-var); }
     <li>いずれにも該当しない → <code>SheetError.unrecognizedFormat</code></li>
   </ol>
 
-  <h3>4.3 エラー型</h3>
+    <p><strong>Rev 4.14（B.39.4）で足した 3 つの規則。</strong>
+    ①<strong>ファイルから判定するときは、ファイル全体を読まない</strong>（<code>SheetFormat.detect(contentsOf:)</code>）:
+    先頭の 4 バイトで封筒かどうかを決め、封筒なら末尾の目録と <code>mimetype</code> / <code>[Content_Types].xml</code> だけ、
+    文字ファイルなら先頭 64 KiB だけを読む。どんな大きさのファイルでも読む量は同じで、写像も複製もしない。
+    ②<strong>1 回で答える結果型</strong>（<code>SheetFormat.probe</code> → <code>FormatProbe</code>）:
+    形式か、開けない理由（暗号化された OOXML / ODF / Numbers・旧 <code>.xls</code>）か、不明か。
+    ③<strong>フォルダー形式の Numbers 書類</strong>（<code>Index.zip</code> か <code>Index/</code> を持つディレクトリ）は
+    <code>.numbers</code> と判定し、<code>Workbook(contentsOf:)</code> / <code>inspect(contentsOf:)</code> はそのまま開く。
+    文字かどうかの判定は文字列に復号せず、バイト列のまま UTF-8 / UTF-16 の妥当性と制御文字を見る。</p>
+<h3>4.3 エラー型</h3>
   <pre><code><span class="kw">public enum</span> <span class="ty">SheetError</span>: <span class="ty">Error</span> {
     <span class="kw">case</span> unrecognizedFormat
     <span class="kw">case</span> corruptedContainer(detail: <span class="ty">String</span>)      <span class="cm">// ZIP/Snappy 層の失敗</span>
@@ -1482,6 +1491,7 @@ pre .vr { color: var(--code-var); }
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>load_workbook(path)</code></td><td><code>try Workbook(contentsOf: url)</code></td><td>読み込み。形式は内容から自動判別（第4章）</td></tr>
+    <tr><td>（概念なし）</td><td><code>try SheetFormat.detect(contentsOf: url)</code> / <code>probe(contentsOf:)</code></td><td>ファイル全体を読まずに形式を判定する。<code>probe</code> は開けない理由（暗号化・旧 .xls）と不明も 1 回で返す（Rev 4.14・B.39.4）</td></tr>
     <tr><td>（概念なし）</td><td><code>try Workbook.inspect(contentsOf: url)</code></td><td>読む前に問い合わせる: シート・申告セル数・展開後のバイト数・生成元（Rev 4.13・B.39.3）。<code>cellLimit</code> を決める材料</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
@@ -1884,6 +1894,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
     <tr><td>4.12 Draft</td><td>2026-09-04</td><td><strong>速さと大きさの第二段</strong>を付録 B.39 に開き、その第 1・第 2 小節を記録。着手前の実測（100 万マスで読み 5.7 秒の約 7 割が Foundation の XML 部品まわり、圧縮を戻すのは 0.02 秒）を前提に、<strong>封筒（ZIP）を作り替えた</strong>: バイトの出所の抽象化（写像／位置指定読み）・ZIP64 の読み書き・切れ端ごとの展開・申告の妥当性検査（部品数・合計・圧縮率・重なり）と <code>ReadOptions.limits</code>・縮めたままの写し・CRC-32 を zlib へ。<strong>セル数の既定の天井を外した</strong>（<code>cellLimit</code> は <code>Int.max</code>、設定は残す）。README の Limits から ZIP64 の行が消え、Cell budget の行が「既定なし」になった。テスト 960 件</td></tr>
     <tr><td>4.13 Draft</td><td>2026-09-04</td><td><strong>読む前に問い合わせる API</strong> <code>Workbook.inspect</code> を付録 B.39.3 に記録。シート・申告セル数・展開後のバイト数・生成元を、セルを作らずに返す。XLSX は部品の先頭の切れ端だけ、ODS は本文をバイト列で 1 度歩いて反復回数を掛ける、Numbers は表の archive の行数×列数。<code>InspectOptions.countCells</code> で実数も数える。タグだけを拾うバイト走査器 <code>TagScanner</code> を新設（後段の字句解析器の先触れ）。テスト 971 件</td></tr>
+    <tr><td>4.14 Draft</td><td>2026-09-04</td><td><strong>形式の判定</strong>を付録 B.39.4 に記録し §4.2 に規則 3 つを足した。<code>SheetFormat.detect(contentsOf:)</code> はファイル全体を読まない（先頭 4 バイト・末尾の目録・小さな 1 部品）。<code>SheetFormat.probe</code> → <code>FormatProbe</code> が形式・開けない理由・不明を 1 回で答える。フォルダー形式の Numbers 書類を開けるようにした（それまで「ディレクトリです」で失敗）。文字の判定をバイト列で行う。テスト 977 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4803,6 +4814,27 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     切れ端の境目でタグが割れても持ち越して繋ぐ。B.39 の後段で作る本物の字句解析器の先触れで、
     「文字列も辞書も作らずにバイト列を読む」形はここで先に試した。
   </p>
+
+  <h4>B.39.4 形式の判定 — ファイル全体を読まない入口と、1 回で答える結果型</h4>
+  <p>
+    判定はもともと速い: 5 MB の xlsx で 0.1 ミリ秒、400 MB でも写像して開けば 0.4 ミリ秒（着手前の実測）。
+    ただし写像せず全体を読み込む経路は 48 ミリ秒と 390 MB を使い、iPhone や共有フォルダーではその差が効く。
+    足したのは速さでなく<strong>形</strong>である。
+  </p>
+  <ul>
+    <li><code>SheetFormat.detect(contentsOf:)</code> は <code>FileByteSource</code>（B.39.1）で開き、先頭 4 バイト →
+      封筒なら末尾 1 KiB の目録（無ければ 64 KiB の窓）と小さな 1 部品、文字なら先頭 64 KiB、だけを読む。
+      テストは読んだバイト数を数える二重の出所で「700 KB の xlsx を 16 KiB 未満で判定する」ことを釘打つ。</li>
+    <li><code>SheetFormat.probe</code> は「形式は何か」と「暗号化されているか」を別々に聞かせない。
+      <code>FormatProbe</code> は <code>.spreadsheet(形式)</code> / <code>.unopenable(理由)</code> / <code>.unrecognized</code> の 3 つ。
+      理由に <code>encryptedNumbers</code>（<code>.iwph</code>）を足し、Numbers 側の断りも同じ語で言うようにした。</li>
+    <li>フォルダー形式の Numbers 書類は、それまで <code>Data(contentsOf:)</code> が「ディレクトリです」で失敗して<strong>開けなかった</strong>
+      （実測）。<code>NumbersDocument(folder:)</code> が <code>Index.zip</code>（または <code>Index/</code>）と <code>Metadata/</code>・<code>Data/</code> を
+      ディスクから集め、単一ファイルと同じ物体にする。書き出しは単一ファイルのまま。</li>
+    <li>文字の判定は <code>String</code> に復号してから走査していたのをやめ、バイト列で UTF-8 の妥当性（B.38 の走査器を流用）・
+      UTF-16 の代用対・制御文字を見る。窓の端で切れた多バイト文字は欠陥でなく境目として扱う。判定の結果は変えていない
+      （既存のテストがそのまま通る）。</li>
+  </ul>
 
 </section>
 
