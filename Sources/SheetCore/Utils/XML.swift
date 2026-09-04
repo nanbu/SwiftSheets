@@ -109,8 +109,29 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
 
     package init(handler: SAXHandler) { self.handler = handler }
 
-    package func run(_ data: Data, part: String) throws {
+    /// Which tokenizer turns the bytes into events. `.automatic` is the byte scanner for UTF-8 parts and
+    /// Foundation's parser for the rest; the other two exist so a test can put the same part through both.
+    package enum Engine { case automatic, scanner, foundation }
+
+    package func run(_ data: Data, part: String, engine: Engine = .automatic) throws {
         try SAXDriver.rejectUndecodableBytes(data, part: part)
+        var useScanner: Bool
+        switch engine {
+        case .scanner: useScanner = true
+        case .foundation: useScanner = false
+        case .automatic:
+            #if SWIFTSHEETS_FOUNDATION_XML
+            useScanner = false
+            #else
+            // a part in UTF-16, or naming another encoding, is Foundation's to decode
+            if let (encoding, _) = TextEncodingSniffer.bom(in: data), encoding != .utf8 { useScanner = false }
+            else { useScanner = !SAXDriver.declaresOtherEncoding(data) }
+            #endif
+        }
+        if useScanner {
+            try runScanner(data, part: part)
+            return
+        }
         let parser = XMLParser(data: data)
         self.parser = parser
         parser.shouldProcessNamespaces = false
@@ -118,6 +139,58 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
         let ok = parser.parse()
         if let failure { throw failure }
         guard ok else { throw SheetError.malformedPart(path: part, detail: parser.parserError?.localizedDescription ?? "parse error") }
+    }
+
+    // MARK: - The byte scanner's side
+
+    /// Set by `fail` while the scanner runs: it stops at the next event.
+    package private(set) var stopped = false
+    private var scannerBuffer: UnsafeBufferPointer<UInt8>?
+    private var currentTagStart = 0
+    private var captureStart = 0
+
+    private func runScanner(_ data: Data, part: String) throws {
+        try data.withUnsafeBytes { raw in
+            let b = raw.bindMemory(to: UInt8.self)
+            scannerBuffer = b
+            defer { scannerBuffer = nil }
+            try XMLScanner(handler: handler, driver: self, part: part).run(b)
+        }
+        if let failure { throw failure }
+    }
+
+    func scannerStart(qualified: String, attributes: [String: String], tagStart: Int, tagEnd: Int) throws {
+        if captureDepth > 0 {
+            captureDepth += 1
+            if deliverWhileCapturing { handler.start(XML.local(qualified), attributes) }
+            return
+        }
+        currentQualifiedName = qualified
+        currentTagStart = tagStart
+        handler.start(XML.local(qualified), attributes)
+    }
+
+    func scannerText(_ s: String) {
+        if captureDepth > 0 { if deliverWhileCapturing { handler.text(s) } } else { handler.text(s) }
+    }
+
+    func scannerEnd(qualified: String, tagEnd: Int) throws {
+        if captureDepth > 0 {
+            captureDepth -= 1
+            let deliver = deliverWhileCapturing
+            if captureDepth == 0 {
+                // the subtree exactly as the file has it: the bytes from its '<' to the end of its end tag
+                let xml = String(decoding: UnsafeBufferPointer(rebasing: scannerBuffer![captureStart..<tagEnd]), as: UTF8.self)
+                let fragment = XMLFragment(element: XML.local(captureElement), xml: xml)
+                deliverWhileCapturing = false
+                if deliver { handler.end(XML.local(qualified)) }
+                handler.captured(fragment)
+            } else if deliver {
+                handler.end(XML.local(qualified))
+            }
+            return
+        }
+        handler.end(XML.local(qualified))
     }
 
     /// XML whose bytes are not valid UTF-8 is a malformed part, and never reaches the parser.
@@ -147,7 +220,7 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     }
 
     /// True when the XML declaration names an encoding that is not UTF-8.
-    private static func declaresOtherEncoding(_ data: Data) -> Bool {
+    static func declaresOtherEncoding(_ data: Data) -> Bool {
         // the declaration is the first thing in the part and is short; bad bytes further in cannot affect it
         let head = String(decoding: data.prefix(200), as: UTF8.self)
         guard head.hasPrefix("<?xml"), let close = head.range(of: "?>"),
@@ -158,16 +231,24 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     }
 
     /// Aborts parsing; `run` rethrows the error (hooks cannot throw).
-    package func fail(_ error: SheetError) { failure = error; parser?.abortParsing() }
+    package func fail(_ error: SheetError) {
+        failure = error
+        stopped = true
+        parser?.abortParsing()
+    }
 
     /// Call from `start` to keep the element being started (and everything inside it) as raw XML. With
     /// `deliveringEvents`, the handler still receives the subtree's events (parse *and* preserve).
     package func beginCapture(deliveringEvents: Bool = false) {
         captureDepth = 1
         captureElement = currentQualifiedName
-        captureBuffer = ""
         deliverWhileCapturing = deliveringEvents
-        openTag(currentQualifiedName, currentAttributes)
+        if scannerBuffer != nil {
+            captureStart = currentTagStart
+        } else {
+            captureBuffer = ""
+            openTag(currentQualifiedName, currentAttributes)
+        }
     }
 
     package var isCapturing: Bool { captureDepth > 0 }

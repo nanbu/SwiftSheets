@@ -41,6 +41,14 @@ writes, so the constant, the README's status line and the tag always name the sa
 - **No cell ceiling by default** (spec Appendix B.39.2). `ReadOptions.cellLimit` used to stop a read at a
   million cells; it now defaults to no limit, and is there to be set by a reader of untrusted input. How many
   cells are worth holding is the caller's decision.
+- **The XML inside a package is read by a byte-level scanner of the library's own** (spec Appendix B.39.6),
+  not by Foundation's parser: names are compared as bytes, strings are made straight from UTF-8, and a
+  preserved subtree is the source bytes themselves rather than a re-serialisation. Every reader keeps its
+  contract — the same three events, from the same handler protocol — and every XML part of the fixture corpus
+  yields an identical event stream from both engines. Parts in UTF-16 or another declared encoding still go to
+  Foundation, and `-DSWIFTSHEETS_FOUNDATION_XML` puts everything back on it; CI runs the suite that way too.
+  Over a million cells, back to back on the same machine: reading 5.5 → 2.6 s, streaming reads 4.6 → 1.8 s,
+  ODS reads 13.9 → 3.7 s.
 - **Faster without changing a byte of any file** (spec Appendix B.39.5): whether a number under a format is
   a date is decided once per format rather than once per cell; a cell's style index is looked up by the
   shared style object it points at rather than by hashing the style; the streaming writer hands rows to the

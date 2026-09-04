@@ -44,6 +44,12 @@ jobs:
       - name: Test the zlib route
         run: swift test -Xswiftc -DSWIFTSHEETS_ZLIB
 
+      # And once more over Foundation's XML parser instead of the byte scanner (spec Appendix B.39.6). The
+      # scanner is the default; the old path stays for one release so that every reader is proven to give the
+      # same answer either way, and so that a scanner fault has a known-good route to compare against.
+      - name: Test the Foundation XML route
+        run: swift test -Xswiftc -DSWIFTSHEETS_FOUNDATION_XML
+
   linux:
     name: build and test (Linux)
     # The judge for the half of the library that is not Apple's: Foundation is a different implementation here,

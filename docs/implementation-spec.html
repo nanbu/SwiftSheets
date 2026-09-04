@@ -1896,6 +1896,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.13 Draft</td><td>2026-09-04</td><td><strong>読む前に問い合わせる API</strong> <code>Workbook.inspect</code> を付録 B.39.3 に記録。シート・申告セル数・展開後のバイト数・生成元を、セルを作らずに返す。XLSX は部品の先頭の切れ端だけ、ODS は本文をバイト列で 1 度歩いて反復回数を掛ける、Numbers は表の archive の行数×列数。<code>InspectOptions.countCells</code> で実数も数える。タグだけを拾うバイト走査器 <code>TagScanner</code> を新設（後段の字句解析器の先触れ）。テスト 971 件</td></tr>
     <tr><td>4.14 Draft</td><td>2026-09-04</td><td><strong>形式の判定</strong>を付録 B.39.4 に記録し §4.2 に規則 3 つを足した。<code>SheetFormat.detect(contentsOf:)</code> はファイル全体を読まない（先頭 4 バイト・末尾の目録・小さな 1 部品）。<code>SheetFormat.probe</code> → <code>FormatProbe</code> が形式・開けない理由・不明を 1 回で答える。フォルダー形式の Numbers 書類を開けるようにした（それまで「ディレクトリです」で失敗）。文字の判定をバイト列で行う。テスト 977 件</td></tr>
     <tr><td>4.15 Draft</td><td>2026-09-04</td><td><strong>手戻りの小さい手直し</strong>を付録 B.39.5 に記録。日付書式の判定を書式番号ごとに 1 回・書式の索引を共有スタイルの同一性で・逐次書きの 64 KiB 束ね・ODS 段落の早道・Snappy と IWA の配列写しの廃止。形式は変えない。同時刻比で読み −25%、逐次読み −37%、書き −13%。テスト 977 件</td></tr>
+    <tr><td>4.16 Draft</td><td>2026-09-05</td><td><strong>自前の字句解析器</strong> <code>XMLScanner</code> を付録 B.39.6 に記録。UTF-8 の部品は既定でこれが読み、UTF-16 と別符号化の部品は Foundation へ。受け手の約束は不変、保全の断片は元のバイト列そのものに。<code>-DSWIFTSHEETS_FOUNDATION_XML</code> で旧経路に戻せ、CI が 3 経路で全件を走らせる。見本全冊 289 部品で両機関の出来事が同一。読み 5.5 → 2.6 秒、逐次読み 4.6 → 1.8 秒、ODS 読み 13.9 → 3.7 秒。テスト 984 件</td></tr>
   </table></div>
   <p style="color: var(--text-subtle); font-size: 13px; margin-top: 32px;">
     本仕様書は実装の進行に伴って改訂する。仕様と実装が乖離した場合は、本書を先に直してからコードを変更する。
@@ -4857,6 +4858,42 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     実測（100 万マス）: 読み <strong>5.58 → 4.17 秒</strong>（同時刻比 −25%）、逐次読み 5.1 → 3.2 秒、書き 2.0 → 1.7 秒、
     逐次書き 2.4 → 1.9 秒、ODS 書き 4.0 → 3.3 秒、Numbers 書き（10 万マス）0.94 → 0.81 秒。
     メモリは変わらない（次の段の主題）。ODS の読みは対象外で変化なし。
+  </p>
+
+  <h4>B.39.6 自前の字句解析器 — Foundation の XML 部品を既定から外す</h4>
+  <p>
+    着手前の記録が名指しした最大の項目。100 万マスの読み込み 5.7 秒のうち、Foundation の <code>XMLParser</code> 自身が 0.7 秒、
+    その周りで<strong>要素ごとに作られる橋渡しの文字列と属性の辞書、それを受ける側の比較と変換</strong>が約 3.5 秒だった。
+    同じ 33 MB をバイト列のまま切り分ける下限は 0.02 秒。差の大半は「文字列を作ってから読む」ことの代金である。
+  </p>
+  <h5>決めたこと</h5>
+  <ul>
+    <li><strong><code>XMLScanner</code>（SheetCore）</strong>: UTF-8 のバイト列上の字句解析器。宣言・コメント・処理命令・DOCTYPE（内部サブセットごと飛ばす。実体は展開しない）・
+      CDATA・定義済み実体 5 種と文字参照・両引用符・属性値の正規化（生のタブと改行は空白に、文字参照はそのまま）・
+      本文の改行の正規化（<code>\r\n</code> → <code>\n</code>）。名前はバイト比較、文字列は UTF-8 から直接作る
+      （B.38 の事前検査で妥当性は保証済み）。終了タグの不一致・閉じない要素・閉じないタグ・範囲外の文字参照は <code>malformedPart</code>。
+      未定義の実体は書かれたまま残す（Foundation は止まるが、表計算に DTD は無い）。</li>
+    <li><strong>受け手の約束は変えない</strong>。<code>SAXHandler</code> の 3 つの出来事（start / text / end）と保全の切り出しはそのまま、
+      駆動部 <code>SAXDriver</code> の中で 2 つの機関を切り替える。8 つの読み手（XLSX・ODS の全パーサ）は 1 行も変えていない。</li>
+    <li><strong>保全の断片は元のバイト列そのもの</strong>になった。従来は属性を並べ替えて再生成していた。
+      <code>&lt;</code> から終了タグの末尾までを切り出すので、属性の順序も空白も元ファイルのまま。</li>
+    <li><strong>UTF-16 の部品と、別の符号化を名乗る部品は Foundation へ</strong>（<code>Engine.automatic</code>）。
+      <code>-DSWIFTSHEETS_FOUNDATION_XML</code> で全部品を Foundation 経路に戻せる。CI の macOS ジョブは
+      zlib 経路と同じ作りでこの旗でも全件を走らせる。<strong>1 版のあいだ旧経路を残す</strong>のは、
+      字句解析器の欠陥に「正しいと分かっている経路」を並べて置くため。</li>
+  </ul>
+  <h5>審判</h5>
+  <p>
+    <code>XMLScannerTests</code>: 見本全冊（27 冊・289 部品）の XML 部品を両方の機関に通し、出来事の列（要素名・属性・本文・終了）と
+    根の属性が<strong>すべて同一</strong>であること。角の事例（実体・文字参照・CDATA・コメント・内部サブセットつき DOCTYPE・両引用符・
+    属性の正規化・3 種の改行）も両機関で一致。切り出した断片が元のバイト列であること。壊れた記法 9 種の拒否。
+    UTF-16 の部品が自動で Foundation へ回ること。受け手からの停止。開発中に見つけた自分の誤りは 2 つ —
+    根の外の空白を本文として渡していたこと、Swift の <code>where</code> が並びの最後にしか掛からず本文の改行まで空白にしていたこと —
+    どちらも突き合わせが赤くして教えた。全体は 984 件が 3 経路（既定・Foundation・zlib）で緑。
+  </p>
+  <p>
+    実測（100 万マス・同時刻の前バイナリ比）: 読み <strong>5.50 → 2.64 秒</strong>、逐次読み <strong>4.58 → 1.81 秒</strong>、
+    ODS 読み <strong>13.86 → 3.71 秒</strong>。着手前の 5.7 秒からは 2.2 倍、ODS は 3.7 倍。メモリはまだ変わらない（次の段）。
   </p>
 
 </section>
