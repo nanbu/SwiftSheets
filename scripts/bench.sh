@@ -1,84 +1,11 @@
 #!/bin/bash
 # bench.sh — measure the library and write docs/performance.json (spec Appendix B.39.11).
 #
-#   scripts/bench.sh [rows]          # default 100000 rows × 10 columns = a million cells
-#   scripts/bench.sh --grid          # the 200-column standard: 5,000 / 50,000 / 500,000 rows (scripts/bench-grid.py)
+#   scripts/bench.sh                  # the standard: 100 columns × 10,000 rows and × 100,000 rows (scripts/bench.py)
+#   scripts/bench.sh --rows 10000     # one tier
+#   scripts/bench.sh --self-test      # the guards decide as documented
 #
-# Every measurement runs in its own process (peak memory is a process's lifetime maximum), from a release build
-# of Benchmarks/ made fresh (an incremental build once mixed stale parts into a measurement). The JSON carries the
-# machine, the toolchain and the commit, so a number is never quoted without its provenance. The page
-# docs/performance.html is generated from the JSON by scripts/build-performance-page.py, which also checks that the
-# README quotes the same numbers.
+# The work is scripts/bench.py; this entry point is the name the README, the page and the spec use.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-if [[ "${1:-}" == "--grid" ]]; then exec python3 "$ROOT/scripts/bench-grid.py" "${@:2}"; fi
-ROWS="${1:-100000}"
-BENCH="$ROOT/Benchmarks"
-OUT="$(mktemp -d)"
-trap 'rm -rf "$OUT"' EXIT
-
-echo "building the bench (release, from scratch)…" >&2
-rm -rf "$BENCH/.build"
-(cd "$BENCH" && swift build -c release 2>&1 | tail -1 >&2)
-B="$BENCH/.build/release/swiftsheets-bench"
-
-run() { "$B" "$@" | tee -a "$OUT/lines.jsonl" >&2; }
-X="$OUT/bench.xlsx"; O="$OUT/bench.ods"; C="$OUT/bench.csv"
-run build "$ROWS" "$X"
-run write "$ROWS" "$X"
-run read "$ROWS" "$X"
-run streamRead "$ROWS" "$X"
-run writeSheets "$ROWS" "$OUT/sheets.xlsx"
-run readSheetsSerial "$ROWS" "$OUT/sheets.xlsx"
-run readSheets "$ROWS" "$OUT/sheets.xlsx"
-run streamWrite "$ROWS" "$OUT/stream.xlsx"
-run edit "$ROWS" "$X"
-run detect "$ROWS" "$X"
-run inspect "$ROWS" "$X"
-run writeODS "$ROWS" "$O"
-run readODS "$ROWS" "$O"
-run streamReadODS "$ROWS" "$O"
-run streamWriteODS "$ROWS" "$OUT/stream.ods"
-run writeCSV "$ROWS" "$C"
-run readCSV "$ROWS" "$C"
-run streamReadCSV "$ROWS" "$C"
-run writeNumbers "$ROWS" "$OUT/bench.numbers"
-run readNumbers "$ROWS" "$OUT/bench.numbers"
-run streamReadNumbers "$ROWS" "$OUT/bench.numbers"
-run streamWriteNumbers "$ROWS" "$OUT/stream.numbers"
-
-python3 - "$OUT/lines.jsonl" "$ROOT/docs/performance.json" "$ROWS" <<'PY'
-import json, platform, re, subprocess, sys, datetime
-lines, target, rows = sys.argv[1], sys.argv[2], int(sys.argv[3])
-results = [json.loads(l) for l in open(lines, encoding="utf-8") if l.strip()]
-def sh(cmd):
-    try: return subprocess.check_output(cmd, shell=True, text=True).strip()
-    except Exception: return ""
-meta = {
-    "date": datetime.date.today().isoformat(),
-    "commit": sh("git rev-parse --short HEAD"),
-    "rows": rows, "columns": 10, "cells": rows * 10,
-    "machine": sh("sysctl -n machdep.cpu.brand_string") or platform.processor(),
-    "memory_gb": round(int(sh("sysctl -n hw.memsize") or 0) / 2**30) if sh("sysctl -n hw.memsize") else None,
-    "os": sh("sw_vers -productVersion") or platform.platform(),
-    "swift": (sh("swift --version 2>&1 | head -1")),
-    "material": "synthetic: a label, five integers, three decimals and a Japanese category per row; one sheet; no formatting",
-    "library_version": re.search(r'version = "([^"]+)"', open("Sources/SheetCore/SwiftSheetsInfo.swift", encoding="utf-8").read()).group(1),
-}
-by = {r["op"]: r for r in results}
-# the numbers the README quotes, by name, so a test can hold the README to them
-readme = {
-    "streaming_write_peak_mb": round(by["streamWrite"]["peakMB"]),
-    "streaming_write_ods_peak_mb": round(by["streamWriteODS"]["peakMB"]),
-    "streaming_write_numbers_peak_mb": round(by["streamWriteNumbers"]["peakMB"]),
-    "streaming_read_peak_mb": round(by["streamRead"]["peakMB"]),
-    "streaming_read_ods_peak_mb": round(by["streamReadODS"]["peakMB"]),
-    "streaming_read_numbers_peak_mb": round(by["streamReadNumbers"]["peakMB"]),
-    "whole_model_read_peak_mb": round(by["read"]["peakMB"]),
-    "read_8_sheets_serial_peak_mb": round(by["readSheetsSerial"]["peakMB"]),
-    "read_8_sheets_parallel_peak_mb": round(by["readSheets"]["peakMB"]),
-}
-json.dump({"meta": meta, "readme": readme, "results": results}, open(target, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-print("wrote", target)
-PY
-python3 "$ROOT/scripts/build-performance-page.py"
+exec python3 "$ROOT/scripts/bench.py" "$@"

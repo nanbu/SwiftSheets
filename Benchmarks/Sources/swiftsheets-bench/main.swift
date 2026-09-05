@@ -6,14 +6,12 @@ import SwiftSheets
 //
 //   swiftsheets-bench <operation> <rows> <path>
 //
-// The workbook is 10 columns × <rows> rows: a label, five integers, three decimals, a Japanese category — the
-// same synthetic material spec Appendix B.39 was measured with. It is synthetic on purpose (the numbers in
-// docs/performance.json say so): representative of a data export, not of a formatted report.
-//
-// SWIFTSHEETS_BENCH_COLUMNS widens the row (the 200-column standard of Appendix B.39.11: 5,000 / 50,000 /
-// 500,000 rows, driven by scripts/bench-grid.py). The pattern repeats across the width with the numbers offset
-// per block; the text columns past the first block draw on a vocabulary of fifty, as an export's do, so the
-// distinct strings grow with the rows, not with the width.
+// The workbook is SWIFTSHEETS_BENCH_COLUMNS columns (100 by default — the standard of Appendix B.39.11: 100 columns ×
+// 10,000 rows and × 100,000 rows, driven by scripts/bench.py) × <rows> rows. The material is a block of ten — a label,
+// five integers, three decimals, a Japanese category — repeated across the width with the numbers offset per
+// block; the text columns past the first block draw on a vocabulary of fifty, as an export's do, so the distinct
+// strings grow with the rows, not with the width. It is synthetic on purpose (the numbers in docs/performance.json
+// say so): representative of a data export, not of a formatted report.
 
 func peakMB() -> Double {
     var u = rusage(); getrusage(RUSAGE_SELF, &u)
@@ -24,7 +22,7 @@ func peakMB() -> Double {
     #endif
 }
 func seconds(_ d: Duration) -> Double { Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18 }
-let columns = Int(ProcessInfo.processInfo.environment["SWIFTSHEETS_BENCH_COLUMNS"] ?? "") ?? 10
+let columns = Int(ProcessInfo.processInfo.environment["SWIFTSHEETS_BENCH_COLUMNS"] ?? "") ?? 100
 func report(_ op: String, _ rows: Int, _ sec: Double, _ note: String = "") {
     print(#"{"op":"\#(op)","rows":\#(rows),"columns":\#(columns),"sec":\#(String(format: "%.3f", sec)),"peakMB":\#(String(format: "%.1f", peakMB()))\#(note.isEmpty ? "" : #","note":"\#(note)""#)}"#)
 }
