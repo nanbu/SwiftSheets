@@ -1905,6 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.31 Draft</td><td>2026-09-05</td><td><strong>逐次読みのピークが行数で伸びる原因 2 つを直した</strong>（付録 B.39.8 Rev 4.31・0.17.2）: 展開器の 1 回の出力を 1 MiB で切る（ODS の本文は 60 倍に膨らみ、15 MB の片を捨てても macOS の割り当て器が実メモリから返さなかった）と、URL から開く逐次読みを写像でなく位置指定読みにする（写像したファイルの触ったページがピークに載っていた）。1,000 万マスの逐次読み: XLSX 62 → 16 MB・ODS 709 → 15 MB・Numbers 329 → 58 MB。付録 B.39.11 に「性能の計測は macOS で採る。Linux は指示があるときだけ」を追記。</td></tr>
     <tr><td>4.30 Draft</td><td>2026-09-05</td><td><strong>計測の基準を改めた</strong>（付録 B.39.11）: 100 列 × 10,000 行（100 万マス）と 100 列 × 100,000 行（1,000 万マス）の 2 段。README の看板の数字は 1 段目から採る。10 列 × 10 万行の記録と 200 列の 3 段は退役（数字は歴史として残す）。駆動は <code>scripts/bench.py</code> の 1 本、記録は <code>tiers</code> の 1 本、読みの数字は全載せで書いたファイルの値で逐次で書いたファイルの読みは別行</td></tr>
     <tr><td>4.29 Draft</td><td>2026-09-05</td><td><strong>復号と暗号化を別製品へ</strong>（付録 B.39.9 Rev 4.29・0.17.0）。中核（SwiftSheets と 5 製品）から <code>ReadOptions.password</code> / <code>InspectOptions.password</code> / <code>WriteOptions.password</code> と逐次読みの <code>password:</code> を外し、暗号化・復号のコードがバイナリに入らないようにした。復号は <code>SheetDecrypt</code>（<code>decrypt(_:password:)</code> と <code>Workbook(contentsOf:password:)</code> 等の extension）、暗号化は <code>SheetEncrypt</code>（<code>encrypt(_:as:password:)</code> と <code>write(to:…password:)</code>）。理由は繋ぐアプリの申告。審判は記号表（<code>scripts/check-no-crypto.sh</code>・陽性対照つき・CI 両 OS）。§1.3・§14.11・B.40 を追従。同時に、1 MiB を超える保護ファイルを中核が「旧 .xls」と誤認していた判別器の窓を外した（200 列 × 5,000 行の計測が発見）</td></tr>
     <tr><td>4.28 Draft</td><td>2026-09-05</td><td>付録 B.39.8 の逐次読みの UTF-8 検査を直した: 片が届くたびの再検査を「末尾から 3 バイト」の固定位置から始めていたため、そこが完結した 3 バイト文字の続きのバイトだと有効な部品を「UTF-8 でない」と断っていた。<strong>200 列の基準（4.27）が 1,000 万マスの逐次書き XLSX で見つけた</strong>。再検査は前回が止まった位置（境目に切られた文字の先頭）から始める。回帰テストは無圧縮の部品で 1 MiB の境目に文字を置く</td></tr>
@@ -4995,6 +4996,46 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     文字があるならその先頭）から始める。回帰テストは無圧縮の部品（片がちょうど 1 MiB になる）で 2 MiB − 4 に
     「分」を置き、修正前は byte 2097149 で落ちることを確かめた（<code>StreamingTests</code>）。
   </p>
+  <p>
+    <strong>逐次読みのピークが行数で伸びていた原因 2 つと直し（Rev 4.31・2026-09-05）</strong>: B.39.11 の 2 段の基準が、
+    逐次読みだけ 2 段目で数倍に膨らむことを見せた（100 列で 100 万 → 1,000 万マス: XLSX 19 → 62 MB・ODS 228 → 709 MB・
+    Numbers 53 → 329 MB。逐次書きは平ら）。段ごとに別プロセスで測って原因を 2 つに分けた。
+  </p>
+  <ol>
+    <li>
+      <strong>展開器の 1 片が大きすぎた</strong>。<code>ZipEntryStream</code> は圧縮バイトを 256 KiB ずつ読み、その全部を
+      一度に展開して戻していた。XLSX のシート部品は 6 倍ほどにしか膨らまないので 1 片 1.7 MB だが、ODS の本文
+      （<code>content.xml</code>、同じ値の繰り返しが多い）は 60 倍に膨らみ、<strong>1 片が 15 MB</strong> になる。
+      受け手がその片を読み終えて捨てても、macOS の割り当て器はこの大きさの解放を「あとで再利用する」印にとどめ、
+      実メモリの数字（<code>ru_maxrss</code> / <code>phys_footprint</code>）からは減らない。片が届くたびに 11〜15 MB ずつ
+      積み上がり、圧縮バイトを読み切るまで止まらなかった（1 MiB の切れ端を捨てるだけの実験でも同じ伸び。
+      <code>autoreleasepool</code> で囲んでも変わらず、字句解析器・持ち越し・バイト供給を外して展開器だけにしても同じ）。
+      直し: <strong>展開器の 1 回の出力を 1 MiB で切る</strong>（<code>DeflateDecoder.pieceCap</code> ＝ 無圧縮の片と同じ
+      <code>pieceSize × 4</code>）。切ったとき消費しきれなかった圧縮バイトは、<code>ZipEntryStream</code> が自前の 256 KiB
+      の写しに持って次の呼び出しへ回す（供給元のバイトは借り物なので写す）。展開器は「消費した入力バイト数」を返す形に
+      なった（Apple Compression 経路・zlib 経路とも）。副産物として、圧縮率 1,000 倍の部品が 256 MB の片を作る穴も塞がった。
+      回帰テストは 50 倍に縮む 24 MiB の部品を流し、直し前は 10.7 MB の片が出ることを確かめてから、
+      <code>largestPiece ≤ 1 MiB</code> を釘打つ（<code>ZipTests</code>）。
+    </li>
+    <li>
+      <strong>URL から開くとファイルを写像していた</strong>。<code>StreamingReader(contentsOf:)</code> と 3 形式の読み手は
+      <code>Data(contentsOf:options: .mappedIfSafe)</code> でファイルを開き、歩いた分のページがそのまま常駐する。
+      何もせずファイル全体に触るだけの実験で XLSX 50 MB・Numbers 275 MB（＝ファイルの大きさ）。読み手の持ち物ではなく、
+      写像したファイルの触ったページがピークに載っていた。直し: <strong>URL から開く逐次読みは写像でなく位置指定読み</strong>
+      （<code>FileByteSource</code>、B.39.4 と同じ供給元）で開く。3 形式の読み手に「開いた包みから作る」入口
+      （<code>init(archive:)</code>・Numbers は <code>NumbersObjectIndex(url:)</code>）を足し、統合の読み手は形式の判定も
+      供給元の上で行う（<code>SheetFormat.probe(source:filename:limits:)</code> — 読み手と同じ上限で判定する。
+      既定の上限で断られる包みを「認識できない」と答えないため）。複合ファイルの断りも供給元の上で見る
+      （<code>UnopenableInput.probe(source:)</code>）。<code>Data</code> を渡す公開の入口はそのまま — 渡された写像の
+      ページが載るのは呼び手の持ち物。
+    </li>
+  </ol>
+  <p>
+    実測（別プロセスの <code>ru_maxrss</code>・walk ＝ 1 枚目を全行歩く）: ODS 1,000 万マスの開くだけ 576 → 12 MB・
+    walk 709 → 15 MB、XLSX 1,000 万マス walk 62 → 16 MB、Numbers 1,000 万マス walk 329 → 58 MB（残りは索引と文字列表 —
+    読み手の本物の荷物）。100 万マスと 1,000 万マスで同じ数字になり、逐次読みは<strong>行数によらず平ら</strong>になった。
+    時間は変わらない（同じ負荷の下で URL 経路と Data 経路が同じ秒数）。記録の数字は B.39.11。
+  </p>
 <h4>B.39.9 パスワード付きのファイルを読み書きする — 暗号化の 2 形式と、自前の算術</h4>
   <p>
     §1.3 は「暗号化ファイル — 将来検討。v1 では明示的エラー」としていた。0.12.0 で検討を終えた。
@@ -5189,7 +5230,9 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     同日、ページと報告書で同じ段の数字が食い違った実害から）。読みの数字は<strong>全載せで書いたファイルを読んだ値</strong>で、
     逐次で書いたファイルを読んだ値は「逐次で書いたファイル」の別行に出す（隠れた優先規則を置かない）。
     見込みで測らない判定（マス × 320 B が実メモリの 6 割・空きディスク 1.5 倍）はそのまま — 8 GB の機械では両段とも通るが、
-    4 GB の機械のために残す。0.17.1 の記録（1 段目・100 列 × 10,000 行）: 読み 2.7 秒・215 MB、逐次読み 1.9 秒・19 MB、
+    4 GB の機械のために残す。<strong>性能の計測と確認は macOS で採る（Rev 4.31・2026-09-05）</strong>: Linux で測るのは
+    指示があるときだけ — 開発の手と時間を、数字の出所を 1 つに保つ側に使う。CI の Linux は動作の審判のままで、
+    数字は出さない。0.17.1 の記録（1 段目・100 列 × 10,000 行）: 読み 2.7 秒・215 MB、逐次読み 1.9 秒・19 MB、
     書き 1.6 秒・254 MB、逐次書き 1.8 秒・10 MB、ODS 読み 3.8 秒・233 MB、ODS 逐次読み 4.0 秒・228 MB（幅で伸びる —
     全載せとほぼ同じで、計画の次の一手）、Numbers 逐次読み 0.8 秒・53 MB、逐次書き 3.7 秒・25 MB、8 シートを同時に 1.1 秒・249 MB
     ／1 枚ずつ 2.6 秒・141 MB。2 段目（× 100,000 行）: 全載せ読み 28 秒・1,023 MB、逐次読み XLSX 62 / ODS 709 / Numbers 329 MB、

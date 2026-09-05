@@ -28,6 +28,9 @@ swift test --filter ODSCodecTests   # narrow while iterating
   cipher, `SheetDecrypt` nothing that encrypts — by building three small executables against the checkout and
   reading their symbol tables (with a positive control). CI runs it on macOS and Linux; run it after touching
   `Package.swift`, anything under `Sources/SheetDecrypt` or `Sources/SheetEncrypt`, or a refusal message.
+- Performance is measured and checked on macOS only (`scripts/bench.sh`; the numbers in the README, the
+  performance page and the spec). Measure on Linux only when asked to — the Linux CI job judges behaviour, not
+  numbers.
 - Tests that depend on local tools or fixtures (LibreOffice, generated ground-truth documents) must skip
   **visibly** via `.enabled(if:)` with a reason — never `guard … else { return }`, which counts a test that did
   nothing as a pass.

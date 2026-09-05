@@ -106,6 +106,25 @@ import SwiftSheets
         }
     }
 
+    /// A part that expands far beyond its compressed size still comes out in bounded pieces: the promise holds
+    /// for any ratio, not only for the six-to-one of a spreadsheet part. 24 MiB that deflate some fifty-fold come
+    /// from a few 256 KiB reads of the compressed bytes, and each of them came out as one ten-megabyte
+    /// piece before Rev 4.31.
+    @Test func aHighlyCompressiblePartStillComesOutInBoundedPieces() throws {
+        var body = Data(count: 24 << 20)
+        for i in stride(from: 0, to: body.count, by: 128) { body[i] = UInt8(truncatingIfNeeded: i / 128) }
+        let writer = ZipWriter()
+        writer.add("runs.bin", body)
+        let zip = try ZipArchive(data: writer.finish())
+        let compressed = zip.entries["runs.bin"]!.compressedSize
+        #expect(compressed > ZipEntryStream.pieceSize && compressed < ZipEntryStream.pieceSize * 4, "compressed to \(compressed) bytes")
+        let stream = try zip.stream("runs.bin")
+        var out = Data(), pieces = 0
+        while let piece = try stream.next() { out.append(piece); pieces += 1 }
+        #expect(out == body)
+        #expect(stream.largestPiece <= ZipEntryStream.pieceSize * 4, "largest piece \(stream.largestPiece) from \(pieces) pieces")
+    }
+
     /// An entry copied compressed comes out byte for byte, and the copy did not go through the compressor.
     @Test func aCompressedEntryCanBeCopiedWithoutExpandingIt() throws {
         let source = try Data(contentsOf: Self.fixtures.appendingPathComponent("preservation/charts-and-friends.xlsx"))

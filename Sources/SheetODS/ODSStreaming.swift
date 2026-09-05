@@ -22,16 +22,21 @@ public struct ODSStreamingReader: StreamingRowSource {
     /// The sheets of the document, in the file's order.
     public let sheetNames: [String]
 
-    /// Maps the file rather than reading it, so a document far larger than memory can be walked.
+    /// Reads the file through positioned reads rather than mapping it, so a document far larger than memory can be
+    /// walked and only the pieces in hand are ever in memory (spec Appendix B.39.8, Rev 4.31).
     public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits)
+        try self.init(archive: try ZipArchive(source: try FileByteSource(url: url), limits: limits))
     }
 
     /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
     /// protected package is refused by name: the SheetDecrypt product decrypts its entries whole (an encrypted
     /// package cannot be walked a row at a time) and hands this reader the plain package.
     public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
-        let zip = try ZipArchive(data: data, limits: limits)
+        try self.init(archive: try ZipArchive(data: data, limits: limits))
+    }
+
+    /// Over an open package, however it was opened.
+    package init(archive zip: ZipArchive) throws {
         guard zip.contains("content.xml") else { throw SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package") }
         let manifest = ManifestParser()
         if zip.contains("META-INF/manifest.xml") { try? manifest.run(try zip.read("META-INF/manifest.xml"), part: "META-INF/manifest.xml") }

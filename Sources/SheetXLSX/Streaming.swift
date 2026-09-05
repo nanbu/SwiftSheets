@@ -35,9 +35,13 @@ public struct XLSXStreamingReader: StreamingRowSource {
     public let sheetNames: [String]
     private let partPaths: [String: String]
 
-    /// Maps the file rather than reading it, so a workbook far larger than memory can be walked.
+    /// Reads the file through positioned reads rather than mapping it, so a workbook far larger than memory can be
+    /// walked and only the pieces in hand are ever in memory (spec Appendix B.39.8, Rev 4.31: a mapped file's
+    /// pages stayed resident as the walk touched them, and the reader's peak grew with the file).
     public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits)
+        let source = try FileByteSource(url: url)
+        if let unopenable = try UnopenableInput.probe(source: source) { throw unopenable.error }
+        try self.init(archive: try ZipArchive(source: source, limits: limits))
     }
 
     /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
@@ -45,7 +49,12 @@ public struct XLSXStreamingReader: StreamingRowSource {
     /// be walked a row at a time) and hands this reader the plain package.
     public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
-        zip = try ZipArchive(data: data, limits: limits)
+        try self.init(archive: try ZipArchive(data: data, limits: limits))
+    }
+
+    /// Over an open package, however it was opened.
+    package init(archive zip: ZipArchive) throws {
+        self.zip = zip
         let rootRels = (try? WorkbookReader.parseRels(zip, "_rels/.rels")) ?? []
         let workbookPath = rootRels.first { $0.type.hasSuffix(WorkbookReader.relOfficeDocument) }
             .map { WorkbookReader.resolvePart($0.target, relativeTo: "") } ?? "xl/workbook.xml"

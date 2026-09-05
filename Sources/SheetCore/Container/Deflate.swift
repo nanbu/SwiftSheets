@@ -87,23 +87,37 @@ package final class DeflateDecoder {
         self.expectedSize = expectedSize
     }
 
+    /// The most one `decode` hands back when the caller sets no other cap: the size of a stored piece
+    /// (`ZipEntryStream.pieceSize × 4`). A part that expands sixty-fold — an ODS content part — turned every 256 KiB
+    /// of compressed bytes into a fifteen-megabyte piece before Rev 4.31, and on macOS a freed allocation of that size
+    /// stays counted against the process until the system takes it back, so a streamed read grew by the inflated
+    /// size of the part. Bounded pieces are small enough to be reused by the allocator instead.
+    package static let pieceCap = 1 << 20
+
     /// Feeds compressed bytes and returns what could be expanded from them (possibly nothing, possibly several
-    /// times the input). Never more than `expectedSize` in total.
-    package func decode(_ input: UnsafeRawBufferPointer) throws -> Data {
+    /// times the input), never more than `expectedSize` in total and never more than `cap` at once. When the cap
+    /// stops the expansion, `consumed` says how many of the input's bytes were used; the rest are the caller's to
+    /// feed again.
+    package func decode(_ input: UnsafeRawBufferPointer, upTo cap: Int) throws -> (out: Data, consumed: Int) {
         if finished || produced >= expectedSize {
             // the entry is complete; anything further is not part of it
             if !input.isEmpty { throw SheetError.corruptedContainer(detail: "inflate produced more than the \(expectedSize) bytes the entry claims") }
-            return Data()
+            return (Data(), 0)
         }
-        guard let stream else { return Data() }
-        guard let (out, ended) = stream.decode(input, limit: expectedSize - produced) else { throw SheetError.corruptedContainer(detail: "inflate failed") }
+        guard let stream else { return (Data(), input.count) }
+        guard let (out, ended, consumed) = stream.decode(input, limit: expectedSize - produced, cap: cap) else {
+            throw SheetError.corruptedContainer(detail: "inflate failed")
+        }
         produced += out.count
         if ended || produced == expectedSize { finished = true }
-        return out
+        return (out, consumed)
     }
 
-    /// Asks for whatever the decoder still holds once the compressed bytes are exhausted.
-    package func drain() throws -> Data { try decode(UnsafeRawBufferPointer(start: nil, count: 0)) }
+    /// `decode(_:upTo:)` with no cap of its own: everything the input expands to, all of it consumed.
+    package func decode(_ input: UnsafeRawBufferPointer) throws -> Data { try decode(input, upTo: Int.max).out }
+
+    /// Asks for whatever the decoder still holds once the compressed bytes are exhausted, at most `cap` of it.
+    package func drain(upTo cap: Int = Int.max) throws -> Data { try decode(UnsafeRawBufferPointer(start: nil, count: 0), upTo: cap).out }
 
     package func decode(_ data: Data) throws -> Data { try data.withUnsafeBytes { try decode($0) } }
 
@@ -229,15 +243,18 @@ enum Backend {
             raw.deallocate()
         }
 
-        func decode(_ input: UnsafeRawBufferPointer, limit: Int) -> (Data, Bool)? {
-            guard live else { return (Data(), true) }
-            var out = Data()
+        /// Expands `input` into at most `bound = min(limit, cap)` bytes. The third value is how much of `input` was
+        /// consumed: all of it unless the bound stopped the expansion first.
+        func decode(_ input: UnsafeRawBufferPointer, limit: Int, cap: Int) -> (Data, Bool, Int)? {
+            guard live else { return (Data(), true, input.count) }
+            let bound = Swift.min(limit, cap)
+            var out = Data(capacity: Swift.min(bound, DeflateDecoder.pieceCap))
             var ended = false
             raw.pointee.src_ptr = input.isEmpty ? UnsafePointer<UInt8>(bitPattern: 1)! : input.bindMemory(to: UInt8.self).baseAddress!
             raw.pointee.src_size = input.count
             var failed = false
             repeat {
-                let room = Swift.min(buffer.count, limit - out.count)
+                let room = Swift.min(buffer.count, bound - out.count)
                 guard room > 0 else { break }
                 buffer.withUnsafeMutableBufferPointer { b in
                     raw.pointee.dst_ptr = b.baseAddress!
@@ -253,10 +270,12 @@ enum Backend {
                 }
                 if failed { return nil }
                 if ended { break }
-                // keep turning while the decoder still has input, or filled the whole room (there may be more)
-            } while raw.pointee.src_size > 0 || out.count < limit && raw.pointee.dst_size == 0
+                // keep turning while the decoder still has input, or filled the whole room (there may be more) —
+                // until the bound, where the rest of the input waits for the next call
+            } while raw.pointee.src_size > 0 || out.count < bound && raw.pointee.dst_size == 0
+            let consumed = input.count - raw.pointee.src_size
             if ended { compression_stream_destroy(raw); live = false }
-            return (out, ended)
+            return (out, ended, consumed)
         }
     }
 }
@@ -387,16 +406,19 @@ enum Backend {
 
         deinit { if live { inflateEnd(&z) } }
 
-        func decode(_ input: UnsafeRawBufferPointer, limit: Int) -> (Data, Bool)? {
-            guard live else { return (Data(), true) }
+        /// Expands `input` into at most `bound = min(limit, cap)` bytes. The third value is how much of `input` was
+        /// consumed: all of it unless the bound stopped the expansion first.
+        func decode(_ input: UnsafeRawBufferPointer, limit: Int, cap: Int) -> (Data, Bool, Int)? {
+            guard live else { return (Data(), true, input.count) }
             guard input.count <= Int(UInt32.max) else { return nil }
-            var out = Data()
+            let bound = Swift.min(limit, cap)
+            var out = Data(capacity: Swift.min(bound, DeflateDecoder.pieceCap))
             var ended = false
             var failed = false
             z.next_in = input.isEmpty ? nil : UnsafeMutablePointer(mutating: input.bindMemory(to: UInt8.self).baseAddress!)
             z.avail_in = uInt(input.count)
             repeat {
-                let room = Swift.min(buffer.count, limit - out.count)
+                let room = Swift.min(buffer.count, bound - out.count)
                 guard room > 0 else { break }
                 buffer.withUnsafeMutableBufferPointer { b in
                     z.next_out = b.baseAddress!
@@ -412,9 +434,10 @@ enum Backend {
                 }
                 if failed { return nil }
                 if ended { break }
-            } while z.avail_in > 0 || (out.count < limit && z.avail_out == 0)
+            } while z.avail_in > 0 || (out.count < bound && z.avail_out == 0)
+            let consumed = input.count - Int(z.avail_in)
             if ended { inflateEnd(&z); live = false }
-            return (out, ended)
+            return (out, ended, consumed)
         }
     }
 }

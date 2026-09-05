@@ -86,7 +86,9 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
         (try? probe(source: DataByteSource(data), filename: filename)) ?? .unrecognized
     }
 
-    package static func probe(source: any ByteSource, filename: String? = nil) throws -> FormatProbe {
+    /// `limits` is what a package may declare about itself before it is refused, for a caller about to open the
+    /// file with the same limits — a package the default limits refuse is not "unrecognised" to such a caller.
+    package static func probe(source: any ByteSource, filename: String? = nil, limits: ZipLimits = .default) throws -> FormatProbe {
         let signature = try source.bytes(in: 0..<Swift.min(source.count, 8))
         if signature.count >= 8, [UInt8](signature) == UnopenableInput.compoundFileSignature {
             // a compound file: the stream names sit in its directory, which follows the streams — scanned a window
@@ -94,7 +96,7 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
             return .unopenable(try UnopenableInput.probe(compoundFile: source))
         }
         if ZipInspection.looksLikeZip(signature) {
-            guard let zip = try? ZipArchive(source: source) else { return .unrecognized }
+            guard let zip = try? ZipArchive(source: source, limits: limits) else { return .unrecognized }
             let container = ZipInspection(archive: zip)
             guard let format = detect(in: container) else { return .unrecognized }
             if let unopenable = UnopenableInput.probe(in: container) { return .unopenable(unopenable) }

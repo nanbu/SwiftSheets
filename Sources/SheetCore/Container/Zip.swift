@@ -240,6 +240,10 @@ package final class ZipEntryStream {
     private let range: Range<Int>
     private var position: Int
     private let decoder: DeflateDecoder?
+    /// The compressed bytes read last, for a decoder that hands out bounded pieces: one 256 KiB read may take
+    /// several calls to expand, and the source's bytes are borrowed, so they are copied here for the duration.
+    private var pending: [UInt8] = []
+    private var pendingOffset = 0
     private var done = false
     /// The most expanded bytes handed out from one call so far — what a caller can hold at most.
     package private(set) var largestPiece = 0
@@ -275,14 +279,22 @@ package final class ZipEntryStream {
                 done = true
                 return nil
             }
-            let out: Data
-            if position < range.upperBound {
+            if pendingOffset >= pending.count, position < range.upperBound {
                 let end = Swift.min(position + ZipEntryStream.pieceSize, range.upperBound)
-                out = try archive.source.withBytes(in: position..<end) { try decoder.decode($0) }
+                pending = try archive.source.withBytes(in: position..<end) { [UInt8]($0) }
+                pendingOffset = 0
                 position = end
+            }
+            let out: Data
+            if pendingOffset < pending.count {
+                let (piece, consumed) = try pending.withUnsafeBytes { raw in
+                    try decoder.decode(UnsafeRawBufferPointer(rebasing: raw[pendingOffset...]), upTo: DeflateDecoder.pieceCap)
+                }
+                pendingOffset += consumed
+                out = piece
             } else {
                 // the compressed bytes are exhausted: whatever the decoder still holds comes out now
-                out = try decoder.drain()
+                out = try decoder.drain(upTo: DeflateDecoder.pieceCap)
                 if out.isEmpty {
                     try decoder.finish()   // throws when the entry stopped short of its declared size
                     done = true

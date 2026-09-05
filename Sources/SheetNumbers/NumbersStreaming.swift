@@ -33,7 +33,8 @@ public struct NumbersStreamingReader: StreamingRowSource {
             guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
             try self.init(index: try NumbersObjectIndex(folder: url, limits: limits))
         } else {
-            try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits)
+            // through positioned reads rather than a mapping, so the file's pages do not count against the walk
+            try self.init(index: try NumbersObjectIndex(url: url, limits: limits))
         }
     }
 

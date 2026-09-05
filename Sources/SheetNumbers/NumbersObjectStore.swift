@@ -46,8 +46,17 @@ final class NumbersObjectIndex: NumbersObjectStore {
     private(set) var reexpansions = 0
 
     /// The single-file form, or a zipped package bundle (`Index.zip` inside the outer package).
-    init(data: Data, limits: ZipLimits = ZipLimits()) throws {
-        let zip = try ZipArchive(data: data, limits: limits)
+    convenience init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(archive: try ZipArchive(data: data, limits: limits), limits: limits)
+    }
+
+    /// The single-file form on disk, read through positioned reads rather than mapped: the index holds what it
+    /// keeps of every IWA, and the tiles are expanded again from the file as a walk reaches them (Rev 4.31).
+    convenience init(url: URL, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(archive: try ZipArchive(source: try FileByteSource(url: url), limits: limits), limits: limits)
+    }
+
+    init(archive zip: ZipArchive, limits: ZipLimits) throws {
         if zip.contains(".iwph") { throw UnopenableInput.encryptedNumbers.error }
         try add(zip, limits: limits)
         try finishLoading()

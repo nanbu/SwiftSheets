@@ -32,7 +32,8 @@ public struct StreamingReader {
     /// The sheets of the file, in the file's order (one, "Sheet1", for delimited text).
     public var sheetNames: [String] { source.sheetNames }
 
-    /// Maps the file rather than reading it, so a workbook far larger than memory can be walked. A Numbers document
+    /// Reads the file through positioned reads rather than mapping it, so a workbook far larger than memory can be
+    /// walked and only the pieces in hand are ever in memory (spec Appendix B.39.8, Rev 4.31). A Numbers document
     /// saved as a folder is opened as one. `limits` is what the container may declare about itself before it is
     /// refused (`ReadOptions.limits`); `csv` is the dialect and encoding of a text file. A protected XLSX or ODS is
     /// refused by name — the SheetDecrypt product adds `StreamingReader(contentsOf:password:)`.
@@ -42,8 +43,21 @@ public struct StreamingReader {
             self.init(source: try NumbersStreamingReader(folder: url, limits: limits), format: .numbers)
             return
         }
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), format: nil, limits: limits,
-                      csv: csv, filename: url.lastPathComponent)
+        // the same answer `SheetFormat.probe(contentsOf:)` gives, with this reader's limits: the format, or the
+        // name of what cannot be opened
+        switch try SheetFormat.probe(source: try FileByteSource(url: url), filename: url.lastPathComponent, limits: limits) {
+        case .unopenable(let unopenable): throw unopenable.error
+        case .unrecognized: throw SheetError.unrecognizedFormat
+        case .spreadsheet(let f):
+            let reader: any StreamingRowSource
+            switch f {
+            case .xlsx, .xlsm: reader = try XLSXStreamingReader(contentsOf: url, limits: limits)
+            case .ods: reader = try ODSStreamingReader(contentsOf: url, limits: limits)
+            case .numbers: reader = try NumbersStreamingReader(contentsOf: url, limits: limits)
+            case .csv: reader = try CSVStreamingReader(contentsOf: url, options: csv)
+            }
+            self.init(source: reader, format: f)
+        }
     }
 
     private init(source: any StreamingRowSource, format: SheetFormat) { self.source = source; self.format = format }
@@ -51,11 +65,17 @@ public struct StreamingReader {
     /// Reads from bytes. `format` overrides detection; `filename` only breaks ties for plain text (`.tsv`).
     public init(data: Data, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
                 csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws {
-        // An encrypted package or a legacy .xls says so plainly (spec Appendix B.39.9); a protected ODS is refused
-        // by its own reader (its manifest says which entries are), a protected Numbers document by name. Opening
-        // one is the SheetDecrypt product's, which hands this reader the plain package.
-        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
-        guard let f = format ?? SheetFormat.detect(from: data, filename: filename) else { throw SheetError.unrecognizedFormat }
+        // An encrypted package or a legacy .xls says so plainly (spec Appendix B.39.9), a protected ODS or Numbers
+        // document by name. Opening one is the SheetDecrypt product's, which hands this reader the plain package.
+        // The probe runs with this reader's limits, as it does for a file (Rev 4.31).
+        let f: SheetFormat
+        if let format { f = format } else {
+            switch try SheetFormat.probe(source: DataByteSource(data), filename: filename, limits: limits) {
+            case .unopenable(let unopenable): throw unopenable.error
+            case .unrecognized: throw SheetError.unrecognizedFormat
+            case .spreadsheet(let detected): f = detected
+            }
+        }
         self.format = f
         switch f {
         case .xlsx, .xlsm: source = try XLSXStreamingReader(data: data, limits: limits)

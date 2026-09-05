@@ -222,6 +222,29 @@ import SwiftSheets
         return zip.finish()
     }
 
+    /// A reader given its own limits opens a package the default limits refuse, by URL and by bytes alike: the
+    /// format is probed with the reader's limits (spec Appendix B.39.8, Rev 4.31 — the URL reader used to detect
+    /// the format on a mapping of the file with the default limits, and called such a package unrecognised).
+    @Test func aReaderProbesTheFormatWithItsOwnLimits() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "padded"
+        let plain = try ZipArchive(data: try wb.data(as: .xlsx))
+        let writer = ZipWriter()
+        for name in plain.entries.keys.sorted() where !name.hasSuffix("/") { writer.add(name, try plain.read(name)) }
+        for i in 0..<ZipLimits().maxEntries { writer.add("pad/\(i)", Data(), stored: true) }   // one over the default
+        let data = writer.finish()
+        let url = Self.temporary("padded.xlsx")
+        try data.write(to: url)
+        #expect(throws: SheetError.self) { try StreamingReader(contentsOf: url) }
+        #expect(throws: SheetError.self) { try StreamingReader(data: data) }
+        let roomy = ZipLimits(maxEntries: 2 * ZipLimits().maxEntries)
+        for reader in [try StreamingReader(contentsOf: url, limits: roomy), try StreamingReader(data: data, limits: roomy)] {
+            var first: CellValue?
+            try reader.forEachRow(inSheet: reader.sheetNames[0]) { row in if first == nil { first = row.cells.first?.value } }
+            #expect(first == .text("padded"))
+        }
+    }
+
     /// A three-byte character whose continuation byte sits exactly three bytes before the end of the second
     /// piece (spec Appendix B.39.8). The part is valid UTF-8 from end to end; the reader used to resume its
     /// check at a fixed three bytes from the end of what it held, land on that continuation byte and call the

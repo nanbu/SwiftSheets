@@ -58,6 +58,14 @@ public enum UnopenableInput: Sendable, Hashable {
 }
 
 extension UnopenableInput {
+    /// `probe(_:)` over a source: nil unless the first bytes are a compound file's, and then which kind, read a
+    /// window at a time. For a reader that opens a file through positioned reads rather than mapping it (Rev 4.31).
+    package static func probe(source: any ByteSource) throws -> UnopenableInput? {
+        let signature = try source.bytes(in: 0..<Swift.min(source.count, 8))
+        guard signature.count >= 8, [UInt8](signature) == compoundFileSignature else { return nil }
+        return try probe(compoundFile: source)
+    }
+
     /// What a compound file is, read from a source a window at a time — `SheetFormat.probe(contentsOf:)`'s way,
     /// which never holds a whole file. The caller has already matched the signature.
     package static func probe(compoundFile source: any ByteSource) throws -> UnopenableInput {
