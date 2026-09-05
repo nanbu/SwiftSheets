@@ -30,7 +30,9 @@ swift test --filter ODSCodecTests   # narrow while iterating
   `Package.swift`, anything under `Sources/SheetDecrypt` or `Sources/SheetEncrypt`, or a refusal message.
 - Performance is measured and checked on macOS only (`scripts/bench.sh`; the numbers in the README, the
   performance page and the spec). Measure on Linux only when asked to — the Linux CI job judges behaviour, not
-  numbers.
+  numbers. A memory figure is never reported alone: the same operation's time goes beside it (a table pairs the
+  columns, a sentence pairs "15 MB, 4.4 s"), and a claim that time did not change comes from the old and the new
+  build run alternately on the same machine at the same time, not from two records taken on different days.
 - Tests that depend on local tools or fixtures (LibreOffice, generated ground-truth documents) must skip
   **visibly** via `.enabled(if:)` with a reason — never `guard … else { return }`, which counts a test that did
   nothing as a pass.
