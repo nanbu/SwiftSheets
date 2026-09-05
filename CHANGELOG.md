@@ -7,6 +7,40 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [0.17.2] — 2026-09-05
+
+### Fixed
+
+- **The row-by-row reader's peak no longer grows with the file** (spec Appendix B.39.8, Rev 4.31). The
+  0.17.1 record showed it: at 100 columns, a million to ten million cells took the XLSX streaming reader from
+  19 to 62 MB, ODS from 228 to 709 MB and Numbers from 53 to 329 MB, while every streaming writer stayed flat.
+  Two causes, measured one process per stage:
+  1. *The inflater's pieces were as large as 256 KiB of compressed bytes expanded to.* Six-fold for an XLSX sheet
+     part; sixty-fold for an ODS content part, so every piece was 15 MB, and on macOS an allocation that size
+     freed by the caller stays counted against the process. Each piece expanded added itself to the peak. One
+     call now hands back at most 1 MiB (the size of a stored piece) and the rest of the read waits for the next
+     call — for both decompression backends, and a part that expands a thousand-fold no longer makes a 256 MB
+     piece either.
+  2. *A file opened by URL was mapped, and the pages a walk touched stayed resident.* Touching a Numbers file
+     alone cost its 282 MB. `StreamingReader(contentsOf:)` and the three format readers now read the file
+     through positioned reads, the way `SheetFormat.probe(contentsOf:)` already did, and probe the format with
+     the reader's own limits (for bytes as well: a package the default limits refuse opens when the caller's
+     limits allow it — it used to be called unrecognised).
+  A million cells: XLSX 19 → 13 MB, ODS 228 → 15 MB, Numbers 53 → 26 MB. Ten million: XLSX 62 → 19 MB,
+  ODS 709 → 14 MB, Numbers 329 → 61 MB. ODS is flat across the two; what XLSX and Numbers still add between them is
+  the shared-string table and the string list with its index — the strings a reader must hold, which the README
+  has always named — not the file. Time is unchanged: the old and the new build, run alternately on the same
+  machine at the same time, walk a million cells in the same seconds. The whole-model read fell as well, since it expands its parts the same way: about 40 MB less at a
+  million cells in the same side-by-side runs (the record says 215 → 201 MB). The record's ten-million-cell *times* were taken on an 8 GB machine running other
+  applications, with 6 GB of swap in use, and are not comparable with 0.17.1's (an untouched operation, the
+  whole-model CSV read, went from 21.7 to 48.6 s); the streaming peaks are unaffected by that. The README's numbers and
+  [the performance record](https://nanbu.github.io/SwiftSheets/performance.html) are re-measured.
+
+### Changed
+
+- **Performance is measured and checked on macOS only.** The Linux CI job judges behaviour, not numbers; a Linux
+  measurement is taken only when asked for (AGENTS.md, spec Appendix B.39.11).
+
 ## [0.17.1] — 2026-09-05
 
 ### Changed
@@ -805,6 +839,9 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.17.2]: https://github.com/nanbu/SwiftSheets/compare/0.17.1...0.17.2
+[0.17.1]: https://github.com/nanbu/SwiftSheets/compare/0.17.0...0.17.1
+[0.17.0]: https://github.com/nanbu/SwiftSheets/compare/0.16.1...0.17.0
 [0.16.1]: https://github.com/nanbu/SwiftSheets/compare/0.16.0...0.16.1
 [0.16.0]: https://github.com/nanbu/SwiftSheets/compare/0.15.0...0.16.0
 [0.15.0]: https://github.com/nanbu/SwiftSheets/compare/0.14.0...0.15.0
