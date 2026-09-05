@@ -7,6 +7,44 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [0.18.0] — 2026-09-05
+
+### Added
+
+- **`CodecSet` — the facade for whichever codecs an app links** (spec Appendix B.44). Every entry point the
+  umbrella has — open a file with the format detected from its bytes, ask a file about itself before reading it,
+  write, convert, read row by row, write row by row — is a method of a `CodecSet`, a table of codecs keyed by
+  format, declared in `SheetCore`. An app that links `SheetXLSX`, `SheetODS` and `SheetNumbers` and not the
+  umbrella (nor `SheetCSV`) makes its own set and has the same facade, the same detection and the same refusals:
+  ```swift
+  let codecs = CodecSet([XLSXCodec.self, XLSMCodec.self, ODSCodec.self, NumbersCodec.self])
+  let summary = try codecs.inspect(contentsOf: url)
+  let reader = try codecs.streamingReader(contentsOf: url)
+  ```
+  A file of a format the set lacks is refused by name — `unsupportedFeature("no codec for .csv is in this
+  CodecSet — link the SheetCSV product, or the SwiftSheets product, which has every codec")` — never passed off as
+  unrecognised. Until now these entry points lived only in the `SwiftSheets` product, so linking anything less
+  than everything lost all of them, which is not what "import only what you need" promised. The `SwiftSheets`
+  product is now `CodecSet.all` plus its old names: `Workbook(contentsOf:)`, `Workbook.inspect`, `write(to:as:)`,
+  `Workbook.convert`, `StreamingReader(contentsOf:)` and `StreamingWriter(url:)` behave exactly as before.
+- **`inspect` on every codec.** `XLSXCodec.inspect`, `XLSMCodec.inspect`, `ODSCodec.inspect`, `NumbersCodec.inspect`
+  and `CSVCodec.inspect` answer what `Workbook.inspect` answers for their format, and are what a `CodecSet`
+  dispatches to; so are the new `streamingReader(contentsOf:)` / `streamingReader(data:…)` /
+  `streamingWriter(url:…)` and `read(contentsOf:)` / `inspect(contentsOf:)` on each codec (the folder form of a
+  Numbers document is opened by the Numbers codec's own overrides).
+- A test target that links the core and three codecs only, `PartialLinkTests`, proves the facade works without
+  the umbrella imported and that the missing format is refused by name.
+
+### Changed
+
+- **`StreamingReader` and `StreamingWriter` are declared in `SheetCore`**, not in the `SwiftSheets` module. Code
+  that imports `SwiftSheets` and writes `StreamingReader(contentsOf:)` is unchanged (the umbrella re-exports
+  `SheetCore`); code that spelled the module out — `SwiftSheets.StreamingReader` — now writes
+  `SheetCore.StreamingReader`.
+- **`SpreadsheetCodec` has six more requirements** (`inspect`, the two `contentsOf:` forms, the two streaming
+  readers, the streaming writer). Only the library's own codecs conform; a conformance outside it would need the
+  new members (pre-1.0, as CONTRIBUTING says minor versions may).
+
 ## [0.17.2] — 2026-09-05
 
 ### Fixed
@@ -839,6 +877,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.18.0]: https://github.com/nanbu/SwiftSheets/compare/0.17.2...0.18.0
 [0.17.2]: https://github.com/nanbu/SwiftSheets/compare/0.17.1...0.17.2
 [0.17.1]: https://github.com/nanbu/SwiftSheets/compare/0.17.0...0.17.1
 [0.17.0]: https://github.com/nanbu/SwiftSheets/compare/0.16.1...0.17.0
