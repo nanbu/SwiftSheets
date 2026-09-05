@@ -29,3 +29,26 @@ public enum ODSCodec: SpreadsheetCodec {
         try ODSWriter.write(workbook, options: options)
     }
 }
+
+// MARK: - The rest of the codec contract (spec Appendix B.44)
+
+extension ODSCodec {
+    /// ODS keeps every sheet in one part and says nothing about a sheet's size up front, so the content is walked
+    /// once as bytes — tables, rows, the cells that carry a value — with the run-length counts multiplied rather
+    /// than expanded (spec Appendix B.39.3). A pass over the markup, no model.
+    public static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+        try ODSInspector.inspect(try ZipArchive(data: data, limits: options.limits), options: options)
+    }
+
+    public static func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
+        StreamingReader(source: try ODSStreamingReader(contentsOf: url, limits: limits), format: .ods)
+    }
+
+    public static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+        StreamingReader(source: try ODSStreamingReader(data: data, limits: limits), format: .ods)
+    }
+
+    public static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
+        StreamingWriter(sink: try ODSStreamingWriter(url: url, sheetName: sheetName), format: .ods)
+    }
+}

@@ -1,10 +1,18 @@
 import Foundation
 
-/// The contract every format codec fulfils: detect, read, write — and report what neither direction could express.
+/// The contract every format codec fulfils: detect, read, write, inspect, read row by row, write row by row — and
+/// report what no direction could express.
 ///
 /// Both directions answer with a result, not a bare value: "read it, but this part of the file has no place in the
 /// model" is exactly as much a loss as "wrote it, but this feature has no place in the format", and the spec's rule
 /// (§4.1, §6) is that a loss is never silent. A codec that has nothing to report returns no warnings.
+///
+/// The contract is what a `CodecSet` dispatches on (spec Appendix B.44): it holds the codecs an application links
+/// as `any SpreadsheetCodec.Type`, keyed by `format`, and every entry point of the library — `read`, `inspect`,
+/// `write`, `streamingReader`, `streamingWriter` — is one of these requirements reached through the table. That is
+/// why the row-by-row readers and writers are requirements too, and why the file-on-disk forms are: a codec whose
+/// documents can be a folder (Numbers) opens the folder, and a streaming reader opens a file through positioned
+/// reads rather than a mapping (Appendix B.39.8), so the codec has to be the one that opens the URL.
 public protocol SpreadsheetCodec {
     static var format: SheetFormat { get }
     /// Whether this codec can read the container. Answered from `SheetFormat.detect(in:)` so that the rules of
@@ -12,6 +20,36 @@ public protocol SpreadsheetCodec {
     static func canDecode(_ container: ZipInspection) -> Bool
     static func read(_ data: Data, options: ReadOptions) throws -> ReadResult
     static func write(_ workbook: Workbook, options: WriteOptions) throws -> WriteResult
+
+    /// Reads a file on disk. The default maps the file and reads the bytes; a codec whose documents can be a folder
+    /// on disk overrides it.
+    static func read(contentsOf url: URL, options: ReadOptions) throws -> ReadResult
+    /// What a file of this format says about itself before any cell is read (spec Appendix B.39.3): the sheets it
+    /// declares, how many cells each says it holds, what the package expands to, who wrote it.
+    static func inspect(_ data: Data, options: InspectOptions) throws -> WorkbookSummary
+    /// `inspect` over a file on disk. The default maps the file; a codec whose documents can be a folder overrides it.
+    static func inspect(contentsOf url: URL, options: InspectOptions) throws -> WorkbookSummary
+    /// A reader that walks a file on disk one row at a time (spec Appendix B.40), through positioned reads rather
+    /// than a mapping. `limits` is what the container may declare about itself; `csv` the dialect and encoding of a
+    /// text file — a codec ignores what does not apply to its format.
+    static func streamingReader(contentsOf url: URL, limits: ZipLimits, csv: CSVReadOptions) throws -> StreamingReader
+    /// The same reader over bytes. `filename` is the extension hint plain text needs (`.tsv`).
+    static func streamingReader(data: Data, limits: ZipLimits, csv: CSVReadOptions, filename: String?) throws -> StreamingReader
+    /// A writer that appends rows to a new file (spec Appendix B.42), starting with a sheet named `sheetName`.
+    /// `epoch` is the date origin where the format has one; `csv` the dialect and encoding of a text file.
+    static func streamingWriter(url: URL, sheetName: String, epoch: DateEpoch, csv: CSVWriteOptions) throws -> StreamingWriter
+}
+
+extension SpreadsheetCodec {
+    /// The file, mapped rather than copied when it is big enough to matter and stable enough to be safe, then read.
+    public static func read(contentsOf url: URL, options: ReadOptions) throws -> ReadResult {
+        try read(try Data(contentsOf: url, options: .mappedIfSafe), options: options)
+    }
+
+    /// The file, mapped, then inspected.
+    public static func inspect(contentsOf url: URL, options: InspectOptions) throws -> WorkbookSummary {
+        try inspect(try Data(contentsOf: url, options: .mappedIfSafe), options: options)
+    }
 }
 
 /// A workbook plus whatever the file held that the model cannot say (spec §6): a data style with no Excel

@@ -7,6 +7,16 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
     /// The usual file extension.
     public var fileExtension: String { rawValue }
 
+    /// The product that carries this format's codec — what a `CodecSet` names when it lacks one (Appendix B.44).
+    package var productName: String {
+        switch self {
+        case .xlsx, .xlsm: "SheetXLSX"
+        case .csv: "SheetCSV"
+        case .ods: "SheetODS"
+        case .numbers: "SheetNumbers"
+        }
+    }
+
     /// The format a file extension implies; nil for unknown extensions. "tsv" maps to `.csv`.
     public init?(fileExtension ext: String) {
         switch ext.lowercased() {

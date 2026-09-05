@@ -7,11 +7,14 @@ import PackageDescription
 // nothing).
 //
 //   SheetCore   model, styles, formula AST, codec contract, ZIP / XML plumbing, CSV options   (no dependencies)
+//               and CodecSet — the facade over whichever codecs an app links: read, inspect, write, convert,
+//               streamingReader, streamingWriter (spec Appendix B.44)
 //   SheetXLSX   .xlsx / .xlsm codec (ECMA-376 SpreadsheetML) with round-trip preservation
 //   SheetCSV    .csv / .tsv codec (RFC 4180 + real-world dialects, explicit encodings)
 //   SheetODS    .ods codec (ODF 1.3 OpenDocument Spreadsheet)
 //   SheetNumbers .numbers codec (Apple iWork IWA: Snappy + Protobuf, schema from numbers-parser — see NOTICE)
-//   SwiftSheets everything, plus the facade: Workbook(contentsOf:), write(to:as:), convert
+//   SwiftSheets everything: CodecSet.all and its conveniences — Workbook(contentsOf:), write(to:as:), convert,
+//               StreamingReader(contentsOf:), StreamingWriter(url:)
 //
 // None of the above contains encryption code: a protected file is recognised and refused by name. Opening one
 // is a separate product, and protecting one another, so that an app declares what it links (spec Appendix B.39.9):
@@ -62,6 +65,9 @@ let package = Package(
             dependencies: ["SwiftSheets"],
             resources: [.copy("Fixtures")]
         ),
+        // Imports three codecs and the core — not the umbrella, not SheetCSV — and uses the facade through its own
+        // CodecSet: the proof that an app linking only what it needs has the same entry points (spec Appendix B.44).
+        .testTarget(name: "PartialLinkTests", dependencies: ["SheetCore", "SheetXLSX", "SheetODS", "SheetNumbers"]),
         // Kept apart from SwiftSheetsTests so that the suite of the plain products never links a cipher.
         .testTarget(name: "SheetDecryptTests", dependencies: ["SheetDecrypt"]),
         .testTarget(name: "SheetEncryptTests", dependencies: ["SheetEncrypt"])

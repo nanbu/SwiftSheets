@@ -52,6 +52,20 @@ targets: [
 ]
 ```
 
+**Only some formats.** An app that links, say, `SheetXLSX`, `SheetODS` and `SheetNumbers` — no CSV, no umbrella — has
+the same entry points the umbrella has: open, inspect before reading, write, convert, read and write row by row. They
+are methods of a `CodecSet` of the codecs it links; the umbrella's `Workbook(contentsOf:)` and friends are
+`CodecSet.all`'s under older names. A file of a format the set lacks is refused by name, with the product to link
+(spec Appendix B.44).
+
+```swift
+import SheetCore   // and SheetXLSX, SheetODS, SheetNumbers
+let codecs = CodecSet([XLSXCodec.self, XLSMCodec.self, ODSCodec.self, NumbersCodec.self])
+let summary = try codecs.inspect(contentsOf: url)        // sheets and declared cells, before any cell is read
+let workbook = try codecs.read(contentsOf: url).workbook
+let reader = try codecs.streamingReader(contentsOf: url)
+```
+
 **Encryption code.** The SwiftSheets, SheetCore, SheetXLSX, SheetODS, SheetCSV and SheetNumbers products contain no
 encryption code (hash functions only, for sheet-protection password checks). Decrypting protected files lives solely
 in `SheetDecrypt`, which contains no encryption (writing) code; encrypting lives solely in `SheetEncrypt`. An app that
@@ -177,12 +191,12 @@ is reported, never dropped in silence.
 
 | product | contents | depends on |
 |---|---|---|
-| `SheetCore` | `Workbook` → `Sheets` → `Sheet` → `[Table]` → `Cell` model, styles and differential styles, conditional formatting, named tables, pivot tables, protection and scenarios, `FormulaExpr` AST + parser / emitters (XLSX and ODS dialects), the `SpreadsheetCodec` contract, `PreservationStore`, ZIP / XML plumbing, CSV options | nothing |
+| `SheetCore` | `Workbook` → `Sheets` → `Sheet` → `[Table]` → `Cell` model, styles and differential styles, conditional formatting, named tables, pivot tables, protection and scenarios, `FormulaExpr` AST + parser / emitters (XLSX and ODS dialects), the `SpreadsheetCodec` contract, `PreservationStore`, ZIP / XML plumbing, CSV options — and `CodecSet`, the facade over whichever codecs an app links (`read`, `inspect`, `write`, `convert`, `streamingReader`, `streamingWriter`), with `StreamingReader` / `StreamingWriter`, the one shape rows come in and go out | nothing |
 | `SheetXLSX` | `XLSXCodec` / `XLSMCodec`, `XLSXStreamingReader` / `XLSXStreamingWriter` | SheetCore |
 | `SheetCSV` | `CSVCodec` (RFC 4180 + real-world dialects; UTF-8 BOM auto-detection, explicit encodings) | SheetCore |
 | `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect, conditional formats and validations, master pages, data pilots), `ODSStreamingReader` / `ODSStreamingWriter` | SheetCore |
 | `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table / constants / font map as JSON resources), `NumbersStreamingReader` / `NumbersStreamingWriter` | SheetCore |
-| `SwiftSheets` | everything plus the facade: `Workbook(contentsOf:)`, `write(to:as:)`, `data(as:)`, `Workbook.convert`, and `StreamingReader` / `StreamingWriter` for any format | all of the above |
+| `SwiftSheets` | everything: `CodecSet.all` and its conveniences — `Workbook(contentsOf:)`, `Workbook.inspect`, `write(to:as:)`, `data(as:)`, `Workbook.convert`, `StreamingReader(contentsOf:)` / `StreamingWriter(url:)` for any format | all of the above |
 | `SheetDecrypt` | `decrypt(_:password:)` and `Workbook(contentsOf:password:)` / `Workbook.inspect(…password:)` / `StreamingReader(contentsOf:password:)`: AES's inverse cipher, key derivation, the compound file's reader, the OOXML / ODF package forms opened. No encryption (writing) code | SwiftSheets |
 | `SheetEncrypt` | `encrypt(_:as:password:)` and `wb.write(to:password:)` / `data(as:password:)`: the cipher, salts, the compound file written. Re-exports SheetDecrypt | SheetDecrypt |
 

@@ -812,6 +812,13 @@ pre .vr { color: var(--code-var); }
     ZIPFoundation のみ、SwiftProtobuf は <code>SheetNumbers</code> に閉じる。Numbers 対応が不要な利用者に
     Protobuf ランタイムを背負わせない。</p>
   </div>
+  <div class="callout callout-info">
+    <span class="label">入口は束が持つ（Rev 4.32・B.44）</span>
+    <p>開く・読む前の問い合わせ・逐次読み・逐次書き・変換の 5 つの入口は <code>SheetCore</code> の <code>CodecSet</code>
+    （<code>SheetFormat</code> を鍵にしたコーデックの表）が持ち、全部入り <code>SwiftSheets</code> は 5 コーデックを差し込んだ
+    <code>CodecSet.all</code> を 1 つ持って旧来の呼び名を委ねるだけ。要る製品だけ繋いだ利用者は自分の束を作れば同じ入口が使える。
+    表に無い形式は形式名と足す製品名を言って断る。</p>
+  </div>
 </section>
 
 <!-- ===================== CH 03 ===================== -->
@@ -973,6 +980,9 @@ pre .vr { color: var(--code-var); }
   <div class="callout callout-info">
     <span class="label">ファサードの動作</span>
     <p><code>Workbook(contentsOf:)</code> は判別 → 該当コーデックの <code>read</code> を呼ぶだけの薄い層とする。
+    この振り分けは形式ごとの <code>switch</code> ではなく、<code>SheetFormat</code> を鍵にした表 <code>CodecSet</code>
+    （SheetCore・Rev 4.32・B.44）が行い、全部入りは 5 コーデックを差し込んだ <code>CodecSet.all</code> に委ねる。
+    表に無い形式は <code>unsupportedFeature</code> で形式名と足す製品名を言って断る。
     書き出しは <code>wb.write(to:as:)</code> で明示指定を基本とし、拡張子からの推定はコンビニエンスとして提供する。
     <strong>読み込み形式と異なる形式への書き出し＝変換</strong>であり、追加の実装は不要（中間モデルが仲介する）。</p>
   </div>
@@ -1905,6 +1915,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.32 Draft</td><td>2026-09-05</td><td><strong>コーデックの束</strong>を付録 B.44 に記録して本体へ（0.18.0）。要る製品だけ繋いだアプリにも開く・問い合わせ・逐次読み・逐次書き・変換の入口が届くように、<code>SheetCore</code> に <code>SheetFormat</code> を鍵にした表 <code>CodecSet</code> を新設し、<code>SpreadsheetCodec</code> に <code>inspect</code>・URL から開く・逐次読み書きの要件を足し、<code>StreamingReader</code> / <code>StreamingWriter</code> の宣言を中核へ移した。全部入りは <code>CodecSet.all</code> を 1 つ持つ薄い入口になり、呼び方は不変。束に無い形式は形式名と製品名で断る。§2.2・§4.3・B.40.1 を追従。テストの的 <code>PartialLinkTests</code>（4 製品の import だけ）を新設。きっかけは Left Right の要望（全部入りを繋ぐ費用は実測 約 115 KB だが、README の「要る部分だけ」の約束の穴を塞ぐのが本筋）</td></tr>
     <tr><td>4.31 Draft</td><td>2026-09-05</td><td><strong>逐次読みのピークがファイルの大きさで伸びる原因 2 つを直した</strong>（付録 B.39.8 Rev 4.31・0.17.2）: 展開器の 1 回の出力を 1 MiB で切る（ODS の本文は 60 倍に膨らみ、15 MB の片を捨てても macOS の割り当て器が実メモリから返さなかった）と、URL から開く逐次読みを写像でなく位置指定読みにする（写像したファイルの触ったページがピークに載っていた）。1,000 万マスの逐次読み（0.17.2 の記録）: XLSX 62 → 19 MB・ODS 709 → 14 MB・Numbers 329 → 61 MB — ファイルの大きさでは伸びず、残るのは読み手が持つ文字列の分。付録 B.39.11 に「性能の計測は macOS で採る。Linux は指示があるときだけ」を追記。</td></tr>
     <tr><td>4.30 Draft</td><td>2026-09-05</td><td><strong>計測の基準を改めた</strong>（付録 B.39.11）: 100 列 × 10,000 行（100 万マス）と 100 列 × 100,000 行（1,000 万マス）の 2 段。README の看板の数字は 1 段目から採る。10 列 × 10 万行の記録と 200 列の 3 段は退役（数字は歴史として残す）。駆動は <code>scripts/bench.py</code> の 1 本、記録は <code>tiers</code> の 1 本、読みの数字は全載せで書いたファイルの値で逐次で書いたファイルの読みは別行</td></tr>
     <tr><td>4.29 Draft</td><td>2026-09-05</td><td><strong>復号と暗号化を別製品へ</strong>（付録 B.39.9 Rev 4.29・0.17.0）。中核（SwiftSheets と 5 製品）から <code>ReadOptions.password</code> / <code>InspectOptions.password</code> / <code>WriteOptions.password</code> と逐次読みの <code>password:</code> を外し、暗号化・復号のコードがバイナリに入らないようにした。復号は <code>SheetDecrypt</code>（<code>decrypt(_:password:)</code> と <code>Workbook(contentsOf:password:)</code> 等の extension）、暗号化は <code>SheetEncrypt</code>（<code>encrypt(_:as:password:)</code> と <code>write(to:…password:)</code>）。理由は繋ぐアプリの申告。審判は記号表（<code>scripts/check-no-crypto.sh</code>・陽性対照つき・CI 両 OS）。§1.3・§14.11・B.40 を追従。同時に、1 MiB を超える保護ファイルを中核が「旧 .xls」と誤認していた判別器の窓を外した（200 列 × 5,000 行の計測が発見）</td></tr>
@@ -5265,6 +5276,12 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     （<code>StreamingRowSequence</code>）。切れ端送り（B.39.10 の <code>SAXDriver.PieceFeeder</code>）から行を引き出す歩き
     <code>PieceFedRowWalk</code> も SheetCore に 1 つ置き、XLSX と ODS が共有する。
   </p>
+  <p>
+    <strong>Rev 4.32（B.44）</strong>: <code>StreamingReader</code> の宣言は SheetCore へ移り、作るのはコーデックの
+    <code>streamingReader(contentsOf:)</code> / <code>streamingReader(data:…)</code>（<code>SpreadsheetCodec</code> の要件）。
+    全部入りの <code>StreamingReader(contentsOf:)</code> は <code>CodecSet.all.streamingReader(contentsOf:)</code> の別名で、
+    要る製品だけ繋いだ利用者は自分の <code>CodecSet</code> から同じ器を得る。逐次書き（B.42）も同じ。
+  </p>
   <ul>
     <li><strong>改名</strong>: SheetXLSX の <code>StreamingReader</code> は <code>XLSXStreamingReader</code> になった。
       <code>import SwiftSheets</code> の利用者は今までどおり <code>StreamingReader(contentsOf:)</code> と書けば、XLSX に加えて
@@ -5629,6 +5646,87 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   <p>
     <strong>やらなかったこと</strong>: グラフ・図形・テキストボックス（<code>addChart</code> は ODS では従来どおり
     <code>dropped</code>）。ODS の読みで絵を模型に上げること。逐次書きの画像。
+  </p>
+
+
+  <h3>B.44 コーデックの束 — 要る製品だけ繋いでも入口は同じ（Rev 4.32）</h3>
+  <p>
+    2026-09-05。<strong>きっかけ</strong>は Left Right（社内の比較アプリ）からの要望。表を読む前に申告セル数で断る
+    <code>Workbook.inspect</code> と、1 行ずつ読む <code>StreamingReader</code> を使いたいが、どちらも全部入りの製品
+    <code>SwiftSheets</code> にしか無く、全部入りを繋ぐと使わない SheetCSV が出荷物に入る（実測: release で記号を落として
+    4.09 → 4.20 MB、約 115 KB。問い合わせと逐次読みの経路も含む数字）。費用は小さいが、要望の本質は費用ではない。
+    README は「要る部分だけ繋げる」と約束しているのに、どれか 1 形式を外した瞬間に、開く・問い合わせ・逐次読み・逐次書き・
+    変換の 5 つの入口が全部消えていた — 全部入りの中に 6 か所の <code>switch</code> として書かれていたからで、
+    第 2 章の「L4 は形式固有の分岐を持たない」にも文字どおりには反していた。
+  </p>
+  <h4>なぜ「降ろす」だけでは済まないか</h4>
+  <p>
+    振り分けは各形式の読み手を呼ぶ。中核 <code>SheetCore</code> は読み手を知らない側（依存の矢印の先）にいるので、
+    分岐をそのまま中核へ移すことはできない。降ろせるのは「表」だけで、表の中身（どの読み手がいるか）は
+    <strong>呼ぶ側が中核に渡す</strong>必要がある。それが <code>CodecSet</code>（明示的な合成）。
+    起動時に読み手が自分を名簿へ書き込む登録方式（他言語の plugin registry）は採らなかった — 呼び出し側から何が入っているか
+    見えず、順番に依存し、Swift 6 の並行性検査とも相性が悪い。「CSV 抜きの全部入り」のような組み合わせ製品も採らなかった —
+    次の組み合わせでまた増える。束なら組み合わせは呼ぶ側が決める。
+  </p>
+  <h4>設計</h4>
+  <ul>
+    <li><strong><code>CodecSet</code>（SheetCore）</strong>: <code>[any SpreadsheetCodec.Type]</code> から作る、
+      <code>SheetFormat</code> を鍵にした表。<code>read(contentsOf:)</code> / <code>read(_:format:options:)</code>・
+      <code>inspect(…)</code>・<code>write(_:as:)</code> / <code>write(_:to:as:)</code>・<code>convert</code>・
+      <code>streamingReader(contentsOf:)</code> / <code>streamingReader(data:…)</code>・<code>streamingWriter(url:…)</code>。
+      各コーデックの前に立つ規則 — 形式の見分け（<code>SheetFormat.detect</code> / <code>probe</code>）・複合ファイルと暗号化の
+      名指しの拒否（§1.3・§14.11）・フォルダー形式の Numbers（§4.2）・ファイル名による CSV / TSV の判別 — はここに 1 度だけ書く。
+      形式に依らない <code>openDocumentOnlyWarnings</code>（B.17・B.23）と <code>outputFormat</code> も中核へ。
+      同じ形式を 2 度名乗れば後の方が残る（呼ぶ側の書き間違いを落とす場面ではないので precondition にはしない）。</li>
+    <li><strong>契約の拡張</strong>: <code>SpreadsheetCodec</code> に <code>inspect(_:options:)</code>、
+      <code>read(contentsOf:)</code> / <code>inspect(contentsOf:)</code>（既定実装は写像して data 版へ。フォルダーを持つ Numbers だけ上書き）、
+      <code>streamingReader(contentsOf:)</code> / <code>streamingReader(data:…)</code>、<code>streamingWriter(url:…)</code> を足した。
+      逐次読みの URL 版に既定実装を置かないのは、B.39.8 Rev 4.31 の位置指定読みを各読み手が持つため（写像する既定を置けば後退する）。
+      3 形式の問い合わせ（<code>XLSXInspector</code> / <code>ODSInspector</code> / <code>NumbersInspector</code>）は package のまま、
+      各コーデックの <code>inspect</code> が製品の外へ出す。CSV の問い合わせ（行数を数えるだけ）は全部入りの直書きから
+      <code>CSVCodec</code> へ引き取った。</li>
+    <li><strong>器の移動</strong>: <code>StreamingReader</code>（B.40.1）と <code>StreamingWriter</code>（B.42）の宣言は全部入りから
+      SheetCore へ。作れるのはコーデックだけ（<code>package init</code>）— 読み手の約束 <code>StreamingRowSource</code> /
+      <code>StreamingRowSink</code> は package のままなので、外部が自作の形式を束に差し込むことはできない。意図した制限
+      （差し込み口を公開すれば、その約束が API になり凍る）。</li>
+    <li><strong>全部入りは薄い入口</strong>: <code>CodecSet.all</code>（5 コーデック）を 1 つ持ち、<code>Workbook(contentsOf:)</code> /
+      <code>Workbook.inspect</code> / <code>write(to:as:)</code> / <code>convert</code> / <code>StreamingReader(contentsOf:)</code> /
+      <code>StreamingWriter(url:)</code> はすべて <code>.all</code> への 1 行。呼び方も引数も変えない。
+      <code>StreamingWriter(url:)</code> は別モジュールの class への convenience init なので、束が作った器の sink を取り出して
+      <code>self.init(sink:format:)</code> へ渡す（器を 1 度余分に作るが、状態は sink が持つので無害）。</li>
+    <li><strong>断り方</strong>: 束に無い形式は <code>SheetError.unsupportedFeature</code>（§4.3 の「未実装の形式」の枠）で
+      「no codec for .csv is in this CodecSet — link the SheetCSV product, or the SwiftSheets product, which has every codec」。
+      形式名と製品名を言う。見分けは中核が全形式を知っているので、CSV を「不明な形式」にはしない。新しい <code>case</code> は足さない。</li>
+    <li><strong>依存の向き</strong>は 1 本も変えない。<code>SheetDecrypt</code> / <code>SheetEncrypt</code> は全部入りに依存したまま、
+      今までの呼び名を使い続ける。<code>scripts/check-no-crypto.sh</code> は 6 モジュール名を順に見るだけで、モジュールは増えないので不変。</li>
+  </ul>
+  <h4>利用者から見た変化</h4>
+  <p>全部入りを繋ぐ利用者: 変化なし。要る製品だけ繋ぐ利用者は、束を 1 つ作る:</p>
+  <pre><code><span class="kw">import</span> SheetCore          <span class="cm">// と SheetXLSX / SheetODS / SheetNumbers — SheetCSV も SwiftSheets も無し</span>
+<span class="kw">let</span> codecs = <span class="ty">CodecSet</span>([<span class="ty">XLSXCodec</span>.self, <span class="ty">XLSMCodec</span>.self, <span class="ty">ODSCodec</span>.self, <span class="ty">NumbersCodec</span>.self])
+<span class="kw">let</span> summary = <span class="kw">try</span> codecs.inspect(contentsOf: url)          <span class="cm">// 読む前に: シート・申告セル数</span>
+<span class="kw">let</span> workbook = <span class="kw">try</span> codecs.read(contentsOf: url).workbook   <span class="cm">// 形式は中身で判定</span>
+<span class="kw">let</span> reader = <span class="kw">try</span> codecs.streamingReader(contentsOf: url)   <span class="cm">// 1 行ずつ</span></code></pre>
+  <h4>検証</h4>
+  <p>
+    <code>CodecSetTests</code>: <code>CodecSet.all</code> が <code>SheetFormat.allCases</code> を全部持つ／全部入りの呼び名と束の
+    メソッドが同じ答えを返す／XLSX だけの束が ODS を形式名と製品名で断る／同じコーデックを 2 度名乗っても 1 項目。
+    新しいテストの的 <code>PartialLinkTests</code>（依存は SheetCore・SheetXLSX・SheetODS・SheetNumbers のみ。
+    <code>@testable</code> も使わない）: 3 形式それぞれを bytes と URL から開く・問い合わせる・歩く・逐次で書く、
+    CSV を 7 つの入口すべてで名指しで断る。SwiftPM はテストの的を 1 つの bundle にまとめて link するので、この的が証明するのは
+    「4 製品の import だけでコンパイルと動作が成り立つ」こと。link 単位で SheetCSV が入らないことは、提案のために作った
+    実行ファイル 2 本の記号表と大きさで確かめた（上の実測）。
+  </p>
+  <h4>互換性（0.18.0・1.0 前）</h4>
+  <ul>
+    <li>全部入り経由の呼び方はすべて不変。</li>
+    <li><code>SwiftSheets.StreamingReader</code> / <code>SwiftSheets.StreamingWriter</code> と完全修飾していた利用者は
+      <code>SheetCore.…</code> に（全部入りは SheetCore を再輸出するので、修飾なしなら何も変わらない）。</li>
+    <li><code>SpreadsheetCodec</code> に要件が 6 つ増えた。外部に準拠者は無い想定。</li>
+  </ul>
+  <h4>やらなかったこと</h4>
+  <p>
+    外部コーデックの差し込み（上記）。組み合わせ製品（上記）。Left Right 側の表示の設計（逐次読みを画面にどう出すかは向こうの計画）。
   </p>
 
 </section>

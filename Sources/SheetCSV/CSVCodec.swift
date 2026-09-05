@@ -473,3 +473,33 @@ public enum CSVCodec: SpreadsheetCodec {
 private extension Character {
     var isASCIIDigit: Bool { isASCII && isNumber }
 }
+
+// MARK: - The rest of the codec contract (spec Appendix B.44)
+
+extension CSVCodec {
+    /// Delimited text declares nothing about itself, so the lines are counted — a pass over the bytes, nothing
+    /// decoded — and reported as the one sheet's `rowCount`.
+    public static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+        var sheet = SheetSummary(name: "Sheet1")
+        var lines = 0
+        var lastWasNewline = true
+        data.withUnsafeBytes { raw in
+            for b in raw { if b == 0x0A { lines += 1; lastWasNewline = true } else { lastWasNewline = false } }
+        }
+        if !lastWasNewline { lines += 1 }
+        sheet.rowCount = lines
+        return WorkbookSummary(format: .csv, sheets: [sheet], producer: nil, expandedBytes: data.count, partCount: 1)
+    }
+
+    public static func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
+        StreamingReader(source: try CSVStreamingReader(contentsOf: url, options: csv), format: .csv)
+    }
+
+    public static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+        StreamingReader(source: CSVStreamingReader(data: data, options: csv, filename: filename), format: .csv)
+    }
+
+    public static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
+        StreamingWriter(sink: try CSVStreamingWriter(url: url, options: csv), format: .csv)
+    }
+}
