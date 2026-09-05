@@ -7,6 +7,22 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [0.17.1] — 2026-09-05
+
+### Changed
+
+- **The measurement standard is 100 columns × 10,000 rows and × 100,000 rows** (spec Appendix B.39.11, Rev 4.30):
+  a million cells — a data-heavy everyday file — and ten million — a large one. Round numbers that cover the two
+  situations a reader thinks in. The README's nine numbers now come from the first tier; the ten-column
+  million-cell record they came from since 0.12.0, and the 200-column three-tier grid of 0.16.1, both retire (their
+  numbers stay in this changelog and in the appendix). One driver, `scripts/bench.sh` → `scripts/bench.py`, writes
+  one record, the `tiers` of `docs/performance.json`, and the page shows both tiers in one table. Readers are
+  measured on the whole-model writer's file — the file an application writes — and the streaming writer's file is
+  read separately and labelled as such; nothing picks one silently. The memory and disk guards stay for machines
+  smaller than the 8 GB both tiers fit. Nothing in the library changed — but the README's numbers did, and one
+  of them says something the ten-column shape hid: the ODS row-by-row reader peaks at 228 MB on a hundred-column
+  million-cell sheet, nearly the whole model's 233 MB (42 MB at ten columns). It is on the plan.
+
 ## [0.17.0] — 2026-09-05
 
 ### Changed — breaking

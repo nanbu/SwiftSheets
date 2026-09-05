@@ -8,6 +8,7 @@ numbers are the first tier's; the page docs/performance.html shows both.
     scripts/bench.sh --rows 10000        # one tier (a subset is recorded as such — the page says which)
     scripts/bench.sh --no-page           # write the JSON without regenerating the page
     scripts/bench.sh --self-test         # the guards decide as documented
+    scripts/bench.sh --from-log <path>   # rebuild the JSON from a run's log (its JSON lines, in plan order) without measuring again
 
 Every measurement is its own process (peak memory is a process's lifetime maximum), from a release build made
 fresh (an incremental build once mixed stale parts into a measurement). A size can be past what a machine can
@@ -38,6 +39,9 @@ DISK_PER_CELL = {"write": 15, "streamWrite": 15, "writeSheets": 15, "edit": 30, 
                  "writeCSV": 25, "streamWriteCSV": 25, "writeNumbers": 60, "streamWriteNumbers": 60}
 WHOLE_MODEL = {"build", "write", "read", "writeSheets", "readSheetsSerial", "readSheets", "edit",
                "writeODS", "readODS", "writeCSV", "readCSV", "writeNumbers", "readNumbers"}
+# the operations that take a file: measured on the whole-model writer's file and again on the streaming writer's
+READERS = {"read", "streamRead", "readODS", "streamReadODS", "readCSV", "streamReadCSV", "readNumbers",
+           "streamReadNumbers", "detect", "inspect", "readSheetsSerial", "readSheets", "edit"}
 
 # (op, file, needs) in an order that lets each format's files go as soon as their readers are done
 PLAN = [
@@ -119,7 +123,8 @@ def readme_numbers(tier):
     """The numbers the README quotes, by name, so a test can hold the README to them — read off the whole-model
     writer's file, the file an application writes."""
     def peak(op):
-        hit = next((r for r in tier["results"] if r["op"] == op and not r.get("file", "").startswith("stream")), None)
+        # a reader has two measurements, one per file; a writer's file is its own output, whatever its name
+        hit = next((r for r in tier["results"] if r["op"] == op and not (op in READERS and r.get("file", "").startswith("stream"))), None)
         if hit is None:
             sys.exit("❌ the README needs %s at %s rows and it was not measured" % (op, tier["rows"]))
         return round(hit["peakMB"])
@@ -142,6 +147,8 @@ def main(argv):
     sizes = SIZES
     if "--rows" in argv:
         sizes = [int(x) for x in argv[argv.index("--rows") + 1].split(",")]
+    if "--from-log" in argv:
+        return write_record(tiers_from_log(argv[argv.index("--from-log") + 1]), argv)
     if "--no-build" not in argv:
         print("building the bench (release, from scratch)…", file=sys.stderr)
         shutil.rmtree(os.path.join(BENCH_DIR, ".build"), ignore_errors=True)
@@ -157,6 +164,36 @@ def main(argv):
                 tiers.append(measure(binary, rows, outdir, log))
             finally:
                 shutil.rmtree(outdir, ignore_errors=True)
+    return write_record(tiers, argv)
+
+
+def tiers_from_log(path):
+    """The tiers of a run, from its log: one JSON line per measured plan entry, in plan order, under a
+    "=== N columns × R rows" heading per tier; skipped entries print "skip <op> <reason>" and are recorded as such."""
+    tiers, tier, plan = [], None, []
+    for raw in open(path, encoding="utf-8"):
+        line = raw.strip()
+        m = re.match(r"=== (\d+) columns × (\d+) rows", line)
+        if m:
+            tier = {"rows": int(m.group(2)), "cells": int(m.group(2)) * int(m.group(1)), "results": [], "skipped": []}
+            tiers.append(tier); plan = list(PLAN)
+            continue
+        if tier is None or not plan:
+            continue
+        if line.startswith("skip "):
+            op, name, _ = plan.pop(0)
+            tier["skipped"].append({"op": op, "file": name, "reason": line[len("skip "):].split(None, 1)[1]})
+        elif line.startswith("{"):
+            op, name, _ = plan.pop(0)
+            entry = json.loads(line)
+            if entry["op"] != op:
+                sys.exit("❌ the log is not in plan order: expected %s, found %s" % (op, entry["op"]))
+            entry["file"] = name
+            tier["results"].append(entry)
+    return tiers
+
+
+def write_record(tiers, argv):
     version = re.search(r'version = "([^"]+)"', open(os.path.join(ROOT, "Sources", "SheetCore", "SwiftSheetsInfo.swift"), encoding="utf-8").read()).group(1)
     memsize = sh("sysctl -n hw.memsize")
     meta = {
@@ -202,9 +239,12 @@ def self_test():
     t("空きディスクが足りない書き出しは測らない、と理由を言う", "ディスク" in (decide("streamWriteODS", 10_000_000, 8 * gb, 1 * gb) or ""))
     t("空きディスクが足りていれば測る", decide("streamWriteODS", 10_000_000, 8 * gb, 2 * gb) is None)
     t("計画の材料はすべて先に作られる", all(needs is None or any(o == needs and n == name for o, n, _ in PLAN[:i]) for i, (op, name, needs) in enumerate(PLAN)))
-    t("README の 9 つの数字は全載せで書いたファイルの読みから採る", readme_numbers({"rows": 1, "results": [
-        {"op": op, "file": "bench.x", "peakMB": 1.4} for op in ["streamWrite", "streamWriteODS", "streamWriteNumbers", "streamRead", "streamReadODS", "streamReadNumbers", "read", "readSheetsSerial", "readSheets"]]
-        + [{"op": "streamRead", "file": "stream.x", "peakMB": 9}]})["streaming_read_peak_mb"] == 1)
+    numbers = readme_numbers({"rows": 1, "results": [
+        {"op": op, "file": "stream.x" if op.startswith("streamWrite") else "bench.x", "peakMB": 1.4}
+        for op in ["streamWrite", "streamWriteODS", "streamWriteNumbers", "streamRead", "streamReadODS", "streamReadNumbers", "read", "readSheetsSerial", "readSheets"]]
+        + [{"op": "streamRead", "file": "stream.x", "peakMB": 9}]})
+    t("README の読みの数字は全載せで書いたファイルの読みから採る", numbers["streaming_read_peak_mb"] == 1)
+    t("README の書きの数字は、その書きが作ったファイルの名前によらず採る", numbers["streaming_write_peak_mb"] == 1)
     print("✅ self-test 全緑" if ok else "❌ self-test 赤")
     return 0 if ok else 1
 
