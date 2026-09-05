@@ -25,15 +25,9 @@ enum ODSReader {
         let manifest = ManifestParser()
         if zip.contains("META-INF/manifest.xml") { try? manifest.run(try zip.read("META-INF/manifest.xml"), part: "META-INF/manifest.xml") }
         // An encrypted ODF package keeps `mimetype` in the clear, so it detects as .ods and every part after it is
-        // ciphertext. The manifest says as much (ODF 1.3 §4.3): with a password the entries are decrypted into a
-        // plain package and read as one; without, the file is refused by name (spec Appendix B.39.9).
-        let encryptedEntries = manifest.encryptedEntries
-        if !encryptedEntries.isEmpty {
-            guard let password = options.password else { throw UnopenableInput.encryptedODF.error }
-            var plainOptions = options
-            plainOptions.password = nil
-            return try read(try ODSEncryption.decrypt(zip, entries: encryptedEntries, password: password), options: plainOptions)
-        }
+        // ciphertext. The manifest says as much (ODF 1.3 §4.3): the file is refused by name — opening it is the
+        // SheetDecrypt product's job, which hands this reader the plain package (spec Appendix B.39.9).
+        if !manifest.encryptedEntries.isEmpty { throw UnopenableInput.encryptedODF.error }
 
         let catalog = ODSStyleCatalog()
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }
@@ -125,14 +119,26 @@ enum ODSReader {
 
 // MARK: - META-INF/manifest.xml
 
-final class ManifestParser: SAXHandler {
-    var driver: SAXDriver?
-    var rootAttributes: [String: String] = [:]
-    var mediaTypes: [String: String] = [:]
+/// What the manifest says about one encrypted entry (ODF 1.3 §4.3) — the parameters, and nothing that uses them.
+/// Decrypting is the SheetDecrypt product's; the reader here only needs to know the entry is not readable.
+package struct ODSEncryptedEntry: Sendable {
+    package var size: Int?
+    package var checksumType: String?, checksum: Data?
+    package var algorithm: String?, iv: Data?
+    package var keyDerivation: String?, keySize: Int?, iterations: Int?, salt: Data?
+    package var startKeyGeneration: String?, startKeySize: Int?
+    package init() {}
+}
+
+package final class ManifestParser: SAXHandler {
+    package var driver: SAXDriver?
+    package var rootAttributes: [String: String] = [:]
+    package var mediaTypes: [String: String] = [:]
     /// The entries the manifest says are encrypted, with everything decrypting them needs.
-    var encrypted: [String: ODSEncryption.EntryEncryption] = [:]
+    var encrypted: [String: ODSEncryptedEntry] = [:]
     private var current: String?
-    func start(_ name: String, _ a: [String: String]) {
+    package init() {}
+    package func start(_ name: String, _ a: [String: String]) {
         switch name {
         case "file-entry":
             current = ODSAttr.get(a, "manifest:full-path")
@@ -160,9 +166,9 @@ final class ManifestParser: SAXHandler {
         default: break
         }
     }
-    func end(_ name: String) { if name == "file-entry" { current = nil } }
+    package func end(_ name: String) { if name == "file-entry" { current = nil } }
     /// Entries that really carry encryption (a `manifest:size` alone does not make one).
-    var encryptedEntries: [String: ODSEncryption.EntryEncryption] { encrypted.filter { $0.value.algorithm != nil } }
+    package var encryptedEntries: [String: ODSEncryptedEntry] { encrypted.filter { $0.value.algorithm != nil } }
 }
 
 // MARK: - styles.xml

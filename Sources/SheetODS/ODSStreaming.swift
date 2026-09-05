@@ -23,26 +23,20 @@ public struct ODSStreamingReader: StreamingRowSource {
     public let sheetNames: [String]
 
     /// Maps the file rather than reading it, so a document far larger than memory can be walked.
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits(), password: String? = nil) throws {
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits, password: password)
+    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits)
     }
 
-    /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`);
-    /// `password` opens a protected package (its entries are decrypted whole first — an encrypted package cannot
-    /// be walked a row at a time).
-    public init(data: Data, limits: ZipLimits = ZipLimits(), password: String? = nil) throws {
-        var zip = try ZipArchive(data: data, limits: limits)
+    /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
+    /// protected package is refused by name: the SheetDecrypt product decrypts its entries whole (an encrypted
+    /// package cannot be walked a row at a time) and hands this reader the plain package.
+    public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+        let zip = try ZipArchive(data: data, limits: limits)
         guard zip.contains("content.xml") else { throw SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package") }
         let manifest = ManifestParser()
         if zip.contains("META-INF/manifest.xml") { try? manifest.run(try zip.read("META-INF/manifest.xml"), part: "META-INF/manifest.xml") }
-        let encrypted = manifest.encryptedEntries
-        if !encrypted.isEmpty {
-            // the manifest says which entries are encrypted (ODF 1.3 §4.3): with a password they are decrypted
-            // into a plain package in memory and walked as one; without, the file is refused by name
-            guard let password else { throw UnopenableInput.encryptedODF.error }
-            zip = try ZipArchive(data: try ODSEncryption.decrypt(zip, entries: encrypted, password: password), limits: limits)
-            guard zip.contains("content.xml") else { throw SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package") }
-        }
+        // the manifest says which entries are encrypted (ODF 1.3 §4.3): the file is refused by name
+        if !manifest.encryptedEntries.isEmpty { throw UnopenableInput.encryptedODF.error }
         self.zip = zip
         catalog = ODSStyleCatalog()
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }

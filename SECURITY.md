@@ -26,9 +26,11 @@ The library is expected to read hostile input safely. In scope:
 ## What is not in scope
 
 - Refusing to read a protected file without its password, or the older encryption forms named in the README's
-  Limits table. Password-protected files are read and written (`ReadOptions.password` / `WriteOptions.password`);
-  a defect in that arithmetic — a file that opens with the wrong password, or a written file that does not protect
-  what it claims to — **is** in scope, and so is a crafted protected file that crashes the reader.
+  Limits table. The plain products contain no cipher and refuse a protected file by name; opening one is the
+  `SheetDecrypt` product's and protecting one `SheetEncrypt`'s. A defect in that arithmetic — a file that opens with
+  the wrong password, or a written file that does not protect what it claims to — **is** in scope, and so is a
+  crafted protected file that crashes the decrypting reader, and so would be any cipher symbol turning up in the
+  plain products (`scripts/check-no-crypto.sh` runs in CI to keep that from happening in silence).
 - Exceeding a documented limit (formula nesting depth, the package limits in `ReadOptions.limits`) and reporting it.
   See [Limits](README.md#limits).
 - Memory used by a file that stays within those limits. There is no cell ceiling by default; a reader of untrusted

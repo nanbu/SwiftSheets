@@ -298,16 +298,16 @@ package final class ZipEntryStream {
 }
 
 package enum Zip {
-    static func u16<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt16 where C.Element == UInt8, C.Index == Int {
+    package static func u16<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt16 where C.Element == UInt8, C.Index == Int {
         UInt16(b[i]) | UInt16(b[i + 1]) << 8
     }
-    static func u32<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt32 where C.Element == UInt8, C.Index == Int {
+    package static func u32<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt32 where C.Element == UInt8, C.Index == Int {
         UInt32(b[i]) | UInt32(b[i + 1]) << 8 | UInt32(b[i + 2]) << 16 | UInt32(b[i + 3]) << 24
     }
-    static func u64<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt64 where C.Element == UInt8, C.Index == Int {
+    package static func u64<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt64 where C.Element == UInt8, C.Index == Int {
         UInt64(u32(b, i)) | UInt64(u32(b, i + 4)) << 32
     }
-    static func le16(_ v: UInt16) -> Data { Data([UInt8(v & 0xff), UInt8(v >> 8)]) }
-    static func le32(_ v: UInt32) -> Data { Data([UInt8(v & 0xff), UInt8((v >> 8) & 0xff), UInt8((v >> 16) & 0xff), UInt8(v >> 24)]) }
-    static func le64(_ v: UInt64) -> Data { le32(UInt32(truncatingIfNeeded: v)) + le32(UInt32(truncatingIfNeeded: v >> 32)) }
+    package static func le16(_ v: UInt16) -> Data { Data([UInt8(v & 0xff), UInt8(v >> 8)]) }
+    package static func le32(_ v: UInt32) -> Data { Data([UInt8(v & 0xff), UInt8((v >> 8) & 0xff), UInt8((v >> 16) & 0xff), UInt8(v >> 24)]) }
+    package static func le64(_ v: UInt64) -> Data { le32(UInt32(truncatingIfNeeded: v)) + le32(UInt32(truncatingIfNeeded: v >> 32)) }
 }

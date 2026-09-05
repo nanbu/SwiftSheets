@@ -7,6 +7,52 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [0.17.0] — 2026-09-05
+
+### Changed — breaking
+
+- **The plain products contain no encryption code; opening and protecting files moved to two new products**
+  (spec Appendix B.39.9, Rev 4.29). Whichever of SwiftSheets, SheetCore, SheetXLSX, SheetODS, SheetCSV and
+  SheetNumbers an app links, no cipher goes into its binary: a protected file is recognised and refused by name,
+  and the refusal says which product opens it. `SheetDecrypt` opens protected files and contains nothing that
+  encrypts; `SheetEncrypt` protects them and re-exports SheetDecrypt. The reason is what an app can declare about
+  itself — "no encryption" or "decryption only" — and that follows from its `Package.swift` alone. The two products
+  depend on the umbrella (their conveniences extend its facade); nothing depends on them.
+  Removed and where each went:
+
+  | Removed | Instead |
+  |---|---|
+  | `ReadOptions.password` | `Workbook(contentsOf:password:options:)`, `Workbook.read(_:password:…)` in SheetDecrypt |
+  | `InspectOptions.password` | `Workbook.inspect(contentsOf:password:options:)`, `Workbook.inspect(_:password:…)` in SheetDecrypt |
+  | `WriteOptions.password` | `wb.write(to:as:options:password:)`, `wb.write(as:options:password:)`, `wb.data(as:options:password:)` in SheetEncrypt |
+  | `StreamingReader(contentsOf:limits:password:csv:)` / `(data:…password:…)` | `StreamingReader(contentsOf:password:limits:csv:)` / `(data:password:…)` in SheetDecrypt |
+  | `XLSXStreamingReader(data:limits:password:)` / `(contentsOf:…)` | Decrypt first: `XLSXStreamingReader(data: try decrypt(data, password: …))` |
+  | `ODSStreamingReader(data:limits:password:)` / `(contentsOf:…)` | Decrypt first: `ODSStreamingReader(data: try decrypt(data, password: …))` |
+
+  The pure functions underneath are `SheetDecrypt.decrypt(_:password:)` (OOXML or ODF told apart from the bytes;
+  the plain package comes back, and data that is not protected comes back as it is) and
+  `SheetEncrypt.encrypt(_:as:password:)`. `SheetError.wrongPassword` stays in the core. Nothing about the
+  arithmetic changed — the standards' vectors pass unchanged — and nothing about the plain paths' speed or memory.
+
+### Added
+
+- `scripts/check-no-crypto.sh`, run by CI on macOS and Linux: builds three small executables (the plain products;
+  plus SheetDecrypt; plus SheetEncrypt) and reads their symbol tables, after first confirming that the full one
+  *does* carry the encrypting symbols — so a broken pattern fails rather than passing empty. The same is checked at
+  the object level, where an executable's table cannot mislead.
+- Test targets `SheetDecryptTests` (links SheetDecrypt only: the fixtures other encryptors made open, and nothing
+  else) and `SheetEncryptTests` (round trips, the AES vectors, the compound file, the parity judges).
+
+### Fixed
+
+- **A protected XLSX over a megabyte was refused as a legacy `.xls`.** The probe looked for the `EncryptedPackage`
+  stream name in the first mebibyte of a compound file, but the directory that holds the names follows the streams
+  — Office and this library both write it after the package — so every protected file bigger than that looked like
+  an old `.xls` (to `ReadOptions.password` too, since 0.12.0). Found by protecting the 200-column million-cell
+  workbook (4.5 MB) while measuring this release. The detection is the same (the signature, then the name as
+  UTF-16LE); the scan now runs to the end of the file, a window at a time, in `SheetFormat.probe(contentsOf:)` as
+  well.
+
 ## [0.16.1] — 2026-09-05
 
 ### Added

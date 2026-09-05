@@ -13,6 +13,14 @@ import PackageDescription
 //   SheetNumbers .numbers codec (Apple iWork IWA: Snappy + Protobuf, schema from numbers-parser — see NOTICE)
 //   SwiftSheets everything, plus the facade: Workbook(contentsOf:), write(to:as:), convert
 //
+// None of the above contains encryption code: a protected file is recognised and refused by name. Opening one
+// is a separate product, and protecting one another, so that an app declares what it links (spec Appendix B.39.9):
+//
+//   SheetDecrypt decrypt(_:password:) and Workbook(contentsOf:password:) — AES's inverse cipher, key derivation,
+//                the compound file's reader, the OOXML / ODF package forms opened. No encryption (writing) code.
+//   SheetEncrypt encrypt(_:as:password:) and write(to:password:) — the cipher, salts, the compound file written.
+//                Depends on SheetDecrypt and re-exports it.
+//
 // Import only what you need (`import SheetXLSX`) or the umbrella (`import SwiftSheets`).
 let package = Package(
     name: "SwiftSheets",
@@ -26,7 +34,9 @@ let package = Package(
         .library(name: "SheetCSV", targets: ["SheetCSV"]),
         .library(name: "SheetODS", targets: ["SheetODS"]),
         .library(name: "SheetNumbers", targets: ["SheetNumbers"]),
-        .library(name: "SwiftSheets", targets: ["SwiftSheets"])
+        .library(name: "SwiftSheets", targets: ["SwiftSheets"]),
+        .library(name: "SheetDecrypt", targets: ["SheetDecrypt"]),
+        .library(name: "SheetEncrypt", targets: ["SheetEncrypt"])
     ],
     targets: [
         // Not a dependency in the SwiftPM sense: zlib ships with every Apple SDK and every Linux distribution, and
@@ -43,10 +53,17 @@ let package = Package(
         // files to the bundle root, which is also where `Bundle.module.url(forResource:)` looks first.
         .target(name: "SheetNumbers", dependencies: ["SheetCore"], resources: [.process("Resources")]),
         .target(name: "SwiftSheets", dependencies: ["SheetCore", "SheetXLSX", "SheetCSV", "SheetODS", "SheetNumbers"]),
+        // The direction matters: these depend on the umbrella (their conveniences extend its facade), and nothing
+        // in the umbrella or the codecs depends on them — the moment it did, every product would carry the cipher.
+        .target(name: "SheetDecrypt", dependencies: ["SwiftSheets"]),
+        .target(name: "SheetEncrypt", dependencies: ["SheetDecrypt"]),
         .testTarget(
             name: "SwiftSheetsTests",
             dependencies: ["SwiftSheets"],
             resources: [.copy("Fixtures")]
-        )
+        ),
+        // Kept apart from SwiftSheetsTests so that the suite of the plain products never links a cipher.
+        .testTarget(name: "SheetDecryptTests", dependencies: ["SheetDecrypt"]),
+        .testTarget(name: "SheetEncryptTests", dependencies: ["SheetEncrypt"])
     ]
 )

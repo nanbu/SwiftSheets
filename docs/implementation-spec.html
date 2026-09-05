@@ -700,7 +700,7 @@ pre .vr { color: var(--code-var); }
     <li><strong>.xls（BIFF バイナリ）</strong> — 旧形式。構造が完全に別物であり、対応しない</li>
     <li><strong>数式の評価（再計算）</strong> — v2 で独立パッケージ <code>SheetFormulaEval</code> として計画（第5章参照）。v1 は数式の構文解析と方言変換まで</li>
     <li><strong>VBA マクロの実行・解釈</strong> — セキュリティ境界として恒久的に非対応。保持のみ</li>
-    <li><strong>暗号化ファイル（ECMA-376 agile encryption 等）</strong> — 将来検討。v1 では明示的エラー</li>
+    <li><strong>暗号化ファイルの復号・暗号化</strong> — 中核（SwiftSheets と SheetCore / SheetXLSX / SheetCSV / SheetODS / SheetNumbers）の外。別製品 <code>SheetDecrypt</code>（復号）・<code>SheetEncrypt</code>（暗号化）が担い、中核は暗号化されていると名指しで断る（Rev 4.29・B.39.9）。0.12.0〜0.16.1 は中核が <code>ReadOptions.password</code> で開いていた</li>
     <li><strong>UI・レンダリング</strong> — データモデルと入出力に専念する</li>
   </ul>
 
@@ -963,7 +963,7 @@ pre .vr { color: var(--code-var); }
     <span class="kw">case</span> unrecognizedFormat
     <span class="kw">case</span> corruptedContainer(detail: <span class="ty">String</span>)      <span class="cm">// ZIP/Snappy 層の失敗</span>
     <span class="kw">case</span> malformedPart(path: <span class="ty">String</span>, detail: <span class="ty">String</span>)
-    <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// 暗号化ファイル等</span>
+    <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// 暗号化ファイル（中核だけで開こうとしたとき）等</span>
     <span class="kw">case</span> unsupportedVersion(found: <span class="ty">String</span>, supported: <span class="ty">ClosedRange</span>&lt;<span class="ty">Int</span>&gt;)  <span class="cm">// Numbers 用</span>
     <span class="kw">case</span> formulaSyntax(offset: <span class="ty">Int</span>, detail: <span class="ty">String</span>)
     <span class="kw">case</span> invalidWorkbook(<span class="ty">String</span>)                 <span class="cm">// 求められた形では書けないモデル（シート 0 枚 等）</span>
@@ -1657,7 +1657,7 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
     <tr><td>文書の自由項目（<code>custom_doc_props</code>）</td><td><strong>読み書き対応済み</strong>（<code>Workbook.customProperties</code>・Rev 2.0・B.15）。ODF の <code>meta:user-defined</code> とも往復する</td></tr>
     <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きも Rev 4.25（B.42）で同じ 4 形式が 1 つの入口（<code>StreamingWriter(url:)</code>、拡張子で形式を決める）</td></tr>
     <tr><td>シート保護・シナリオ</td><td><strong>読み書き対応済み</strong>（<code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code>・Rev 2.0・B.15）。合鍵は旧来の 16 ビット式のみ生成する</td></tr>
-    <tr><td>ブック暗号化</td><td>非対応（明示的エラー — 第1章）</td></tr>
+    <tr><td>ブック暗号化</td><td><strong><code>SheetDecrypt</code> / <code>SheetEncrypt</code> を繋いだときだけ対応</strong>（Rev 4.29・B.39.9）。Excel の agile 形式と ODF 1.2〜1.3 の包。中核だけでは名指しで断る（§1.3）</td></tr>
     <tr><td>ピボットテーブル</td><td><strong>配置の読み書き対応済み</strong>（<code>Sheet.pivotTables</code>・Rev 2.0・B.15）。<strong>集計はしない</strong> — 「開いたときに再計算」を立てて書くので、数字は開いた側が入れる</td></tr>
   </table></div>
 </section>
@@ -1905,6 +1905,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.29 Draft</td><td>2026-09-05</td><td><strong>復号と暗号化を別製品へ</strong>（付録 B.39.9 Rev 4.29・0.17.0）。中核（SwiftSheets と 5 製品）から <code>ReadOptions.password</code> / <code>InspectOptions.password</code> / <code>WriteOptions.password</code> と逐次読みの <code>password:</code> を外し、暗号化・復号のコードがバイナリに入らないようにした。復号は <code>SheetDecrypt</code>（<code>decrypt(_:password:)</code> と <code>Workbook(contentsOf:password:)</code> 等の extension）、暗号化は <code>SheetEncrypt</code>（<code>encrypt(_:as:password:)</code> と <code>write(to:…password:)</code>）。理由は繋ぐアプリの申告。審判は記号表（<code>scripts/check-no-crypto.sh</code>・陽性対照つき・CI 両 OS）。§1.3・§14.11・B.40 を追従。同時に、1 MiB を超える保護ファイルを中核が「旧 .xls」と誤認していた判別器の窓を外した（200 列 × 5,000 行の計測が発見）</td></tr>
     <tr><td>4.28 Draft</td><td>2026-09-05</td><td>付録 B.39.8 の逐次読みの UTF-8 検査を直した: 片が届くたびの再検査を「末尾から 3 バイト」の固定位置から始めていたため、そこが完結した 3 バイト文字の続きのバイトだと有効な部品を「UTF-8 でない」と断っていた。<strong>200 列の基準（4.27）が 1,000 万マスの逐次書き XLSX で見つけた</strong>。再検査は前回が止まった位置（境目に切られた文字の先頭）から始める。回帰テストは無圧縮の部品で 1 MiB の境目に文字を置く</td></tr>
     <tr><td>4.27 Draft</td><td>2026-09-05</td><td>付録 B.39.11 に <strong>200 列の基準</strong>を追記: 列数 200 固定・行数 5,000 / 50,000 / 500,000 で同じ操作を測る <code>scripts/bench.sh --grid</code>。機械に収まらない操作は見込み（マス × 320 B・空きディスク × 1.5）で落ちる前に測らず、理由を記録する。計測台は列数を環境変数で広げ、CSV の逐次書きを加えた</td></tr>
     <tr><td>4.26 Draft</td><td>2026-09-05</td><td><strong>ODS への画像の書き</strong>を付録 B.43 に記録して本体へ。<code>addImage</code> の絵を <code>Pictures/</code> の部品と錨のセルの中の <code>draw:frame</code> / <code>draw:image</code> で書き、manifest に media-type を載せる。寸法は 96 dpi で cm、範囲に合わせる絵は <code>table:end-cell-address</code>。読みは変えない（自分の読み手では戻らない、と対応表に明記）。審判は LibreOffice</td></tr>
@@ -5040,6 +5041,78 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     （CSV は定義上平文、Numbers の暗号化は非公開）。テストは保護ファイルを短い反復回数で書いて時間を抑え（読みはファイルが名乗る回数に従うので
     開ける範囲は変わらない）、1 本だけ Excel と同じ回数で往復する。
   </p>
+  <h5>Rev 4.29 — 復号と暗号化を別製品へ（0.17.0）</h5>
+  <p>
+    0.17.0 でパスワードの扱いを中核から外した。<strong>SwiftSheets と 5 つの製品（SheetCore / SheetXLSX / SheetCSV / SheetODS /
+    SheetNumbers）のどれを繋いでも、暗号化・復号のコードはバイナリに入らない。</strong>理由は申告にある: この library を繋ぐアプリは、
+    輸出規制や App Store の質問に「暗号を使わない」「復号に限る」と答えたいことがあり、コードが入っているかどうかが
+    Package の依存だけで決まる形が一番確かで、一番説明しやすい。中核に差し込み口（protocol ＋ 登録）を置く案は退けた —
+    登録忘れが実行時エラーになり、繋いだかどうかを読んでも分からない。
+  </p>
+  <ul>
+    <li><strong><code>SheetDecrypt</code></strong>（復号だけ・傘の <code>SwiftSheets</code> に依存）: AES の復号側（鍵展開・
+      <code>decryptBlock</code>・<code>decryptCBC</code>）、鍵導出、OLE 複合ファイルの読み、OOXML / ODF の包みを開く手続き。
+      入口は <code>SheetDecrypt.decrypt(_:password:)</code> / <code>decrypt(contentsOf:password:)</code> — OOXML と ODF を自動判別して
+      素の包みを返す。<strong>保護されていない包みはそのまま返す</strong>（旧 <code>ReadOptions.password</code> が平文のファイルで
+      無視されていたのと同じ意味。保護の有無は <code>SheetFormat.probe</code> が別に答える）。その上の薄い extension が
+      <code>Workbook(contentsOf:password:options:)</code>・<code>Workbook.read(…password:…)</code>・<code>Workbook.inspect(…password:…)</code>・
+      <code>StreamingReader(contentsOf:password:…)</code>。中身はどれも「<code>decrypt</code> してから中核の素の API を呼ぶ」だけで、
+      復号の手続きは 1 か所にしか無い。</li>
+    <li><strong><code>SheetEncrypt</code></strong>（暗号化も・<code>SheetDecrypt</code> に依存し、それを再輸出する）: AES の暗号側
+      （<code>encryptBlock</code>・<code>encryptCBC</code>・ECB）、乱数の塩と IV、複合ファイルの書き、包みを作る手続き。入口は
+      <code>SheetEncrypt.encrypt(_:as:password:)</code>（CSV / Numbers は従来と同じ文言で断る）と
+      <code>Workbook.write(to:as:options:password:)</code> / <code>data(as:options:password:)</code>。</li>
+    <li><strong>中核に残るもの</strong>: SHA-1 / SHA-256 / SHA-512・HMAC・PBKDF2・乱数（シート保護の合鍵の照合と塩に要る —
+      守秘のための暗号ではない）と、<strong>見分けて名指しで断る</strong>こと（<code>UnopenableInput</code>。検出方法は変えない。
+      断り文は「SheetDecrypt で開ける」と言う）。<code>SheetError.wrongPassword</code> も残す（case を削るのは別の破壊）。</li>
+    <li><strong>削った API</strong>: <code>ReadOptions.password</code> / <code>InspectOptions.password</code> / <code>WriteOptions.password</code>、
+      <code>StreamingReader</code> / <code>XLSXStreamingReader</code> / <code>ODSStreamingReader</code> の <code>password:</code>。
+      移行先は CHANGELOG 0.17.0 の表に 1 対 1 で。</li>
+  </ul>
+  <p>
+    依頼の形から変えた点が 2 つ。(1) 名前 — 書く側は SheetCrypto でなく <strong><code>SheetEncrypt</code></strong>: 各製品が足す能力で
+    名乗るほうが申告の文に向く。(2) 依存の向き — <code>SheetDecrypt</code> は SheetCore / XLSX / ODS でなく<strong>傘の
+    <code>SwiftSheets</code> に依存する</strong>。<code>Workbook(contentsOf:)</code> や <code>StreamingReader</code> は傘の中にあり、
+    その extension は傘を import しないと書けない。逆向き（傘が <code>SheetDecrypt</code> を知る）は決して張らない —
+    張った瞬間に分けた意味が消える。
+  </p>
+  <p>
+    AES は復号側と暗号側でファイルを分けた。鍵展開・逆 S-box・逆表（Td）・復号は <code>SheetDecrypt</code>、順表（Te）と暗号化は
+    <code>SheetEncrypt</code> の extension。算術は 1 バイトも変えておらず、FIPS 197 付録 C と SP 800-38A F.2 の既知解が
+    そのまま通る。速さと持ち物も変わらない — 素の経路は分岐が 1 つ減っただけで、200 列 × 5,000 行（100 万マス、B.39.11 の
+    基準の 1 段目）で前後を測った。同じ機械・同じ日の 1 回ずつ（秒・ピーク MB。ばらつきは 5% ほど）:
+  </p>
+  <div class="compare"><table>
+    <tr><th>操作（200 列 × 5,000 行）</th><th>0.16.1</th><th>0.17.0</th></tr>
+    <tr><td>XLSX 書き</td><td>1.51 s・242 MB</td><td>1.56 s・252 MB</td></tr>
+    <tr><td>XLSX 読み</td><td>2.61 s・215 MB</td><td>2.78 s・207 MB</td></tr>
+    <tr><td>XLSX 逐次読み</td><td>1.83 s・19 MB</td><td>1.89 s・19 MB</td></tr>
+    <tr><td>ODS 書き</td><td>3.10 s・212 MB</td><td>3.25 s・212 MB</td></tr>
+    <tr><td>ODS 読み</td><td>3.71 s・249 MB</td><td>3.65 s・267 MB</td></tr>
+    <tr><td>保護する（SheetEncrypt）XLSX / ODS</td><td colspan="2">0.37 s・27 MB（4.49 → 4.53 MB）／ 0.38 s・111 MB（1.69 MB、部品ごとに deflate し直す分）</td></tr>
+    <tr><td>素の包みに戻す（SheetDecrypt）XLSX / ODS</td><td colspan="2">0.36 s・22 MB ／ 0.37 s・111 MB</td></tr>
+    <tr><td>保護ファイルを読む（decrypt → 読み）XLSX / ODS</td><td colspan="2">2.44 s・212 MB ／ 3.53 s・257 MB — 素の読みと同じ</td></tr>
+  </table></div>
+  <p>
+    <strong>この計測が不具合を 1 つ見つけた。</strong>保護した 4.5 MB の XLSX を <code>decrypt</code> に渡すと「旧 .xls」と断られた。
+    中核の判別器（<code>UnopenableInput.probe</code>）は複合ファイルの先頭 1 MiB だけを見て <code>EncryptedPackage</code> の名前を
+    探していたが、複合ファイルの目録（directory）は部品の<em>後ろ</em>に置かれる — Office もこの library もそう書く — ので、
+    包みが 1 MiB を超える保護ファイルは全部「旧 .xls」に見えていた（0.12.0 の <code>ReadOptions.password</code> でも同じ）。
+    検出方法（署名 ＋ 部品名の UTF-16LE）は変えず、窓を外して<strong>末尾まで 1 MiB ずつ重ねて走査する</strong>
+    （<code>SheetFormat.probe(contentsOf:)</code> も同じ走査を ByteSource の上で行い、ファイルを丸ごと持たない）。
+    回帰テストは 2 MiB の部品を持つ複合ファイルと、包みが 1 MiB を超える実際の保護ブック（<code>EncryptionTests</code>）。
+  </p>
+  <p>
+    <strong>審判は記号表</strong>（<code>scripts/check-no-crypto.sh</code>、CI の macOS と Linux で走る）。素の製品だけを繋ぐ実行体・
+    <code>SheetDecrypt</code> を足した実行体・<code>SheetEncrypt</code> を足した実行体の 3 つを 1 つの scratch package で作り、
+    <code>nm | swift demangle</code> で見る。全部入りに暗号化の記号が<em>ある</em>ことを先に確かめてから（陽性対照 — grep が壊れて
+    いればここで落ちる）、素の実行体に <code>SheetDecrypt</code> / <code>SheetEncrypt</code> / <code>AES</code> /
+    <code>OOXMLEncryption</code> / <code>ODSEncryption</code> / <code>CompoundFile</code> が無いこと、復号だけの実行体に
+    <code>SheetEncrypt</code> と <code>encryptBlock</code> / <code>encryptCBC</code> / <code>encryptECB</code> が無いことを見る。
+    実行体は参照した object しか繋がないので、object 段でも同じことを見る — 素の 6 モジュールの .o に定義も参照も無い、
+    <code>SheetDecrypt</code> の .o に暗号側が無い。こちらが「製品にコードが無い」の本当の証明で、実行体の nm はアプリが
+    自分の手で再現できる形。
+  </p>
 
   <h4>B.39.10 API を 3 件足す — 読むシートの選択・CSV の逐次読み書き・行の列挙</h4>
   <ul>
@@ -5127,8 +5200,8 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
       0 以外は <strong>throw</strong>（黙って空の歩きにしない）。<code>tableCount(inSheet:)</code> は <code>Workbook.inspect</code> の
       <code>SheetSummary.tableCount</code> と同じ数を答える。</li>
     <li><strong>CSV</strong> も同じ入口から。シートは "Sheet1" 1 枚（通常の CSV 読み手と同じ名前）、欄はすべてセル（空欄は値 nil のセル）。</li>
-    <li><strong>暗号化</strong>: XLSX は B.39.9 のとおり丸ごと復号してから歩く（複合ファイルは行ごとに歩けない）。ODS は目録（manifest）が
-      暗号化された部品を名指しするので、読み手自身が復号して素の封筒を歩く。Numbers の保護書類は名指しで断る。
+    <li><strong>暗号化</strong>: 保護された XLSX / ODS は <code>SheetDecrypt</code> の <code>decrypt</code> で丸ごと素の封筒にしてから歩く（複合ファイルも
+      暗号化された部品も行ごとには歩けない。Rev 4.29 までは読み手自身が復号していた）。中核の読み手は名指しで断る。Numbers の保護書類も名指しで断る。
       フォルダー形式の Numbers 書類も開く（B.39.4）。</li>
     <li><strong>持ち物</strong>: XLSX のシート部品と ODS の本文は 256 KiB の切れ端ごとに戻す（B.39.8）。どの読み手も丸ごと持たざるを得ないのは
       文字列表（XLSX の共有文字列表・Numbers の表ごとの文字列一覧）と、呼び手の手にある 1 行。<code>ReadOptions.cellLimit</code> は

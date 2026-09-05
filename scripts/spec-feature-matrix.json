@@ -118,14 +118,16 @@
               "read": "partial",
               "write": "full",
               "api": [
-                "ReadOptions.password",
-                "WriteOptions.password",
+                "SheetDecrypt.decrypt(_:password:)",
+                "Workbook(contentsOf:password:)",
+                "SheetEncrypt.encrypt(_:as:password:)",
+                "Workbook.write(to:password:)",
                 "SheetError.wrongPassword",
                 "UnopenableInput.encryptedOOXML"
               ],
-              "warning": "パスワードなしは throw（暗号化されていると名指し）。誤ったパスワードは wrongPassword。Excel 2007 の standard 形式と RC4 は名指しで断る",
+              "warning": "中核だけでは throw（暗号化されていると名指しし、SheetDecrypt で開けると言う）。誤ったパスワードは wrongPassword。Excel 2007 の standard 形式と RC4 は名指しで断る",
               "evidence": "judge",
-              "note": "agile 形式（AES-256 / SHA-512、Excel 2010 以降が書く形）を読み書きする。審判は msoffcrypto-tool（付録 B.39.9）。旧 .xls（BIFF）は UnopenableInput.legacyCompoundFile として別扱いで報告する。"
+              "note": "読みは SheetDecrypt・書きは SheetEncrypt を繋いだとき（0.17.0・Rev 4.29）。中核と 5 つの製品に暗号のコードは入らない（scripts/check-no-crypto.sh が CI で記号表を見る）。agile 形式（AES-256 / SHA-512、Excel 2010 以降が書く形）を読み書きする。審判は msoffcrypto-tool（付録 B.39.9）。旧 .xls（BIFF）は UnopenableInput.legacyCompoundFile として別扱いで報告する。"
             }
           ]
         },
@@ -1306,14 +1308,16 @@
               "read": "partial",
               "write": "full",
               "api": [
-                "ReadOptions.password",
-                "WriteOptions.password",
+                "SheetDecrypt.decrypt(_:password:)",
+                "Workbook(contentsOf:password:)",
+                "SheetEncrypt.encrypt(_:as:password:)",
+                "Workbook.write(to:password:)",
                 "SheetError.wrongPassword",
                 "UnopenableInput.encryptedODF"
               ],
-              "warning": "パスワードなしは throw（暗号化されていると名指し）。誤ったパスワードは wrongPassword。ODF 1.1 の Blowfish 形式は名指しで断る",
+              "warning": "中核だけでは throw（暗号化されていると名指しし、SheetDecrypt で開けると言う）。誤ったパスワードは wrongPassword。ODF 1.1 の Blowfish 形式は名指しで断る",
               "evidence": "judge",
-              "note": "AES-CBC ＋ PBKDF2（ODF 1.2 以降、LibreOffice が書く形）を読み書きする。審判は cryptography ライブラリで ODF 1.3 §4.3 を辿る独立実装（付録 B.39.9）。"
+              "note": "読みは SheetDecrypt・書きは SheetEncrypt を繋いだとき（0.17.0・Rev 4.29）。中核と 5 つの製品に暗号のコードは入らない（scripts/check-no-crypto.sh が CI で記号表を見る）。AES-CBC ＋ PBKDF2（ODF 1.2 以降、LibreOffice が書く形）を読み書きする。審判は cryptography ライブラリで ODF 1.3 §4.3 を辿る独立実装（付録 B.39.9）。"
             },
             {
               "id": "ods.package.opaque",

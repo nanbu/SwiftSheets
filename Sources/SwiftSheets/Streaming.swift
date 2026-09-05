@@ -34,37 +34,32 @@ public struct StreamingReader {
 
     /// Maps the file rather than reading it, so a workbook far larger than memory can be walked. A Numbers document
     /// saved as a folder is opened as one. `limits` is what the container may declare about itself before it is
-    /// refused (`ReadOptions.limits`); `password` opens a protected XLSX or ODS (the package is decrypted whole
-    /// first — a protected package cannot be walked a row at a time); `csv` is the dialect and encoding of a text
-    /// file.
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits(), password: String? = nil, csv: CSVReadOptions = CSVReadOptions()) throws {
+    /// refused (`ReadOptions.limits`); `csv` is the dialect and encoding of a text file. A protected XLSX or ODS is
+    /// refused by name — the SheetDecrypt product adds `StreamingReader(contentsOf:password:)`.
+    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws {
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
             self.init(source: try NumbersStreamingReader(folder: url, limits: limits), format: .numbers)
             return
         }
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), format: nil, limits: limits, password: password,
+        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), format: nil, limits: limits,
                       csv: csv, filename: url.lastPathComponent)
     }
 
     private init(source: any StreamingRowSource, format: SheetFormat) { self.source = source; self.format = format }
 
     /// Reads from bytes. `format` overrides detection; `filename` only breaks ties for plain text (`.tsv`).
-    public init(data: Data, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(), password: String? = nil,
+    public init(data: Data, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
                 csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws {
-        var data = data
-        // An encrypted package or a legacy .xls says so plainly (spec Appendix B.39.9). A protected Office package
-        // with a password is decrypted here and walked as the plain package it holds; a protected ODS is decrypted
-        // by its own reader (its manifest says which entries are), a protected Numbers document is refused by name.
-        if let unopenable = UnopenableInput.probe(data) {
-            guard unopenable == .encryptedOOXML, let password else { throw unopenable.error }
-            data = try OOXMLEncryption.decrypt(data, password: password)
-        }
+        // An encrypted package or a legacy .xls says so plainly (spec Appendix B.39.9); a protected ODS is refused
+        // by its own reader (its manifest says which entries are), a protected Numbers document by name. Opening
+        // one is the SheetDecrypt product's, which hands this reader the plain package.
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         guard let f = format ?? SheetFormat.detect(from: data, filename: filename) else { throw SheetError.unrecognizedFormat }
         self.format = f
         switch f {
-        case .xlsx, .xlsm: source = try XLSXStreamingReader(data: data, limits: limits, password: password)
-        case .ods: source = try ODSStreamingReader(data: data, limits: limits, password: password)
+        case .xlsx, .xlsm: source = try XLSXStreamingReader(data: data, limits: limits)
+        case .ods: source = try ODSStreamingReader(data: data, limits: limits)
         case .numbers: source = try NumbersStreamingReader(data: data, limits: limits)
         case .csv: source = CSVStreamingReader(data: data, options: csv, filename: filename)
         }

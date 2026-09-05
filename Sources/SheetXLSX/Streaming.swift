@@ -36,19 +36,15 @@ public struct XLSXStreamingReader: StreamingRowSource {
     private let partPaths: [String: String]
 
     /// Maps the file rather than reading it, so a workbook far larger than memory can be walked.
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits(), password: String? = nil) throws {
-        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits, password: password)
+    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(data: try Data(contentsOf: url, options: .mappedIfSafe), limits: limits)
     }
 
-    /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`);
-    /// `password` opens a protected workbook (the package is decrypted whole first — a compound file cannot be
-    /// walked a row at a time).
-    public init(data: Data, limits: ZipLimits = ZipLimits(), password: String? = nil) throws {
-        var data = data
-        if let unopenable = UnopenableInput.probe(data) {
-            guard unopenable == .encryptedOOXML, let password else { throw unopenable.error }
-            data = try OOXMLEncryption.decrypt(data, password: password)
-        }
+    /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
+    /// protected workbook is refused by name: the SheetDecrypt product decrypts it whole (a compound file cannot
+    /// be walked a row at a time) and hands this reader the plain package.
+    public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         zip = try ZipArchive(data: data, limits: limits)
         let rootRels = (try? WorkbookReader.parseRels(zip, "_rels/.rels")) ?? []
         let workbookPath = rootRels.first { $0.type.hasSuffix(WorkbookReader.relOfficeDocument) }

@@ -52,6 +52,13 @@ targets: [
 ]
 ```
 
+**Encryption code.** The SwiftSheets, SheetCore, SheetXLSX, SheetODS, SheetCSV and SheetNumbers products contain no
+encryption code (hash functions only, for sheet-protection password checks). Decrypting protected files lives solely
+in `SheetDecrypt`, which contains no encryption (writing) code; encrypting lives solely in `SheetEncrypt`. An app that
+links only the plain products can declare that it carries no cipher, and one that adds `SheetDecrypt` that it only
+decrypts; CI reads both promises off the symbol tables on every push (`scripts/check-no-crypto.sh`, spec Appendix
+B.39.9).
+
 Status: **0.16.1** — all five formats are usable; the API may still change before 1.0. What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
 test keeps the constant, this line and the pin above in step.
@@ -67,8 +74,8 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Cell budget | None by default. A read holds every cell it finds; set `ReadOptions.cellLimit` for input you do not trust, and reading stops there with a `degraded` warning naming the sheet. ODS run-length compression can describe seventeen billion cells in a kilobyte of XML, which is what the option exists for. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | Hostile packages | What a package declares about itself is bounded before any of it is expanded: at most 100,000 parts, 16 GiB expanded in total, a thousandfold expansion for any part over 16 MiB, and no two parts sharing bytes. Past any of these the file is reported as `corruptedContainer`; `ReadOptions.limits` raises them for a package you know. ZIP64 (parts past 4 GB, more than 65,535 parts) is read and written. |
-| visionOS | Not built or tested. Nothing in the library is Apple-only any more — DEFLATE comes from the system zlib where Apple's Compression framework is absent, and SHA-512 is written out rather than taken from CryptoKit — but a platform nobody runs the suite on is not a platform this README claims (spec Appendix B.1). Linux is claimed because CI runs the whole suite there on every push. |
-| Encrypted files | Read and written with `ReadOptions.password` / `WriteOptions.password`: Excel's agile encryption (AES-256, SHA-512 — what Excel 2010 and later write) and ODF 1.2 / 1.3 package encryption (AES-CBC, PBKDF2 — what LibreOffice writes). A protected file read without a password throws `unsupportedFeature` naming the fact; a wrong password throws `wrongPassword`. Excel 2007's older "standard" encryption, ODF 1.1's Blowfish form, a password-protected Numbers document and a legacy `.xls` are recognised and refused by name. |
+| visionOS | Not built or tested. Nothing in the library is Apple-only any more — DEFLATE comes from the system zlib where Apple's Compression framework is absent, and the hashes (SHA-512 for sheet protection) are written out rather than taken from CryptoKit, as is the cipher in the separate `SheetDecrypt` / `SheetEncrypt` products — but a platform nobody runs the suite on is not a platform this README claims (spec Appendix B.1). Linux is claimed because CI runs the whole suite there on every push. |
+| Encrypted files | Recognised and refused by name by the plain products, which contain no cipher: a protected file read there throws `unsupportedFeature` saying it is encrypted and that `SheetDecrypt` opens it. Opening one is the `SheetDecrypt` product — `Workbook(contentsOf:password:)`, `StreamingReader(contentsOf:password:)`, or `SheetDecrypt.decrypt` for the plain package — for Excel's agile encryption (AES-256, SHA-512 — what Excel 2010 and later write) and ODF 1.2 / 1.3 package encryption (AES-CBC, PBKDF2 — what LibreOffice writes); a wrong password throws `wrongPassword`. Protecting one is the `SheetEncrypt` product — `wb.write(to:password:)` or `SheetEncrypt.encrypt`. Excel 2007's older "standard" encryption, ODF 1.1's Blowfish form, a password-protected Numbers document and a legacy `.xls` are recognised and refused by name. |
 
 ## Formats
 
@@ -176,6 +183,8 @@ is reported, never dropped in silence.
 | `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect, conditional formats and validations, master pages, data pilots), `ODSStreamingReader` / `ODSStreamingWriter` | SheetCore |
 | `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table / constants / font map as JSON resources), `NumbersStreamingReader` / `NumbersStreamingWriter` | SheetCore |
 | `SwiftSheets` | everything plus the facade: `Workbook(contentsOf:)`, `write(to:as:)`, `data(as:)`, `Workbook.convert`, and `StreamingReader` / `StreamingWriter` for any format | all of the above |
+| `SheetDecrypt` | `decrypt(_:password:)` and `Workbook(contentsOf:password:)` / `Workbook.inspect(…password:)` / `StreamingReader(contentsOf:password:)`: AES's inverse cipher, key derivation, the compound file's reader, the OOXML / ODF package forms opened. No encryption (writing) code | SwiftSheets |
+| `SheetEncrypt` | `encrypt(_:as:password:)` and `wb.write(to:password:)` / `data(as:password:)`: the cipher, salts, the compound file written. Re-exports SheetDecrypt | SheetDecrypt |
 
 ## Model in one paragraph
 
@@ -228,7 +237,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ws.tables`, `Table(displayName:ref:)` | `sheet.excelTables`, `sheet.addExcelTable(named:over:)` — the part, its content type, its relationship and `<tableParts>` are all generated |
 | `ws.protection`, `wb.security`, `ws.scenarios` | `sheet.protection`, `wb.protection`, `sheet.protectedRanges`, `sheet.scenarios` — named for what is **allowed**, since the file's own booleans say what is forbidden. `setModernPassword(_:)` generates the SHA-512 hash Excel 2010+ verifies (the legacy 16-bit hash stays on `setPassword(_:)`) |
 | `wb.custom_doc_props` | `wb.customProperties` — text, integers, numbers, booleans, dates and defined-name links (ODS keeps them as `meta:user-defined`) |
-| `load_workbook(path)` on a protected file (openpyxl cannot; msoffcrypto-tool decrypts first) | `Workbook(contentsOf: url, options: ReadOptions(password: "…"))` / `wb.write(to: url, options: WriteOptions(password: "…"))` — XLSX / XLSM as Excel's agile encryption, ODS as ODF package encryption; judged by msoffcrypto-tool and an independent ODF decryptor |
+| `load_workbook(path)` on a protected file (openpyxl cannot; msoffcrypto-tool decrypts first) | `Workbook(contentsOf: url, password: "…")` with `import SheetDecrypt` / `wb.write(to: url, password: "…")` with `import SheetEncrypt` — XLSX / XLSM as Excel's agile encryption, ODS as ODF package encryption; the plain products refuse a protected file by name; judged by msoffcrypto-tool and an independent ODF decryptor |
 | pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
 | `ws.add_image(Image(path), 'B2')` | `sheet.addImage(try SheetImage(data:), at: "B2", sizing: .resizeCellToFit)` / `addImage(_:over: "B2:D6")` — PNG / JPEG / GIF, format and pixel size read from the bytes; a sheet that already carries a drawing (a chart) gets the anchors spliced in, everything there staying byte for byte. Charts: `sheet.addChart(Chart(.column), over: "D2:K16")` — column / bar / line / pie with series, title and legend (`chart.addSeries(values: "B2:B13", categories: "A2:A13", name:)`; unqualified ranges gain the sheet name and absolute dollars). Other kinds and charts already in a file: preserved unchanged (F3), `dropped` warnings when converting |
 | `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)` or `for try await row in reader.rows(inSheet:)` — one reader for XLSX, ODS, Numbers and delimited text, the format detected from the bytes; a Numbers sheet's second and later tables by `table:`. Values and formatting only (see [Limits](#limits)). `StreamingWriter(url:sheetName:)` + `append(_:)` / `close()` writes the same way — XLSX, ODS, Numbers or delimited text, the format from the path's extension or `format:` — and `warnings` says what the format could not carry |

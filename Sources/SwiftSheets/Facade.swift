@@ -36,13 +36,8 @@ extension Workbook {
     public static func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         // An encrypted package or a legacy .xls says so plainly rather than passing for noise (spec §1.3 / §14.11).
         // Ahead of detection, because the filename hint would otherwise offer "secret.csv" to the CSV reader.
-        // A protected Office package with a password is decrypted here and read as the plain package it holds.
-        if let unopenable = UnopenableInput.probe(data) {
-            guard unopenable == .encryptedOOXML, let password = options.password else { throw unopenable.error }
-            var plainOptions = options
-            plainOptions.password = nil
-            return try read(try OOXMLEncryption.decrypt(data, password: password), format: format, options: plainOptions)
-        }
+        // Opening a protected package is the SheetDecrypt product's (Appendix B.39.9): nothing here decrypts.
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
         switch f {
         case .xlsx: return try XLSXCodec.read(data, options: options)
@@ -68,12 +63,7 @@ extension Workbook {
     }
 
     public static func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
-        if let unopenable = UnopenableInput.probe(data) {
-            guard unopenable == .encryptedOOXML, let password = options.password else { throw unopenable.error }
-            var plainOptions = options
-            plainOptions.password = nil
-            return try inspect(try OOXMLEncryption.decrypt(data, password: password), format: format, options: plainOptions)
-        }
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
         switch f {
         case .xlsx, .xlsm:
@@ -97,24 +87,13 @@ extension Workbook {
 
     /// Serializes in a format. The result carries every warning about what the format could not express.
     public func write(as format: SheetFormat, options: WriteOptions = WriteOptions()) throws -> WriteResult {
-        var result: WriteResult
+        let result: WriteResult
         switch format {
         case .xlsx: result = try XLSXCodec.write(self, options: options)
         case .xlsm: result = try XLSMCodec.write(self, options: options)
         case .csv: result = try CSVCodec.write(self, options: options)
         case .ods: result = try ODSCodec.write(self, options: options)
         case .numbers: result = try NumbersCodec.write(self, options: options)
-        }
-        if let password = options.password {
-            // the package is complete; now it is wrapped the way the format protects it (spec Appendix B.39.9)
-            let protected: Data
-            switch format {
-            case .xlsx, .xlsm: protected = try OOXMLEncryption.encrypt(result.data, password: password)
-            case .ods: protected = try ODSEncryption.encrypt(result.data, password: password)
-            case .csv: throw SheetError.unsupportedFeature("a CSV file cannot be password-protected: it is plain text by definition")
-            case .numbers: throw SheetError.unsupportedFeature("a password-protected Numbers document cannot be written: Numbers' encryption is not documented")
-            }
-            result = WriteResult(data: protected, warnings: result.warnings, suggestion: result.suggestion)
         }
         let extra = format == .ods ? [] : openDocumentOnlyWarnings(for: format)
         guard !extra.isEmpty else { return result }
@@ -168,10 +147,15 @@ extension Workbook {
     /// half-way through must leave the original where it was.
     @discardableResult
     public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) throws -> WriteResult {
-        let f = format ?? SheetFormat(fileExtension: url.pathExtension) ?? sourceInfo?.format ?? .xlsx
-        let result = try write(as: f, options: options)
+        let result = try write(as: outputFormat(for: url, requested: format), options: options)
         try result.data.write(to: url, options: .atomic)
         return result
+    }
+
+    /// The format a file write lands in: the argument, else the extension, else the source format, else .xlsx.
+    /// One rule for the plain write and for SheetEncrypt's protected one.
+    package func outputFormat(for url: URL, requested format: SheetFormat?) -> SheetFormat {
+        format ?? SheetFormat(fileExtension: url.pathExtension) ?? sourceInfo?.format ?? .xlsx
     }
 
     /// Read → write in one step.

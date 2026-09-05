@@ -35,6 +35,12 @@ jobs:
       - name: Build
         run: swift build --build-tests
 
+      # What the README promises about encryption code is read off symbol tables, not remembered: the plain
+      # products link no cipher, SheetDecrypt nothing that encrypts (spec Appendix B.39.9). A positive control
+      # inside the script keeps the check honest.
+      - name: The plain products carry no cipher
+        run: scripts/check-no-crypto.sh
+
       # The suites that need LibreOffice, Numbers.app, or a Python with openpyxl / numbers-parser
       # skip themselves when those are absent (`.enabled(if:)`), so a bare runner is enough.
       - name: Test
@@ -67,11 +73,15 @@ jobs:
 
       # zlib is what `Deflate` folds bytes with here. The runtime library is already installed; the header is
       # what a build needs, and the Swift image does not promise to carry it.
-      - name: zlib headers
-        run: apt-get update && apt-get install -y --no-install-recommends zlib1g-dev
+      - name: zlib headers, and nm for the symbol-table check
+        run: apt-get update && apt-get install -y --no-install-recommends zlib1g-dev binutils
 
       - name: Build
         run: swift build --build-tests
+
+      # Same as macOS: the symbol tables of the three ways of linking, on the other toolchain and linker.
+      - name: The plain products carry no cipher
+        run: scripts/check-no-crypto.sh
 
       # Same as macOS: the suites that need LibreOffice, Numbers.app or a Python with openpyxl / numbers-parser
       # skip themselves visibly when those are absent.

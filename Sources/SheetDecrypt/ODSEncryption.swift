@@ -1,25 +1,19 @@
 import Foundation
 import SheetCore
+import SheetODS
 
 /// Password protection of an OpenDocument package as ODF 1.2 §3.4 / 1.3 §4.3 define it: every entry but
 /// `mimetype` and the manifest is deflated, padded, and AES-CBC-encrypted under a key derived from the password
 /// (a SHA-256 start key through PBKDF2-HMAC-SHA1), with the salt, the vector and a checksum of the compressed
 /// bytes recorded in the manifest beside the entry (spec Appendix B.39.9). Reading takes what the manifest
-/// says (SHA-1 or SHA-256 start keys and checksums, AES of any size); writing uses what LibreOffice uses.
-/// The Blowfish form of ODF 1.0 / 1.1 is recognised and refused by name.
+/// says (SHA-1 or SHA-256 start keys and checksums, AES of any size); writing — the SheetEncrypt product's
+/// extension — uses what LibreOffice uses. The Blowfish form of ODF 1.0 / 1.1 is recognised and refused by name.
+/// The manifest itself is read by SheetODS (`ManifestParser`), which hands over what it says about each entry.
 package enum ODSEncryption {
-    struct EntryEncryption {
-        var size: Int?
-        var checksumType: String?, checksum: Data?
-        var algorithm: String?, iv: Data?
-        var keyDerivation: String?, keySize: Int?, iterations: Int?, salt: Data?
-        var startKeyGeneration: String?, startKeySize: Int?
-    }
-
     static let aesAlgorithms = ["http://www.w3.org/2001/04/xmlenc#aes256-cbc", "http://www.w3.org/2001/04/xmlenc#aes192-cbc", "http://www.w3.org/2001/04/xmlenc#aes128-cbc"]
 
     /// The package with every encrypted entry replaced by its plain bytes — the input the ordinary reader takes.
-    static func decrypt(_ zip: ZipArchive, entries: [String: EntryEncryption], password: String) throws -> Data {
+    package static func decrypt(_ zip: ZipArchive, entries: [String: ODSEncryptedEntry], password: String) throws -> Data {
         let out = ZipWriter()
         for name in zip.names where !name.hasSuffix("/") {
             let bytes = try zip.read(name)
@@ -51,7 +45,7 @@ package enum ODSEncryption {
         return out + rest
     }
 
-    static func decryptEntry(_ cipher: Data, _ enc: EntryEncryption, password: String) throws -> Data {
+    static func decryptEntry(_ cipher: Data, _ enc: ODSEncryptedEntry, password: String) throws -> Data {
         guard let algorithm = enc.algorithm else { throw SheetError.corruptedContainer(detail: "an encrypted entry names no algorithm") }
         guard aesAlgorithms.contains(algorithm) else {
             throw SheetError.unsupportedFeature("the ODF entry is encrypted with \(algorithm); only AES-CBC (ODF 1.2 and later) is supported — the Blowfish form of ODF 1.1 is not")
@@ -90,70 +84,5 @@ package enum ODSEncryption {
         } catch {
             throw SheetError.wrongPassword   // without a checksum, a wrong key shows up here as noise that will not inflate
         }
-    }
-
-    /// The package with every entry but `mimetype` and the manifest encrypted, and the manifest rewritten to say so.
-    package static func encrypt(_ package: Data, password: String) throws -> Data {
-        let zip = try ZipArchive(data: package)
-        let out = ZipWriter()
-        let startKey = SHA256.hash(Data(password.utf8))
-        // ODF derives a key per entry, each with its own salt, so the count LibreOffice uses (1,024) is what keeps
-        // a document of a dozen entries quick to save and to open; the OOXML form derives one key per file and
-        // can afford Excel's hundred thousand
-        let iterations = 1024
-        var manifestEntries: [String: (size: Int, checksum: Data, iv: Data, salt: Data)] = [:]
-        var manifestXML: String?
-        for name in zip.names where !name.hasSuffix("/") {
-            let bytes = try zip.read(name)
-            if name == "mimetype" { out.add(name, bytes, stored: true); continue }
-            if name == "META-INF/manifest.xml" { manifestXML = String(decoding: bytes, as: UTF8.self); continue }
-            if name.hasPrefix("META-INF/") { out.add(name, bytes); continue }
-            // deflate (always a real stream, even for a few bytes), pad, encrypt
-            let encoder = try DeflateEncoder()
-            var compressed = try encoder.encode(bytes)
-            compressed.append(try encoder.finish())
-            let checksum = SHA256.hash(compressed.prefix(1024))
-            let pad = 16 - compressed.count % 16
-            compressed.append(Data(repeating: UInt8(pad), count: pad))
-            let salt = RandomBytes.make(16), iv = RandomBytes.make(16)
-            let key = PBKDF2<SHA1>.derive(password: startKey, salt: salt, iterations: iterations, length: 32)
-            out.add(name, try AES(key: key).encryptCBC(compressed, iv: iv), stored: true)
-            manifestEntries[name] = (bytes.count, checksum, iv, salt)
-        }
-        guard let manifest = manifestXML else { throw SheetError.malformedPart(path: "META-INF/manifest.xml", detail: "the package has no manifest to record the encryption in") }
-        out.add("META-INF/manifest.xml", Data(annotate(manifest, with: manifestEntries, iterations: iterations).utf8))
-        return out.finish()
-    }
-
-    /// The manifest with an `encryption-data` element added to every entry that was encrypted.
-    static func annotate(_ manifest: String, with entries: [String: (size: Int, checksum: Data, iv: Data, salt: Data)], iterations: Int) -> String {
-        var out = ""
-        var rest = Substring(manifest)
-        while let start = rest.range(of: "<manifest:file-entry") {
-            out += rest[..<start.lowerBound]
-            guard let close = rest[start.upperBound...].firstIndex(of: ">") else { out += rest[start.lowerBound...]; return out }
-            let tag = rest[start.lowerBound...close]
-            var path: String?
-            if let r = tag.range(of: "manifest:full-path=\"") {
-                let value = tag[r.upperBound...]
-                if let q = value.firstIndex(of: "\"") { path = ScannedTag.decodeEntities(String(value[..<q])) }
-            }
-            if let path, let e = entries[path] {
-                let selfClosing = tag.hasSuffix("/>")
-                var opening = String(selfClosing ? tag.dropLast(2) : tag.dropLast(1))
-                opening += " manifest:size=\"\(e.size)\">"
-                opening += "<manifest:encryption-data manifest:checksum-type=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0#sha256-1k\" manifest:checksum=\"\(e.checksum.base64EncodedString())\">"
-                opening += "<manifest:algorithm manifest:algorithm-name=\"http://www.w3.org/2001/04/xmlenc#aes256-cbc\" manifest:initialisation-vector=\"\(e.iv.base64EncodedString())\"/>"
-                opening += "<manifest:key-derivation manifest:key-derivation-name=\"PBKDF2\" manifest:key-size=\"32\" manifest:iteration-count=\"\(iterations)\" manifest:salt=\"\(e.salt.base64EncodedString())\"/>"
-                opening += "<manifest:start-key-generation manifest:start-key-generation-name=\"http://www.w3.org/2000/09/xmldsig#sha256\" manifest:key-size=\"32\"/>"
-                opening += "</manifest:encryption-data>"
-                if selfClosing { opening += "</manifest:file-entry>" }
-                out += opening
-            } else {
-                out += tag
-            }
-            rest = rest[rest.index(after: close)...]
-        }
-        return out + rest
     }
 }

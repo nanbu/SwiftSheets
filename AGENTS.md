@@ -24,6 +24,10 @@ swift test --filter ODSCodecTests   # narrow while iterating
 - `Tests/ExcelParity/verify_with_excel_app.py` drives Microsoft Excel itself over AppleScript to check sheet
   protection (Appendix B.31). It needs Excel, an unlocked screen and Automation permission, and reports
   "cannot judge" rather than a failure when it lacks them.
+- `scripts/check-no-crypto.sh` proves what the README says about encryption code — the plain products link no
+  cipher, `SheetDecrypt` nothing that encrypts — by building three small executables against the checkout and
+  reading their symbol tables (with a positive control). CI runs it on macOS and Linux; run it after touching
+  `Package.swift`, anything under `Sources/SheetDecrypt` or `Sources/SheetEncrypt`, or a refusal message.
 - Tests that depend on local tools or fixtures (LibreOffice, generated ground-truth documents) must skip
   **visibly** via `.enabled(if:)` with a reason — never `guard … else { return }`, which counts a test that did
   nothing as a pass.

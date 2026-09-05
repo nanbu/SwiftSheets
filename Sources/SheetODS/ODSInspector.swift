@@ -6,14 +6,8 @@ import SheetCore
 /// carry a value, with the run-length counts multiplied rather than expanded. A pass over the markup, no model.
 package enum ODSInspector {
     package static func inspect(_ zip: ZipArchive, options: InspectOptions) throws -> WorkbookSummary {
-        if let unopenable = UnopenableInput.probe(in: ZipInspection(archive: zip)) {
-            guard unopenable == .encryptedODF, let password = options.password else { throw unopenable.error }
-            let manifest = ManifestParser()
-            try manifest.run(try zip.read("META-INF/manifest.xml"), part: "META-INF/manifest.xml")
-            var plainOptions = options
-            plainOptions.password = nil
-            return try inspect(try ZipArchive(data: try ODSEncryption.decrypt(zip, entries: manifest.encryptedEntries, password: password), limits: options.limits), options: plainOptions)
-        }
+        // a protected package is refused by name; the SheetDecrypt product hands this inspector the plain one
+        if let unopenable = UnopenableInput.probe(in: ZipInspection(archive: zip)) { throw unopenable.error }
         guard zip.contains("content.xml") else { throw SheetError.malformedPart(path: "content.xml", detail: "content.xml missing from the package") }
         var sheets: [SheetSummary] = []
         var current: SheetSummary?

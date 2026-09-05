@@ -347,15 +347,4 @@ import SwiftSheets
                 "held \(ODSStreamingReader.lastLargestCarry) bytes of the body at once")
     }
 
-    /// A protected ODS opens with its password and is refused by name without one.
-    @Test func aProtectedODSOpensWithItsPassword() throws {
-        var wb = Workbook()
-        wb.sheets[0]["A1"] = "secret"
-        let protected = try wb.data(as: .ods, options: WriteOptions(password: "合言葉"))
-        #expect(throws: SheetError.self) { _ = try StreamingReader(data: protected) }
-        let reader = try StreamingReader(data: protected, password: "合言葉")
-        var first: CellValue?
-        try reader.forEachRow(inSheet: "Sheet1") { first = $0.cells.first?.value }
-        #expect(first == .text("secret"))
-    }
 }

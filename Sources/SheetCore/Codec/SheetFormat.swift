@@ -89,9 +89,9 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
     package static func probe(source: any ByteSource, filename: String? = nil) throws -> FormatProbe {
         let signature = try source.bytes(in: 0..<Swift.min(source.count, 8))
         if signature.count >= 8, [UInt8](signature) == UnopenableInput.compoundFileSignature {
-            // a compound file: the stream names sit in its first megabyte
-            let head = try source.bytes(in: 0..<Swift.min(source.count, 1 << 20))
-            if let unopenable = UnopenableInput.probe(head) { return .unopenable(unopenable) }
+            // a compound file: the stream names sit in its directory, which follows the streams — scanned a window
+            // at a time to the end, since a protected package is as big as the workbook inside it
+            return .unopenable(try UnopenableInput.probe(compoundFile: source))
         }
         if ZipInspection.looksLikeZip(signature) {
             guard let zip = try? ZipArchive(source: source) else { return .unrecognized }

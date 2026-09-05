@@ -24,7 +24,7 @@ import SwiftSheets
         for read in [{ try Workbook(data: data) }, { try Workbook(data: data, format: .xlsx) }] {
             let error = #expect(throws: SheetError.self) { _ = try read() }
             guard case .unsupportedFeature(let detail)? = error else { return #expect(Bool(false), "expected unsupportedFeature") }
-            #expect(detail.contains("encrypted"))
+            #expect(detail.contains("encrypted") && detail.contains("SheetDecrypt"), "names the fact and the product that opens it: \(detail)")
         }
     }
 
@@ -53,6 +53,7 @@ import SwiftSheets
         for read in [{ try Workbook(data: data) }, { try ODSCodec.read(data).workbook }] {
             #expect(throws: SheetError.unsupportedFeature(UnopenableInput.encryptedODF.reason)) { _ = try read() }
         }
+        #expect(UnopenableInput.encryptedODF.reason.contains("SheetDecrypt"), "the refusal names the product that opens the file")
     }
 
     /// The probe is only consulted once ordinary detection has come up empty, so it must not claim ordinary files.
