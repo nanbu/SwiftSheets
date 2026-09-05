@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>形式ごとの機能対応表 — 仕様にある機能を、SwiftSheets はどこまで扱えるか（SwiftSheets 0.16.1）</title>
+<title>形式ごとの機能対応表 — 仕様にある機能を、SwiftSheets はどこまで扱えるか（SwiftSheets 0.17.0）</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -101,7 +101,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <main>
 <h1>形式ごとの機能対応表</h1>
 <p class="lede">Excel・OpenDocument・Numbers それぞれの<strong>公開仕様が持っている機能</strong>を並べ、SwiftSheets が読めるか・書けるか・どの API で触るのかを 196 行にしたものです。隣の<a href="format-support.html">形式ごとの対応表</a>が「モデルの 48 項目 → 3 形式」を測るのに対し、この表は<strong>逆向き</strong>に「形式の仕様 → SwiftSheets」を見ます。</p>
-<p class="meta">2026-09-05 時点 / SwiftSheets 0.16.1 / 検証環境: macOS 15・Swift 6.2 / Xcode 26・openpyxl 3.1.5（XLSX の審判）・LibreOffice 26.2.3（ODF の審判）・numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）・Microsoft Excel 16.112.2（保護の審判・付録 B.31）</p>
+<p class="meta">2026-09-05 時点 / SwiftSheets 0.17.0 / 検証環境: macOS 15・Swift 6.2 / Xcode 26・openpyxl 3.1.5（XLSX の審判）・LibreOffice 26.2.3（ODF の審判）・numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）・Microsoft Excel 16.112.2（保護の審判・付録 B.31）</p>
 <hr class="rule">
 <section>
 <h2>この表の向き</h2>
@@ -471,7 +471,7 @@ python3 scripts/build-spec-feature-matrix.py --check   # この表が出所と�
 <p class="meta">YAML の先頭には UTF-8 の印（BOM）が入っています。HTML と違って文字コードを名乗る場所が無く、GitHub Pages は <code>text/yaml</code> を文字コードなしで返すため、印が無いとブラウザが日本語を化けさせるからです。YAML 1.2 が先頭の印を認めているので、読み込む側は今までどおりで構いません。</p>
 </section>
 <footer>
-SwiftSheets — 形式ごとの機能対応表。SwiftSheets 0.16.1（commit 0.16.1）時点の実測とコード確認。<br>
+SwiftSheets — 形式ごとの機能対応表。SwiftSheets 0.17.0（commit 0.17.0）時点の実測とコード確認。<br>
 モデルの側から測った表は <a href="format-support.html">形式ごとの対応表</a>、方向ごと（A → B）の挙動は <a href="interoperability.html">相互運用ガイド</a> に。<br>
 実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B に。
 </footer>
