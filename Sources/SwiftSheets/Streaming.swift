@@ -69,7 +69,11 @@ public struct StreamingReader {
         // document by name. Opening one is the SheetDecrypt product's, which hands this reader the plain package.
         // The probe runs with this reader's limits, as it does for a file (Rev 4.31).
         let f: SheetFormat
-        if let format { f = format } else {
+        if let format {
+            // a compound file is refused by name before the named reader sees a package that is not one
+            if let unopenable = try UnopenableInput.probe(source: DataByteSource(data)) { throw unopenable.error }
+            f = format
+        } else {
             switch try SheetFormat.probe(source: DataByteSource(data), filename: filename, limits: limits) {
             case .unopenable(let unopenable): throw unopenable.error
             case .unrecognized: throw SheetError.unrecognizedFormat
