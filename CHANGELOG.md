@@ -7,6 +7,16 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [0.19.1] — 2026-09-06
+
+### Fixed
+
+- **Numbers ignored every date format.** A date's format was written as a `CUSTOM_DATE` format struct, which
+  Numbers only honours when a matching custom-format archive exists in the document — there was none, so a cell
+  formatted `yyyy/m/d` showed as `01/09/2026 0:00`. The struct is now the built-in `DATE` kind with the same
+  `date_time_format` pattern, which Numbers draws as written (`2026/9/1`). Reading is unchanged: both kinds were
+  already mapped back to the Excel code. Measured in Numbers 2026-09-06 through Stream's export.
+
 ## [0.19.0] — 2026-09-06
 
 ### Added
@@ -893,6 +903,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.19.1]: https://github.com/nanbu/SwiftSheets/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/nanbu/SwiftSheets/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/nanbu/SwiftSheets/compare/0.17.2...0.18.0
 [0.17.2]: https://github.com/nanbu/SwiftSheets/compare/0.17.1...0.17.2
