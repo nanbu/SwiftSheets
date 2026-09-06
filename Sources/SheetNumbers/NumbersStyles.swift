@@ -246,7 +246,7 @@ enum NumbersFormat {
             return f
         }
         if NumberFormat.isDateFormat(plain) {
-            f.set("format_type", int: type("CUSTOM_DATE") ?? 272)
+            f.set("format_type", int: type("DATE") ?? 1)
             f.set("date_time_format", string: numbersDatePattern(plain))
             return f
         }
