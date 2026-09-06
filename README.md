@@ -8,7 +8,7 @@
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
 workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
 as they went in. Foundation only; no package dependencies — bytes are folded by whichever DEFLATE the machine already
-has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+ and Linux —
+has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+, Linux, and WebAssembly (wasm32-wasi, with the swift.org toolchain's Wasm SDK; see the Limits table) —
 the same suite runs on all of them, on every push.
 
 The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
@@ -45,7 +45,7 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.18.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.19.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
@@ -73,7 +73,7 @@ links only the plain products can declare that it carries no cipher, and one tha
 decrypts; CI reads both promises off the symbol tables on every push (`scripts/check-no-crypto.sh`, spec Appendix
 B.39.9).
 
-Status: **0.18.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
+Status: **0.19.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
 test keeps the constant, this line and the pin above in step.
 
@@ -88,6 +88,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Cell budget | None by default. A read holds every cell it finds; set `ReadOptions.cellLimit` for input you do not trust, and reading stops there with a `degraded` warning naming the sheet. ODS run-length compression can describe seventeen billion cells in a kilobyte of XML, which is what the option exists for. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | Hostile packages | What a package declares about itself is bounded before any of it is expanded: at most 100,000 parts, 16 GiB expanded in total, a thousandfold expansion for any part over 16 MiB, and no two parts sharing bytes. Past any of these the file is reported as `corruptedContainer`; `ReadOptions.limits` raises them for a package you know. ZIP64 (parts past 4 GB, more than 65,535 parts) is read and written. |
+| WebAssembly | Builds and runs under WASI (wasm32-wasi) with the swift.org toolchain and its Wasm SDK of the same version — Xcode's Swift has no WebAssembly backend. WASI has no zlib, so DEFLATE there is a pure Swift route: reading is a complete inflater, writing is stored blocks (valid DEFLATE that compresses nothing, so files are larger). One thread: the XLSX sheets are read one after another. The Numbers codec's schema and template are read from a directory the host mounts at `/SwiftSheets_SheetNumbers.resources/`. Verified with node's WASI and in a browser (spec Appendix B.45); not part of CI. |
 | visionOS | Not built or tested. Nothing in the library is Apple-only any more — DEFLATE comes from the system zlib where Apple's Compression framework is absent, and the hashes (SHA-512 for sheet protection) are written out rather than taken from CryptoKit, as is the cipher in the separate `SheetDecrypt` / `SheetEncrypt` products — but a platform nobody runs the suite on is not a platform this README claims (spec Appendix B.1). Linux is claimed because CI runs the whole suite there on every push. |
 | Encrypted files | Recognised and refused by name by the plain products, which contain no cipher: a protected file read there throws `unsupportedFeature` saying it is encrypted and that `SheetDecrypt` opens it. Opening one is the `SheetDecrypt` product — `Workbook(contentsOf:password:)`, `StreamingReader(contentsOf:password:)`, or `SheetDecrypt.decrypt` for the plain package — for Excel's agile encryption (AES-256, SHA-512 — what Excel 2010 and later write) and ODF 1.2 / 1.3 package encryption (AES-CBC, PBKDF2 — what LibreOffice writes); a wrong password throws `wrongPassword`. Protecting one is the `SheetEncrypt` product — `wb.write(to:password:)` or `SheetEncrypt.encrypt`. Excel 2007's older "standard" encryption, ODF 1.1's Blowfish form, a password-protected Numbers document and a legacy `.xls` are recognised and refused by name. |
 

@@ -7,6 +7,22 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [0.19.0] — 2026-09-06
+
+### Added
+
+- **WebAssembly (wasm32-wasi).** The library builds and runs under WASI with the swift.org toolchain and its
+  Wasm SDK (`swift build --swift-sdk swift-6.3.3-RELEASE_wasm`; Xcode's Swift has no WebAssembly backend). WASI has
+  no zlib, one thread, no temporary files and no resource bundles, so five places branch on `#if os(WASI)`
+  (spec Appendix B.45): a pure Swift DEFLATE route — a complete RFC 1951 inflater for reading, stored blocks for
+  writing (valid DEFLATE that folds nothing; files come out larger) — and a table CRC-32; ZIP64 markers and the
+  default expansion limit made safe for a 32-bit `Int` (`16 << 30` is 0 there, which refused every file);
+  the XLSX sheet read runs one sheet after another; `CodecSet.write(to:)` writes without the atomic replace; the
+  Numbers codec's schema and template are read from `/SwiftSheets_SheetNumbers.resources/`, which the host
+  mounts, instead of `Bundle.module`. The Apple, zlib and Linux routes are untouched, and the native suite is
+  unchanged. Verified with node's WASI against Stream's golden fixtures (xlsx import byte-for-byte; xlsx / ods /
+  numbers written and read back); LibreOffice opens all three. Not yet verified in Numbers or Excel themselves.
+
 ## [0.18.0] — 2026-09-05
 
 ### Added
@@ -877,6 +893,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.19.0]: https://github.com/nanbu/SwiftSheets/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/nanbu/SwiftSheets/compare/0.17.2...0.18.0
 [0.17.2]: https://github.com/nanbu/SwiftSheets/compare/0.17.1...0.17.2
 [0.17.1]: https://github.com/nanbu/SwiftSheets/compare/0.17.0...0.17.1
