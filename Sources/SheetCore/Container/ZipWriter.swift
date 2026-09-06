@@ -79,7 +79,11 @@ package final class ZipPackager {
 
     package init(output: ZipOutput) { self.output = output }
 
+#if _pointerBitWidth(_32)
+    private static let limit32 = Int.max   // a 32-bit machine (WebAssembly) never reaches the ZIP64 line
+#else
     private static let limit32 = 0xFFFF_FFFF
+#endif
 
     // MARK: - Whole entries
 

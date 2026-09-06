@@ -3,6 +3,8 @@ import Foundation
 import Glibc
 #elseif canImport(Musl)
 import Musl
+#elseif canImport(WASILibc)
+import WASILibc
 #endif
 
 /// Text that may outgrow memory on its way to a compressor (spec Appendix B.39.7). It is kept as pieces while

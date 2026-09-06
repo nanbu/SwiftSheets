@@ -6,7 +6,7 @@ public enum NumbersCodec: SpreadsheetCodec {
     public static var format: SheetFormat { .numbers }
     public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
     /// The empty document every written file starts from (numbers-parser's template — see NOTICE).
-    public static var templateURL: URL { Bundle.module.url(forResource: "empty", withExtension: "numbers")! }
+    public static var templateURL: URL { NumbersResources.url("empty", "numbers")! }
     /// Reading is tolerant (spec §10.3): whatever could not be interpreted is reported in the result rather than thrown.
     public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         let doc = try NumbersDocument(data: data, limits: options.limits)

@@ -113,7 +113,11 @@ public struct CodecSet: Sendable {
     @discardableResult
     public func write(_ workbook: Workbook, to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         let result = try write(workbook, as: workbook.outputFormat(for: url, requested: format), options: options)
+#if os(WASI)
+        try result.data.write(to: url)   // WASI has no temporary files, so no atomic replace either
+#else
         try result.data.write(to: url, options: .atomic)
+#endif
         return result
     }
 

@@ -12,7 +12,14 @@ public struct ZipLimits: Sendable, Hashable {
     public var maxEntries = 100_000
     /// The most bytes all entries together may expand to (16 GiB). The working size of a workbook is a few
     /// hundred bytes per cell, so a package expanding past this could not be held in memory anyway.
-    public var maxExpandedBytes = 16 << 30
+    public var maxExpandedBytes = ZipLimits.defaultMaxExpandedBytes
+    /// 16 GiB, or on a 32-bit machine (WebAssembly) as much as `Int` can say — `16 << 30` there is 0, which
+    /// would refuse every package as too big (seen 2026-09-06).
+#if _pointerBitWidth(_32)
+    public static let defaultMaxExpandedBytes = Int.max
+#else
+    public static let defaultMaxExpandedBytes = 16 << 30
+#endif
     /// The most an entry may expand relative to its compressed bytes, once it is large enough to matter
     /// (`ratioFloor`). Spreadsheet XML folds ten- to fifty-fold; a thousand-fold is a run of zeros.
     public var maxCompressionRatio = 1_000
@@ -20,7 +27,7 @@ public struct ZipLimits: Sendable, Hashable {
     /// unpredictably.
     public var ratioFloor = 16 << 20
 
-    public init(maxEntries: Int = 100_000, maxExpandedBytes: Int = 16 << 30, maxCompressionRatio: Int = 1_000, ratioFloor: Int = 16 << 20) {
+    public init(maxEntries: Int = 100_000, maxExpandedBytes: Int = ZipLimits.defaultMaxExpandedBytes, maxCompressionRatio: Int = 1_000, ratioFloor: Int = 16 << 20) {
         self.maxEntries = maxEntries; self.maxExpandedBytes = maxExpandedBytes
         self.maxCompressionRatio = maxCompressionRatio; self.ratioFloor = ratioFloor
     }
@@ -79,8 +86,8 @@ package struct ZipArchive: Sendable {
             }
             guard eocd >= 0 else { throw SheetError.corruptedContainer(detail: "end of central directory not found") }
             var count = Int(Zip.u16(b, eocd + 10))
-            var cdSize = Int(Zip.u32(b, eocd + 12))
-            var cdOffset = Int(Zip.u32(b, eocd + 16))
+            var cdSize = Int(truncatingIfNeeded: Zip.u32(b, eocd + 12))
+            var cdOffset = Int(truncatingIfNeeded: Zip.u32(b, eocd + 16))
             // ZIP64: a locator sits just before the record, and the real numbers are in the record it points at
             if eocd >= 20, Zip.u32(b, eocd - 20) == 0x0706_4b50 {
                 let recordOffset = Int(Zip.u64(b, eocd - 20 + 8))
@@ -91,7 +98,7 @@ package struct ZipArchive: Sendable {
                 count = Int(Zip.u64(r, 32))
                 cdSize = Int(Zip.u64(r, 40))
                 cdOffset = Int(Zip.u64(r, 48))
-            } else if count == 0xFFFF || cdSize == 0xFFFF_FFFF || cdOffset == 0xFFFF_FFFF {
+            } else if count == 0xFFFF || cdSize == Zip.marker32 || cdOffset == Zip.marker32 {
                 throw SheetError.corruptedContainer(detail: "ZIP64 markers without a ZIP64 record")
             }
             guard count >= 0, cdSize >= 0, cdOffset >= 0, cdOffset + cdSize <= total else { throw SheetError.corruptedContainer(detail: "corrupt central directory") }
@@ -112,14 +119,14 @@ package struct ZipArchive: Sendable {
             for _ in 0..<count {
                 guard p + 46 <= bytes.count, Zip.u32(bytes, p) == 0x0201_4b50 else { throw SheetError.corruptedContainer(detail: "bad central directory entry") }
                 let method = Zip.u16(bytes, p + 10), crc = Zip.u32(bytes, p + 16)
-                var csize = Int(Zip.u32(bytes, p + 20)), usize = Int(Zip.u32(bytes, p + 24))
+                var csize = Int(truncatingIfNeeded: Zip.u32(bytes, p + 20)), usize = Int(truncatingIfNeeded: Zip.u32(bytes, p + 24))
                 let nameLen = Int(Zip.u16(bytes, p + 28)), extraLen = Int(Zip.u16(bytes, p + 30)), commentLen = Int(Zip.u16(bytes, p + 32))
-                var localOffset = Int(Zip.u32(bytes, p + 42))
+                var localOffset = Int(truncatingIfNeeded: Zip.u32(bytes, p + 42))
                 // the header's own lengths are attacker-controlled: every slice below must be inside the buffer
                 guard p + 46 + nameLen + extraLen + commentLen <= bytes.count else { throw SheetError.corruptedContainer(detail: "central directory entry runs past the end of the file") }
                 let name = String(decoding: UnsafeBufferPointer(rebasing: bytes[(p + 46)..<(p + 46 + nameLen)]), as: UTF8.self)
                 // ZIP64: a field at its maximum is a placeholder for the 64-bit value in the extra field
-                if usize == 0xFFFF_FFFF || csize == 0xFFFF_FFFF || localOffset == 0xFFFF_FFFF {
+                if usize == Zip.marker32 || csize == Zip.marker32 || localOffset == Zip.marker32 {
                     var q = p + 46 + nameLen
                     let end = q + extraLen
                     var found = false
@@ -135,9 +142,9 @@ package struct ZipArchive: Sendable {
                                 guard v <= UInt64(Int.max) else { throw SheetError.corruptedContainer(detail: "ZIP64 value out of range") }
                                 return Int(v)
                             }
-                            if usize == 0xFFFF_FFFF { usize = try take() }
-                            if csize == 0xFFFF_FFFF { csize = try take() }
-                            if localOffset == 0xFFFF_FFFF { localOffset = try take() }
+                            if usize == Zip.marker32 { usize = try take() }
+                            if csize == Zip.marker32 { csize = try take() }
+                            if localOffset == Zip.marker32 { localOffset = try take() }
                             found = true
                             break
                         }
@@ -310,6 +317,14 @@ package final class ZipEntryStream {
 }
 
 package enum Zip {
+    /// The ZIP64 placeholder, as the `Int` the 32-bit fields are read into with `truncatingIfNeeded` — the same
+    /// 0xFFFF_FFFF on a 64-bit machine, and -1 on a 32-bit one (WebAssembly), where a real 4 GiB value cannot occur.
+#if _pointerBitWidth(_32)
+    package static let marker32 = -1
+#else
+    package static let marker32 = 0xFFFF_FFFF
+#endif
+
     package static func u16<C: RandomAccessCollection>(_ b: C, _ i: Int) -> UInt16 where C.Element == UInt8, C.Index == Int {
         UInt16(b[i]) | UInt16(b[i + 1]) << 8
     }

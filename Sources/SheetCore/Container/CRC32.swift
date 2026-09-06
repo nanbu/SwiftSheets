@@ -1,5 +1,7 @@
 import Foundation
+#if !os(WASI)
 import CZlib
+#endif
 
 /// CRC-32 (IEEE, polynomial 0xEDB88320) — the checksum every ZIP entry carries.
 ///
@@ -35,6 +37,12 @@ public enum CRC32 {
         package var value: UInt32 { UInt32(truncatingIfNeeded: state) }
 
         private static func advance(_ state: UInt, _ raw: UnsafeRawBufferPointer) -> UInt {
+#if os(WASI)
+            // No zlib on WebAssembly: the table loop, which is the arithmetic zlib does with better tools.
+            var crc = ~UInt32(truncatingIfNeeded: state)
+            for b in raw { crc = table[Int((crc ^ UInt32(b)) & 0xFF)] ^ (crc >> 8) }
+            return UInt(~crc)
+#else
             var crc = uLong(state)
             var offset = 0
             // zlib counts a buffer in 32 bits; anything longer is fed in turns
@@ -44,6 +52,7 @@ public enum CRC32 {
                 offset += chunk
             }
             return UInt(crc)
+#endif
         }
     }
 }

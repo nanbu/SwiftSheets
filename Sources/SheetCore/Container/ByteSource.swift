@@ -3,6 +3,8 @@ import Foundation
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif canImport(WASILibc)
+import WASILibc
 #endif
 
 /// Where a container's bytes come from: a buffer already in memory (or mapped into it), or a file read in pieces.

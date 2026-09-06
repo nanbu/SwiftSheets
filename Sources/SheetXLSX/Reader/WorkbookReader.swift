@@ -129,6 +129,11 @@ enum WorkbookReader {
         }
         let workers = concurrency(parsedBytes: parsedBytes, options: options)
         let results = SheetResultsBox(count: infos.count)
+#if os(WASI)
+        // one thread is all WebAssembly has: the sheets are read one after another, whatever `workers` says
+        _ = workers
+        for i in infos.indices { results.set(i, context.read(index: i, info: infos[i])) }
+#else
         if workers > 1 {
             let queue = SheetQueue(count: infos.count)
             DispatchQueue.concurrentPerform(iterations: workers) { _ in
@@ -137,6 +142,7 @@ enum WorkbookReader {
         } else {
             for i in infos.indices { results.set(i, context.read(index: i, info: infos[i])) }
         }
+#endif
         // sheet order, whichever order they finished in: the warnings keep it, and the first failure in it is the
         // one thrown
         var sheets: [Sheet] = []

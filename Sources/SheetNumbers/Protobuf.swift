@@ -284,7 +284,7 @@ final class NumbersSchema: Sendable {
 
     private init() {
         func load(_ name: String) -> [String: Any] {
-            guard let url = Bundle.module.url(forResource: name, withExtension: "json"), let data = try? Data(contentsOf: url),
+            guard let url = NumbersResources.url(name, "json"), let data = try? Data(contentsOf: url),
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { preconditionFailure("SheetNumbers resource \(name).json missing") }
             return obj
         }

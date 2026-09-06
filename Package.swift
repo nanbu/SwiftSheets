@@ -46,7 +46,7 @@ let package = Package(
         // this target is a module map over the header that is already there. It is what `Deflate` falls back to
         // where Apple's Compression framework does not exist.
         .systemLibrary(name: "CZlib", path: "Sources/CZlib"),
-        .target(name: "SheetCore", dependencies: ["CZlib"]),
+        .target(name: "SheetCore", dependencies: [.target(name: "CZlib", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .macCatalyst, .linux, .android, .windows, .openbsd]))]),
         .target(name: "SheetXLSX", dependencies: ["SheetCore"]),
         .target(name: "SheetCSV", dependencies: ["SheetCore"]),
         .target(name: "SheetODS", dependencies: ["SheetCore"]),

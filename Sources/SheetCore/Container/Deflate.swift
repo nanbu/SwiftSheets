@@ -1,6 +1,8 @@
 import Foundation
 #if canImport(Compression) && !SWIFTSHEETS_ZLIB
 import Compression
+#elseif os(WASI)
+// WebAssembly has neither toolbox: the pure Swift route at the end of this file answers instead.
 #else
 import CZlib
 #endif
@@ -276,6 +278,223 @@ enum Backend {
             let consumed = input.count - raw.pointee.src_size
             if ended { compression_stream_destroy(raw); live = false }
             return (out, ended, consumed)
+        }
+    }
+}
+
+#elseif os(WASI)
+
+/// The pure Swift route — WebAssembly carries neither Apple's framework nor zlib. Reading is a complete RFC 1951
+/// inflater (fixed and dynamic Huffman blocks); writing folds nothing: stored blocks, which every reader accepts
+/// as DEFLATE. Big files, not small ones, is the trade — a browser opening a plan does not mind.
+enum Backend {
+    static func inflate(_ s: UnsafeRawBufferPointer, expectedSize: Int) -> Data? {
+        var inf = Inflater(input: s)
+        // one byte of room past the declared size, like the other routes: more than declared is refused, not cut
+        guard let out = try? inf.run(limit: expectedSize + 1), inf.ended, out.count == expectedSize else { return nil }
+        return out
+    }
+
+    static func deflate(_ src: Data) -> Data? { stored(src, final: true) }
+
+    /// `src` as stored blocks of at most 65 535 bytes; `final` sets BFINAL on the last of them.
+    static func stored(_ src: Data, final: Bool) -> Data {
+        var out = Data(capacity: src.count + src.count / 65535 * 5 + 5)
+        if src.isEmpty { if final { out.append(contentsOf: [1, 0, 0, 0xFF, 0xFF]) }; return out }
+        var offset = 0
+        while offset < src.count {
+            let n = Swift.min(65535, src.count - offset)
+            let last = final && offset + n == src.count
+            out.append(last ? 1 : 0)
+            out.append(contentsOf: [UInt8(n & 0xFF), UInt8(n >> 8), UInt8(~n & 0xFF), UInt8((~n >> 8) & 0xFF)])
+            out.append(src[src.startIndex + offset ..< src.startIndex + offset + n])
+            offset += n
+        }
+        return out
+    }
+
+    final class Stream {
+        private var live = true
+        init?() {}
+        func encode(_ data: Data) -> Data? { live ? Backend.stored(data, final: false) : nil }
+        func finish() -> Data? { defer { live = false }; return Data([1, 0, 0, 0xFF, 0xFF]) }
+    }
+
+    /// Pieces are gathered and the whole is expanded once it is complete — a stream fed in pieces is inflated
+    /// from its start each time more arrives, which costs time on a very large entry and nothing on a plan.
+    final class InflateStream {
+        private var pending = Data()   // compressed bytes not yet expanded
+        private var ready = Data()     // expanded bytes not yet handed out
+        private var done = false
+        init?() {}
+
+        func decode(_ input: UnsafeRawBufferPointer, limit: Int, cap: Int) -> (Data, Bool, Int)? {
+            if !done {
+                if !input.isEmpty { pending.append(contentsOf: input) }
+                let attempt: Data?? = pending.withUnsafeBytes { (p: UnsafeRawBufferPointer) -> Data?? in
+                    var inf = Inflater(input: p)
+                    do { return .some(try inf.run(limit: Int.max)) }          // complete
+                    catch InflateError.needMoreInput { return .some(nil) }     // not yet
+                    catch { return .none }                                     // corrupt
+                }
+                switch attempt {
+                case .none: return nil
+                case .some(nil): return input.isEmpty ? nil : (Data(), false, input.count)   // finishing with no end is corrupt
+                case .some(let out?): ready = out; pending = Data(); done = true
+                }
+            }
+            let n = Swift.min(Swift.min(limit, cap), ready.count)
+            let out = Data(ready.prefix(n))
+            ready.removeFirst(n)
+            return (out, done && ready.isEmpty, input.count)
+        }
+    }
+}
+
+enum InflateError: Error { case needMoreInput, corrupt, tooLarge }
+
+/// RFC 1951, the way zlib's `puff` does it: canonical Huffman tables walked a bit at a time.
+struct Inflater {
+    private let input: UnsafeRawBufferPointer
+    private var pos = 0
+    private var bitBuf = 0
+    private var bitCnt = 0
+    private(set) var ended = false
+
+    init(input: UnsafeRawBufferPointer) { self.input = input }
+
+    private mutating func bits(_ n: Int) throws -> Int {
+        var v = bitBuf
+        while bitCnt < n {
+            guard pos < input.count else { throw InflateError.needMoreInput }
+            v |= Int(input[pos]) << bitCnt
+            pos += 1
+            bitCnt += 8
+        }
+        bitBuf = v >> n
+        bitCnt -= n
+        return v & ((1 << n) - 1)
+    }
+
+    private struct Huffman {
+        var count = [Int](repeating: 0, count: 16)
+        var symbol: [Int]
+        /// Nil when the lengths describe an over-subscribed set (an incomplete one is allowed, as in puff).
+        init?(lengths: [Int]) {
+            symbol = [Int](repeating: 0, count: lengths.count)
+            for l in lengths { count[l] += 1 }
+            if count[0] == lengths.count { return }
+            var left = 1
+            for len in 1...15 { left <<= 1; left -= count[len]; if left < 0 { return nil } }
+            var offs = [Int](repeating: 0, count: 16)
+            for len in 1..<15 { offs[len + 1] = offs[len] + count[len] }
+            for (sym, l) in lengths.enumerated() where l != 0 { symbol[offs[l]] = sym; offs[l] += 1 }
+        }
+    }
+
+    private mutating func decode(_ h: Huffman) throws -> Int {
+        var code = 0, first = 0, index = 0
+        for len in 1...15 {
+            code |= try bits(1)
+            let count = h.count[len]
+            if code - count < first { return h.symbol[index + (code - first)] }
+            index += count
+            first += count
+            first <<= 1
+            code <<= 1
+        }
+        throw InflateError.corrupt
+    }
+
+    private static let lengthBase = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258]
+    private static let lengthExtra = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0]
+    private static let distBase = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577]
+    private static let distExtra = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13]
+    private static let fixed: (Huffman, Huffman) = {
+        var l = [Int](repeating: 8, count: 288)
+        for i in 144..<256 { l[i] = 9 }
+        for i in 256..<280 { l[i] = 7 }
+        return (Huffman(lengths: l)!, Huffman(lengths: [Int](repeating: 5, count: 30))!)
+    }()
+
+    /// Expands until the final block, or until `limit` bytes would be exceeded (an error: the entry lied).
+    mutating func run(limit: Int) throws -> Data {
+        var out = [UInt8]()
+        out.reserveCapacity(Swift.min(limit, 1 << 20))
+        while !ended {
+            let last = try bits(1)
+            switch try bits(2) {
+            case 0:
+                bitBuf = 0; bitCnt = 0   // stored: the rest of this byte is discarded
+                guard pos + 4 <= input.count else { throw InflateError.needMoreInput }
+                let len = Int(input[pos]) | Int(input[pos + 1]) << 8
+                let nlen = Int(input[pos + 2]) | Int(input[pos + 3]) << 8
+                guard len == (~nlen & 0xFFFF) else { throw InflateError.corrupt }
+                pos += 4
+                guard pos + len <= input.count else { throw InflateError.needMoreInput }
+                guard out.count + len <= limit else { throw InflateError.tooLarge }
+                out.append(contentsOf: UnsafeRawBufferPointer(rebasing: input[pos ..< pos + len]))
+                pos += len
+            case 1:
+                try codes(Inflater.fixed.0, Inflater.fixed.1, into: &out, limit: limit)
+            case 2:
+                let (lit, dist) = try dynamicTables()
+                try codes(lit, dist, into: &out, limit: limit)
+            default:
+                throw InflateError.corrupt
+            }
+            if last == 1 { ended = true }
+        }
+        return Data(out)
+    }
+
+    private static let order = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]
+
+    private mutating func dynamicTables() throws -> (Huffman, Huffman) {
+        let nlen = try bits(5) + 257, ndist = try bits(5) + 1, ncode = try bits(4) + 4
+        guard nlen <= 286, ndist <= 30 else { throw InflateError.corrupt }
+        var lengths = [Int](repeating: 0, count: 19)
+        for i in 0..<ncode { lengths[Inflater.order[i]] = try bits(3) }
+        guard let lencode = Huffman(lengths: lengths) else { throw InflateError.corrupt }
+        var all = [Int](repeating: 0, count: nlen + ndist)
+        var i = 0
+        while i < nlen + ndist {
+            let sym = try decode(lencode)
+            if sym < 16 { all[i] = sym; i += 1; continue }
+            var rep = 0, value = 0
+            switch sym {
+            case 16: guard i > 0 else { throw InflateError.corrupt }; value = all[i - 1]; rep = 3 + (try bits(2))
+            case 17: rep = 3 + (try bits(3))
+            default: rep = 11 + (try bits(7))
+            }
+            guard i + rep <= nlen + ndist else { throw InflateError.corrupt }
+            for _ in 0..<rep { all[i] = value; i += 1 }
+        }
+        guard all[256] != 0, let lit = Huffman(lengths: Array(all[0..<nlen])),
+              let dist = Huffman(lengths: Array(all[nlen...])) else { throw InflateError.corrupt }
+        return (lit, dist)
+    }
+
+    private mutating func codes(_ lit: Huffman, _ dist: Huffman, into out: inout [UInt8], limit: Int) throws {
+        while true {
+            let sym = try decode(lit)
+            if sym < 256 {
+                guard out.count < limit else { throw InflateError.tooLarge }
+                out.append(UInt8(sym))
+            } else if sym == 256 {
+                return
+            } else {
+                let li = sym - 257
+                guard li < 29 else { throw InflateError.corrupt }
+                let len = Inflater.lengthBase[li] + (try bits(Inflater.lengthExtra[li]))
+                let di = try decode(dist)
+                guard di < 30 else { throw InflateError.corrupt }
+                let d = Inflater.distBase[di] + (try bits(Inflater.distExtra[di]))
+                guard d <= out.count else { throw InflateError.corrupt }
+                guard out.count + len <= limit else { throw InflateError.tooLarge }
+                let from = out.count - d
+                for k in 0..<len { out.append(out[from + k]) }
+            }
         }
     }
 }

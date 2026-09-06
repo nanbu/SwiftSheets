@@ -1915,6 +1915,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.33 Draft</td><td>2026-09-06</td><td><strong>WebAssembly（wasm32-wasi）で動く</strong>ことを付録 B.45 に記録して本体へ（0.19.0）。zlib も Compression も無い環境向けに、DEFLATE の純 Swift 経路（読みは RFC 1951 の完全な展開器・書きは stored ブロック）と CRC-32 の表引きを <code>#if os(WASI)</code> で用意し、32 ビットの <code>Int</code> で溢れる ZIP64 の目印と展開上限、並列読み・一時ファイル・原子的な書き込み・資源バンドルの 5 点を分岐した。既存の 3 経路（Apple / zlib / Linux）は不変。きっかけは Stream の Web 版がブラウザ内で 3 形式を読み書きする要望（2026-09-06 の要望）</td></tr>
     <tr><td>4.32 Draft</td><td>2026-09-05</td><td><strong>コーデックの束</strong>を付録 B.44 に記録して本体へ（0.18.0）。要る製品だけ繋いだアプリにも開く・問い合わせ・逐次読み・逐次書き・変換の入口が届くように、<code>SheetCore</code> に <code>SheetFormat</code> を鍵にした表 <code>CodecSet</code> を新設し、<code>SpreadsheetCodec</code> に <code>inspect</code>・URL から開く・逐次読み書きの要件を足し、<code>StreamingReader</code> / <code>StreamingWriter</code> の宣言を中核へ移した。全部入りは <code>CodecSet.all</code> を 1 つ持つ薄い入口になり、呼び方は不変。束に無い形式は形式名と製品名で断る。§2.2・§4.3・B.40.1 を追従。テストの的 <code>PartialLinkTests</code>（4 製品の import だけ）を新設。きっかけは Left Right の要望（全部入りを繋ぐ費用は実測 約 115 KB だが、README の「要る部分だけ」の約束の穴を塞ぐのが本筋）</td></tr>
     <tr><td>4.31 Draft</td><td>2026-09-05</td><td><strong>逐次読みのピークがファイルの大きさで伸びる原因 2 つを直した</strong>（付録 B.39.8 Rev 4.31・0.17.2）: 展開器の 1 回の出力を 1 MiB で切る（ODS の本文は 60 倍に膨らみ、15 MB の片を捨てても macOS の割り当て器が実メモリから返さなかった）と、URL から開く逐次読みを写像でなく位置指定読みにする（写像したファイルの触ったページがピークに載っていた）。1,000 万マスの逐次読み（0.17.2 の記録）: XLSX 62 → 19 MB・ODS 709 → 14 MB・Numbers 329 → 61 MB — ファイルの大きさでは伸びず、残るのは読み手が持つ文字列の分。付録 B.39.11 に「性能の計測は macOS で採る。Linux は指示があるときだけ」を追記。</td></tr>
     <tr><td>4.30 Draft</td><td>2026-09-05</td><td><strong>計測の基準を改めた</strong>（付録 B.39.11）: 100 列 × 10,000 行（100 万マス）と 100 列 × 100,000 行（1,000 万マス）の 2 段。README の看板の数字は 1 段目から採る。10 列 × 10 万行の記録と 200 列の 3 段は退役（数字は歴史として残す）。駆動は <code>scripts/bench.py</code> の 1 本、記録は <code>tiers</code> の 1 本、読みの数字は全載せで書いたファイルの値で逐次で書いたファイルの読みは別行</td></tr>
@@ -5729,6 +5730,50 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     外部コーデックの差し込み（上記）。組み合わせ製品（上記）。Left Right 側の表示の設計（逐次読みを画面にどう出すかは向こうの計画）。
   </p>
 
+
+  <h3>B.45 WebAssembly — zlib も糸も一時ファイルも無い場所で同じ 3 形式を読み書きする（Rev 4.33）</h3>
+  <p>
+    2026-09-06。<strong>きっかけ</strong>は Stream の Web 版。Mac・iPad は本ライブラリで xlsx / ods / numbers を扱えるのに、
+    Web 版だけは Python の別部品で xlsx しか扱えなかった。ブラウザの中で本ライブラリをそのまま動かせば、変換の実装は
+    3 つの面で 1 本になる（Stream の計画が退けた「Rust で共通部品を書いて WebAssembly で配る」案とは違い、言語は増えない）。
+    Xcode の Swift は WebAssembly を出せない（LLVM の wasm バックエンドを持たない）ので、swift.org 配布の同じ版の
+    ツールチェーンと Wasm SDK で <code>--swift-sdk swift-6.3.3-RELEASE_wasm</code> を通した。
+  </p>
+  <h4>WASI に無いもの、その代わり</h4>
+  <ul>
+    <li><strong>zlib（DEFLATE・CRC-32）</strong>: WASI の sysroot に zlib は無い（libxml2 はある）。<code>Deflate.swift</code> に
+      第 3 の経路を <code>#if os(WASI)</code> で置いた — 読みは RFC 1951 の完全な展開器（固定・動的ハフマン・stored、
+      zlib の <code>puff</code> と同じ「正準表を 1 ビットずつ辿る」形）、書きは <strong>圧縮しない</strong> stored ブロック
+      （65,535 バイトずつ・末尾に BFINAL）。どの読み手も受け付ける正しい DEFLATE だが、書き出したファイルは大きくなる
+      （Stream の 70 行の計画で xlsx 102 KB 対 20 KB・ods 299 KB 対 16 KB。numbers は元から全部 stored なので同じ）。
+      逐次展開 <code>InflateStream</code> は断片を溜め、末尾が来た時点で一括展開する（大きな部品では二乗の手間・計画の大きさでは無視できる）。
+      CRC-32 は表引き（README の「Swift の表引きは 33 MB で 0.09 秒」）。<code>Package.swift</code> の <code>CZlib</code> 依存は
+      WASI 以外の platform に限定した（<code>.when(platforms:)</code> は肯定列挙しかできない）。</li>
+    <li><strong>32 ビットの <code>Int</code></strong>: <code>16 &lt;&lt; 30</code> は 0 になり、既定の展開上限が「全ファイル拒否」になった
+      （実測: あらゆる読み込みが unrecognized format）。<code>ZipLimits.defaultMaxExpandedBytes</code> を
+      <code>_pointerBitWidth(_32)</code> では <code>Int.max</code> に。ZIP64 の目印 0xFFFF_FFFF は <code>Int(truncatingIfNeeded:)</code>
+      で読んで <code>Zip.marker32</code>（64 ビットでは同じ値・32 ビットでは -1）と比べる。書き手の <code>limit32</code> も同様。</li>
+    <li><strong>糸（スレッド）</strong>: <code>DispatchQueue.concurrentPerform</code> は無い。XLSX の並列シート読み（B.41）は
+      WASI では直列。<code>workers</code> の値は呼び手の希望のまま受け取り、叶えない。</li>
+    <li><strong>一時ファイル・原子的な書き込み</strong>: <code>Data.write(options: .atomic)</code> は WASI で unavailable。
+      <code>CodecSet.write(to:)</code> は WASI ではそのまま書く。<code>TextSpill</code>（B.39.7）は一時領域が無い環境では
+      失敗して通常経路に戻る。</li>
+    <li><strong>資源バンドル</strong>: <code>Bundle.module</code> の生成コードはビルド機のパスを焼き込む。SheetNumbers の資源
+      （スキーマ・登録簿・空の雛形）は <code>NumbersResources.swift</code> を通し、WASI では固定の
+      <code>/SwiftSheets_SheetNumbers.resources/</code> を読む。実行環境（node の WASI・ブラウザの薄い WASI 実装）は
+      その名前のフォルダーを差し込む。</li>
+    <li><strong>libc の名前</strong>: <code>ByteSource</code>・<code>TextSpill</code> の <code>open / fstat / pread</code> は
+      <code>WASILibc</code> から。</li>
+  </ul>
+  <h4>検証</h4>
+  <p>
+    ネイティブの全テスト（1,071 件）は不変。WebAssembly 版は Stream の <code>scripts/wasm-smoke.mjs</code>（node の WASI）で、
+    xlsx の取り込みが正解 JSON とバイト一致し、xlsx / ods / numbers の書き出しと読み戻しが一致することを確かめた。
+    書き出し物は LibreOffice が 3 形式とも PDF に変換できた。Numbers 本体・Excel 本体では未確認（stored ブロックの DEFLATE は
+    規格どおりだが、寛容な読み手が素通りする例が B.9 にある）。Linux CI に WASI のジョブは置いていない — ツールチェーンが
+    swift.org 配布に限られ、CI の Swift と版を揃える運用が別に要るため。ローカルでの確認手順は Stream の
+    <code>scripts/build-wasm.sh</code> の頭に書いた。
+  </p>
 </section>
 
 </div><!-- /.container -->
