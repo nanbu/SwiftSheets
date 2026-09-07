@@ -7,6 +7,26 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **Preservation internals are package-only** (Appendix B.46). `PreservationStore`, `SheetPreservation`,
+  `OpaquePart`, `XMLFragment`, `Relationship`, `StyleTables`, `ForeignSheet`, and `Workbook.preserved` /
+  `Sheet.preserved` can no longer be accessed by external clients. Raw-part editing and the previous detailed
+  inventory have no equivalent public replacement. Same-format preservation and loss warnings are unchanged.
+- `anchorTextFormula`, `sanitizedName`, `cleanMergedRange` and `asAssumedOutsideODF` remain public for model editing.
+
+### Added
+
+- `Workbook.preservationSummary`: a snapshot of the source format, opaque part count and VBA presence without
+  expanding preserved parts. Counts exclude XML fragments and modelled objects.
+- `Sheet.contentState` / `SheetContentState`: distinguish normal grids, worksheets excluded by selection, and
+  non-grid sheets, independently of tab visibility. State follows renaming and moving; a duplicate gets its own
+  preservation and is a plain grid. A chart sheet left out of the selection stays `.nonGrid`. Writing cells
+  does not make an unread or non-grid source readable; existing loss warnings still apply.
+- An external-package check for the public preservation API and inaccessible internals, run on macOS and Linux CI.
+
 ## [0.19.1] — 2026-09-06
 
 ### Fixed

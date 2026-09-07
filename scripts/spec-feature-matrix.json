@@ -89,13 +89,12 @@
               "read": "preserved",
               "write": "preserved",
               "api": [
-                "wb.preserved",
-                "PreservationStore",
-                "sheet.preserved"
+                "wb.preservationSummary",
+                "PreservationSummary"
               ],
               "warning": "他形式へ変換すると「N part(s) … cannot be carried into …」",
               "evidence": "code",
-              "note": "触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。"
+              "note": "触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。生の部品・XML・関係は package 内に閉じ、公開の入口は元形式・部品数・VBA 有無の要約だけ（付録 B.46）。"
             },
             {
               "id": "xlsx.package.zip64",
@@ -287,9 +286,7 @@
               "spec_anchor": "<fileSharing>, <customWorkbookViews>, <smartTagPr>, <webPublishing>",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": "<workbook> の未知の子要素はスキーマ順の位置に戻して書き出す（WorkbookWriter.workbookOrder）。"
@@ -518,9 +515,7 @@
               "spec_anchor": "<ignoredErrors>, <cellWatches>, <customSheetViews>, <dataConsolidate>",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "sheet.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": "<worksheet> の未知の子要素はスキーマ順に戻す（WorkbookWriter.worksheetOrder）。統合だけは ODF が文書に持てる（ODS の表を参照）。"
@@ -725,9 +720,7 @@
               "spec_anchor": "<tableStyles>",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved.styleTables"
-              ],
+              "api": [],
               "warning": null,
               "evidence": "code",
               "note": "そのまま複写する。索引がずれないことを優先。"
@@ -903,9 +896,7 @@
               "spec_anchor": "xl/slicers/, xl/slicerCaches/",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると objects の dropped",
               "evidence": "code",
               "note": "モデル化していない。同形式の保存ではパートごとそのまま残る。"
@@ -1005,9 +996,7 @@
               "spec_anchor": "xl/threadedComments/, xl/persons/",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": "モデル化していない。"
@@ -1018,9 +1007,7 @@
               "spec_anchor": "<xdr:sp>, <picture>",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": null
@@ -1031,9 +1018,7 @@
               "spec_anchor": "<oleObjects>, <controls>",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "sheet.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": null
@@ -1044,9 +1029,7 @@
               "spec_anchor": "<extLst> x14:sparklineGroups",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "sheet.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": "worksheet の extLst ごと保持される。モデルの言葉はない。"
@@ -1156,9 +1139,7 @@
               "spec_anchor": "xl/connections.xml, xl/queryTables/",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": null
@@ -1180,9 +1161,7 @@
               "spec_anchor": "customXml/",
               "read": "preserved",
               "write": "preserved",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "他形式へ変換すると dropped",
               "evidence": "code",
               "note": null
@@ -1200,8 +1179,8 @@
               "read": "preserved",
               "write": "preserved",
               "api": [
-                "sheet.preserved.foreignSheet",
-                "ForeignSheet"
+                "sheet.contentState",
+                "SheetContentState"
               ],
               "warning": "読むと「a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived」。そのシートにセルを書き込むと「N cell(s) … are not saved」。他形式へ変換すると dropped",
               "evidence": "judge",
@@ -1325,9 +1304,7 @@
               "spec_anchor": "Pictures/, Object N/, ObjectReplacements/",
               "read": "preserved",
               "write": "none",
-              "api": [
-                "wb.preserved"
-              ],
+              "api": [],
               "warning": "「N embedded object(s)/picture(s) of the source ODS are not re-linked」",
               "evidence": "code",
               "note": "ODS の書き出しは content.xml を作り直すので、元の絵や図の参照は張り直せない。持ってはいるが繋がらない、と正直に言う。"

@@ -77,7 +77,20 @@ public struct Sheet: Equatable, Sendable {
     /// Charts placed by `addChart` (spec Appendix B.34). Charts already in an opened file stay in `preserved`.
     public var charts: [Chart] = []
     /// Material the reader kept for a lossless write-back (spec §6).
-    public var preserved = SheetPreservation()
+    package var preserved = SheetPreservation()
+
+    /// Whether this sheet is a grid, was left unread by sheet selection, or is not a grid (Appendix B.46).
+    /// Independent of `state` (tab visibility). Renaming and moving the sheet retain this state; a duplicate
+    /// gets its own preservation, so the copy of an unread or non-grid sheet is a plain `.grid` holding the
+    /// cells the model had. A chart sheet left out of the selection stays `.nonGrid` — the workbook
+    /// relationship names its kind without the part being parsed. Adding cells to an unread or non-grid sheet
+    /// does not make its source content readable; the existing write-back rules and loss warnings still apply.
+    /// `.grid` does not promise that a read was complete: consult `Workbook.readWarnings` for cell limits and
+    /// other reading losses.
+    public var contentState: SheetContentState {
+        if preserved.isUnread { return .unread }
+        return preserved.foreignSheet == nil ? .grid : .nonGrid
+    }
 
     public init(name: String) { self.name = name }
 

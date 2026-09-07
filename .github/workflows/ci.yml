@@ -35,6 +35,12 @@ jobs:
       - name: Build
         run: swift build --build-tests
 
+      # `package` is invisible to the tests, which live in the same package, so what an outside client can
+      # reach is proved from an outside client: a throwaway SwiftPM package that depends on this checkout,
+      # calls the public preservation API, and must fail to compile for every name that moved (spec B.46).
+      - name: Preservation API has an external boundary
+        run: python3 scripts/check-preservation-api.py
+
       # What the README promises about encryption code is read off symbol tables, not remembered: the plain
       # products link no cipher, SheetDecrypt nothing that encrypts (spec Appendix B.39.9). A positive control
       # inside the script keeps the check honest.
@@ -78,6 +84,10 @@ jobs:
 
       - name: Build
         run: swift build --build-tests
+
+      # Same as macOS: an outside client compiled against this checkout, on the other toolchain.
+      - name: Preservation API has an external boundary
+        run: python3 scripts/check-preservation-api.py
 
       # Same as macOS: the symbol tables of the three ways of linking, on the other toolchain and linker.
       - name: The plain products carry no cipher

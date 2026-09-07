@@ -269,6 +269,22 @@ are used where they apply (`Tests/SwiftSheetsTests/Fixtures/openpyxl`, MIT).
 
 ## Round-trip preservation (F3)
 
+`workbook.preservationSummary` is a read-only snapshot of `sourceFormat`, `opaquePartCount` and
+`hasVBAProject`, obtained without expanding any parts. The count excludes XML fragments and modelled objects;
+it is not a complete inventory or a promise about what a target format can retain. Use the write result's
+warnings for conversion losses. Raw parts, XML, relationships and source style tables are package-internal;
+there is no public replacement for editing or deleting individual preserved parts.
+
+`sheet.contentState` distinguishes `.grid` (including new and empty sheets), `.unread` (a worksheet excluded by
+`ReadOptions.sheets`) and `.nonGrid` (for example, a chart sheet). It follows the sheet through renaming and
+moving, independently of `sheet.state` (visibility). Adding cells does not clear `.unread` or `.nonGrid`; the
+existing write-back warnings still apply. `.grid` does not promise a complete read: check
+`workbook.readWarnings` for limits and other losses. A chart sheet left out of the selection stays `.nonGrid` —
+the workbook relationship names its kind, so nothing has to be parsed to know it. `duplicateSheet` gives the
+copy its own preservation, so duplicating an unread or non-grid sheet yields a plain `.grid` holding the cells
+the model had; the source bytes are written once, under the original sheet.
+
+
 The first test of the project (`PreservationTests.editOneCellKeepsEverythingElse`) opens a workbook with a chart, a
 table, conditional formatting, data validation, comments and a defined name, edits one cell, saves, and checks that
 every opaque part is byte-identical, every `r:id` still resolves, `[Content_Types].xml` declares exactly the parts
@@ -281,9 +297,9 @@ XML in meaning, not necessarily in bytes. Where an entry is addressed by index f
 `cellStyleXf`), the source's own entries keep their positions and their original XML, and new ones are appended
 after them. What makes it work:
 
-- parts the codec does not interpret stay bytes in `Workbook.preserved` (with their relationships and content types);
+- parts the codec does not interpret stay bytes in the package-internal `Workbook.preserved` (with their relationships and content types);
 - unknown children of `<workbook>`, `<worksheet>` and `<styleSheet>` are kept as XML fragments and re-emitted at their
-  schema positions (`Sheet.preserved`);
+  schema positions (the package-internal `Sheet.preserved`);
 - existing relationship ids, sheet ids and part paths are immutable — new ones are numbered after the maximum;
 - `styles.xml` is rebuilt on top of the source's font / fill / border / numFmt tables so `cellStyleXfs`, `dxfs` and
   `tableStyles` (copied verbatim) keep their indices;

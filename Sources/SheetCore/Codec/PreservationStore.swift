@@ -3,63 +3,63 @@ import Foundation
 /// Everything a reader saw but did not interpret, kept so that writing the same format back loses nothing (fidelity
 /// level F3, spec §6): charts, drawings, pivot caches, VBA, custom XML, themes — as bytes, with their relationships
 /// and content types. Converting to another format cannot carry these; the writer lists them as `dropped` warnings.
-public struct PreservationStore: Sendable, Hashable {
-    public var sourceFormat: SheetFormat?
+package struct PreservationStore: Sendable, Hashable {
+    package var sourceFormat: SheetFormat?
     /// Uninterpreted parts by package path ("xl/charts/chart1.xml", "xl/vbaProject.bin"), bytes untouched.
     ///
     /// Reading this expands every part a reader kept compressed (spec Appendix B.39.7); it is the view for a
     /// caller who wants the bytes. The writers do not go through it — they copy a compressed part into the new
     /// package as it lies, without expanding it or folding it again.
-    public var opaqueParts: [String: Data] {
+    package var opaqueParts: [String: Data] {
         get { parts.mapValues(\.data) }
         set { parts = newValue.mapValues { .bytes($0) } }
     }
     /// The parts as the reader kept them: expanded, or still folded as they were in the source package.
     package var parts: [String: OpaquePart] = [:]
     /// The names of the parts, without expanding any of them.
-    public var opaquePartNames: [String] { Array(parts.keys) }
-    public var opaquePartCount: Int { parts.count }
+    package var opaquePartNames: [String] { Array(parts.keys) }
+    package var opaquePartCount: Int { parts.count }
     /// `[Content_Types].xml` entries of the source: extension defaults and part overrides, so opaque parts keep
     /// their declarations when re-packed.
-    public var contentTypeDefaults: [String: String] = [:]
-    public var contentTypeOverrides: [String: String] = [:]
+    package var contentTypeDefaults: [String: String] = [:]
+    package var contentTypeOverrides: [String: String] = [:]
     /// Relationships of interpreted parts that point at opaque parts, keyed by the source part's path. Their ids
     /// are immutable: new relationships are numbered from the highest existing id + 1.
-    public var relationships: [String: [Relationship]] = [:]
+    package var relationships: [String: [Relationship]] = [:]
     /// Unknown children of `<workbook>` in document order (`extLst`, `pivotCaches`, `externalReferences`, …).
-    public var workbookFragments: [XMLFragment] = []
+    package var workbookFragments: [XMLFragment] = []
     /// Attributes of the `<workbook>` root element (namespace declarations, `mc:Ignorable`) — needed so fragments
     /// that use those prefixes stay well-formed.
-    public var workbookRootAttributes: [String: String] = [:]
+    package var workbookRootAttributes: [String: String] = [:]
     /// Attributes of `<workbookPr>` other than the ones the model owns.
-    public var workbookPrAttributes: [String: String] = [:]
+    package var workbookPrAttributes: [String: String] = [:]
     /// The attributes of `<calcPr>` as the source file had them. The writer regenerates the element from the
     /// model's calculation settings and carries the rest of these along (spec Appendix B.40.4).
-    public var calcPrAttributes: [String: String] = [:]
+    package var calcPrAttributes: [String: String] = [:]
     /// Parts of styles.xml that index-reference each other and must be re-emitted verbatim (`tableStyles`,
     /// `cellStyles`, `cellStyleXfs`, `extLst`), plus the source style tables in their original order.
-    public var styleFragments: [XMLFragment] = []
-    public var styleTables: StyleTables?
+    package var styleFragments: [XMLFragment] = []
+    package var styleTables: StyleTables?
     /// The generating application's declared name / version (docProps/app.xml), informational.
-    public var application: String?
+    package var application: String?
     /// The source's shared-string table, kept only when a sheet was left unread (`ReadOptions.sheets`): the
     /// unread sheet's cells name their text by index into it, so the writer starts the table with these entries
     /// in their order and appends after them (spec Appendix B.39.10).
-    public var sharedStrings: [CellValue]?
+    package var sharedStrings: [CellValue]?
 
-    public init() {}
+    package init() {}
 
-    public var isEmpty: Bool { parts.isEmpty && workbookFragments.isEmpty && styleFragments.isEmpty }
+    package var isEmpty: Bool { parts.isEmpty && workbookFragments.isEmpty && styleFragments.isEmpty }
 
     /// Whether a VBA project rides along among the preserved parts.
     ///
     /// Only a macro-enabled workbook can hold one, so every other target has to report it as `.macros` rather than
     /// fold it into a count of "parts": the subject is what decides which format `WriteResult.suggest` names, and a
     /// macro loss answered with "write XLSX instead" points at a format that loses them too (spec Appendix B.22).
-    public var hasVBAProject: Bool { parts.keys.contains { $0.hasSuffix("vbaProject.bin") } }
+    package var hasVBAProject: Bool { parts.keys.contains { $0.hasSuffix("vbaProject.bin") } }
 
     /// Human-readable inventory: "VBA project: yes / charts: 2 / drawings: 1 / other parts: 3".
-    public var summary: String {
+    package var summary: String {
         var counts: [(String, Int)] = []
         func count(_ label: String, _ predicate: (String) -> Bool) {
             let n = self.parts.keys.filter(predicate).count
@@ -84,12 +84,12 @@ public struct PreservationStore: Sendable, Hashable {
 /// exactly as the package held them, with what a writer needs to copy them into another package unchanged.
 /// A same-format write then never expands a chart, an image or a VBA project it does not touch, and never
 /// folds them again: "byte for byte" is literal, and the cost of carrying a part no longer depends on its size.
-public enum OpaquePart: Sendable, Hashable {
+package enum OpaquePart: Sendable, Hashable {
     case bytes(Data)
     case compressed(payload: Data, method: UInt16, crc32: UInt32, uncompressedSize: Int)
 
     /// The part's bytes, expanded if they were folded.
-    public var data: Data {
+    package var data: Data {
         switch self {
         case .bytes(let d): return d
         case .compressed(let payload, let method, _, let size):
@@ -99,91 +99,91 @@ public enum OpaquePart: Sendable, Hashable {
     }
 
     /// The expanded size, without expanding.
-    public var uncompressedSize: Int {
+    package var uncompressedSize: Int {
         switch self { case .bytes(let d): return d.count; case .compressed(_, _, _, let n): return n }
     }
 }
 
 /// A raw XML element kept as text (the element's qualified name and its complete serialization).
-public struct XMLFragment: Sendable, Hashable {
-    public var element: String
-    public var xml: String
-    public init(element: String, xml: String) { self.element = element; self.xml = xml }
+package struct XMLFragment: Sendable, Hashable {
+    package var element: String
+    package var xml: String
+    package init(element: String, xml: String) { self.element = element; self.xml = xml }
 }
 
 /// An OPC relationship (`<Relationship Id Type Target TargetMode>`).
-public struct Relationship: Sendable, Hashable {
-    public var id: String
-    public var type: String
-    public var target: String
-    public var targetMode: String?
-    public init(id: String, type: String, target: String, targetMode: String? = nil) {
+package struct Relationship: Sendable, Hashable {
+    package var id: String
+    package var type: String
+    package var target: String
+    package var targetMode: String?
+    package init(id: String, type: String, target: String, targetMode: String? = nil) {
         self.id = id; self.type = type; self.target = target; self.targetMode = targetMode
     }
     /// The numeric part of "rId12" (nil for other id shapes).
-    public var number: Int? { id.hasPrefix("rId") ? Int(id.dropFirst(3)) : nil }
+    package var number: Int? { id.hasPrefix("rId") ? Int(id.dropFirst(3)) : nil }
 }
 
 /// The style tables of a source styles.xml in their original order, so indices referenced by preserved fragments
 /// (`cellStyleXfs`, `dxfs` via `tableStyles`) and by `<col style>` stay valid after a rewrite.
-public struct StyleTables: Sendable, Hashable {
-    public var fonts: [Font] = []
-    public var fills: [Fill] = []
-    public var borders: [Border] = []
+package struct StyleTables: Sendable, Hashable {
+    package var fonts: [Font] = []
+    package var fills: [Fill] = []
+    package var borders: [Border] = []
     /// Custom number formats by id (ids ≥ 164).
-    public var numberFormats: [Int: String] = [:]
+    package var numberFormats: [Int: String] = [:]
     /// Raw `<font>` / `<fill>` / `<border>` elements, re-emitted verbatim in place of the parsed forms so attributes the
     /// model does not carry (gradient fills, condense/extend) survive.
-    public var fontXML: [String] = []
-    public var fillXML: [String] = []
-    public var borderXML: [String] = []
+    package var fontXML: [String] = []
+    package var fillXML: [String] = []
+    package var borderXML: [String] = []
     /// Attributes of the `<styleSheet>` root (namespace declarations used by preserved sections).
-    public var rootAttributes: [String: String] = [:]
+    package var rootAttributes: [String: String] = [:]
     /// `cellStyleXfs`, entry by entry: the raw `<xf>` and its parsed form. Named styles point into this table by
     /// index, so entries no `cellStyle` names have to be kept anyway — dropping one renumbers every entry after it.
-    public var cellStyleXfXML: [String] = []
-    public var cellStyleXfs: [CellStyle] = []
+    package var cellStyleXfXML: [String] = []
+    package var cellStyleXfs: [CellStyle] = []
     /// Named style name → its index in `cellStyleXfs`, as the source file had it. Names the file already knew keep
     /// their index on a write-back; new ones are appended.
-    public var namedStyleXfIndex: [String: Int] = [:]
+    package var namedStyleXfIndex: [String: Int] = [:]
     /// The source `cellXfs`, entry by entry. A sheet left unread names its formatting by index into this table,
     /// so a write-back that carries such a sheet keeps every entry at its index (spec Appendix B.39.10).
-    public var cellXfs: [CellStyle] = []
+    package var cellXfs: [CellStyle] = []
     /// The differential formats (`<dxfs>`), parsed and raw. Conditional formats, tables and colour filters address
     /// them by index, so the source entries keep their positions and new ones are appended after them.
-    public var dxfs: [DifferentialStyle] = []
-    public var dxfXML: [String] = []
-    public init() {}
+    package var dxfs: [DifferentialStyle] = []
+    package var dxfXML: [String] = []
+    package init() {}
 }
 
 /// Per-sheet preserved material (travels with the sheet so renames and moves keep it).
-public struct SheetPreservation: Sendable, Hashable {
+package struct SheetPreservation: Sendable, Hashable {
     /// The source part path ("xl/worksheets/sheet1.xml"), reused on write so opaque parts that name it stay valid.
-    public var partPath: String?
+    package var partPath: String?
     /// The workbook relationship id and `sheetId` the sheet had in the source.
-    public var relationshipId: String?
-    public var sheetId: Int?
+    package var relationshipId: String?
+    package var sheetId: Int?
     /// Unknown children of `<worksheet>` in document order (conditional formatting, data validation, drawings, tables, …).
-    public var fragments: [XMLFragment] = []
+    package var fragments: [XMLFragment] = []
     /// Relationships of the sheet part other than hyperlinks (drawing, comments, table, printerSettings, …).
-    public var relationships: [Relationship] = []
+    package var relationships: [Relationship] = []
     /// Attributes of the `<worksheet>` root element (namespace declarations, `mc:Ignorable`).
-    public var rootAttributes: [String: String] = [:]
+    package var rootAttributes: [String: String] = [:]
     /// `<pageSetup r:id>` — the printer-settings part the sheet was configured against. The part itself is opaque
     /// and its relationship is in `relationships`; without this attribute the link between them is lost.
-    public var pageSetupRelationshipId: String?
+    package var pageSetupRelationshipId: String?
     /// The cell notes as the file had them. The writer compares the sheet's notes against this: unchanged, the
     /// source `comments` and VML parts are re-packed byte for byte; changed, both are regenerated.
-    public var comments: [CellRef: CellNote] = [:]
+    package var comments: [CellRef: CellNote] = [:]
     /// Set when the sheet's part is not a `<worksheet>` — a chart sheet, a dialog sheet, a macro sheet. See
     /// `ForeignSheet`.
-    public var foreignSheet: ForeignSheet?
+    package var foreignSheet: ForeignSheet?
     /// True when the sheet is a worksheet that was left unread by `ReadOptions.sheets`: its part is carried in
     /// `foreignSheet` as the bytes it arrived in, and it has no cells here because nobody looked, not because it
     /// is empty (spec Appendix B.39.10).
-    public var isUnread = false
-    public init() {}
-    public var isEmpty: Bool { fragments.isEmpty && relationships.isEmpty && foreignSheet == nil }
+    package var isUnread = false
+    package init() {}
+    package var isEmpty: Bool { fragments.isEmpty && relationships.isEmpty && foreignSheet == nil }
 }
 
 /// A sheet the workbook declares that is not a worksheet: SpreadsheetML also has chart sheets, dialog sheets and
@@ -194,22 +194,22 @@ public struct SheetPreservation: Sendable, Hashable {
 /// the content type and the relationship type the package gave it. Reading one is reported (`degraded`), because
 /// a caller iterating `Workbook.sheets` finds a sheet with no cells, and without the warning that reads as
 /// "the sheet was empty" rather than "this sheet is not a grid" (spec Appendix B.35).
-public struct ForeignSheet: Sendable, Hashable {
+package struct ForeignSheet: Sendable, Hashable {
     /// The root element of the part — "chartsheet", "dialogsheet", "macrosheet".
-    public var root: String
+    package var root: String
     /// The relationship type the workbook part used to point at it.
-    public var relationshipType: String
+    package var relationshipType: String
     /// The content type `[Content_Types].xml` gave the part.
-    public var contentType: String
+    package var contentType: String
     /// The part exactly as it arrived.
-    public var body: Data
+    package var body: Data
 
-    public init(root: String, relationshipType: String, contentType: String, body: Data) {
+    package init(root: String, relationshipType: String, contentType: String, body: Data) {
         self.root = root; self.relationshipType = relationshipType; self.contentType = contentType; self.body = body
     }
 
     /// What to call it in a message: "a chart sheet", "a dialog sheet".
-    public var description: String {
+    package var description: String {
         switch root {
         case "worksheet": return "an unread worksheet"
         case "chartsheet": return "a chart sheet"

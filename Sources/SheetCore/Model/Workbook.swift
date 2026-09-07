@@ -156,7 +156,15 @@ public struct Workbook: Equatable, Sendable {
     /// True when loaded with `ReadOptions.dataOnly`: formula cells hold cached values.
     public var dataOnly = false
     /// Uninterpreted parts of the source file (charts, VBA, …), re-packed on a same-format write (spec §6).
-    public var preserved = PreservationStore()
+    package var preserved = PreservationStore()
+    /// A snapshot of the source format, opaque part count and VBA presence, without expanding any parts.
+    /// This is not a complete inventory: XML fragments and modelled objects are not counted, and the target
+    /// format may not carry everything described here. Consult the write result for conversion losses.
+    public var preservationSummary: PreservationSummary {
+        PreservationSummary(sourceFormat: preserved.sourceFormat, opaquePartCount: preserved.opaquePartCount,
+                            hasVBAProject: preserved.hasVBAProject)
+    }
+
     /// The source file's format and generating application, when read from a file.
     public var sourceInfo: SourceInfo?
     /// What the file held that this model cannot say (spec §6). Filled in by every reader, so a plain
