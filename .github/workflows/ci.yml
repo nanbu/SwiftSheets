@@ -78,9 +78,10 @@ jobs:
         run: swift --version
 
       # zlib is what `Deflate` folds bytes with here. The runtime library is already installed; the header is
-      # what a build needs, and the Swift image does not promise to carry it.
-      - name: zlib headers, and nm for the symbol-table check
-        run: apt-get update && apt-get install -y --no-install-recommends zlib1g-dev binutils
+      # what a build needs, and the Swift image does not promise to carry it. The image carries no Python at
+      # all — unlike the macOS runner — so the boundary check's interpreter is installed here too.
+      - name: zlib headers, nm for the symbol-table check, and a Python for the boundary check
+        run: apt-get update && apt-get install -y --no-install-recommends zlib1g-dev binutils python3
 
       - name: Build
         run: swift build --build-tests
