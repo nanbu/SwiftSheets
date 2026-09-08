@@ -14,24 +14,24 @@ import SheetCore
 ///
 /// **What it does not do.** Only values and (on request) formatting: no merges, no notes, no validations,
 /// nothing preserved. Nothing is written back — for that, read the workbook the ordinary way.
-public struct ODSStreamingReader: StreamingRowSource {
+package struct ODSStreamingReader: StreamingRowSource {
     /// The most bytes of the body held at once by the last walk — the number the memory promise rests on.
     nonisolated(unsafe) package static var lastLargestCarry = 0
     let zip: ZipArchive
     let catalog: ODSStyleCatalog
     /// The sheets of the document, in the file's order.
-    public let sheetNames: [String]
+    package let sheetNames: [String]
 
     /// Reads the file through positioned reads rather than mapping it, so a document far larger than memory can be
     /// walked and only the pieces in hand are ever in memory (spec Appendix B.39.8, Rev 4.31).
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
+    package init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
         try self.init(archive: try ZipArchive(source: try FileByteSource(url: url), limits: limits))
     }
 
     /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
     /// protected package is refused by name: the SheetDecrypt product decrypts its entries whole (an encrypted
     /// package cannot be walked a row at a time) and hands this reader the plain package.
-    public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+    package init(data: Data, limits: ZipLimits = ZipLimits()) throws {
         try self.init(archive: try ZipArchive(data: data, limits: limits))
     }
 
@@ -61,7 +61,7 @@ public struct ODSStreamingReader: StreamingRowSource {
     }
 
     /// One grid per sheet: an ODF table is one grid.
-    public func tableCount(inSheet name: String) throws -> Int {
+    package func tableCount(inSheet name: String) throws -> Int {
         guard sheetNames.contains(name) else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
         return 1
     }
@@ -73,7 +73,7 @@ public struct ODSStreamingReader: StreamingRowSource {
 
     /// Visits every row of a sheet in order. Throwing from `body` stops the walk and rethrows. `table` is 0 —
     /// an ODF table is one grid — and exists so the call reads the same for every format.
-    public func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
+    package func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: (StreamedRow) throws -> Void) throws {
         try checkTable(table, inSheet: name)
         let target = try tableIndex(of: name)
@@ -93,7 +93,7 @@ public struct ODSStreamingReader: StreamingRowSource {
 
     /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` — pulled
     /// one piece of the body at a time as the loop asks for them, so a walk that stops early reads no further.
-    public func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
+    package func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
         StreamingRowSequence.make { try rowWalk(inSheet: name, table: table, options: options) }
     }
 
@@ -105,7 +105,7 @@ public struct ODSStreamingReader: StreamingRowSource {
 
     /// The same walk, as dense value arrays (openpyxl's `values_only=True`). `width` pads every row to that many
     /// columns so the rows line up.
-    public func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
+    package func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
                            options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: ([CellValue?]) throws -> Void) throws {
         try forEachRow(inSheet: name, table: table, options: options) { try body($0.values(width: width)) }

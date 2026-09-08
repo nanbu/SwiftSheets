@@ -1689,7 +1689,7 @@ formats:
             api:
               - "Workbook(contentsOf:)"
               - "wb.write(to:as: .numbers)"
-              - "NumbersCodec"
+              - "Codec.numbers"
             warning: null
             evidence: "judge"
             note: "依存のない動的な Protobuf の木（ProtoMessage）で扱う。知らない欄はバイト単位でそのまま往復する（NumbersIWATests.fixturesRoundTripByteForByte）。"
@@ -1699,7 +1699,7 @@ formats:
             read: "na"
             write: "partial"
             api:
-              - "NumbersCodec"
+              - "Codec.numbers"
             warning: "テンプレートに無い器を要る機能は、その旨を名指しして落とす"
             evidence: "readme"
             note: "numbers-parser 同梱の空の書類を土台にし、1 枚目のシート／表をその場で書き換え、2 枚目からは部分グラフを複製して新しい id と UUID を振る（仕様 §11.1）。毎回テンプレートから始まるので、往復の保全（F3）は無い。"

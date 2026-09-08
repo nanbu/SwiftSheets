@@ -32,7 +32,7 @@ import SwiftSheets
     /// A set without a format refuses a file of that format by name; the same bytes open through the full set.
     @Test func aFormatOutsideASetIsRefusedByName() throws {
         let ods = try Self.sample().write(as: .ods).data
-        let xlsxOnly = CodecSet([XLSXCodec.self])
+        let xlsxOnly = CodecSet([.xlsx])
         #expect(xlsxOnly.formats == [.xlsx] && !xlsxOnly.contains(.ods))
         do {
             _ = try xlsxOnly.read(ods)
@@ -43,6 +43,26 @@ import SwiftSheets
         }
         #expect(try CodecSet.all.read(ods).workbook.sheets[0]["A1"] == .text("x"))
         // naming a codec twice is one entry, and the order of naming is the order of `formats`
-        #expect(CodecSet([ODSCodec.self, XLSXCodec.self, ODSCodec.self]).formats == [.ods, .xlsx])
+        #expect(CodecSet([.ods, .xlsx, .ods]).formats == [.ods, .xlsx])
+    }
+
+    /// A format is chosen by the value its product publishes, and the set answers with that choice — a `Codec`
+    /// that says which format it is for and nothing else (spec Appendix B.50).
+    @Test func aCodecValueNamesItsFormatAndTheSetHandsItBack() throws {
+        #expect([Codec.xlsx.format, Codec.xlsm.format, Codec.ods.format, Codec.numbers.format, Codec.csv.format]
+                == [.xlsx, .xlsm, .ods, .numbers, .csv])
+        for format in SheetFormat.allCases {
+            #expect(try CodecSet.all.codec(for: format).format == format)
+        }
+        // a set may hold nothing at all: it opens nothing, and says so the same way
+        let empty = CodecSet([])
+        #expect(empty.formats.isEmpty && !empty.contains(.xlsx))
+        do {
+            _ = try empty.codec(for: .xlsx)
+            Issue.record("an empty set has no codec to hand out")
+        } catch {
+            let text = String(describing: error)
+            #expect(text.contains(".xlsx") && text.contains("SheetXLSX"), Comment(rawValue: text))
+        }
     }
 }

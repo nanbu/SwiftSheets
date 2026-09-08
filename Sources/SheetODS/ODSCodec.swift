@@ -13,19 +13,19 @@ import SheetCore
 ///
 /// Numeric conventions: column widths convert at `ODSLength.millimetresPerCharacter` (2.0 mm per character, both
 /// directions); row heights are written in points; border widths map thin / medium / thick to 0.75 / 1.75 / 2.5 pt.
-public enum ODSCodec: SpreadsheetCodec {
-    public static var format: SheetFormat { .ods }
+package enum ODSCodec: SpreadsheetCodec {
+    package static var format: SheetFormat { .ods }
 
-    public static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
+    package static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }
 
     /// Reading reports what the file held that the model cannot express: data styles with no Excel number-format
     /// form, and rows the cell budget stopped short of.
-    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+    package static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         let (wb, warnings) = try ODSReader.read(data, options: options)
         return ReadResult(workbook: wb, warnings: warnings)
     }
 
-    public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
+    package static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         try ODSWriter.write(workbook, options: options)
     }
 }
@@ -36,19 +36,19 @@ extension ODSCodec {
     /// ODS keeps every sheet in one part and says nothing about a sheet's size up front, so the content is walked
     /// once as bytes — tables, rows, the cells that carry a value — with the run-length counts multiplied rather
     /// than expanded (spec Appendix B.39.3). A pass over the markup, no model.
-    public static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+    package static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         try ODSInspector.inspect(try ZipArchive(data: data, limits: options.limits), options: options)
     }
 
-    public static func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
+    package static func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
         StreamingReader(source: try ODSStreamingReader(contentsOf: url, limits: limits), format: .ods)
     }
 
-    public static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: try ODSStreamingReader(data: data, limits: limits), format: .ods)
     }
 
-    public static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
+    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
         StreamingWriter(sink: try ODSStreamingWriter(url: url, sheetName: sheetName), format: .ods)
     }
 }

@@ -24,7 +24,7 @@ import SheetCore
 ///
 /// **What it does not do.** Only values and (on request) formatting: no merges, no notes, no charts, nothing
 /// preserved. Nothing is written back — for that, read the workbook the ordinary way.
-public struct XLSXStreamingReader: StreamingRowSource {
+package struct XLSXStreamingReader: StreamingRowSource {
     /// The most bytes of a sheet part held at once by the last walk — the number the memory promise rests on.
     nonisolated(unsafe) package static var lastLargestCarry = 0
     let zip: ZipArchive
@@ -32,13 +32,13 @@ public struct XLSXStreamingReader: StreamingRowSource {
     let styles: StylesParser
     let epoch: DateEpoch
     /// The sheets of the workbook, in the file's order.
-    public let sheetNames: [String]
+    package let sheetNames: [String]
     private let partPaths: [String: String]
 
     /// Reads the file through positioned reads rather than mapping it, so a workbook far larger than memory can be
     /// walked and only the pieces in hand are ever in memory (spec Appendix B.39.8, Rev 4.31: a mapped file's
     /// pages stayed resident as the walk touched them, and the reader's peak grew with the file).
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
+    package init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
         let source = try FileByteSource(url: url)
         if let unopenable = try UnopenableInput.probe(source: source) { throw unopenable.error }
         try self.init(archive: try ZipArchive(source: source, limits: limits))
@@ -47,7 +47,7 @@ public struct XLSXStreamingReader: StreamingRowSource {
     /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
     /// protected workbook is refused by name: the SheetDecrypt product decrypts it whole (a compound file cannot
     /// be walked a row at a time) and hands this reader the plain package.
-    public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+    package init(data: Data, limits: ZipLimits = ZipLimits()) throws {
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         try self.init(archive: try ZipArchive(data: data, limits: limits))
     }
@@ -90,14 +90,14 @@ public struct XLSXStreamingReader: StreamingRowSource {
     }
 
     /// One grid per sheet: a worksheet is one table.
-    public func tableCount(inSheet name: String) throws -> Int {
+    package func tableCount(inSheet name: String) throws -> Int {
         guard partPaths[name] != nil else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
         return 1
     }
 
     /// Visits every row of a sheet in order. Throwing from `body` stops the walk and rethrows. `table` is 0 —
     /// a worksheet is one grid — and exists so the call reads the same for every format.
-    public func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
+    package func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: (StreamedRow) throws -> Void) throws {
         try checkTable(table, inSheet: name)
         guard let part = partPaths[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
@@ -122,7 +122,7 @@ public struct XLSXStreamingReader: StreamingRowSource {
     /// one piece of the part at a time as the loop asks for them, so a walk that stops early reads no further
     /// (spec Appendix B.39.10). The rows arrive in the sheet's order; the sequence is asynchronous only because that
     /// is the shape Swift gives a sequence that can throw.
-    public func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
+    package func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
         StreamingRowSequence.make { try rowWalk(inSheet: name, table: table, options: options) }
     }
 
@@ -136,7 +136,7 @@ public struct XLSXStreamingReader: StreamingRowSource {
 
     /// The same walk, as dense value arrays (openpyxl's `values_only=True`). `width` pads every row to that many
     /// columns so the rows line up.
-    public func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
+    package func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
                            options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: ([CellValue?]) throws -> Void) throws {
         try forEachRow(inSheet: name, table: table, options: options) { try body($0.values(width: width)) }
@@ -292,7 +292,7 @@ final class StreamingSheetParser: StreamingRowParser {
 ///
 /// The umbrella `StreamingWriter` in the SwiftSheets module picks this writer for a `.xlsx` / `.xlsm` path and
 /// the ODS, Numbers and delimited-text writers for theirs (spec Appendix B.42).
-public final class XLSXStreamingWriter: StreamingRowSink {
+package final class XLSXStreamingWriter: StreamingRowSink {
     private let zip: ZipFileWriter
     private let styles = StyleRegistry()
     private var sheets: [(name: String, path: String)] = []
@@ -303,11 +303,11 @@ public final class XLSXStreamingWriter: StreamingRowSink {
     private let macroEnabled: Bool
     /// Nothing this writer is handed is beyond the format: the list stays empty, and exists so that every
     /// row-by-row writer answers the same question.
-    public private(set) var warnings: [ConversionWarning] = []
+    package private(set) var warnings: [ConversionWarning] = []
 
     /// Starts a workbook whose first sheet is `sheetName`. `macroEnabled` writes the package as a macro-enabled
     /// workbook (`.xlsm`) — one with no macros in it, since nothing here can add any.
-    public init(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, macroEnabled: Bool = false) throws {
+    package init(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, macroEnabled: Bool = false) throws {
         zip = try ZipFileWriter(url: url)
         self.epoch = epoch
         self.macroEnabled = macroEnabled
@@ -315,18 +315,18 @@ public final class XLSXStreamingWriter: StreamingRowSink {
     }
 
     /// Finishes the sheet being written and starts another.
-    public func addSheet(named name: String) throws {
+    package func addSheet(named name: String) throws {
         try finishSheet()
         try startSheet(named: name)
     }
 
     /// Appends a row of values, at whatever row comes next.
-    public func append(_ values: [CellValue?]) throws {
+    package func append(_ values: [CellValue?]) throws {
         try append(values.map { value in var c = Cell(); c.value = value; return c })
     }
 
     /// Appends a row of cells, formatting and all.
-    public func append(_ cells: [Cell]) throws {
+    package func append(_ cells: [Cell]) throws {
         precondition(!closed, "the writer is closed")
         row += 1
         var xml = "<row r=\"\(row)\">"
@@ -361,7 +361,7 @@ public final class XLSXStreamingWriter: StreamingRowSink {
     }
 
     /// Finishes the last sheet, writes the small parts beside it and closes the file. Calling it twice is harmless.
-    public func close() throws {
+    package func close() throws {
         guard !closed else { return }
         closed = true
         try finishSheet()

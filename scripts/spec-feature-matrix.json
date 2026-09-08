@@ -2175,7 +2175,7 @@
               "api": [
                 "Workbook(contentsOf:)",
                 "wb.write(to:as: .numbers)",
-                "NumbersCodec"
+                "Codec.numbers"
               ],
               "warning": null,
               "evidence": "judge",
@@ -2188,7 +2188,7 @@
               "read": "na",
               "write": "partial",
               "api": [
-                "NumbersCodec"
+                "Codec.numbers"
               ],
               "warning": "テンプレートに無い器を要る機能は、その旨を名指しして落とす",
               "evidence": "readme",

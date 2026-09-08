@@ -10,7 +10,7 @@ extension CodecSet {
     /// `write(to:as:)`, `Workbook.convert`, `StreamingReader(contentsOf:)`, `StreamingWriter(url:)` — are this set's
     /// methods under their older names (spec §4.3, Appendix B.44). An application that links fewer products makes
     /// its own `CodecSet` and has the same facade.
-    public static let all = CodecSet([XLSXCodec.self, XLSMCodec.self, CSVCodec.self, ODSCodec.self, NumbersCodec.self])
+    public static let all = CodecSet([.xlsx, .xlsm, .csv, .ods, .numbers])
 }
 
 /// The facade (spec §4.3 / §14.2): detect the format from the bytes, hand off to the codec; write by explicit

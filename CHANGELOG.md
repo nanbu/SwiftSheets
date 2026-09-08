@@ -11,6 +11,23 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Changed
 
+- **A format is chosen by `Codec` value, and the codecs themselves are package-only** (Appendix B.50).
+  `CodecSet` now takes `[Codec]`: write `CodecSet([.xlsx, .csv])` instead of `CodecSet([XLSXCodec.self, CSVCodec.self])`.
+  Each product publishes the values it can open — `.xlsx` / `.xlsm` with `SheetXLSX`, `.ods` with `SheetODS`,
+  `.numbers` with `SheetNumbers`, `.csv` with `SheetCSV` — so naming a format whose product is not linked is a
+  compile error. `codec(for:)` returns a `Codec`, which exposes only `format`; reading and writing stay on the set,
+  where detection, the refusals and the warnings live. `SpreadsheetCodec`, `XLSXCodec` / `XLSMCodec` / `ODSCodec` /
+  `NumbersCodec` / `CSVCodec`, and every format's streaming reader and writer are no longer visible outside the
+  package. Conforming your own type to `SpreadsheetCodec`, `canDecode(_:)`, `NumbersCodec.templateURL` and
+  `CSVStreamingReader.pieceSize` have no public replacement. Calling a codec directly used to skip the umbrella's
+  ODF-only loss warnings; through the set they are reported, so a migrated call may see warnings it did not before.
+  Detection, formats, options, results and the refusal for an unregistered format are otherwise unchanged.
+
+- **`StreamingReader.tableNames(inSheet:)`** (Appendix B.50) answers what a sheet's tables are called, in the order
+  `table:` counts through and in the same number `tableCount(inSheet:)` reports. A table the format does not name is
+  `nil` — every table of an XLSX, ODS or CSV sheet, and a Numbers table whose document records no name; nothing is
+  invented to fill the gap.
+
 - **Renamed both conversion APIs** (Appendix B.49): `Workbook.convert` and `CodecSet.convert` now take
   `to: destination, as: format` instead of `to: format, output: destination`. The format remains required.
   Read/write options, warnings, suggestions and save behavior are unchanged; old labels no longer compile.

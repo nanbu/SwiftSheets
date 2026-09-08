@@ -18,17 +18,17 @@ import SheetCore
 /// preserved. A formula that cannot be turned back into text comes as its cached value — the whole-workbook
 /// reader reports that with a warning; this reader has no warning channel and says so here instead. A tile in
 /// the pre-BNC storage the library does not read is an error rather than a silently shorter walk.
-public struct NumbersStreamingReader: StreamingRowSource {
+package struct NumbersStreamingReader: StreamingRowSource {
     let index: NumbersObjectIndex
     /// The sheets of the document, in the file's order.
-    public let sheetNames: [String]
+    package let sheetNames: [String]
     private let tablesBySheet: [String: [Int]]
-    private let tableNamesBySheet: [String: [String]]
+    private let tableNamesBySheet: [String: [String?]]
     /// Table UUID → "Sheet::Table", for the sheet-name slot of a cross-table reference in a formula.
     private let tableUUIDToName: [String: String]
 
     /// Opens a document, saved as a file or as a folder.
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
+    package init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
             try self.init(index: try NumbersObjectIndex(folder: url, limits: limits))
@@ -40,12 +40,12 @@ public struct NumbersStreamingReader: StreamingRowSource {
 
     /// `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`). A
     /// password-protected document is refused by name: Numbers' encryption is not documented.
-    public init(data: Data, limits: ZipLimits = ZipLimits()) throws {
+    package init(data: Data, limits: ZipLimits = ZipLimits()) throws {
         try self.init(index: try NumbersObjectIndex(data: data, limits: limits))
     }
 
     /// A document saved as a folder (a package on disk).
-    public init(folder url: URL, limits: ZipLimits = ZipLimits()) throws {
+    package init(folder url: URL, limits: ZipLimits = ZipLimits()) throws {
         try self.init(index: try NumbersObjectIndex(folder: url, limits: limits))
     }
 
@@ -56,7 +56,7 @@ public struct NumbersStreamingReader: StreamingRowSource {
         }
         var names: [String] = []
         var tables: [String: [Int]] = [:]
-        var tableNames: [String: [String]] = [:]
+        var tableNames: [String: [String?]] = [:]
         var uuidToName: [String: String] = [:]
         // a tab that is not a sheet of cells (a form) has no rows to walk and is left out, as the reader does
         for sid in document.references("sheets") where index.typeName(sid) == "TN.SheetArchive" {
@@ -66,7 +66,7 @@ public struct NumbersStreamingReader: StreamingRowSource {
             names.append(name)
             let models = NumbersCells.tableModels(inSheet: sid, doc: index)
             tables[name] = models
-            tableNames[name] = models.map { index.object($0)?.string("table_name") ?? "Table" }
+            tableNames[name] = models.map { index.object($0)?.string("table_name") }
             for tid in models {
                 guard let model = index.object(tid) else { continue }
                 let qualified = name + "::" + (model.string("table_name") ?? "Table")
@@ -88,19 +88,21 @@ public struct NumbersStreamingReader: StreamingRowSource {
     }
 
     /// How many tables stand on the sheet's canvas — at least one, as the model gives an empty sheet one table.
-    public func tableCount(inSheet name: String) throws -> Int {
+    package func tableCount(inSheet name: String) throws -> Int {
         guard let models = tablesBySheet[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
         return Swift.max(1, models.count)
     }
 
-    /// The names of the tables on a sheet, in canvas order — what `table:` counts through.
-    public func tableNames(inSheet name: String) throws -> [String] {
+    /// The names of the tables on a sheet, in canvas order — what `table:` counts through, and as many entries
+    /// as `tableCount` reports. A table whose document records no name is nil rather than a made-up "Table"; a
+    /// sheet with no table at all is the one empty grid `tableCount` reports, under no name.
+    package func tableNames(inSheet name: String) throws -> [String?] {
         guard let names = tableNamesBySheet[name] else { throw SheetError.invalidWorkbook("no sheet named \(name)") }
-        return names
+        return names.isEmpty ? [nil] : names
     }
 
     /// Visits every row of one table of a sheet in order. Throwing from `body` stops the walk and rethrows.
-    public func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
+    package func forEachRow(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: (StreamedRow) throws -> Void) throws {
         let walk = try rowWalk(inSheet: name, table: table, options: options)
         while let row = try walk.next() { try body(row) }
@@ -108,7 +110,7 @@ public struct NumbersStreamingReader: StreamingRowSource {
 
     /// The rows of one table as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` —
     /// one tile of the table expanded at a time as the loop asks, so a walk that stops early reads no further.
-    public func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
+    package func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
         StreamingRowSequence.make { try rowWalk(inSheet: name, table: table, options: options) }
     }
 
@@ -121,7 +123,7 @@ public struct NumbersStreamingReader: StreamingRowSource {
 
     /// The same walk, as dense value arrays (openpyxl's `values_only=True`). `width` pads every row to that many
     /// columns so the rows line up.
-    public func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
+    package func forEachRow(inSheet name: String, table: Int = 0, valuesOnly width: Int?,
                            options: StreamingReadOptions = StreamingReadOptions(),
                            _ body: ([CellValue?]) throws -> Void) throws {
         try forEachRow(inSheet: name, table: table, options: options) { try body($0.values(width: width)) }

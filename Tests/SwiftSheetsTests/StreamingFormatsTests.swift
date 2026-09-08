@@ -208,12 +208,37 @@ import SwiftSheets
         #expect(first.map(\.index) == [0, 1] && first[0].cells.first?.value == .text("first") && first[1].values(width: 2) == [nil, .integer(1)])
         #expect(secondRows.map(\.index) == [0, 2], "the second table's rows are its own, numbered from its own top")
         #expect(secondRows[1].cells.first?.value == .number(Decimal(string: "2.5")!))
-        #expect(try NumbersStreamingReader(data: data).tableNames(inSheet: "Canvas") == ["Table 1", "表2"] ||
-                NumbersStreamingReader(data: data).tableNames(inSheet: "Canvas").count == 2)
+        #expect(try reader.tableNames(inSheet: "Canvas") == ["Table 1", "表2"] ||
+                reader.tableNames(inSheet: "Canvas").count == 2)
         #expect(throws: SheetError.self) { try reader.forEachRow(inSheet: "Canvas", table: 2) { _ in } }
         var other: CellValue?
         try reader.forEachRow(inSheet: "Other") { other = $0.cells.first?.value }
         #expect(other == .bool(true))
+    }
+
+    /// What the tables of a sheet are called, for every format: as many entries as `tableCount` reports, in the
+    /// order `table:` counts through, and nil where the format has no name to give (spec Appendix B.50). A grid
+    /// format has one unnamed table per sheet; a Numbers canvas names each table it carries.
+    @Test(arguments: [SheetFormat.xlsx, .ods, .csv, .numbers])
+    func tableNamesLineUpWithTheTableIndex(_ format: SheetFormat) throws {
+        var wb = Self.sample()
+        if format == .numbers {
+            let second = wb.sheets[0].addTable(named: "表2", anchor: CellRef("H1")!)
+            wb.sheets[0].tables[second]["A1"] = "second"
+        }
+        let reader = try StreamingReader(data: try wb.write(as: format).data)
+        let sheet = reader.sheetNames[0]
+        let names = try reader.tableNames(inSheet: sheet)
+        #expect(try names.count == reader.tableCount(inSheet: sheet))
+        if format == .numbers {
+            #expect(names.count == 2 && names[1] == "表2", "\(names)")
+            // the name is what the document records, and the index it comes back under is the one `table:` takes
+            try reader.forEachRow(inSheet: sheet, table: 1) { #expect($0.cells.first?.value == .text("second")) }
+        } else {
+            #expect(names == [nil], "a sheet of a grid format is one table, and the format has no name for it")
+        }
+        // an absent sheet is refused the way `tableCount` refuses it, not with an empty answer
+        #expect(throws: SheetError.self) { try reader.tableNames(inSheet: "no such sheet") }
     }
 
     /// The document is indexed, not decoded: the tile parts are let go after indexing and expanded again only

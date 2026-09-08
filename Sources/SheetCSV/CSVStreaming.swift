@@ -12,32 +12,32 @@ import SheetCore
 ///
 /// UTF-8 (with or without a BOM) and UTF-16 (with a BOM) are decoded piece by piece; a legacy encoding named in
 /// `CSVReadOptions.encoding` (Shift_JIS, EUC-JP, …) is not self-synchronising, so such a file is decoded whole.
-public struct CSVStreamingReader {
+package struct CSVStreamingReader {
     private let source: any ByteSource
     private let options: CSVReadOptions
     private let filename: String?
-    public static let pieceSize = 256 * 1024
+    package static let pieceSize = 256 * 1024
 
-    public init(contentsOf url: URL, options: CSVReadOptions = CSVReadOptions()) throws {
+    package init(contentsOf url: URL, options: CSVReadOptions = CSVReadOptions()) throws {
         source = try FileByteSource(url: url)
         self.options = options
         filename = url.lastPathComponent
     }
 
-    public init(data: Data, options: CSVReadOptions = CSVReadOptions(), filename: String? = nil) {
+    package init(data: Data, options: CSVReadOptions = CSVReadOptions(), filename: String? = nil) {
         source = DataByteSource(data)
         self.options = options
         self.filename = filename
     }
 
     /// Visits every record in order. Throwing from `body` stops the walk and rethrows.
-    public func forEachRow(_ body: ([CellValue?]) throws -> Void) throws {
+    package func forEachRow(_ body: ([CellValue?]) throws -> Void) throws {
         let walk = try Walk(source: source, options: options, filename: filename)
         while let record = try walk.next() { try body(record) }
     }
 
     /// The records as a sequence to iterate with `for try await`, pulled from the file as the loop asks.
-    public func rows() -> AsyncThrowingStream<[CellValue?], Error> {
+    package func rows() -> AsyncThrowingStream<[CellValue?], Error> {
         let source = self.source, options = self.options, filename = self.filename
         final class Box: @unchecked Sendable { var walk: Walk?; var error: Error? }
         let box = Box()
@@ -242,7 +242,7 @@ public struct CSVStreamingReader {
 
 /// Writes a delimited text file one record at a time (spec Appendix B.39.10): each record is rendered, encoded
 /// and put straight into the file. Nothing grows with the number of rows.
-public final class CSVStreamingWriter {
+package final class CSVStreamingWriter {
     private let handle: FileHandle
     private let options: CSVWriteOptions
     private let renderer: CSVCodec.FieldRenderer
@@ -250,9 +250,9 @@ public final class CSVStreamingWriter {
     private var closed = false
     private var pending = Data()
     /// What could not be written as asked: a formula without a cached value, text the encoding cannot carry.
-    public private(set) var warnings: [ConversionWarning] = []
+    package private(set) var warnings: [ConversionWarning] = []
 
-    public init(url: URL, options: CSVWriteOptions = CSVWriteOptions()) throws {
+    package init(url: URL, options: CSVWriteOptions = CSVWriteOptions()) throws {
         FileManager.default.createFile(atPath: url.path, contents: nil)
         guard let h = FileHandle(forWritingAtPath: url.path) else { throw SheetError.ioFailure(detail: "cannot open \(url.lastPathComponent) for writing") }
         handle = h
@@ -269,7 +269,7 @@ public final class CSVStreamingWriter {
     }
 
     /// Appends one record. `nil` is an empty field.
-    public func append(_ values: [CellValue?]) throws {
+    package func append(_ values: [CellValue?]) throws {
         precondition(!closed, "the writer is closed")
         var line: [String] = []
         for (c, value) in values.enumerated() {
@@ -297,7 +297,7 @@ public final class CSVStreamingWriter {
     }
 
     /// Writes what is buffered and closes the file. Calling it twice is harmless.
-    public func close() throws {
+    package func close() throws {
         guard !closed else { return }
         closed = true
         try flush()
@@ -313,9 +313,9 @@ public final class CSVStreamingWriter {
 /// ordinary CSV reader names it, and every field a cell — an empty field is a cell holding nothing, so a row's
 /// cells are its fields in order.
 extension CSVStreamingReader: StreamingRowSource {
-    public var sheetNames: [String] { ["Sheet1"] }
+    package var sheetNames: [String] { ["Sheet1"] }
 
-    public func tableCount(inSheet name: String) throws -> Int {
+    package func tableCount(inSheet name: String) throws -> Int {
         guard name == "Sheet1" else { throw SheetError.invalidWorkbook("no sheet named \(name); a text file has one sheet, Sheet1") }
         return 1
     }
@@ -346,9 +346,9 @@ extension CSVStreamingReader: StreamingRowSource {
 /// The delimited-text writer behind the umbrella `StreamingWriter` (spec Appendix B.42): one sheet, values only.
 extension CSVStreamingWriter: StreamingRowSink {
     /// Delimited text holds one sheet: a second one is refused rather than folded into the first.
-    public func addSheet(named name: String) throws {
+    package func addSheet(named name: String) throws {
         throw SheetError.unsupportedFeature("delimited text holds one sheet; a second sheet (\(name)) has nowhere to go")
     }
     /// The cells' values; their formatting has no spelling in delimited text.
-    public func append(_ cells: [Cell]) throws { try append(cells.map(\.value)) }
+    package func append(_ cells: [Cell]) throws { try append(cells.map(\.value)) }
 }

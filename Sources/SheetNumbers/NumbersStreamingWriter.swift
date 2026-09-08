@@ -18,18 +18,18 @@ import SheetCore
 /// `warnings`, never silently. A tile's rows are written at one width, so the table is as wide as its widest row
 /// and a row wider than the tiles already written is refused: give the first row every column the table will
 /// need. `close()` must be called, or the file is left unfinished.
-public final class NumbersStreamingWriter: StreamingRowSink {
+package final class NumbersStreamingWriter: StreamingRowSink {
     private var writer: NumbersWriter
     private let zip: ZipFileWriter
     private var sheetIDs: [Int] = []
     private var table: NumbersWriter.StreamedTable
     private var closed = false
     /// What the rows carried that the format, or this writer, could not: final once `close()` has run.
-    public private(set) var warnings: [ConversionWarning] = []
+    package private(set) var warnings: [ConversionWarning] = []
 
     /// Starts a document whose first sheet is `sheetName`. `epoch` is the date origin the calculation engine
     /// records.
-    public init(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900) throws {
+    package init(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900) throws {
         zip = try ZipFileWriter(url: url)
         var w = try NumbersWriter(workbook: Workbook(), options: WriteOptions())
         w.streamEpoch(epoch)
@@ -40,7 +40,7 @@ public final class NumbersStreamingWriter: StreamingRowSink {
     }
 
     /// Finishes the sheet being written and starts another.
-    public func addSheet(named name: String) throws {
+    package func addSheet(named name: String) throws {
         precondition(!closed, "the writer is closed")
         try writer.streamFinish(&table) { try self.zip.add($0, $1, stored: true) }
         let sid = try writer.streamCloneSheet()
@@ -49,13 +49,13 @@ public final class NumbersStreamingWriter: StreamingRowSink {
     }
 
     /// Appends a row of cells, formatting and all, at whatever row comes next.
-    public func append(_ cells: [Cell]) throws {
+    package func append(_ cells: [Cell]) throws {
         precondition(!closed, "the writer is closed")
         try writer.streamAppend(cells, to: &table) { try self.zip.add($0, $1, stored: true) }
     }
 
     /// Packs the last tile, writes the rest of the document and closes the file. Calling it twice is harmless.
-    public func close() throws {
+    package func close() throws {
         guard !closed else { return }
         closed = true
         try writer.streamFinish(&table) { try self.zip.add($0, $1, stored: true) }

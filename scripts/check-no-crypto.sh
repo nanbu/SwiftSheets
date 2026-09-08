@@ -30,7 +30,14 @@ else echo "check-no-crypto: neither nm nor llvm-nm is available — cannot judge
 swift demangle --help >/dev/null 2>&1 || { echo "check-no-crypto: swift demangle is not available — cannot judge, so failing" >&2; exit 2; }
 
 echo "building scripts/no-crypto (three executables) into .build/no-crypto"
-swift build --package-path "$ROOT/scripts/no-crypto" --scratch-path "$SCRATCH" 2>&1 | tail -1
+# The build's own status, not the pipe's: piping it to `tail` handed the shell tail's exit code, so a build that
+# failed left the previous run's binaries in place and the checks below judged those instead of this checkout.
+if ! BUILD_LOG=$(swift build --package-path "$ROOT/scripts/no-crypto" --scratch-path "$SCRATCH" 2>&1); then
+    printf '%s\n' "$BUILD_LOG" | tail -20
+    echo "check-no-crypto: the three executables did not build — cannot judge, so failing" >&2
+    exit 2
+fi
+printf '%s\n' "$BUILD_LOG" | tail -1
 
 # The refusal message names SheetDecrypt, and on macOS clang labels a string literal with its own text
 # (`l_.str.189.the ODF package is encrypted … SheetDecrypt …`). A literal is not code; those labels are dropped.

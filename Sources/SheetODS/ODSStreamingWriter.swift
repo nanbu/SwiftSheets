@@ -18,7 +18,7 @@ import SheetCore
 ///
 /// **What it does not do.** One table per sheet and nothing beside it: no merges, no notes, no validations, no
 /// conditional formats, no print setup. `close()` must be called, or nothing is written at all.
-public final class ODSStreamingWriter: StreamingRowSink {
+package final class ODSStreamingWriter: StreamingRowSink {
     private let url: URL
     private let styles = ODSStyleRegistry()
     private let sink = ODSWarningSink()
@@ -33,16 +33,16 @@ public final class ODSStreamingWriter: StreamingRowSink {
     private var closed = false
     /// What the format could not carry as asked: a number format ODF has no data style for, a colour it cannot
     /// name. Final once `close()` has run.
-    public private(set) var warnings: [ConversionWarning] = []
+    package private(set) var warnings: [ConversionWarning] = []
 
     /// Starts a document whose first sheet is `sheetName`. Nothing touches `url` until `close()`.
-    public init(url: URL, sheetName: String = "Sheet1") throws {
+    package init(url: URL, sheetName: String = "Sheet1") throws {
         self.url = url
         current = Pending(name: sheetName, rows: TextSpill())
     }
 
     /// Finishes the sheet being written and starts another.
-    public func addSheet(named name: String) throws {
+    package func addSheet(named name: String) throws {
         precondition(!closed, "the writer is closed")
         sheets.append(current)
         current = Pending(name: name, rows: TextSpill())
@@ -50,7 +50,7 @@ public final class ODSStreamingWriter: StreamingRowSink {
 
     /// Appends a row of cells, formatting and all, at whatever row comes next. Empty cells between values are
     /// written as repeated empty cells; empty cells after the last value are not written.
-    public func append(_ cells: [Cell]) throws {
+    package func append(_ cells: [Cell]) throws {
         precondition(!closed, "the writer is closed")
         var last = -1
         for (c, cell) in cells.enumerated() where cell.value != nil || cell.style != .default { last = c }
@@ -79,7 +79,7 @@ public final class ODSStreamingWriter: StreamingRowSink {
     /// Writes the package: `mimetype` first and stored, the manifest, then `content.xml` as one streamed entry —
     /// its head, the styles, and each sheet's rows copied out a piece at a time — and the small parts after it.
     /// Calling it twice is harmless.
-    public func close() throws {
+    package func close() throws {
         guard !closed else { return }
         closed = true
         sheets.append(current)

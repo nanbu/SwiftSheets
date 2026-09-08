@@ -40,6 +40,12 @@ public struct StreamingReader {
     /// canvas may carry several. The same count `Workbook.inspect` reports as `SheetSummary.tableCount`.
     public func tableCount(inSheet name: String) throws -> Int { try source.tableCount(inSheet: name) }
 
+    /// What the sheet's tables are called, in the order `table:` numbers them and in the same number as
+    /// `tableCount` reports (spec Appendix B.50). A table the format does not name is nil — including every table
+    /// of an XLSX, ODS or CSV sheet, where the sheet is the grid. A Numbers table that really is called "Table"
+    /// says "Table"; nothing is invented to fill a gap, so nil means "no name was recorded".
+    public func tableNames(inSheet name: String) throws -> [String?] { try source.tableNames(inSheet: name) }
+
     /// Visits every row of a sheet in order. Throwing from `body` stops the walk and rethrows. `table` picks a
     /// table on a Numbers sheet (0 is the first, the one `Sheet.table` is); for any other format only 0 exists,
     /// and another number is an error rather than an empty walk.

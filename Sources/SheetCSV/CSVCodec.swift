@@ -7,14 +7,14 @@ import SheetCore
 /// Reading is type-neutral by default (every field is text, so "01234" keeps its zero); `CSVReadOptions.inferTypes`
 /// turns on number / bool / date inference. Writing renders one sheet; everything CSV cannot hold (other sheets,
 /// formatting, formula structure) is reported as `ConversionWarning`s on the `WriteResult`, never lost silently.
-public enum CSVCodec: SpreadsheetCodec {
-    public static var format: SheetFormat { .csv }
+package enum CSVCodec: SpreadsheetCodec {
+    package static var format: SheetFormat { .csv }
 
     /// CSV is not a ZIP container; detection happens in `SheetFormat.detect` via `TextEncodingSniffer`.
-    public static func canDecode(_ container: ZipInspection) -> Bool { false }
+    package static func canDecode(_ container: ZipInspection) -> Bool { false }
 
     /// Reading reports what the decoding had to repair (only with `CSVReadOptions.lossy`: undecodable bytes → U+FFFD).
-    public static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+    package static func read(_ data: Data, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         let (wb, warnings) = try readParsing(data, options: options)
         return ReadResult(workbook: wb, warnings: warnings)
     }
@@ -50,7 +50,7 @@ public enum CSVCodec: SpreadsheetCodec {
         return (wb, warnings)
     }
 
-    public static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
+    package static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         let csv = options.csv
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("workbook has no sheets") }
         let sheet: Sheet
@@ -479,7 +479,7 @@ private extension Character {
 extension CSVCodec {
     /// Delimited text declares nothing about itself, so the lines are counted — a pass over the bytes, nothing
     /// decoded — and reported as the one sheet's `rowCount`.
-    public static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+    package static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         var sheet = SheetSummary(name: "Sheet1")
         var lines = 0
         var lastWasNewline = true
@@ -491,15 +491,15 @@ extension CSVCodec {
         return WorkbookSummary(format: .csv, sheets: [sheet], producer: nil, expandedBytes: data.count, partCount: 1)
     }
 
-    public static func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
+    package static func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
         StreamingReader(source: try CSVStreamingReader(contentsOf: url, options: csv), format: .csv)
     }
 
-    public static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: CSVStreamingReader(data: data, options: csv, filename: filename), format: .csv)
     }
 
-    public static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
+    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
         StreamingWriter(sink: try CSVStreamingWriter(url: url, options: csv), format: .csv)
     }
 }

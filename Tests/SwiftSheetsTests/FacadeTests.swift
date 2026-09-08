@@ -116,7 +116,7 @@ import SwiftSheets
         try Data("item|qty\napple|1.50\n".utf8).write(to: source)
         let readOptions = ReadOptions(csv: CSVReadOptions(dialect: CSVDialect(delimiter: "|"), inferTypes: true))
         let writeOptions = WriteOptions(csv: CSVWriteOptions(dialect: .semicolon, newline: .lf))
-        let codecs = CodecSet([CSVCodec.self])
+        let codecs = CodecSet([.csv])
         for umbrella in [false, true] {
             // The explicit .csv must win over this deliberately conflicting extension.
             let destination = directory.appendingPathComponent("output-\(umbrella).xlsx")

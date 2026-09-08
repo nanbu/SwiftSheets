@@ -10,7 +10,7 @@ import SheetNumbers
 /// The facade without the umbrella: a `CodecSet` of three formats opens, inspects, walks and writes them, and
 /// refuses the format it lacks by name.
 @Suite struct PartialLinkTests {
-    static let codecs = CodecSet([XLSXCodec.self, XLSMCodec.self, ODSCodec.self, NumbersCodec.self])
+    static let codecs = CodecSet([.xlsx, .xlsm, .ods, .numbers])
 
     static func sample() -> Workbook {
         var wb = Workbook()

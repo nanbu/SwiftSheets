@@ -57,6 +57,9 @@ package protocol StreamingRowSource {
     var sheetNames: [String] { get }
     /// How many tables the sheet holds: one for XLSX / ODS / CSV, one or more for Numbers.
     func tableCount(inSheet name: String) throws -> Int
+    /// What those tables are called, in the same order and the same number — nil where the format has no name to
+    /// give. Only Numbers names its tables; the default fills the count with nil.
+    func tableNames(inSheet name: String) throws -> [String?]
     /// Visits every row of one table of a sheet in order. Throwing from `body` stops the walk and rethrows.
     func forEachRow(inSheet name: String, table: Int, options: StreamingReadOptions, _ body: (StreamedRow) throws -> Void) throws
     /// A walk over the rows of one table of a sheet, pulled one at a time.
@@ -70,6 +73,12 @@ package protocol StreamingRowWalk: AnyObject {
 }
 
 extension StreamingRowSource {
+    /// A name per table for a format that does not name them: as many nils as there are tables, so the answer
+    /// lines up with `tableCount` and with the `table:` index either way.
+    package func tableNames(inSheet name: String) throws -> [String?] {
+        Array(repeating: nil, count: try tableCount(inSheet: name))
+    }
+
     /// The push shape from the pull shape, for a reader that only implements `rowWalk`.
     package func forEachRow(inSheet name: String, table: Int, options: StreamingReadOptions, _ body: (StreamedRow) throws -> Void) throws {
         let walk = try rowWalk(inSheet: name, table: table, options: options)

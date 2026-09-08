@@ -10,7 +10,7 @@ import Foundation
 /// detection and the same refusals:
 ///
 ///     import SheetXLSX, SheetODS, SheetNumbers (and SheetCore) — no SheetCSV, no umbrella — then:
-///     let codecs = CodecSet([XLSXCodec.self, XLSMCodec.self, ODSCodec.self, NumbersCodec.self])
+///     let codecs = CodecSet([.xlsx, .xlsm, .ods, .numbers])
 ///     let summary = try codecs.inspect(contentsOf: url)        // before reading: sheets, declared cells
 ///     let workbook = try codecs.read(contentsOf: url).workbook
 ///     let reader = try codecs.streamingReader(contentsOf: url)
@@ -28,20 +28,30 @@ public struct CodecSet: Sendable {
     /// The formats this set opens, in the order their codecs were named.
     public let formats: [SheetFormat]
 
-    public init(_ codecs: [any SpreadsheetCodec.Type]) {
+    /// The codecs to open, named by the constants their products publish: `.xlsx` and `.xlsm` come with
+    /// `SheetXLSX`, `.ods` with `SheetODS`, `.numbers` with `SheetNumbers`, `.csv` with `SheetCSV`. Naming two
+    /// codecs for one format keeps the last one named; the empty set opens nothing and refuses by name.
+    public init(_ codecs: [Codec]) {
         var table: [SheetFormat: any SpreadsheetCodec.Type] = [:]
         var formats: [SheetFormat] = []
-        for codec in codecs where table.updateValue(codec, forKey: codec.format) == nil { formats.append(codec.format) }
+        for codec in codecs where table.updateValue(codec.implementation, forKey: codec.format) == nil { formats.append(codec.format) }
         self.table = table
         self.formats = formats
     }
 
     public func contains(_ format: SheetFormat) -> Bool { table[format] != nil }
 
-    /// The codec for a format — or the refusal that names the format and the product that would open it.
-    public func codec(for format: SheetFormat) throws -> any SpreadsheetCodec.Type {
+    /// The codec this set holds for a format — or the refusal that names the format and the product that would
+    /// open it. What comes back is the choice, not the implementation: reading and writing go through this set,
+    /// which is where detection, the refusals and the warnings live (spec Appendix B.50).
+    public func codec(for format: SheetFormat) throws -> Codec {
+        Codec(try implementation(for: format))
+    }
+
+    /// The same lookup, for this package's own dispatch.
+    package func implementation(for format: SheetFormat) throws -> any SpreadsheetCodec.Type {
         guard let codec = table[format] else {
-            throw SheetError.unsupportedFeature("no codec for .\(format.rawValue) is in this CodecSet — link the \(format.productName) product, or the SwiftSheets product, which has every codec")
+            throw SheetError.unsupportedFeature("no codec for .\(format.rawValue) is in this CodecSet — link the \(format.productName) product and name .\(format.rawValue) in the set, or use the SwiftSheets product's CodecSet.all, which has every codec")
         }
         return codec
     }
@@ -56,7 +66,7 @@ public struct CodecSet: Sendable {
         if opts.filename == nil { opts.filename = url.lastPathComponent }
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
-            return try codec(for: .numbers).read(contentsOf: url, options: opts)
+            return try implementation(for: .numbers).read(contentsOf: url, options: opts)
         }
         // the file is mapped rather than copied when it is big enough to matter and stable enough to be safe
         return try read(try Data(contentsOf: url, options: .mappedIfSafe), format: nil, options: opts)
@@ -69,7 +79,7 @@ public struct CodecSet: Sendable {
         // Opening a protected package is the SheetDecrypt product's (Appendix B.39.9): nothing here decrypts.
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
-        return try codec(for: f).read(data, options: options)
+        return try implementation(for: f).read(data, options: options)
     }
 
     // MARK: - Asking before reading
@@ -83,7 +93,7 @@ public struct CodecSet: Sendable {
         if opts.filename == nil { opts.filename = url.lastPathComponent }
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
-            return try codec(for: .numbers).inspect(contentsOf: url, options: opts)
+            return try implementation(for: .numbers).inspect(contentsOf: url, options: opts)
         }
         return try inspect(try Data(contentsOf: url, options: .mappedIfSafe), format: nil, options: opts)
     }
@@ -92,14 +102,14 @@ public struct CodecSet: Sendable {
     public func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
         guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
-        return try codec(for: f).inspect(data, options: options)
+        return try implementation(for: f).inspect(data, options: options)
     }
 
     // MARK: - Writing
 
     /// Serializes in a format. The result carries every warning about what the format could not express.
     public func write(_ workbook: Workbook, as format: SheetFormat, options: WriteOptions = WriteOptions()) throws -> WriteResult {
-        let result = try codec(for: format).write(workbook, options: options)
+        let result = try implementation(for: format).write(workbook, options: options)
         let extra = workbook.openDocumentOnlyWarnings(for: format)
         guard !extra.isEmpty else { return result }
         return WriteResult(data: result.data, warnings: result.warnings + extra, suggestion: result.suggestion)
@@ -148,14 +158,14 @@ public struct CodecSet: Sendable {
     public func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
-            return try codec(for: .numbers).streamingReader(contentsOf: url, limits: limits, csv: csv)
+            return try implementation(for: .numbers).streamingReader(contentsOf: url, limits: limits, csv: csv)
         }
         // the same answer `SheetFormat.probe(contentsOf:)` gives, with this reader's limits: the format, or the
         // name of what cannot be opened
         switch try SheetFormat.probe(source: try FileByteSource(url: url), filename: url.lastPathComponent, limits: limits) {
         case .unopenable(let unopenable): throw unopenable.error
         case .unrecognized: throw SheetError.unrecognizedFormat
-        case .spreadsheet(let f): return try codec(for: f).streamingReader(contentsOf: url, limits: limits, csv: csv)
+        case .spreadsheet(let f): return try implementation(for: f).streamingReader(contentsOf: url, limits: limits, csv: csv)
         }
     }
 
@@ -176,7 +186,7 @@ public struct CodecSet: Sendable {
             case .spreadsheet(let detected): f = detected
             }
         }
-        return try codec(for: f).streamingReader(data: data, limits: limits, csv: csv, filename: filename)
+        return try implementation(for: f).streamingReader(data: data, limits: limits, csv: csv, filename: filename)
     }
 
     /// A writer that appends rows to a new file, without ever building the workbook (spec Appendix B.42). The
@@ -185,7 +195,7 @@ public struct CodecSet: Sendable {
     public func streamingWriter(url: URL, format: SheetFormat? = nil, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900,
                                 csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
         let f = format ?? SheetFormat(fileExtension: url.pathExtension) ?? .xlsx
-        return try codec(for: f).streamingWriter(url: url, sheetName: sheetName, epoch: epoch, csv: csv)
+        return try implementation(for: f).streamingWriter(url: url, sheetName: sheetName, epoch: epoch, csv: csv)
     }
 }
 

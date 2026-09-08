@@ -923,7 +923,7 @@ pre .vr { color: var(--code-var); }
   </p>
 
   <h3>4.1 プロトコル定義</h3>
-  <pre><span class="filename">Sources/SheetCore/Codec.swift</span><code><span class="kw">public protocol</span> <span class="ty">SpreadsheetCodec</span> {
+  <pre><span class="filename">Sources/SheetCore/Codec.swift</span><code><span class="kw">package protocol</span> <span class="ty">SpreadsheetCodec</span> {   <span class="cm">// B.50 で package。形式の選択は公開の Codec 値</span>
     <span class="kw">static var</span> format: <span class="ty">SheetFormat</span> { <span class="kw">get</span> }          <span class="cm">// .xlsx / .xlsm / .ods / .numbers / .csv</span>
     <span class="kw">static func</span> <span class="fn">canDecode</span>(_ container: <span class="ty">ZipInspection</span>) -&gt; <span class="ty">Bool</span>
     <span class="kw">static func</span> <span class="fn">read</span>(_ data: <span class="ty">Data</span>, options: <span class="ty">ReadOptions</span>) <span class="kw">throws</span> -&gt; <span class="ty">Workbook</span>
@@ -1910,6 +1910,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.39 Draft</td><td>2026-09-09</td><td>形式の選択を公開のCodec値へ。SpreadsheetCodecと形式別実装をpackageへ閉じ、StreamingReader.tableNames(inSheet:)を追加（B.50）。</td></tr>
     <tr><td>4.38 Draft</td><td>2026-09-08</td><td>WorkbookとCodecSetのconvertをto:出力先・as:形式へ統一（B.49）。</td></tr>
     <tr><td>4.37 Draft</td><td>2026-09-08</td><td>通常版・暗号化版のdata(as:)を撤去し、write(as:).dataへ統合（B.48）。</td></tr>
     <tr><td>4.36 Draft</td><td>2026-09-08</td><td>保存・変換の5宣言から@discardableResultを撤去。戻り値の見落としを警告し、意図的な破棄は明示する（B.47）。</td></tr>
@@ -2646,7 +2647,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <strong>SheetXLSX は変更しない</strong>（Rev 2.1 以降、Excel 側の読み書きは動かさない方針）ため、警告は
       <code>Sources/SwiftSheets</code> のファサードが足す — <code>Workbook.write(to:as:)</code> /
       <code>write(as:)</code> の戻り値の <code>warnings</code> で「ODF 固有の機能が n 件落ちた」と確認できる。
-      <code>XLSXCodec</code> を直接呼ぶ利用者には出ない。<strong>これは意図した割り切り</strong>で、
+      パッケージの中で <code>XLSXCodec</code> を直接呼ぶ経路には出ない（B.50 以降、外部からその経路は無い）。<strong>これは意図した割り切り</strong>で、
       「コーデックが自分で言う」という原則からの唯一の逸脱として、ここに固定する。
     </p>
   </div>
@@ -5704,7 +5705,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   <h4>利用者から見た変化</h4>
   <p>全部入りを繋ぐ利用者: 変化なし。要る製品だけ繋ぐ利用者は、束を 1 つ作る:</p>
   <pre><code><span class="kw">import</span> SheetCore          <span class="cm">// と SheetXLSX / SheetODS / SheetNumbers — SheetCSV も SwiftSheets も無し</span>
-<span class="kw">let</span> codecs = <span class="ty">CodecSet</span>([<span class="ty">XLSXCodec</span>.self, <span class="ty">XLSMCodec</span>.self, <span class="ty">ODSCodec</span>.self, <span class="ty">NumbersCodec</span>.self])
+<span class="kw">let</span> codecs = <span class="ty">CodecSet</span>([.xlsx, .xlsm, .ods, .numbers])
 <span class="kw">let</span> summary = <span class="kw">try</span> codecs.inspect(contentsOf: url)          <span class="cm">// 読む前に: シート・申告セル数</span>
 <span class="kw">let</span> workbook = <span class="kw">try</span> codecs.read(contentsOf: url).workbook   <span class="cm">// 形式は中身で判定</span>
 <span class="kw">let</span> reader = <span class="kw">try</span> codecs.streamingReader(contentsOf: url)   <span class="cm">// 1 行ずつ</span></code></pre>
@@ -5856,6 +5857,30 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   戻る時点で保存済みである契約も変えない。B.47・B.48の当時の引数維持方針を、この後続決定で更新する。</p>
   <p>scripts/check-write-result-api.pyが両宣言の新呼び出し（既定・明示オプション）を検証し、
   旧ラベルと形式省略が失敗することを確認する。変換結果・保存内容・読み書きオプションの引き渡しは動作テストで確認する。</p>
+  <h3>B.50 形式の選択を公開のCodec値へ、形式別の実装はpackageへ（Rev 4.39）</h3>
+  <p>2026-09-09承認。公開する形式選択はCodecSetに集約する。<code>SpreadsheetCodec</code>と形式別コーデック・形式別の逐次読み書き（122宣言）はpackageにする。CodecSetの2宣言は公開のまま形を変える。
+  形式を選ぶのは公開の<code>Codec</code>値で、公開initializerを持たず、公開するメンバーは<code>format</code>だけとする。
+  値は各製品モジュールのstaticプロパティから得る — SheetXLSXが<code>.xlsx</code>・<code>.xlsm</code>、SheetODSが<code>.ods</code>、
+  SheetNumbersが<code>.numbers</code>、SheetCSVが<code>.csv</code>。importしていない製品の形式は参照できない。</p>
+  <p><code>CodecSet.init(_ codecs: [Codec])</code>と<code>codec(for:) throws -&gt; Codec</code>に変える。旧initializerは残さない。
+  返すCodecにread・writeなどの公開メソッドは置かない。読み書きはCodecSet経由で行い、共通の判定と警告処理を通す。
+  同じ形式を複数回指定したときは最後を採用し、<code>formats</code>は最初に現れた順序を保つ。空配列も許す。
+  <code>contains</code>と<code>codec(for:)</code>が調べるのはそのCodecSetに登録された形式であり、
+  バイナリーにリンクされているだけの形式を利用可能とは扱わない。未登録形式のエラーは現行の<code>SheetError.unsupportedFeature</code>を維持し、
+  文言は製品のリンクとCodecSetへの登録の両方を案内する。SwiftSheetsの<code>CodecSet.all</code>は引き続き全形式を登録する。</p>
+  <p><code>StreamingReader.tableNames(inSheet:) throws -&gt; [String?]</code>を追加する。配列の順序と個数は同じシートの
+  <code>tableCount(inSheet:)</code>および<code>forEachRow</code>のtable添字に一致させる。名前が無い表はnilを返し、"Table"を生成しない
+  （実際に記録された"Table"や空文字はそのまま返す）。既定実装はtableCountと同じ個数のnil配列で、Numbersだけが実名を埋める。
+  存在しないシートは同じ形式の<code>tableCount</code>と同じエラー契約を保つ。</p>
+  <p>公開の代替を置かない破壊的変更が4件ある: <code>SpreadsheetCodec</code>への外部準拠（独自形式の実装は1.0の公開範囲に含めない）、
+  <code>canDecode(ZipInspection)</code>、<code>NumbersCodec.templateURL</code>、<code>CSVStreamingReader.pieceSize</code>。
+  直接呼び出しからCodecSet経由へ移ると、ODF固有機能の損失警告が増えることがある（件数・内容の完全一致は約束しない）。
+  <code>CSVStreamingReader.init(data:options:filename:)</code>は共通の入力判定を通るため<code>try</code>が要る。
+  対象外（別の決定に分ける）: <code>SheetError</code>の新しいcase、URL入力の形式強制、<code>canDecode</code>そのものの削除。</p>
+  <p>scripts/check-codec-api.pyが、チェックアウトを依存先にした別のSwiftPMパッケージから検査する。
+  正の対照はSheetXLSXだけ・SheetCSVだけ・複数製品・SwiftSheetsの4構成での<code>CodecSet([.xlsx, .csv])</code>と空配列、
+  <code>codec(for:)</code>が返す値の<code>format</code>。負の対照は形式別コーデック型・<code>Codec</code>のinitializer・
+  importしていない形式のプロパティ・返されたCodecのread・代替を置かない2宣言。CIのmacOSとLinuxで実行する。</p>
 </section>
 
 </div><!-- /.container -->

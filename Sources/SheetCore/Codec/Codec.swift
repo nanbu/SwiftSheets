@@ -13,7 +13,7 @@ import Foundation
 /// why the row-by-row readers and writers are requirements too, and why the file-on-disk forms are: a codec whose
 /// documents can be a folder (Numbers) opens the folder, and a streaming reader opens a file through positioned
 /// reads rather than a mapping (Appendix B.39.8), so the codec has to be the one that opens the URL.
-public protocol SpreadsheetCodec {
+package protocol SpreadsheetCodec: Sendable {
     static var format: SheetFormat { get }
     /// Whether this codec can read the container. Answered from `SheetFormat.detect(in:)` so that the rules of
     /// §4.2 have exactly one implementation.
@@ -42,14 +42,33 @@ public protocol SpreadsheetCodec {
 
 extension SpreadsheetCodec {
     /// The file, mapped rather than copied when it is big enough to matter and stable enough to be safe, then read.
-    public static func read(contentsOf url: URL, options: ReadOptions) throws -> ReadResult {
+    package static func read(contentsOf url: URL, options: ReadOptions) throws -> ReadResult {
         try read(try Data(contentsOf: url, options: .mappedIfSafe), options: options)
     }
 
     /// The file, mapped, then inspected.
-    public static func inspect(contentsOf url: URL, options: InspectOptions) throws -> WorkbookSummary {
+    package static func inspect(contentsOf url: URL, options: InspectOptions) throws -> WorkbookSummary {
         try inspect(try Data(contentsOf: url, options: .mappedIfSafe), options: options)
     }
+}
+
+/// One format an application can open, as a value to put in a `CodecSet` (spec Appendix B.50).
+///
+/// A `Codec` is a choice, not a worker: the only thing it says is which `format` it is for, and there is no way to
+/// make one except by naming the constant its product publishes — `.xlsx` and `.xlsm` come with `SheetXLSX`, `.ods`
+/// with `SheetODS`, `.numbers` with `SheetNumbers`, `.csv` with `SheetCSV`. An application that does not link a
+/// product cannot name its format, and the compiler says so at the line that names it rather than at run time.
+///
+/// Reading and writing stay on `CodecSet`, which is where detection, the refusals that come before any codec, and
+/// the warnings a format cannot carry all live (spec Appendix B.44). Handing out the implementation would be a
+/// second door into the library that skips them.
+public struct Codec: Sendable {
+    package let implementation: any SpreadsheetCodec.Type
+
+    package init(_ implementation: any SpreadsheetCodec.Type) { self.implementation = implementation }
+
+    /// The format this codec is for.
+    public var format: SheetFormat { implementation.format }
 }
 
 /// A workbook plus whatever the file held that the model cannot say (spec §6): a data style with no Excel

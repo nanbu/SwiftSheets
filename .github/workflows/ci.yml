@@ -44,6 +44,10 @@ jobs:
       - name: Preservation API has an external boundary
         run: python3 scripts/check-preservation-api.py
 
+      # And the other boundary: an outside client names formats by Codec value, and reaches no codec itself.
+      - name: Codecs are chosen by value from outside
+        run: python3 scripts/check-codec-api.py
+
       # What the README promises about encryption code is read off symbol tables, not remembered: the plain
       # products link no cipher, SheetDecrypt nothing that encrypts (spec Appendix B.39.9). A positive control
       # inside the script keeps the check honest.
@@ -95,6 +99,10 @@ jobs:
       # Same as macOS: an outside client compiled against this checkout, on the other toolchain.
       - name: Preservation API has an external boundary
         run: python3 scripts/check-preservation-api.py
+
+      # And the other boundary: an outside client names formats by Codec value, and reaches no codec itself.
+      - name: Codecs are chosen by value from outside
+        run: python3 scripts/check-codec-api.py
 
       # Same as macOS: the symbol tables of the three ways of linking, on the other toolchain and linker.
       - name: The plain products carry no cipher
