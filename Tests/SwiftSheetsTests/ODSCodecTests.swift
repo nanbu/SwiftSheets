@@ -572,7 +572,7 @@ import SwiftSheets
         try withKnownIssue("LibreOffice is not installed", isIntermittent: false) {
             try #require(Self.hasLibreOffice)
             let url = Self.tmp.appendingPathComponent("filter.ods")
-            try ods.write(to: url)
+            _ = try ods.write(to: url)
             let (xlsx, log) = try convert(url, to: "xlsx")
             #expect(log.contains("convert"))
             let viaLO = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
@@ -693,7 +693,7 @@ import SwiftSheets
         try withKnownIssue("LibreOffice is not installed", isIntermittent: false) {
             try #require(Self.hasLibreOffice)
             let url = Self.tmp.appendingPathComponent("pilot.ods")
-            try ods.write(to: url)
+            _ = try ods.write(to: url)
             // LibreOffice reads our data pilot and rebuilds an Excel pivot table from it
             let (xlsx, _) = try convert(url, to: "xlsx")
             let viaLO = try Data(contentsOf: xlsx)

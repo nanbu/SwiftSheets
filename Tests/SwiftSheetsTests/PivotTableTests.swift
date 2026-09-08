@@ -44,7 +44,7 @@ import SwiftSheets
         #expect(pivot.fields.map(\.axis) == [.row, .column, nil, .page])
         #expect(pivot.fields[2].isDataField)
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let names = try ZipArchive(data: data).entries.keys.sorted()
         #expect(names.contains("xl/pivotTables/pivotTable1.xml"))
         #expect(names.contains("xl/pivotTables/_rels/pivotTable1.xml.rels"))
@@ -84,7 +84,7 @@ import SwiftSheets
                          rows: ["Item"], values: [("Qty", .sum)])
         let written = wb.sheets[1].pivotTables[0].fields.map(\.name)
         #expect(written.contains("Item") && written.contains("Qty"), "\(written)")
-        let back = try Workbook(data: try wb.data(as: .xlsx)).sheets[1].pivotTables[0].fields.map(\.name)
+        let back = try Workbook(data: try wb.write(as: .xlsx).data).sheets[1].pivotTables[0].fields.map(\.name)
         #expect(back == written, "the field names did not survive: \(back) vs \(written)")
     }
 
@@ -94,7 +94,7 @@ import SwiftSheets
         wb.addPivotTable(named: "集計", to: "Pivot", at: CellRef("A3")!, summarizing: CellRange("A1:D4")!, on: "Data",
                          rows: ["Item"], values: [("Qty", .sum), ("Price", .average)])
         let written = wb.sheets[1].pivotTables[0]
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[1].pivotTables.count == 1)
         let read = again.sheets[1].pivotTables[0]
         #expect(read.name == written.name && read.location.ref == written.location.ref)
@@ -117,7 +117,7 @@ import SwiftSheets
         two.addPivotTable(named: "P", to: "Pivot", at: CellRef("A1")!, summarizing: CellRange("A1:D4")!, on: "Data",
                           rows: ["Item"], values: [("Qty", .sum), ("Price", .average)])
         #expect(two.sheets[1].pivotTables[0].columnFields == [PivotTable.valuesField])
-        #expect(try Package.part("xl/pivotTables/pivotTable1.xml", of: try two.data(as: .xlsx))
+        #expect(try Package.part("xl/pivotTables/pivotTable1.xml", of: try two.write(as: .xlsx).data)
             .contains("<colFields count=\"1\"><field x=\"-2\"/></colFields>"))
     }
 
@@ -150,9 +150,9 @@ import SwiftSheets
         var wb = Self.sales()
         wb.addPivotTable(named: "集計", to: "Pivot", at: CellRef("A3")!, summarizing: CellRange("A1:D4")!, on: "Data",
                          rows: ["Item"], values: [("Qty", .sum)])
-        var again = try Workbook(data: try wb.data(as: .xlsx))
+        var again = try Workbook(data: try wb.write(as: .xlsx).data)
         again.sheets[1].pivotTables = []
-        let out = try again.data(as: .xlsx)
+        let out = try again.write(as: .xlsx).data
         #expect(try !ZipArchive(data: out).entries.keys.contains { $0.contains("pivot") })
         #expect(try !Package.part("xl/workbook.xml", of: out).contains("pivotCache"))
         #expect(try !Package.part("[Content_Types].xml", of: out).contains("pivot"))

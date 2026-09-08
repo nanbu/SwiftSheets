@@ -57,7 +57,7 @@ import SwiftSheets
         for i in 1...50 { ws.append([.text("row\(i)"), .integer(i)]) }
         ws["E100"] = .number(3.5)
         wb.sheets[0] = ws
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
 
         let reader = try StreamingReader(data: data)
         #expect(reader.sheetNames == ["Data"])
@@ -78,7 +78,7 @@ import SwiftSheets
         struct Stop: Error {}
         var wb = Workbook()
         for i in 0..<100 { wb.sheets[0][i, 0] = .integer(i) }
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let reader = try StreamingReader(data: data)
         var count = 0
         #expect(throws: Stop.self) {
@@ -94,7 +94,7 @@ import SwiftSheets
     @Test func formulasAndDataOnly() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = .formula(FormulaExpr.parse("=1+2"), cached: .integer(3))
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let reader = try StreamingReader(data: data)
         var withFormula: CellValue?
         try reader.forEachRow(inSheet: "Sheet1") { withFormula = $0.cells.first?.value }
@@ -109,7 +109,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = .text("x")
         wb.sheets[0].style("A1") { $0.font.bold = true }
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let reader = try StreamingReader(data: data)
         var plain: CellStyle?
         try reader.forEachRow(inSheet: "Sheet1") { plain = $0.cells.first?.style }
@@ -123,7 +123,7 @@ import SwiftSheets
     @Test func anUnknownSheetThrows() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        let reader = try StreamingReader(data: try wb.data(as: .xlsx))
+        let reader = try StreamingReader(data: try wb.write(as: .xlsx).data)
         #expect(throws: SheetError.self) { try reader.forEachRow(inSheet: "Missing") { _ in } }
     }
 
@@ -228,7 +228,7 @@ import SwiftSheets
     @Test func aReaderProbesTheFormatWithItsOwnLimits() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "padded"
-        let plain = try ZipArchive(data: try wb.data(as: .xlsx))
+        let plain = try ZipArchive(data: try wb.write(as: .xlsx).data)
         let writer = ZipWriter()
         for name in plain.entries.keys.sorted() where !name.hasSuffix("/") { writer.add(name, try plain.read(name)) }
         for i in 0..<ZipLimits().maxEntries { writer.add("pad/\(i)", Data(), stored: true) }   // one over the default

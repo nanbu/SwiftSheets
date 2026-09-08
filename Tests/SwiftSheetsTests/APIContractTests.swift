@@ -226,7 +226,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
         for (format, decides) in [(SheetFormat.xlsx, XLSXCodec.canDecode), (.xlsm, XLSMCodec.canDecode), (.ods, ODSCodec.canDecode)] {
-            let zip = try ZipInspection(data: try wb.data(as: format))
+            let zip = try ZipInspection(data: try wb.write(as: format).data)
             #expect(SheetFormat.detect(in: zip) == format)
             #expect(decides(zip))
             for other in [XLSXCodec.canDecode, XLSMCodec.canDecode, ODSCodec.canDecode, NumbersCodec.canDecode]

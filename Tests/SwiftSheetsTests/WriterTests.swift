@@ -193,7 +193,7 @@ import Testing
     @Test func aRuleTheModelCannotSayKeepsTheSourceBlock() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        let plain = try wb.data(as: .xlsx)
+        let plain = try wb.write(as: .xlsx).data
         let vendor = try Package.repacking(plain, replacing: "xl/worksheets/sheet1.xml", with: Data(
             try Package.part("xl/worksheets/sheet1.xml", of: plain)
                 .replacingOccurrences(of: "<pageMargins",

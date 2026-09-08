@@ -62,7 +62,7 @@ import SheetNumbers
         // the same three over a file on disk
         let url = Self.temporary("sample.\(format.fileExtension)")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        try Self.codecs.write(Self.sample(), to: url)
+        _ = try Self.codecs.write(Self.sample(), to: url)
         #expect(try Self.codecs.read(contentsOf: url).workbook.sheets[0]["A2"] == .text("row1"))
         #expect(try Self.codecs.inspect(contentsOf: url).format == format)
         var fromFile = 0

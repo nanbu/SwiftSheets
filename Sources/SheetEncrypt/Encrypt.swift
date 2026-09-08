@@ -30,14 +30,9 @@ extension Workbook {
         return WriteResult(data: try encrypt(plain.data, as: format, password: password), warnings: plain.warnings, suggestion: plain.suggestion)
     }
 
-    /// The protected bytes only, when warnings are not of interest.
-    public func data(as format: SheetFormat, options: WriteOptions = WriteOptions(), password: String) throws -> Data {
-        try write(as: format, options: options, password: password).data
-    }
-
     /// `write(to:as:options:)` with a password. The format is chosen the way the plain write chooses it (the
     /// argument, else the extension, else the source format, else .xlsx), and the write is atomic like it.
-    @discardableResult
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
     public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions(), password: String) throws -> WriteResult {
         let result = try write(as: outputFormat(for: url, requested: format), options: options, password: password)
         try result.data.write(to: url, options: .atomic)

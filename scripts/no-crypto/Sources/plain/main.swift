@@ -14,4 +14,4 @@ do {
 }
 var out = Workbook()
 out.sheets[0]["A1"] = "x"
-for format in [SheetFormat.xlsx, .ods, .numbers, .csv] { print("\(format) \(try out.data(as: format).count) bytes") }
+for format in [SheetFormat.xlsx, .ods, .numbers, .csv] { print("\(format) \(try out.write(as: format).data.count) bytes") }

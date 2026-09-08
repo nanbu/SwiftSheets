@@ -63,7 +63,7 @@ import SheetEncrypt
         wb.sheets[0]["B2"] = 3.25
         wb.addSheet(named: "Two")
         wb.sheets[1]["C3"] = Formula("=1+2")
-        let protected = try wb.data(as: .xlsx, password: "パスワード")
+        let protected = try wb.write(as: .xlsx, password: "パスワード").data
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedOOXML))
         #expect(SheetFormat.detect(from: protected) == nil)
         let back = try Workbook(data: protected, password: "パスワード")
@@ -81,7 +81,7 @@ import SheetEncrypt
     @Test func aProtectedMacroWorkbookKeepsItsMacros() throws {
         let source = try Data(contentsOf: Self.fixtures.appendingPathComponent("preservation/with-vba.xlsm"))
         let wb = try Workbook(data: source)
-        let protected = try Self.withQuickSpin { try wb.data(as: .xlsm, password: "m") }
+        let protected = try Self.withQuickSpin { try wb.write(as: .xlsm, password: "m").data }
         let back = try Workbook(data: protected, password: "m")
         #expect(back.preserved.hasVBAProject)
         #expect(back.sourceInfo?.format == .xlsm)
@@ -91,7 +91,7 @@ import SheetEncrypt
     @Test func aTamperedPackageIsRefused() throws {
         var wb = Workbook()
         for r in 0..<800 { wb.sheets[0].append([.integer(r), .text("row \(r)")]) }   // big enough to leave the mini stream
-        var protected = try Self.withQuickSpin { try wb.data(as: .xlsx, password: "p") }
+        var protected = try Self.withQuickSpin { try wb.write(as: .xlsx, password: "p").data }
         #expect(try CompoundFile(data: protected).stream("EncryptedPackage").count >= 4096)
         // flip a byte inside the encrypted package: the first big stream starts right after the 512-byte header
         protected[512 + 100] ^= 0xFF
@@ -117,7 +117,7 @@ import SheetEncrypt
         wb.sheets[0]["A1"] = "秘密"
         wb.sheets[0]["B2"] = 3.25
         wb.sheets[0].style("A1") { $0.font.bold = true }
-        let protected = try wb.data(as: .ods, password: "合言葉")
+        let protected = try wb.write(as: .ods, password: "合言葉").data
         #expect(SheetFormat.detect(from: protected) == .ods, "the mimetype stays in the clear")
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedODF))
         let zip = try ZipArchive(data: protected)
@@ -133,7 +133,7 @@ import SheetEncrypt
     @Test func aProtectedODSIsWalkedRowByRowWithItsPassword() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "secret"
-        let protected = try wb.data(as: .ods, password: "合言葉")
+        let protected = try wb.write(as: .ods, password: "合言葉").data
         #expect(throws: UnopenableInput.encryptedODF.error) { _ = try StreamingReader(data: protected) }
         let reader = try StreamingReader(data: protected, password: "合言葉")
         var first: CellValue?
@@ -147,7 +147,7 @@ import SheetEncrypt
         var wb = Workbook()
         wb.sheets[0]["A1"] = "往復"
         for format in [SheetFormat.xlsx, .ods] {
-            let plain = try wb.data(as: format)
+            let plain = try wb.write(as: format).data
             let protected = try Self.withQuickSpin { try encrypt(plain, as: format, password: "p") }
             #expect(protected != plain)
             #expect(SheetFormat.probe(protected) == .unopenable(format == .ods ? .encryptedODF : .encryptedOOXML))
@@ -178,18 +178,39 @@ import SheetEncrypt
             seed = seed &* 6364136223846793005 &+ 1442695040888963407
             wb.sheets[0].append([.integer(r), .text(String(seed, radix: 36))])   // incompressible enough
         }
-        let protected = try Self.withQuickSpin { try wb.data(as: .xlsx, password: "big") }
+        let protected = try Self.withQuickSpin { try wb.write(as: .xlsx, password: "big").data }
         #expect(protected.count > 1 << 20, "\(protected.count) bytes")
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedOOXML))
         #expect(try Workbook(data: protected, password: "big").sheets[0].table.cells.count == 120_000)
+    }
+
+    /// The unified write API keeps loss information alongside the protected bytes (spec B.48).
+    @Test func protectedWriteRetainsWarningsAndSuggestion() throws {
+        let source = try Data(contentsOf: Self.fixtures.appendingPathComponent("preservation/with-vba.xlsm"))
+        let wb = try Workbook(data: source)
+        for format in [SheetFormat.xlsx, .ods] {
+            let options = WriteOptions(suggestionThreshold: 1)
+            let plain = try wb.write(as: format, options: options)
+            let protected = try Self.withQuickSpin {
+                try wb.write(as: format, options: options, password: "p")
+            }
+            #expect(plain.warnings.contains { $0.kind == .dropped && $0.subject == .macros })
+            #expect(plain.suggestion?.format == .xlsm)
+            #expect(protected.warnings == plain.warnings)
+            #expect(protected.suggestion == plain.suggestion)
+            let back = try Workbook(data: protected.data, password: "p")
+            #expect(back.sheetNames == wb.sheetNames)
+            #expect(back.sheets[0]["A1"] == wb.sheets[0]["A1"])
+            #expect(!back.preserved.hasVBAProject)
+        }
     }
 
     /// Formats that have no protection say so instead of writing an unprotected file under a password.
     @Test func formatsWithoutProtectionRefuseAPassword() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        #expect(throws: SheetError.self) { _ = try wb.data(as: .csv, password: "p") }
-        #expect(throws: SheetError.self) { _ = try wb.data(as: .numbers, password: "p") }
+        #expect(throws: SheetError.self) { _ = try wb.write(as: .csv, password: "p").data }
+        #expect(throws: SheetError.self) { _ = try wb.write(as: .numbers, password: "p").data }
     }
 }
 
@@ -220,8 +241,8 @@ import SheetEncrypt
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("swiftsheets-encryption-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
-        try EncryptionTests.withQuickSpin { try wb.write(to: dir.appendingPathComponent("protected.xlsx"), password: "合言葉 pass") }
-        try wb.write(to: dir.appendingPathComponent("protected.ods"), password: "合言葉 pass")
+        _ = try EncryptionTests.withQuickSpin { try wb.write(to: dir.appendingPathComponent("protected.xlsx"), password: "合言葉 pass") }
+        _ = try wb.write(to: dir.appendingPathComponent("protected.ods"), password: "合言葉 pass")
         let p = Process()
         p.executableURL = URL(fileURLWithPath: Self.uv!)
         p.arguments = ["run", "--quiet", "--offline", "--with", "msoffcrypto-tool", "--with", "cryptography", "python3", Self.script.path, dir.path, "合言葉 pass"]

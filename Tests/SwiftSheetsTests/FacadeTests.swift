@@ -85,7 +85,7 @@ import SwiftSheets
 
         // xlsx → csv is a conversion: the second sheet and the formula structure are reported, not silently lost
         let csv = Self.tmp.appendingPathComponent("book.csv")
-        let converted = try Workbook.convert(xlsx, to: .csv, output: csv)
+        let converted = try Workbook.convert(xlsx, to: csv, as: .csv)
         #expect(converted.warnings.contains { $0.kind == .dropped && $0.message.contains("sheet") })
         let text = String(decoding: try Data(contentsOf: csv), as: UTF8.self)
         #expect(text == "部門,金額\r\n営業,1250000,2500000\r\n" || text == "部門,金額,\r\n営業,1250000,=B2*2\r\n", "\(text)")
@@ -102,9 +102,33 @@ import SwiftSheets
 
         // writing without an extension falls back to the source format
         let plain = Self.tmp.appendingPathComponent("plain")
-        try fromCSV.write(to: plain)
+        _ = try fromCSV.write(to: plain)
         #expect(SheetFormat.detect(from: try Data(contentsOf: plain)) == .csv)
-        #expect(try wb.data(as: .xlsx).count > 0)
+        #expect(try wb.write(as: .xlsx).data.count > 0)
+    }
+
+    /// Conversion labels describe destination and format independently (spec B.49).
+    @Test func conversionForwardsOptionsAndUsesTheExplicitFormat() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("convert-options-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("source.csv")
+        try Data("item|qty\napple|1.50\n".utf8).write(to: source)
+        let readOptions = ReadOptions(csv: CSVReadOptions(dialect: CSVDialect(delimiter: "|"), inferTypes: true))
+        let writeOptions = WriteOptions(csv: CSVWriteOptions(dialect: .semicolon, newline: .lf))
+        let codecs = CodecSet([CSVCodec.self])
+        for umbrella in [false, true] {
+            // The explicit .csv must win over this deliberately conflicting extension.
+            let destination = directory.appendingPathComponent("output-\(umbrella).xlsx")
+            let result = try umbrella
+                ? Workbook.convert(source, to: destination, as: .csv, readOptions: readOptions, writeOptions: writeOptions)
+                : codecs.convert(source, to: destination, as: .csv, readOptions: readOptions, writeOptions: writeOptions)
+            // Inference is what turns "1.50" into a number, which renders as 1.5; without the read options it stays text.
+            #expect(String(decoding: result.data, as: UTF8.self) == "item;qty\napple;1.5\n")
+            #expect(try Data(contentsOf: destination) == result.data)
+            #expect(result.warnings.isEmpty)
+            #expect(result.suggestion == nil)
+        }
     }
 
     @Test func tsvByExtensionHint() throws {

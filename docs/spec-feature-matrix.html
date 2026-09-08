@@ -181,7 +181,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <section>
 <h2>どの行にも共通する入口</h2>
 <pre><code>読む:   Workbook(contentsOf:) / Workbook.read(contentsOf:) -&gt; ReadResult / wb.readWarnings
-書く:   wb.write(to:as:) -&gt; WriteResult / wb.data(as:) / Workbook.convert(_:to:output:)
+書く:   wb.write(to:as:) -&gt; WriteResult / wb.write(as:).data / Workbook.convert(_:to:as:)
 見分ける: SheetFormat.detect(from:)
 落としたものの受け取り方: ConversionWarning(kind: .dropped/.degraded/.substituted, subject:, sheet:, location:, message:)</code></pre>
 </section>

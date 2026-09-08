@@ -296,11 +296,11 @@ import SwiftSheets
 
         var wb = Workbook()
         wb.sheets[0]["A1"] = "first"
-        try wb.write(to: url)
+        _ = try wb.write(to: url)
         #expect(try Workbook(contentsOf: url).sheets[0]["A1"] == .text("first"))
 
         wb.sheets[0]["A1"] = "second"
-        try wb.write(to: url)
+        _ = try wb.write(to: url)
         #expect(try Workbook(contentsOf: url).sheets[0]["A1"] == .text("second"))
     }
 }

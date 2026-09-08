@@ -29,7 +29,7 @@ import SwiftSheets
         ws.addConditionalFormatting(.contains("済", paint: red), over: "B1:B10")
         wb.sheets[0] = ws
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
         #expect(xml.contains("type=\"cellIs\"") && xml.contains("operator=\"greaterThan\""))
         #expect(xml.contains("<formula>40</formula>"))
@@ -60,7 +60,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].addConditionalFormatting(.cellIs(.greaterThan, "0", paint: style), over: "A1:A9")
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let styles = try Package.part("xl/styles.xml", of: data)
         #expect(styles.contains("<dxfs count=\"1\">"))
         #expect(styles.contains("<b val=\"1\"/><i val=\"0\"/>"), "an explicit \"not italic\" is not the same as silence")
@@ -94,7 +94,7 @@ import SwiftSheets
                                                                               .percent(60), .percent(80)], reverse: true)),
                                     over: "C1:C9")
         wb.sheets[0] = ws
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
         #expect(xml.contains("<colorScale><cfvo type=\"min\"/><cfvo type=\"percentile\" val=\"50\"/><cfvo type=\"max\"/>"))
         #expect(xml.contains("<dataBar minLength=\"10\" maxLength=\"90\">"))
@@ -119,7 +119,7 @@ import SwiftSheets
                                                   .cellIs(.equal, "2", paint: paint, priority: 90)])!,
         ]
         wb.sheets[0] = ws
-        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx))
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.write(as: .xlsx).data)
         #expect(xml.contains("sqref=\"B1:B9\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"1\" operator=\"lessThan\""))
         #expect(xml.contains("sqref=\"A1:A9\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"2\" operator=\"greaterThan\""))
         #expect(xml.contains("priority=\"3\" operator=\"equal\""))
@@ -132,7 +132,7 @@ import SwiftSheets
         var rule = ConditionalFormattingRule.expression("A1>0", paint: .highlight(text: .black))
         rule.stopIfTrue = true
         wb.sheets[0].conditionalFormatting = [ConditionalFormatting("A1:A9 C1:C9", rules: [rule], pivot: true)!]
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         #expect(try Package.part("xl/worksheets/sheet1.xml", of: data).contains("sqref=\"A1:A9 C1:C9\" pivot=\"1\""))
         let again = try Workbook(data: data).sheets[0].conditionalFormatting[0]
         #expect(again.pivot && again.rules[0].stopIfTrue)
@@ -144,7 +144,7 @@ import SwiftSheets
     @Test func aRuleTheModelCannotSayKeepsTheSourceBlock() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        let plain = try wb.data(as: .xlsx)
+        let plain = try wb.write(as: .xlsx).data
         let exotic = try Package.repacking(plain, replacing: "xl/worksheets/sheet1.xml", with: Data(
             try Package.part("xl/worksheets/sheet1.xml", of: plain)
                 .replacingOccurrences(of: "<pageMargins",
@@ -166,15 +166,15 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].addConditionalFormatting(.cellIs(.greaterThan, "0", paint: .highlight(fill: Color(hex: "FFC7CE"))), over: "A1:A9")
-        let source = try wb.data(as: .xlsx)
+        let source = try wb.write(as: .xlsx).data
 
         var again = try Workbook(data: source)
         again.sheets[0]["A2"] = 2                                   // an edit that has nothing to do with the rule
-        let untouched = try again.data(as: .xlsx)
+        let untouched = try again.write(as: .xlsx).data
         #expect(try Package.part("xl/styles.xml", of: untouched).contains("<dxfs count=\"1\">"))
 
         again.sheets[0].conditionalFormatting[0].rules[0].style = .highlight(fill: Color(hex: "C6EFCE"))
-        let edited = try again.data(as: .xlsx)
+        let edited = try again.write(as: .xlsx).data
         let styles = try Package.part("xl/styles.xml", of: edited)
         #expect(styles.contains("<dxfs count=\"1\">"), "an edit replaces the entry, it does not add one")
         #expect(styles.contains("C6EFCE") && !styles.contains("FFC7CE"))
@@ -186,7 +186,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = 1
         let pink = DifferentialStyle.highlight(fill: Color(hex: "FFC7CE"))
         wb.sheets[0].addConditionalFormatting(.cellIs(.greaterThan, "1", paint: pink), over: "A1:A9")
-        let one = try wb.data(as: .xlsx)
+        let one = try wb.write(as: .xlsx).data
         // a second rule pointing at the same entry — which is what Excel and LibreOffice write when two rules paint alike
         let shared = try Package.repacking(one, replacing: "xl/worksheets/sheet1.xml", with: Data(
             try Package.part("xl/worksheets/sheet1.xml", of: one)
@@ -199,7 +199,7 @@ import SwiftSheets
         #expect(again.sheets[0].conditionalFormatting[1].rules[0].style == pink)
         again.sheets[0].conditionalFormatting[0].rules[0].style = .highlight(fill: Color(hex: "C6EFCE"))
 
-        let out = try again.data(as: .xlsx)
+        let out = try again.write(as: .xlsx).data
         let read = try Workbook(data: out).sheets[0]
         #expect(read.conditionalFormatting[0].rules[0].style == .highlight(fill: Color(hex: "C6EFCE")))
         #expect(read.conditionalFormatting[1].rules[0].style == pink, "the rule that was not edited keeps its format")
@@ -278,7 +278,7 @@ import SwiftSheets
         ws.style("A2") { $0.fill = .gradient(path) }
         wb.sheets[0] = ws
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let styles = try Package.part("xl/styles.xml", of: data)
         #expect(styles.contains("<gradientFill degree=\"90\"><stop position=\"0\"><color rgb=\"FFFFFFFF\"/></stop>"))
         #expect(styles.contains("<gradientFill type=\"path\" left=\"0.5\" right=\"0.5\" top=\"0.5\" bottom=\"0.5\">"))

@@ -42,7 +42,7 @@ import Testing
                                  .number(Decimal(i) + Decimal(string: "0.5")!), .number(Decimal(i * 3) + Decimal(string: "0.25")!),
                                  .number(Decimal(i % 31) + Decimal(string: "0.125")!), .text(i % 2 == 0 ? "分類A" : "分類B"), .integer(i * 2)])
         }
-        let data = try wb.data(as: .ods)
+        let data = try wb.write(as: .ods).data
         let content = try ZipArchive(data: data).read("content.xml")
         #expect(TextEncodingSniffer.firstInvalidUTF8Offset(in: content) == nil, "first bad byte: \(String(describing: TextEncodingSniffer.firstInvalidUTF8Offset(in: content)))")
         let back = try Workbook(data: data)

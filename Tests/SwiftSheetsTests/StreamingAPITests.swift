@@ -14,7 +14,7 @@ import SwiftSheets
         wb.addSheet(named: "Two"); wb.sheets[1]["A1"] = "two"; wb.sheets[1]["B2"] = Formula("=1+1")
         wb.sheets[1].style("A1") { $0.font.bold = true }
         wb.addSheet(named: "Three"); wb.sheets[2]["A1"] = "three"
-        return try wb.data(as: .xlsx)
+        return try wb.write(as: .xlsx).data
     }
 
     /// Only the named sheet is parsed; the others are there, empty, marked, and reported.
@@ -36,7 +36,7 @@ import SwiftSheets
         let data = try Self.threeSheets()
         var wb = try Workbook(data: data, options: ReadOptions(sheets: .named(["Two"])))
         wb.sheets[1]["C3"] = "edited"
-        let out = try wb.data(as: .xlsx)
+        let out = try wb.write(as: .xlsx).data
         let before = try ZipArchive(data: data), after = try ZipArchive(data: out)
         #expect(try after.read("xl/worksheets/sheet1.xml") == before.read("xl/worksheets/sheet1.xml"))
         #expect(try after.read("xl/worksheets/sheet3.xml") == before.read("xl/worksheets/sheet3.xml"))
@@ -55,7 +55,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = "one"
         wb.addSheet(named: "Two"); wb.sheets[1]["A1"] = "two"
         for format in [SheetFormat.ods, .numbers] {
-            let data = try wb.data(as: format)
+            let data = try wb.write(as: format).data
             let read = try Workbook.read(data, options: ReadOptions(sheets: .named(["Two"])))
             #expect(read.workbook.sheets[1]["A1"] == .text("two"), "\(format)")
             #expect(read.workbook.sheets[0].preserved.isUnread && read.workbook.sheets[0].table.cells.isEmpty, "\(format)")
@@ -138,7 +138,7 @@ import SwiftSheets
     @Test func rowsArriveAsASequence() async throws {
         var wb = Workbook()
         for i in 0..<5_000 { wb.sheets[0].append([.integer(i), .text("v\(i)")]) }
-        let reader = try StreamingReader(data: try wb.data(as: .xlsx))
+        let reader = try StreamingReader(data: try wb.write(as: .xlsx).data)
         var count = 0
         var last: StreamedRow?
         for try await row in reader.rows(inSheet: "Sheet1") { count += 1; last = row }
@@ -152,7 +152,7 @@ import SwiftSheets
 
     @Test func anUnknownSheetThrowsFromTheSequence() async throws {
         var wb = Workbook(); wb.sheets[0]["A1"] = 1
-        let reader = try StreamingReader(data: try wb.data(as: .xlsx))
+        let reader = try StreamingReader(data: try wb.write(as: .xlsx).data)
         await #expect(throws: SheetError.self) {
             for try await _ in reader.rows(inSheet: "Nope") {}
         }

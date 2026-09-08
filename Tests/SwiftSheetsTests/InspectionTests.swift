@@ -20,7 +20,7 @@ import SwiftSheets
 
     /// XLSX declares its used range at the top of each sheet; the count is the area of that range.
     @Test func anXLSXDeclaresItsRangeAndCount() throws {
-        let data = try Self.workbook(rows: 100, sheets: 2).data(as: .xlsx)
+        let data = try Self.workbook(rows: 100, sheets: 2).write(as: .xlsx).data
         let summary = try Workbook.inspect(data)
         #expect(summary.format == .xlsx)
         #expect(summary.sheets.map(\.name) == ["Sheet1", "S1"])
@@ -36,7 +36,7 @@ import SwiftSheets
     @Test func countingFindsWhatAReadWouldHold() throws {
         var wb = Self.workbook(rows: 50)
         wb.sheets[0]["Z1000"] = "far"                       // the declaration grows; the count does not follow it
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let summary = try Workbook.inspect(data, options: InspectOptions(countCells: true))
         #expect(summary.sheets[0].declaredCellCount == 26 * 1000)
         #expect(summary.sheets[0].countedCellCount == 151)
@@ -58,7 +58,7 @@ import SwiftSheets
         var wb = Self.workbook(rows: 40)
         wb.addSheet(named: "第二")
         wb.sheets[1]["B2"] = 7
-        let data = try wb.data(as: .ods)
+        let data = try wb.write(as: .ods).data
         let summary = try Workbook.inspect(data)
         #expect(summary.format == .ods)
         #expect(summary.sheets.map(\.name) == ["Sheet1", "第二"])
@@ -124,7 +124,7 @@ import SwiftSheets
 
     /// The whole point: the ceiling is chosen from the declaration, by the caller.
     @Test func theDeclarationChoosesTheCeiling() throws {
-        let data = try Self.workbook(rows: 200).data(as: .xlsx)
+        let data = try Self.workbook(rows: 200).write(as: .xlsx).data
         let declared = try Workbook.inspect(data).declaredCellCount!
         let wb = try Workbook(data: data, options: ReadOptions(cellLimit: declared))
         #expect(wb.sheets[0].table.cells.count == 600)

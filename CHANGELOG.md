@@ -11,6 +11,18 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Changed
 
+- **Renamed both conversion APIs** (Appendix B.49): `Workbook.convert` and `CodecSet.convert` now take
+  `to: destination, as: format` instead of `to: format, output: destination`. The format remains required.
+  Read/write options, warnings, suggestions and save behavior are unchanged; old labels no longer compile.
+
+- **Removed both `Workbook.data(as:)` conveniences** (Appendix B.48). Use `try wb.write(as: format, options: options).data`,
+  adding `password:` for protected output. Old calls no longer compile. Keep the `WriteResult` to inspect warnings
+  and suggestions; serialization and encryption behavior are unchanged.
+
+- File writes and conversions now warn when their `WriteResult` is unused (Appendix B.47), including password-protected
+  writes. Inspect the result or explicitly discard it with `_ = try ...`. Builds using warnings-as-errors must
+  migrate ignored calls. Data, warnings, suggestions and save timing are unchanged. Conversion labels are updated separately (Appendix B.49).
+
 - **Preservation internals are package-only** (Appendix B.46). `PreservationStore`, `SheetPreservation`,
   `OpaquePart`, `XMLFragment`, `Relationship`, `StyleTables`, `ForeignSheet`, and `Workbook.preserved` /
   `Sheet.preserved` can no longer be accessed by external clients. Raw-part editing and the previous detailed

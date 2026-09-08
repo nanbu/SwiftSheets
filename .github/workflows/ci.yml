@@ -35,6 +35,9 @@ jobs:
       - name: Build
         run: swift build --build-tests
 
+      - name: Write API results and removed data conveniences
+        run: python3 scripts/check-write-result-api.py
+
       # `package` is invisible to the tests, which live in the same package, so what an outside client can
       # reach is proved from an outside client: a throwaway SwiftPM package that depends on this checkout,
       # calls the public preservation API, and must fail to compile for every name that moved (spec B.46).
@@ -79,12 +82,15 @@ jobs:
 
       # zlib is what `Deflate` folds bytes with here. The runtime library is already installed; the header is
       # what a build needs, and the Swift image does not promise to carry it. The image carries no Python at
-      # all — unlike the macOS runner — so the boundary check's interpreter is installed here too.
-      - name: zlib headers, nm for the symbol-table check, and a Python for the boundary check
+      # all — unlike the macOS runner — so the interpreter the compile-time checks need is installed here too.
+      - name: zlib headers, nm for the symbol-table check, and a Python for the compile-time checks
         run: apt-get update && apt-get install -y --no-install-recommends zlib1g-dev binutils python3
 
       - name: Build
         run: swift build --build-tests
+
+      - name: Write API results and removed data conveniences
+        run: python3 scripts/check-write-result-api.py
 
       # Same as macOS: an outside client compiled against this checkout, on the other toolchain.
       - name: Preservation API has an external boundary

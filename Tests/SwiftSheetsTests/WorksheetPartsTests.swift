@@ -20,10 +20,10 @@ import SwiftSheets
         wb.sheets[0]["A2"] = .formula(FormulaExpr.parse("=TRANSPOSE(A1:C1)"), cached: .integer(1))
         wb.sheets[0].table.arrayFormulas[CellRef("A2")!] = CellRange("A2:A4")!
 
-        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx))
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.write(as: .xlsx).data)
         #expect(xml.contains("<f t=\"array\" ref=\"A2:A4\">TRANSPOSE(A1:C1)</f>"))
 
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[0].table.arrayFormulas[CellRef("A2")!] == CellRange("A2:A4"))
         #expect(again.sheets[0]["A2"]?.formula?.text == "=TRANSPOSE(A1:C1)")
         // an ordinary formula is still ordinary
@@ -44,20 +44,20 @@ import SwiftSheets
         wb.sheets[0].headerFooter.differentFirst = true
         wb.sheets[0].headerFooter.scaleWithDoc = false
 
-        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx))
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.write(as: .xlsx).data)
         #expect(xml.contains("<headerFooter differentOddEven=\"1\" differentFirst=\"1\" scaleWithDoc=\"0\">"))
         #expect(xml.contains("<oddHeader>&amp;L四半期報告&amp;C&amp;P / &amp;N</oddHeader>"))
         // …and after <pageSetup>, where the schema puts it
         #expect(xml.range(of: "<pageMargins")!.lowerBound < xml.range(of: "<headerFooter")!.lowerBound)
 
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[0].headerFooter == wb.sheets[0].headerFooter)
     }
 
     // openpyxl: worksheet/tests/test_header.py::TestHeaderFooter::test_bool
     // openpyxl: worksheet/tests/test_pagebreak.py::TestRowBreak::test_no_brks
     @Test func anEmptyHeaderFooterWritesNothing() throws {
-        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try Workbook().data(as: .xlsx))
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try Workbook().write(as: .xlsx).data)
         #expect(!xml.contains("headerFooter"))
     }
 
@@ -71,11 +71,11 @@ import SwiftSheets
         wb.sheets[0].rowBreaks = [10, 20]
         wb.sheets[0].columnBreaks = [3]
 
-        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx))
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.write(as: .xlsx).data)
         #expect(xml.contains("<rowBreaks count=\"2\" manualBreakCount=\"2\"><brk id=\"10\" max=\"16383\" man=\"1\"/><brk id=\"20\" max=\"16383\" man=\"1\"/></rowBreaks>"))
         #expect(xml.contains("<colBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"3\" max=\"1048575\" man=\"1\"/></colBreaks>"))
 
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[0].rowBreaks == [10, 20])
         #expect(again.sheets[0].columnBreaks == [3])
     }
@@ -87,7 +87,7 @@ import SwiftSheets
     @Test func printerSettingsStayLinked() throws {
         let wb = try Workbook(data: try Self.fixture("preservation/printer-settings.xlsx"))
         let id = try #require(wb.sheets[0].preserved.pageSetupRelationshipId)
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let path = try #require(wb.sheets[0].preserved.partPath)
         let sheetXML = try Package.part(path, of: data)
         let rels = try Package.part(WorkbookReader.relsPath(of: path), of: data)
@@ -128,12 +128,12 @@ import SwiftSheets
         sheet.sortState = SortState(range: CellRange("A2:B5")!, conditions: [SortCondition(range: CellRange("B2:B5")!, descending: true)])
         wb.sheets[0] = sheet
 
-        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx))
+        let xml = try Package.part("xl/worksheets/sheet1.xml", of: try wb.write(as: .xlsx).data)
         #expect(xml.contains("<filterColumn colId=\"0\"><filters blank=\"1\"><filter val=\"r1\"/><filter val=\"r3\"/></filters></filterColumn>"))
         #expect(xml.contains("<filterColumn colId=\"1\" hiddenButton=\"1\"><customFilters and=\"1\"><customFilter operator=\"greaterThan\" val=\"1\"/><customFilter operator=\"lessThanOrEqual\" val=\"4\"/></customFilters></filterColumn>"))
         #expect(xml.contains("<sortState ref=\"A2:B5\"><sortCondition descending=\"1\" ref=\"B2:B5\"/></sortState>"))
 
-        let again = try Workbook(data: try wb.data(as: .xlsx)).sheets[0]
+        let again = try Workbook(data: try wb.write(as: .xlsx).data).sheets[0]
         #expect(again.autoFilter == CellRange("A1:B5"))
         #expect(again.filterColumns == sheet.filterColumns)
         #expect(again.sortState == sheet.sortState)
@@ -164,7 +164,7 @@ import SwiftSheets
             FilterColumn(column: 4, dateGroups: [DateGroup(grouping: .month, year: 2026, month: 3)], calendarType: "japan"),
             FilterColumn(column: 5, values: ["x"], buttonShown: false),
         ]
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
         #expect(xml.contains("<colorFilter dxfId=\"0\"/>"))
         #expect(xml.contains("<iconFilter iconSet=\"3TrafficLights1\" iconId=\"2\"/>"))
@@ -195,7 +195,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:A5")
-        let plain = try wb.data(as: .xlsx)
+        let plain = try wb.write(as: .xlsx).data
         let withExtension = try Package.repacking(plain, replacing: "xl/worksheets/sheet1.xml", with: Data(
             try Package.part("xl/worksheets/sheet1.xml", of: plain)
                 .replacingOccurrences(of: "<autoFilter ref=\"A1:A5\"/>",
@@ -204,7 +204,7 @@ import SwiftSheets
         let read = try Workbook(data: withExtension)
         #expect(read.sheets[0].hasUnmodelledFilters)
         #expect(read.sheets[0].autoFilter == CellRange("A1:A5"))
-        let out = try Package.part("xl/worksheets/sheet1.xml", of: try read.data(as: .xlsx))
+        let out = try Package.part("xl/worksheets/sheet1.xml", of: try read.write(as: .xlsx).data)
         #expect(out.contains("<ext uri=\"{XYZ}\"/>"))
         #expect(out.components(separatedBy: "<autoFilter").count == 2)   // exactly one, not one generated and one kept
     }
@@ -261,7 +261,7 @@ import SwiftSheets
             CustomDocumentProperty(name: "承認日", Date(timeIntervalSince1970: 1_780_000_000)),
             .linked(name: "担当", to: "Owner"),
         ]
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("docProps/custom.xml", of: data)
         #expect(xml.contains("<vt:lpwstr>A-1234</vt:lpwstr>"))
         #expect(xml.contains("<vt:i4>7</vt:i4>"))
@@ -285,7 +285,7 @@ import SwiftSheets
     @Test func noPropertiesNoPart() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         #expect(!(try ZipArchive(data: data).entries.keys.contains("docProps/custom.xml")))
         #expect(try !Package.part("[Content_Types].xml", of: data).contains("custom.xml"))
         #expect(try !Package.part("_rels/.rels", of: data).contains("custom.xml"))
@@ -296,9 +296,9 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.customProperties = [CustomDocumentProperty(name: "管理番号", "A-1")]
-        var again = try Workbook(data: try wb.data(as: .xlsx))
+        var again = try Workbook(data: try wb.write(as: .xlsx).data)
         again.customProperties["管理番号"] = .text("A-2")
-        let data = try again.data(as: .xlsx)
+        let data = try again.write(as: .xlsx).data
         #expect(try ZipArchive(data: data).entries.keys.filter { $0 == "docProps/custom.xml" }.count == 1)
         #expect(try Package.part("docProps/custom.xml", of: data).contains("A-2"))
         let rels = try Package.part("_rels/.rels", of: data)

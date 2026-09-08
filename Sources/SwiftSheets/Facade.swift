@@ -55,17 +55,12 @@ extension Workbook {
         try CodecSet.all.write(self, as: format, options: options)
     }
 
-    /// The bytes only, when warnings are not of interest.
-    public func data(as format: SheetFormat, options: WriteOptions = WriteOptions()) throws -> Data {
-        try write(as: format, options: options).data
-    }
-
     /// Writes to a file. Without `format`, the extension decides (falling back to the source format, then .xlsx).
     ///
     /// The write is atomic: the bytes land in a temporary file that replaces the destination only once it is complete.
     /// Saving over the file you just opened is this library's whole reason for existing, so a crash (or a full disk)
     /// half-way through must leave the original where it was.
-    @discardableResult
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
     public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         try CodecSet.all.write(self, to: url, as: format, options: options)
     }
@@ -73,8 +68,8 @@ extension Workbook {
     /// Read → write in one step. The result carries **both** halves of the trip — what the source held that the
     /// model cannot say, and what the model holds that the destination cannot say (spec Appendix B.23); the read's
     /// warnings come first. `suggestion` is the write's.
-    @discardableResult
-    public static func convert(_ source: URL, to format: SheetFormat, output: URL, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) throws -> WriteResult {
-        try CodecSet.all.convert(source, to: format, output: output, readOptions: readOptions, writeOptions: writeOptions)
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
+    public static func convert(_ source: URL, to output: URL, as format: SheetFormat, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) throws -> WriteResult {
+        try CodecSet.all.convert(source, to: output, as: format, readOptions: readOptions, writeOptions: writeOptions)
     }
 }

@@ -1503,9 +1503,9 @@ pre .vr { color: var(--code-var); }
     <tr><td><code>load_workbook(read_only=True)</code></td><td><code>try StreamingReader(contentsOf: url)</code></td><td>ブックを作らずに 1 行ずつ読む。形式は内容から判別し、XLSX / XLSM・ODS・Numbers・CSV のどれでも同じ呼び方（Rev 4.22・B.40）。<code>forEachRow(inSheet:)</code> か <code>for try await row in rows(inSheet:)</code>。Numbers の 2 枚目以降の表は <code>table:</code> で</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
     <tr><td><code>Workbook()</code></td><td><code>Workbook()</code></td><td>新規作成。空シート "Sheet1" を1枚持つ</td></tr>
-    <tr><td><code>wb.save(path)</code></td><td><code>try wb.write(to: url)</code></td><td>拡張子から形式推定。戻り値は <code>WriteResult</code>（破棄可）</td></tr>
+    <tr><td><code>wb.save(path)</code></td><td><code>try wb.write(to: url)</code></td><td>拡張子から形式推定。戻り値は <code>WriteResult</code>（未使用の戻り値は警告・B.47）</td></tr>
     <tr><td>—</td><td><code>try wb.write(to: url, as: .ods)</code></td><td>形式の明示指定 ＝ そのまま形式変換になる</td></tr>
-    <tr><td>—</td><td><code>try wb.data(as: .xlsx)</code></td><td>ファイルを介さず <code>Data</code> を得る（サーバ用途）</td></tr>
+    <tr><td>—</td><td><code>try wb.write(as: .xlsx).data</code></td><td>ファイルを介さず <code>Data</code> を得る（サーバ用途）</td></tr>
     <tr><td><code>wb.sheetnames</code></td><td><code>wb.sheets.map(\.name)</code></td><td>シート名一覧</td></tr>
     <tr><td><code>wb.properties</code></td><td><code>wb.metadata</code></td><td>作成者・タイトル等のドキュメントメタ</td></tr>
     <tr><td><code>wb.defined_names</code></td><td><code>wb.definedNames</code></td><td>名前付き範囲の辞書</td></tr>
@@ -1618,10 +1618,10 @@ sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="
   <h3>14.8 保存・変換・警告</h3>
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
-    <tr><td><code>wb.save('a.xlsx')</code></td><td><code>let result = try wb.write(to: url)</code></td><td><code>WriteResult</code>（<code>@discardableResult</code>）</td></tr>
+    <tr><td><code>wb.save('a.xlsx')</code></td><td><code>let result = try wb.write(to: url)</code></td><td><code>WriteResult</code>（未使用の戻り値は警告・B.47）</td></tr>
     <tr><td>—</td><td><code>result.warnings</code></td><td><code>[ConversionWarning]</code>。損失の全記録（第4・6章）</td></tr>
     <tr><td>—</td><td><code>result.suggestion</code></td><td>いずれの形式でも劣化が閾値を超えた場合に代替形式の提案を返す（第11章）</td></tr>
-    <tr><td>—</td><td><code>try Workbook.convert(url, to: .ods)</code></td><td>読み→書きの一発変換ショートカット</td></tr>
+    <tr><td>—</td><td><code>try Workbook.convert(url, to: destination, as: .ods)</code></td><td>読み→書きの一発変換ショートカット</td></tr>
     <tr><td>—</td><td><code>wb.preservationSummary</code></td><td>保持内容の要約（元形式・不透明部品数・VBA有無）</td></tr>
   </table></div>
 
@@ -1726,7 +1726,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
 <span class="kw">for</span> src <span class="kw">in</span> files {
     <span class="kw">let</span> dst = src.deletingPathExtension().appendingPathExtension(<span class="st">"ods"</span>)
-    <span class="kw">let</span> result = <span class="kw">try</span> <span class="ty">Workbook</span>.convert(src, to: .ods, output: dst)
+    <span class="kw">let</span> result = <span class="kw">try</span> <span class="ty">Workbook</span>.convert(src, to: dst, as: .ods)
 
     <span class="kw">for</span> w <span class="kw">in</span> result.warnings {
         logger.warning(<span class="st">"\(src.lastPathComponent): \(w.message)"</span>)
@@ -1910,6 +1910,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.38 Draft</td><td>2026-09-08</td><td>WorkbookとCodecSetのconvertをto:出力先・as:形式へ統一（B.49）。</td></tr>
+    <tr><td>4.37 Draft</td><td>2026-09-08</td><td>通常版・暗号化版のdata(as:)を撤去し、write(as:).dataへ統合（B.48）。</td></tr>
+    <tr><td>4.36 Draft</td><td>2026-09-08</td><td>保存・変換の5宣言から@discardableResultを撤去。戻り値の見落としを警告し、意図的な破棄は明示する（B.47）。</td></tr>
     <tr><td>4.35 Draft</td><td>2026-09-07</td><td>保持構造をpackageへ。公開のPreservationSummaryとSheet.contentStateで要約・未読状態を参照する。編集操作4件は公開維持（B.46）。</td></tr>
     <tr><td>4.34 Draft</td><td>2026-09-06</td><td><strong>Numbers の日付書式</strong>（0.19.1）。<code>CUSTOM_DATE</code> の書式構造体は文書側に対応する custom format archive が無いと Numbers が無視し、<code>yyyy/m/d</code> のセルが <code>01/09/2026 0:00</code> と出ていた。組み込みの <code>DATE</code> 種別に同じ <code>date_time_format</code> を載せる形へ（Numbers は書いたとおり <code>2026/9/1</code> と描く。実機で確認）。読みは両種別を Excel の書式へ写していたので不変。B.8 の日付の項を追従</td></tr>
     <tr><td>4.33 Draft</td><td>2026-09-06</td><td><strong>WebAssembly（wasm32-wasi）で動く</strong>ことを付録 B.45 に記録して本体へ（0.19.0）。zlib も Compression も無い環境向けに、DEFLATE の純 Swift 経路（読みは RFC 1951 の完全な展開器・書きは stored ブロック）と CRC-32 の表引きを <code>#if os(WASI)</code> で用意し、32 ビットの <code>Int</code> で溢れる ZIP64 の目印と展開上限、並列読み・一時ファイル・原子的な書き込み・資源バンドルの 5 点を分岐した。既存の 3 経路（Apple / zlib / Linux）は不変。きっかけは Stream の Web 版がブラウザ内で 3 形式を読み書きする要望（2026-09-06 の要望）</td></tr>
@@ -2642,7 +2645,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       ここで足したものは ODF 固有なので、同じブックを XLSX に書けば当然落ちる。
       <strong>SheetXLSX は変更しない</strong>（Rev 2.1 以降、Excel 側の読み書きは動かさない方針）ため、警告は
       <code>Sources/SwiftSheets</code> のファサードが足す — <code>Workbook.write(to:as:)</code> /
-      <code>data(as:)</code> を通れば「ODF 固有の機能が n 件落ちた」と言う。
+      <code>write(as:)</code> の戻り値の <code>warnings</code> で「ODF 固有の機能が n 件落ちた」と確認できる。
       <code>XLSXCodec</code> を直接呼ぶ利用者には出ない。<strong>これは意図した割り切り</strong>で、
       「コーデックが自分で言う」という原則からの唯一の逸脱として、ここに固定する。
     </p>
@@ -5112,7 +5115,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     <li><strong><code>SheetEncrypt</code></strong>（暗号化も・<code>SheetDecrypt</code> に依存し、それを再輸出する）: AES の暗号側
       （<code>encryptBlock</code>・<code>encryptCBC</code>・ECB）、乱数の塩と IV、複合ファイルの書き、包みを作る手続き。入口は
       <code>SheetEncrypt.encrypt(_:as:password:)</code>（CSV / Numbers は従来と同じ文言で断る）と
-      <code>Workbook.write(to:as:options:password:)</code> / <code>data(as:options:password:)</code>。</li>
+      <code>Workbook.write(to:as:options:password:)</code> / <code>write(as:options:password:)</code>（バイト列は戻り値の <code>data</code>）。</li>
     <li><strong>中核に残るもの</strong>: SHA-1 / SHA-256 / SHA-512・HMAC・PBKDF2・乱数（シート保護の合鍵の照合と塩に要る —
       守秘のための暗号ではない）と、<strong>見分けて名指しで断る</strong>こと（<code>UnopenableInput</code>。検出方法は変えない。
       断り文は「SheetDecrypt で開ける」と言う）。<code>SheetError.wrongPassword</code> も残す（case を削るのは別の破壊）。</li>
@@ -5814,6 +5817,45 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p>別SwiftPMパッケージで公開の要約・状態・編集操作4件を呼び、保持型とpreservedへのアクセスが失敗することも確かめる。
   全形式の部分読み、非グリッド、改名・移動・複製、要約取得後の変化、圧縮を展開しない参照をテストする。
   既存の保持・書式・関係ID・警告のテストと全swift testを通し、XLSX／Numbers parityを実行する。</p>
+  <h3>B.47 保存・変換の戻り値を確認する（Rev 4.36）</h3>
+  <p>2026-09-08承認。CodecSet.write(_:to:as:options:)、CodecSet.convert(_:to:output:readOptions:writeOptions:)、
+  Workbook.write(to:as:options:)、Workbook.convert(_:to:output:readOptions:writeOptions:)、
+  Workbook.write(to:as:options:password:)の5宣言から<code>@discardableResult</code>を外す。
+  戻り値を使用しない呼び出しはコンパイラー警告になる。警告をエラー扱いするビルドでは移行が必要。
+  <code>let result = try workbook.write(to: url)</code>で受けてwarningsを確認し、意図的に破棄するときは
+  <code>_ = try workbook.write(to: url)</code>と明示する。</p>
+  <p>これはwarningsの確認を強制する仕組みではない。結果のdataだけを使うことも、明示的な破棄も可能。
+  出力バイト列・警告・suggestion・エラー契約・引数・戻り値型・保存順序は変更しない。
+  write(to:)が戻る時点では保存済み。保存前に確認する用途ではwrite(as:)で結果を作り、確認した同じdataを保存する。
+  読み取りの警告はReadResult.warningsまたはWorkbook.readWarningsから確認する。
+  convertは読み取りと書き出しの警告をこの順で返す（B.23）。</p>
+  <p>この決定時点では通常版・暗号化版のdata(as:)は維持した。後続のB.48でwrite(as:).dataへ統合する。convertの引数改名、ストリーミングAPI、警告のエラー化は対象外。
+  scripts/check-write-result-api.pyが外部クライアントをコンパイルし、5宣言それぞれの未使用警告、
+  警告のエラー化、結果の利用・明示的な破棄の成功を確認する。CIのmacOSとLinuxで実行する。</p>
+  <h3>B.48 バイト列の取得をwriteへ統合する（Rev 4.37）</h3>
+  <p>2026-09-08承認。Workbook.data(as:options:)とWorkbook.data(as:options:password:)の2宣言を削除する。
+  非推奨の別名は残さない。通常版は<code>try wb.write(as: format, options: options).data</code>、
+  暗号化版は<code>try wb.write(as: format, options: options, password: password).data</code>へ移行する。
+  引数の既定値はwriteの既存契約に従う。旧呼び出しはコンパイルエラーになる。</p>
+  <p>どちらの旧APIも対応するwriteのdataを返すだけであり、出力処理・エラー・保存順序は変更しない。
+  write(as:)はファイルに保存せずWriteResultを返す。warningsとsuggestionを確認する用途では結果を受け取る。
+  dataだけを取り出すことも可能であり、統合は警告の確認を強制しない。
+  読み込み時の損失はWorkbook.readWarningsから別途確認する。
+  保存前に確認するときは確認した同じresult.dataを保存する（B.47）。</p>
+  <p>scripts/check-write-result-api.pyが外部クライアントで旧2宣言の使用失敗と、
+  通常版・暗号化版のwriteの利用成功を検査する。結果の警告・suggestion、暗号化出力の復号結果、
+  非対応形式のエラーをテストする。convertの引数、CodecSetの公開範囲、ストリーミングは変更しない。</p>
+  <h3>B.49 convertの引数を保存APIとそろえる（Rev 4.38）</h3>
+  <p>2026-09-08承認。Workbook.convertとCodecSet.convertは
+  <code>convert(_ source: URL, to output: URL, as format: SheetFormat, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) throws -&gt; WriteResult</code>
+  とする。Workbook側はstatic。旧to:形式・output:出力先のオーバーロードは残さず、旧呼び出しはコンパイルエラーになる。
+  <code>try Workbook.convert(source, to: destination, as: .csv)</code>へ移行する。</p>
+  <p>形式は必須のまま。出力先の拡張子から形式を推定する機能は追加しない。
+  readOptionsとwriteOptionsの順序・型・既定値、throws、WriteResult、未使用戻り値の警告は維持する。
+  読み込み・書き出し・保存の順序、警告の読み込み側→書き出し側の順序、書き出し側のsuggestionを維持する。
+  戻る時点で保存済みである契約も変えない。B.47・B.48の当時の引数維持方針を、この後続決定で更新する。</p>
+  <p>scripts/check-write-result-api.pyが両宣言の新呼び出し（既定・明示オプション）を検証し、
+  旧ラベルと形式省略が失敗することを確認する。変換結果・保存内容・読み書きオプションの引き渡しは動作テストで確認する。</p>
 </section>
 
 </div><!-- /.container -->

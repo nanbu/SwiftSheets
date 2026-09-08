@@ -67,7 +67,7 @@ import SheetDecrypt
         var wb = Workbook()
         wb.sheets[0]["A1"] = "plain"
         for format in [SheetFormat.xlsx, .ods, .csv, .numbers] {
-            let plain = try wb.data(as: format)
+            let plain = try wb.write(as: format).data
             #expect(try decrypt(plain, password: "unused") == plain, "\(format)")
             #expect(try Workbook(data: plain, password: "unused").sheets[0]["A1"] == .text("plain"), "\(format)")
         }

@@ -42,7 +42,7 @@ import SwiftSheets
     @Test func detectionDoesNotReadTheFile() throws {
         var wb = Workbook()
         for r in 0..<40_000 { wb.sheets[0].append([.integer(r), .text("row \(r) with some words in it"), .number(0.5)]) }
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         #expect(data.count > 500_000)
         let source = CountingSource(data)
         #expect(try SheetFormat.detect(source: source) == .xlsx)

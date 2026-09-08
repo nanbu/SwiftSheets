@@ -27,7 +27,7 @@ import SwiftSheets
         let name = wb.sheets[0].addExcelTable(named: "売上 表", over: CellRange("A1:C3")!)
         #expect(name == "売上_表", "the name is sanitised into one Excel accepts")
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let part = try Package.part("xl/tables/table1.xml", of: data)
         #expect(part.contains("name=\"売上_表\" displayName=\"売上_表\" ref=\"A1:C3\""))
         #expect(part.contains("<tableColumn id=\"1\" name=\"Item\"/>"))
@@ -86,7 +86,7 @@ import SwiftSheets
         table.comment = "月次"
         wb.sheets[0].excelTables = [table]
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let part = try Package.part("xl/tables/table1.xml", of: data)
         #expect(part.contains("totalsRowCount=\"1\"") && part.contains("comment=\"月次\""))
         #expect(part.contains("totalsRowLabel=\"合計\"") && part.contains("totalsRowFunction=\"sum\""))
@@ -129,7 +129,7 @@ import SwiftSheets
     @Test func aSourceTableKeepsItsIdentityAndUnmodelledAttributes() throws {
         var wb = Self.sales()
         wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
-        let plain = try wb.data(as: .xlsx)
+        let plain = try wb.write(as: .xlsx).data
         let extended = try Package.repacking(plain, replacing: "xl/tables/table1.xml", with: Data(
             try Package.part("xl/tables/table1.xml", of: plain)
                 .replacingOccurrences(of: "<autoFilter", with: "<autoFilter insertRow=\"1\" dataDxfId=\"7\" published=\"1\" placeholder=\"")
@@ -139,7 +139,7 @@ import SwiftSheets
         var again = try Workbook(data: extended)
         #expect(again.sheets[0].excelTables[0].name == "Sales")
         again.sheets[0]["B2"] = .integer(9)                       // an edit elsewhere
-        let out = try again.data(as: .xlsx)
+        let out = try again.write(as: .xlsx).data
         let part = try Package.part("xl/tables/table1.xml", of: out)
         #expect(part.contains("insertRow=\"1\"") && part.contains("dataDxfId=\"7\""), "unmodelled attributes come back")
         #expect(part.contains("id=\"1\""), "the id is the file's")
@@ -150,9 +150,9 @@ import SwiftSheets
     @Test func removingATableRemovesThePart() throws {
         var wb = Self.sales()
         wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
-        var again = try Workbook(data: try wb.data(as: .xlsx))
+        var again = try Workbook(data: try wb.write(as: .xlsx).data)
         again.sheets[0].excelTables = []
-        let out = try again.data(as: .xlsx)
+        let out = try again.write(as: .xlsx).data
         #expect(try !ZipArchive(data: out).entries.keys.contains { $0.hasPrefix("xl/tables/") })
         #expect(try !Package.part("xl/worksheets/sheet1.xml", of: out).contains("<tableParts"))
         #expect(try !ZipArchive(data: out).entries.keys.contains("xl/worksheets/_rels/sheet1.xml.rels"),
@@ -166,7 +166,7 @@ import SwiftSheets
         var table = ExcelTable(name: "Sales", ref: CellRange("A1:C3")!, headerRow: [.text("Item"), .text("Qty"), .text("Price")])
         table.filterColumns = [FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "3")])]
         wb.sheets[0].excelTables = [table]
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         #expect(try Package.part("xl/tables/table1.xml", of: data).contains("<customFilter operator=\"greaterThan\" val=\"3\"/>"))
         #expect(try !Package.part("xl/worksheets/sheet1.xml", of: data).contains("<autoFilter"))
         #expect(try Workbook(data: data).sheets[0].excelTables[0].filterColumns == table.filterColumns)

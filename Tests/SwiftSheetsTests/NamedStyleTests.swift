@@ -45,7 +45,7 @@ import SwiftSheets
         let source = try Self.fixture("named-styles.xlsx")
         var wb = try Workbook(data: source)
         wb.sheets[0]["A4"] = "added"
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.namedStyles == wb.namedStyles)
         #expect(again.sheets[0][cell: "A1"].style.namedStyle == "Heading X")
         #expect(again.sheets[0][cell: "B1"].style.namedStyle == "Title")
@@ -61,7 +61,7 @@ import SwiftSheets
         #expect(tables.namedStyleXfIndex["Normal"] == 0)
         #expect(tables.cellStyleXfs.count == 3)
 
-        let written = try Package.part("xl/styles.xml", of: try wb.data(as: .xlsx))
+        let written = try Package.part("xl/styles.xml", of: try wb.write(as: .xlsx).data)
         #expect(written.contains("<cellStyle name=\"Heading X\" xfId=\"1\""))
         #expect(written.contains("<cellStyle name=\"Title\" xfId=\"2\" builtinId=\"15\""))
         #expect(written.contains("<cellStyleXfs count=\"3\">"))
@@ -80,7 +80,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = 1000
         wb.sheets[0][cell: "A1"].style = NamedStyle(name: "強調", style: accent).applied
 
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.namedStyles.map(\.name) == ["Normal", "強調"])
         #expect(again.namedStyle("強調")?.style.numberFormat == "#,##0")
         #expect(again.namedStyle("強調")?.style.fill == .solid(.rgb("FFFFF2CC")))
@@ -92,7 +92,7 @@ import SwiftSheets
         var wb = try Workbook(data: try Self.fixture("named-styles.xlsx"))
         let i = try #require(wb.namedStyles.firstIndex { $0.name == "Heading X" })
         wb.namedStyles[i].style.font.size = 22
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.namedStyle("Heading X")?.style.font.size == 22)
         #expect(again.namedStyles.map(\.name) == ["Normal", "Heading X", "Title"])
     }
@@ -125,7 +125,7 @@ import SwiftSheets
         """)
         #expect(halfATable.namedStyles.map(\.name) == ["Normal", "Orphan"])
         #expect(halfATable.sheets[0][cell: "A1"].style.namedStyle == nil)
-        #expect(try halfATable.data(as: .xlsx).count > 0)   // and still writes
+        #expect(try halfATable.write(as: .xlsx).data.count > 0)   // and still writes
     }
 
     // openpyxl: styles/tests/test_named_style.py::TestNamedStyleList::test_key
@@ -145,7 +145,7 @@ import SwiftSheets
         var st = CellStyle(); st.namedStyle = "Nowhere"; st.font.bold = true
         wb.sheets[0]["A1"] = 1
         wb.sheets[0][cell: "A1"].style = st
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[0][cell: "A1"].style.namedStyle == nil)
         #expect(again.sheets[0][cell: "A1"].style.font.bold)
     }

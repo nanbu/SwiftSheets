@@ -16,7 +16,7 @@ do {
 var out = Workbook()
 out.sheets[0]["A1"] = "x"
 for format in [SheetFormat.xlsx, .ods] {
-    let protected = try out.data(as: format, password: "p")
+    let protected = try out.write(as: format, password: "p").data
     print("\(format) protected \(protected.count) bytes, reopened \(try Workbook(data: protected, password: "p").sheets.count) sheet(s)")
-    print("\(format) encrypt \(try encrypt(try out.data(as: format), as: format, password: "p").count) bytes")
+    print("\(format) encrypt \(try encrypt(try out.write(as: format).data, as: format, password: "p").count) bytes")
 }

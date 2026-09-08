@@ -68,7 +68,7 @@ import SwiftSheets
         wb.sheets[0].setWidth(6, ofColumn: "D")     // 47 px
         wb.sheets[0].setHeight(24, ofRow: 0)        // 32 px
         wb.sheets[0].addImage(try Self.image("tiny.jpg"), at: "D1", sizing: .fitCell)
-        let content = try Self.part("content.xml", of: try wb.data(as: .ods))
+        let content = try Self.part("content.xml", of: try wb.write(as: .ods).data)
         let frames = Self.frames(in: content)
         try #require(frames.count == 2)
         #expect(Self.close(Self.cm("svg:width", in: frames[0]), 2.54) && Self.close(Self.cm("svg:height", in: frames[0]), 1.27))
@@ -84,7 +84,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
         wb.sheets[0].addImage(try Self.image("tiny.gif"), over: "C3:D4")
-        let content = try Self.part("content.xml", of: try wb.data(as: .ods))
+        let content = try Self.part("content.xml", of: try wb.write(as: .ods).data)
         let frames = Self.frames(in: content)
         try #require(frames.count == 1)
         #expect(frames[0].contains(" table:end-cell-address=\"Sheet1.E5\" table:end-x=\"0cm\" table:end-y=\"0cm\""))
@@ -102,7 +102,7 @@ import SwiftSheets
         wb.sheets[0].merge("B2:C3")
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "C3")
         wb.sheets[0].addImage(try Self.image("tiny.gif"), over: "C3:D4")
-        let content = try Self.part("content.xml", of: try wb.data(as: .ods))
+        let content = try Self.part("content.xml", of: try wb.write(as: .ods).data)
         let frames = Self.frames(in: content)
         try #require(frames.count == 2)
         #expect(content.contains("table:number-columns-spanned=\"2\" table:number-rows-spanned=\"2\" office:value-type=\"string\"><draw:frame draw:z-index=\"0\""),
@@ -116,7 +116,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
         wb.sheets[0].addImage(try Self.image("tiny.gif"), at: "B2")
-        let data = try wb.data(as: .ods)
+        let data = try wb.write(as: .ods).data
         let frames = Self.frames(in: try Self.part("content.xml", of: data))
         try #require(frames.count == 2)
         #expect(frames[0].hasPrefix(" draw:z-index=\"0\" draw:name=\"Image 1\"") && frames[0].contains("Pictures/image1.png"))
@@ -130,7 +130,7 @@ import SwiftSheets
     @Test func namesStepPastThePartsASourceODSBroughtAlong() throws {
         var first = Workbook()
         first.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
-        var again = try Workbook(data: try first.data(as: .ods))
+        var again = try Workbook(data: try first.write(as: .ods).data)
         #expect(again.preserved.parts.keys.contains("Pictures/image1.png"))
         let gif = try Self.image("tiny.gif")
         again.sheets[0].addImage(gif, at: "C3")

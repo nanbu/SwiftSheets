@@ -114,7 +114,7 @@ import SwiftSheets
     func theStreamingReaderSeesWhatTheWholeReaderSees(_ format: SheetFormat) async throws {
         let url = Self.temporary("sample.\(format.rawValue)")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        try Self.sample().write(to: url, as: format)
+        _ = try Self.sample().write(to: url, as: format)
         try await Self.check(format, file: url)
     }
 
@@ -196,7 +196,7 @@ import SwiftSheets
         wb.sheets[0].tables[second]["C3"] = .number(Decimal(string: "2.5")!)
         wb.addSheet(named: "Other")
         wb.sheets[1]["A1"] = .bool(true)
-        let data = try wb.data(as: .numbers)
+        let data = try wb.write(as: .numbers).data
 
         let reader = try StreamingReader(data: data)
         #expect(reader.format == .numbers && reader.sheetNames == ["Canvas", "Other"])
@@ -221,7 +221,7 @@ import SwiftSheets
     @Test func numbersTilesAreExpandedOnlyWhenWalked() throws {
         var wb = Workbook()
         for i in 0..<20_000 { wb.sheets[0].append([.integer(i), .text("v\(i)"), .number(Decimal(i) + Decimal(string: "0.5")!)]) }
-        let data = try wb.data(as: .numbers)
+        let data = try wb.write(as: .numbers).data
         let index = try NumbersObjectIndex(data: data)
         let tileFiles = index.fileCount - index.keptFileCount
         let tiles = (20_000 + 255) / 256   // a tile every 256 rows, each in its own part (the template adds one of its own)
@@ -284,7 +284,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "folder"
         wb.sheets[0]["A2"] = .integer(7)
-        let data = try wb.data(as: .numbers)
+        let data = try wb.write(as: .numbers).data
         let dir = Self.temporary("Folder.numbers")
         defer { try? FileManager.default.removeItem(at: dir.deletingLastPathComponent()) }
         let zip = try ZipArchive(data: data)
@@ -335,7 +335,7 @@ import SwiftSheets
     @Test func aLargeODSIsWalkedAPieceAtATime() throws {
         var wb = Workbook()
         for i in 0..<100_000 { wb.sheets[0].append([.integer(i), .text("v\(i)")]) }
-        let data = try wb.data(as: .ods)
+        let data = try wb.write(as: .ods).data
         let reader = try ODSStreamingReader(data: data)
         var count = 0, total = 0
         try reader.forEachRow(inSheet: "Sheet1") { row in

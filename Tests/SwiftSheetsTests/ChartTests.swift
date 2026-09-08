@@ -25,7 +25,7 @@ import SwiftSheets
         chart.addSeries(values: "B2:B4", categories: "A2:A4", name: "売上")
         sheet.addChart(chart, over: "D2:K16")
         wb.sheets[0] = sheet
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
 
         let part = try Package.part("xl/charts/chart1.xml", of: data)
         #expect(part.contains("<c:barChart><c:barDir val=\"col\"/>"))
@@ -49,7 +49,7 @@ import SwiftSheets
             chart.addSeries(values: "A1:A3")
             chart.legend = false
             wb.sheets[0].addChart(chart, over: "C1:H10")
-            return try Package.part("xl/charts/chart1.xml", of: try wb.data(as: .xlsx))
+            return try Package.part("xl/charts/chart1.xml", of: try wb.write(as: .xlsx).data)
         }
         let pie = try part(.pie)
         #expect(pie.contains("<c:pieChart>") && !pie.contains("<c:catAx>") && !pie.contains("<c:legend>"))
@@ -87,7 +87,7 @@ import SwiftSheets
             chart.addSeries(values: "A1:A2")
             wb.sheets[0].addChart(chart, over: CellRange("C\(i * 12 + 1):J\(i * 12 + 10)")!)
         }
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let drawing = try Package.part("xl/drawings/drawing1.xml", of: data)
         #expect(drawing.matches(of: #/<xdr:graphicFrame/#).count == 3 && drawing.contains("<xdr:pic>"))
         let rels = try Package.part("xl/drawings/_rels/drawing1.xml.rels", of: data)
@@ -102,10 +102,10 @@ import SwiftSheets
         var chart = Chart(.line, title: "t")
         chart.addSeries(values: "A1:A5")
         wb.sheets[0].addChart(chart, over: "C1:J12")
-        let first = try wb.data(as: .xlsx)
+        let first = try wb.write(as: .xlsx).data
         let back = try Workbook(data: first)
         #expect(back.sheets[0].charts.isEmpty, "our own chart reads back as preserved bytes, not as a model chart")
-        let second = try back.data(as: .xlsx)
+        let second = try back.write(as: .xlsx).data
         for part in ["xl/charts/chart1.xml", "xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels"] {
             #expect(try ZipInspection(data: second).entry(named: part) == ZipInspection(data: first).entry(named: part),
                     "\(part) must survive the second save byte for byte")
@@ -119,7 +119,7 @@ import SwiftSheets
         wb.sheets[0].addChart(Chart(.column), over: "C1:H10")
         let result = try wb.write(to: URL(filePath: NSTemporaryDirectory() + "chart-empty.xlsx"))
         #expect(result.warnings.contains { $0.message.contains("no series") })
-        #expect(try ZipInspection(data: try wb.data(as: .xlsx)).entry(named: "xl/charts/chart1.xml") == nil)
+        #expect(try ZipInspection(data: try wb.write(as: .xlsx).data).entry(named: "xl/charts/chart1.xml") == nil)
 
         var full = Workbook()
         full.sheets[0]["A1"] = 1

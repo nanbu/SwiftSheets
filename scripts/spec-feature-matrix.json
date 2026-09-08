@@ -49,7 +49,7 @@
     },
     "common_api": {
       "read": "Workbook(contentsOf:) / Workbook.read(contentsOf:) -> ReadResult / wb.readWarnings",
-      "write": "wb.write(to:as:) -> WriteResult / wb.data(as:) / Workbook.convert(_:to:output:)",
+      "write": "wb.write(to:as:) -> WriteResult / wb.write(as:).data / Workbook.convert(_:to:as:)",
       "detect": "SheetFormat.detect(from:)",
       "warnings": "ConversionWarning(kind: .dropped/.degraded/.substituted, subject:, sheet:, location:, message:)"
     }

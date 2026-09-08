@@ -34,7 +34,7 @@ import SwiftSheets
         wb.sheets[0].protection = p
         wb.sheets[0] = { var s = ws; s.protection = p; return s }()
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
         #expect(xml.contains("password=\"DAA7\"") && xml.contains("sheet=\"1\""))
         #expect(xml.contains("sort=\"0\"") && xml.contains("autoFilter=\"0\""), "an allowed action is written as 0")
@@ -72,7 +72,7 @@ import SwiftSheets
         wb.sheets[0].protection = p
         #expect(p.algorithmName == "SHA-512" && p.spinCount == 10 && p.saltValue != nil && p.hashValue != nil)
 
-        let again = try Workbook(data: try wb.data(as: .xlsx)).sheets[0].protection
+        let again = try Workbook(data: try wb.write(as: .xlsx).data).sheets[0].protection
         #expect(again == p)
         #expect(again.modernPasswordMatches("secret") && !again.modernPasswordMatches("other"))
         #expect(again.passwordMatches("legacy"), "setting the modern password must not touch the legacy hash")
@@ -101,7 +101,7 @@ import SwiftSheets
         range.setModernPassword("range", spinCount: 10)
         wb.sheets[0].protectedRanges = [range]
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         #expect(try Package.part("xl/workbook.xml", of: data).contains("workbookAlgorithmName=\"SHA-512\""))
         let again = try Workbook(data: data)
         #expect(again.protection.modernPasswordMatches("book"))
@@ -123,7 +123,7 @@ import SwiftSheets
             var p = SheetProtection.on
             p.setModernPassword(password)                    // default spin count: what Excel itself writes
             wb.sheets[0].protection = p
-            let data = try wb.data(as: .xlsx)
+            let data = try wb.write(as: .xlsx).data
             let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
             #expect(xml.contains("algorithmName=\"SHA-512\"") && !xml.contains(" password=\""),
                     "the probe must carry the modern hash and no legacy one")
@@ -136,7 +136,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = CellValue.text("ブックの構造が保護されています")
         wb.protection.lockStructure = true
         wb.protection.setModernPassword("book")
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/workbook.xml", of: data)
         #expect(xml.contains("workbookAlgorithmName=\"SHA-512\"") && !xml.contains("workbookPassword=\""))
         try data.write(to: dir.appendingPathComponent("protect-workbook.xlsx"))
@@ -146,7 +146,7 @@ import SwiftSheets
     @Test func noProtectionNoElement() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        #expect(try !Package.part("xl/worksheets/sheet1.xml", of: try wb.data(as: .xlsx)).contains("sheetProtection"))
+        #expect(try !Package.part("xl/worksheets/sheet1.xml", of: try wb.write(as: .xlsx).data).contains("sheetProtection"))
     }
 
     // openpyxl: workbook/tests/test_protection.py::TestWorkbookProtection::test_ctor
@@ -158,7 +158,7 @@ import SwiftSheets
         wb.protection.lockStructure = true
         wb.protection.lockWindows = true
         wb.protection.setPassword("secret")
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/workbook.xml", of: data)
         #expect(xml.contains("<workbookProtection") && xml.contains("workbookPassword=\"DAA7\""))
         #expect(xml.contains("lockStructure=\"1\"") && xml.contains("lockWindows=\"1\""))
@@ -178,7 +178,7 @@ import SwiftSheets
         var range = ProtectedRange(name: "入力欄", "B2:D9")!
         range.setPassword("secret")
         wb.sheets[0].protectedRanges = [range]
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
         #expect(xml.contains("<protectedRange password=\"DAA7\" sqref=\"B2:D9\" name=\"入力欄\"/>"))
         // schema order: sheetProtection then protectedRanges
@@ -197,7 +197,7 @@ import SwiftSheets
         p.saltValue = "c2FsdA=="
         p.spinCount = 100_000
         wb.sheets[0].protection = p
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         #expect(try Package.part("xl/worksheets/sheet1.xml", of: data).contains("algorithmName=\"SHA-512\" hashValue=\"Zm9vYmFy\" saltValue=\"c2FsdA==\" spinCount=\"100000\""))
         #expect(try Workbook(data: data).sheets[0].protection == p)
     }
@@ -219,7 +219,7 @@ import SwiftSheets
         ], current: 0, shown: 0)
         wb.sheets[0] = ws
 
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
         #expect(xml.contains("<scenarios current=\"0\" show=\"0\" sqref=\"B1 B2\">"))
         #expect(xml.contains("<scenario name=\"強気\" count=\"2\" user=\"南部\" comment=\"上振れ\">"))

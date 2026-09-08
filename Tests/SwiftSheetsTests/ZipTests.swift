@@ -216,7 +216,7 @@ import SwiftSheets
     @Test func readOptionsCarryTheLimitsToTheReader() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         var options = ReadOptions()
         options.limits.maxEntries = 2
         #expect(throws: SheetError.self) { try Workbook.read(data, options: options) }
@@ -237,7 +237,7 @@ import SwiftSheets
         let source = try Data(contentsOf: ZipTests.fixtures.appendingPathComponent("preservation/charts-and-friends.xlsx"))
         var wb = try Workbook(data: source)
         wb.sheets[0]["A1"] = "edited"
-        let out = try wb.data(as: .xlsx)
+        let out = try wb.write(as: .xlsx).data
         let before = try ZipArchive(data: source), after = try ZipArchive(data: out)
         var checked = 0
         for name in before.names where name.hasPrefix("xl/charts/") || name.hasPrefix("xl/media/") || name.hasPrefix("xl/theme/") {

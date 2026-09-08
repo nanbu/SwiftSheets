@@ -40,7 +40,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = "x"
         let img = try Self.image("tiny.png")
         wb.sheets[0].addImage(img, at: "B2")
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
 
         let drawing = try Package.part("xl/drawings/drawing1.xml", of: data)
         #expect(drawing.contains("<xdr:oneCellAnchor"))
@@ -61,7 +61,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
         wb.sheets[0].addImage(try Self.image("tiny.gif"), over: "B2:D6")
-        let drawing = try Package.part("xl/drawings/drawing1.xml", of: try wb.data(as: .xlsx))
+        let drawing = try Package.part("xl/drawings/drawing1.xml", of: try wb.write(as: .xlsx).data)
         #expect(drawing.contains("<xdr:twoCellAnchor"))
         #expect(drawing.contains("<xdr:from><xdr:col>1</xdr:col>"))
         #expect(drawing.contains("<xdr:to><xdr:col>4</xdr:col>"), "the far corner is one past the range")
@@ -109,10 +109,10 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
-        let first = try wb.data(as: .xlsx)
+        let first = try wb.write(as: .xlsx).data
         let back = try Workbook(data: first)
         #expect(back.sheets[0].images.isEmpty, "our own picture reads back as preserved bytes, not as a model image")
-        let second = try back.data(as: .xlsx)
+        let second = try back.write(as: .xlsx).data
         for part in ["xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/media/image1.png"] {
             #expect(try ZipInspection(data: second).entry(named: part) == ZipInspection(data: first).entry(named: part),
                     "\(part) must survive the second save byte for byte")

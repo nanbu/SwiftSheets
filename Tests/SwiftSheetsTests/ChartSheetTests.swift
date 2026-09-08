@@ -98,7 +98,7 @@ import SwiftSheets
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let input = dir.appendingPathComponent("book.xlsx")
-        try workbook.write(to: input)
+        _ = try workbook.write(to: input)
         let p = Process()
         p.executableURL = URL(fileURLWithPath: soffice)
         p.arguments = ["--headless", "--convert-to", "pdf", "--outdir", dir.path, input.path]

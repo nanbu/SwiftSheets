@@ -19,7 +19,7 @@ import SwiftSheets
 
     /// `Workbook.inspect` / `Workbook.read` and the set's own methods are one path, not two.
     @Test func theConveniencesAreTheFullSet() throws {
-        let data = try Self.sample().data(as: .xlsx)
+        let data = try Self.sample().write(as: .xlsx).data
         let viaWorkbook = try Workbook.inspect(data)
         let viaSet = try CodecSet.all.inspect(data)
         #expect(viaWorkbook == viaSet)
@@ -31,7 +31,7 @@ import SwiftSheets
 
     /// A set without a format refuses a file of that format by name; the same bytes open through the full set.
     @Test func aFormatOutsideASetIsRefusedByName() throws {
-        let ods = try Self.sample().data(as: .ods)
+        let ods = try Self.sample().write(as: .ods).data
         let xlsxOnly = CodecSet([XLSXCodec.self])
         #expect(xlsxOnly.formats == [.xlsx] && !xlsxOnly.contains(.ods))
         do {

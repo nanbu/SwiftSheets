@@ -31,7 +31,7 @@ import SwiftSheets
 
     /// Read one at a time and read side by side agree, cell for cell and warning for warning.
     @Test func sideBySideReadsTheSameWorkbook() throws {
-        let data = try Self.workbook(sheets: 6, rows: 200).data(as: .xlsx)
+        let data = try Self.workbook(sheets: 6, rows: 200).write(as: .xlsx).data
         let serial = try Workbook.read(data, format: .xlsx, options: ReadOptions(concurrency: 1))
         let parallel = try Workbook.read(data, format: .xlsx, options: ReadOptions(concurrency: 6))
         #expect(parallel.workbook == serial.workbook)
@@ -46,7 +46,7 @@ import SwiftSheets
     /// The warnings come in sheet order whichever sheet finished first: a selection that leaves four sheets out
     /// reports them in the order the workbook lists them, every time.
     @Test func warningsKeepSheetOrder() throws {
-        let data = try Self.workbook(sheets: 5, rows: 40).data(as: .xlsx)
+        let data = try Self.workbook(sheets: 5, rows: 40).write(as: .xlsx).data
         for _ in 0..<5 {
             let result = try Workbook.read(data, format: .xlsx, options: ReadOptions(sheets: .named(["S3"]), concurrency: 5))
             let left = result.warnings.filter { $0.message.contains("left out by ReadOptions.sheets") }.map(\.sheet)
@@ -60,7 +60,7 @@ import SwiftSheets
     /// Two sheets missing their parts at once: the failure thrown is the earlier one in the workbook's order,
     /// every time, whichever the parsers reached first.
     @Test func theFirstFailureInSheetOrderIsTheOneThrown() throws {
-        let data = try Self.workbook(sheets: 4, rows: 40).data(as: .xlsx)
+        let data = try Self.workbook(sheets: 4, rows: 40).write(as: .xlsx).data
         let zip = try ZipArchive(data: data)
         let writer = ZipWriter()
         for name in zip.entries.keys.sorted() where !name.hasSuffix("sheet2.xml") && !name.hasSuffix("sheet4.xml") {
@@ -97,7 +97,7 @@ import SwiftSheets
     /// The style caches are filled before any sheet starts, and an xf that does not exist is answered with the
     /// default and never cached — so a sheet that names one cannot make a parser running beside it write.
     @Test func theStyleCachesAreFilledUpFrontAndNeverGrowForAMissingXF() throws {
-        let data = try Self.workbook(sheets: 1, rows: 3).data(as: .xlsx)
+        let data = try Self.workbook(sheets: 1, rows: 3).write(as: .xlsx).data
         let zip = try ZipArchive(data: data)
         let styles = StylesParser()
         try styles.run(try zip.read("xl/styles.xml"), part: "xl/styles.xml")

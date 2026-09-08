@@ -33,7 +33,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = "値"
         wb.sheets[0][cell: "A1"].comment = CellNote("確認してください\n2 行目", author: "南部")
         wb.sheets[0][cell: "C3"].comment = CellNote("another", author: "B")
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let zip = try ZipInspection(data: data)
 
         let comments = String(decoding: try #require(zip.entry(named: "xl/comments/comment1.xml")), as: UTF8.self)
@@ -62,7 +62,7 @@ import SwiftSheets
         wb.sheets[0][cell: "B2"].comment = CellNote("メモ", author: "作者")
         wb.addSheet(named: "Two")
         wb.sheets[1][cell: "D4"].comment = CellNote("second sheet")
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[0][cell: "B2"].comment == CellNote("メモ", author: "作者"))
         #expect(again.sheets[1][cell: "D4"].comment?.text == "second sheet")
         #expect(again.sheets[1][cell: "D4"].comment?.author == "")
@@ -74,7 +74,7 @@ import SwiftSheets
         var note = CellNote("大きい", author: "A")
         note.width = 260; note.height = 130
         wb.sheets[0][cell: "A1"].comment = note
-        let again = try Workbook(data: try wb.data(as: .xlsx))
+        let again = try Workbook(data: try wb.write(as: .xlsx).data)
         #expect(again.sheets[0][cell: "A1"].comment?.width == 260)
         #expect(again.sheets[0][cell: "A1"].comment?.height == 130)
     }
@@ -84,7 +84,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "値"
         wb.sheets[0][cell: "A1"].comment = CellNote("ODS 由来のメモ", author: "LibreOffice")
-        let viaODS = try Workbook(data: try wb.data(as: .ods))
+        let viaODS = try Workbook(data: try wb.write(as: .ods).data)
         #expect(viaODS.sheets[0][cell: "A1"].comment?.text == "ODS 由来のメモ")
         let result = try viaODS.write(as: .xlsx)
         #expect(!result.warnings.contains { $0.message.contains("note") })
@@ -96,7 +96,7 @@ import SwiftSheets
     @Test func editingANoteRewritesTheSourcePartsInPlace() throws {
         var wb = try Workbook(data: try Self.fixture("preservation/charts-and-friends.xlsx"))
         wb.sheets[0][cell: "A1"].comment = CellNote("差し替え", author: "南部")
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let zip = try ZipInspection(data: data)
         let comments = String(decoding: try #require(zip.entry(named: "xl/comments/comment1.xml")), as: UTF8.self)
         #expect(comments.contains("差し替え"))
@@ -114,7 +114,7 @@ import SwiftSheets
         for i in wb.sheets.indices {
             for (ref, _) in wb.sheets[i].notes { wb.sheets[i][cell: ref].comment = nil }
         }
-        let data = try wb.data(as: .xlsx)
+        let data = try wb.write(as: .xlsx).data
         let zip = try ZipInspection(data: data)
         #expect(!zip.contains("xl/comments/comment1.xml"))
         #expect(!zip.contains("xl/comments/comment2.xml"))

@@ -43,11 +43,11 @@ import SwiftSheets
             }
         }
         // whatever of the above is missing, the generated minimum still exercises every reader
-        out.append(("generated.xlsx", (try? Workbook(sheets: [sampleSheet()]).data(as: .xlsx)) ?? Data()))
+        out.append(("generated.xlsx", (try? Workbook(sheets: [sampleSheet()]).write(as: .xlsx).data) ?? Data()))
         // three sheets, so that a mutant reaches the side-by-side read (spec Appendix B.41) with two broken parts at once
-        out.append(("generated-3-sheets.xlsx", (try? Workbook(sheets: (1...3).map { i in var s = sampleSheet(); s.name = "S\(i)"; return s }).data(as: .xlsx)) ?? Data()))
-        out.append(("generated.ods", (try? Workbook(sheets: [sampleSheet()]).data(as: .ods)) ?? Data()))
-        out.append(("generated.numbers", (try? Workbook(sheets: [sampleSheet()]).data(as: .numbers)) ?? Data()))
+        out.append(("generated-3-sheets.xlsx", (try? Workbook(sheets: (1...3).map { i in var s = sampleSheet(); s.name = "S\(i)"; return s }).write(as: .xlsx).data) ?? Data()))
+        out.append(("generated.ods", (try? Workbook(sheets: [sampleSheet()]).write(as: .ods).data) ?? Data()))
+        out.append(("generated.numbers", (try? Workbook(sheets: [sampleSheet()]).write(as: .numbers).data) ?? Data()))
         out.append(("generated.csv", Data("a,b,c\n1,2,\"x\ny\"\n".utf8)))
         return out.filter { !$0.1.isEmpty }
     }()
@@ -152,7 +152,7 @@ import SwiftSheets
                     opened += 1
                     // a workbook we accepted must also survive being written back — the model must not hold
                     // values no writer can express
-                    _ = try wb.data(as: SheetFormat.xlsx)
+                    _ = try wb.write(as: SheetFormat.xlsx).data
                 }
             } catch let error as SheetError {
                 _ = error.description   // every case must be able to describe itself

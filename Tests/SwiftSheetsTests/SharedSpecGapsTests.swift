@@ -23,14 +23,14 @@ import SwiftSheets
         let back = try Workbook(data: written.data)
         #expect(back.protection.lockStructure)
         // and the way back to Excel keeps it
-        let xlsx = try Workbook(data: try back.data(as: .xlsx))
+        let xlsx = try Workbook(data: try back.write(as: .xlsx).data)
         #expect(xlsx.protection.lockStructure)
 
         // an unlocked workbook writes no attribute, and reads back unlocked
         var plain = Workbook(); plain.sheets[0]["A1"] = "y"
-        let plainContent = String(decoding: try ZipArchive(data: try plain.data(as: .ods)).read("content.xml"), as: UTF8.self)
+        let plainContent = String(decoding: try ZipArchive(data: try plain.write(as: .ods).data).read("content.xml"), as: UTF8.self)
         #expect(!plainContent.contains("structure-protected"))
-        #expect(!(try Workbook(data: try plain.data(as: .ods))).protection.lockStructure)
+        #expect(!(try Workbook(data: try plain.write(as: .ods).data)).protection.lockStructure)
     }
 
     /// What ODF cannot say about workbook protection is still said: the window lock, the revision lock and the
@@ -57,7 +57,7 @@ import SwiftSheets
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let file = dir.appendingPathComponent("locked.ods")
-        try wb.write(to: file)
+        _ = try wb.write(to: file)
         // ODS → ODS through LibreOffice: a re-save by the reference implementation
         let outdir = dir.appendingPathComponent("out")
         try FileManager.default.createDirectory(at: outdir, withIntermediateDirectories: true)
@@ -94,9 +94,9 @@ import SwiftSheets
         #expect(back.calculationSettings.iterationEnabled && back.calculationSettings.iterationSteps == 50)
         #expect(back.calculationSettings.iterationMaximumDifference == 0.01 && back.calculationSettings.precisionAsShown)
         // XLSX → ODS → XLSX keeps them: the two spellings mean the same thing
-        let ods = try Workbook(data: try back.data(as: .ods))
+        let ods = try Workbook(data: try back.write(as: .ods).data)
         #expect(ods.calculationSettings.iterationEnabled && ods.calculationSettings.iterationSteps == 50 && ods.calculationSettings.precisionAsShown)
-        let again = try Workbook(data: try ods.data(as: .xlsx))
+        let again = try Workbook(data: try ods.write(as: .xlsx).data)
         #expect(again.calculationSettings.iterationEnabled && again.calculationSettings.precisionAsShown)
         // a setting only ODF has is still reported when writing XLSX
         var regex = Workbook(); regex.sheets[0]["A1"] = 1
@@ -113,7 +113,7 @@ import SwiftSheets
         """
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        var package = try ZipArchive(data: try wb.data(as: .xlsx))
+        var package = try ZipArchive(data: try wb.write(as: .xlsx).data)
         var zip = ZipWriter()
         for name in package.names {
             zip.add(name, name == "xl/workbook.xml" ? Data(workbook.utf8) : try package.read(name))
@@ -121,11 +121,11 @@ import SwiftSheets
         let read = try Workbook(data: zip.finish())
         #expect(read.calculationSettings.iterationEnabled && read.calculationSettings.iterationSteps == 7)
         #expect(read.preserved.calcPrAttributes["calcMode"] == "manual")
-        let saved = String(decoding: try ZipArchive(data: try read.data(as: .xlsx)).read("xl/workbook.xml"), as: UTF8.self)
+        let saved = String(decoding: try ZipArchive(data: try read.write(as: .xlsx).data).read("xl/workbook.xml"), as: UTF8.self)
         #expect(saved.contains("calcMode=\"manual\"") && saved.contains("refMode=\"R1C1\"") && saved.contains("calcId=\"191029\""), Comment(rawValue: saved))
         #expect(saved.contains("iterate=\"1\"") && saved.contains("iterateCount=\"7\"") && saved.contains("fullCalcOnLoad=\"1\""))
         _ = package
-        package = try ZipArchive(data: try Workbook().data(as: .xlsx))
+        package = try ZipArchive(data: try Workbook().write(as: .xlsx).data)
         let fresh = String(decoding: try package.read("xl/workbook.xml"), as: UTF8.self)
         #expect(fresh.contains("<calcPr calcId=\"124519\" fullCalcOnLoad=\"1\"/>"), Comment(rawValue: fresh))
     }

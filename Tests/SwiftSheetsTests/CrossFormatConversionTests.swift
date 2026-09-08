@@ -167,7 +167,7 @@ import SwiftSheets
         // one warning: the chart. The document's pop-up menu is read as a validation, not warned about.
         #expect(read.warnings.count == 1, Comment(rawValue: "\(read.warnings.map(\.message))"))
 
-        let converted = try Workbook.convert(source, to: .xlsx, output: directory.appending(path: "canvas.xlsx"))
+        let converted = try Workbook.convert(source, to: directory.appending(path: "canvas.xlsx"), as: .xlsx)
         for warning in read.warnings {
             #expect(converted.warnings.contains(warning), Comment(rawValue: """
                 convert() lost the read's warning "\(warning.message)" — it is the only place a caller could have seen it.

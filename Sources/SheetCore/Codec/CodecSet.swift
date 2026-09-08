@@ -110,7 +110,7 @@ public struct CodecSet: Sendable {
     /// The write is atomic: the bytes land in a temporary file that replaces the destination only once it is complete.
     /// Saving over the file you just opened is this library's whole reason for existing, so a crash (or a full disk)
     /// half-way through must leave the original where it was.
-    @discardableResult
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
     public func write(_ workbook: Workbook, to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         let result = try write(workbook, as: workbook.outputFormat(for: url, requested: format), options: options)
 #if os(WASI)
@@ -130,8 +130,8 @@ public struct CodecSet: Sendable {
     /// (spec Appendix B.23). The read's warnings come first, in the order the trip made them.
     ///
     /// `suggestion` is unchanged: which format would have kept more is a question about the write.
-    @discardableResult
-    public func convert(_ source: URL, to format: SheetFormat, output: URL, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) throws -> WriteResult {
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
+    public func convert(_ source: URL, to output: URL, as format: SheetFormat, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) throws -> WriteResult {
         let opened = try read(contentsOf: source, options: readOptions)
         let written = try write(opened.workbook, to: output, as: format, options: writeOptions)
         guard !opened.warnings.isEmpty else { return written }
@@ -201,7 +201,7 @@ extension Workbook {
     /// The warning is raised by `CodecSet.write` rather than inside each codec, so that the ODF-only model can grow
     /// without touching a codec that predates it — `SheetXLSX` in particular is frozen. The cost of that choice is
     /// that calling `XLSXCodec.write` directly does not raise it; going through a set (or the umbrella's
-    /// `Workbook.write` / `data(as:)`) does.
+    /// `Workbook.write`) does.
     package func openDocumentOnlyWarnings(for format: SheetFormat) -> [ConversionWarning] {
         guard format != .ods else { return [] }
         var out: [ConversionWarning] = []

@@ -40,6 +40,18 @@ Both directions answer with a result — `Workbook.read(contentsOf:)` returns a 
 `wb.write(to:)` a `WriteResult` (bytes + warnings + a suggested format when the losses are serious). The convenience
 `Workbook(contentsOf:)` keeps the warnings on `readWarnings`, so nothing is ever dropped in silence.
 
+File writes and conversions warn at compile time if their result is unused. Inspect `result.warnings`, or use
+`_ = try wb.write(to: url)` to explicitly ignore the result. A file write has already saved when it returns;
+to review losses before saving, call `wb.write(as:)`, inspect the result, then save that same `result.data`
+with `try result.data.write(to: url, options: .atomic)`. Include `wb.readWarnings` when reviewing earlier read losses.
+
+For bytes only, use `try wb.write(as: .xlsx).data` (or add `password:` with `SheetEncrypt`).
+The former `data(as:)` conveniences have been removed; retain the `WriteResult` to inspect warnings and suggestions.
+
+Convert with `try Workbook.convert(source, to: destination, as: .csv)` or
+`try codecs.convert(source, to: destination, as: .csv)`. The format is required, even when the destination has
+an extension. The former `to: format, output: destination` labels have been removed.
+
 ## Installation
 
 ```swift
@@ -197,9 +209,9 @@ is reported, never dropped in silence.
 | `SheetCSV` | `CSVCodec` (RFC 4180 + real-world dialects; UTF-8 BOM auto-detection, explicit encodings) | SheetCore |
 | `SheetODS` | `ODSCodec` (ODF 1.3; mimetype stored first, RLE rows / columns, OpenFormula via the AST's ODS dialect, conditional formats and validations, master pages, data pilots), `ODSStreamingReader` / `ODSStreamingWriter` | SheetCore |
 | `SheetNumbers` | `NumbersCodec` (IWA: Snappy + dynamic Protobuf; schema / registry / function table / constants / font map as JSON resources), `NumbersStreamingReader` / `NumbersStreamingWriter` | SheetCore |
-| `SwiftSheets` | everything: `CodecSet.all` and its conveniences — `Workbook(contentsOf:)`, `Workbook.inspect`, `write(to:as:)`, `data(as:)`, `Workbook.convert`, `StreamingReader(contentsOf:)` / `StreamingWriter(url:)` for any format | all of the above |
+| `SwiftSheets` | everything: `CodecSet.all` and its conveniences — `Workbook(contentsOf:)`, `Workbook.inspect`, `write(to:as:)`, `write(as:)`, `Workbook.convert`, `StreamingReader(contentsOf:)` / `StreamingWriter(url:)` for any format | all of the above |
 | `SheetDecrypt` | `decrypt(_:password:)` and `Workbook(contentsOf:password:)` / `Workbook.inspect(…password:)` / `StreamingReader(contentsOf:password:)`: AES's inverse cipher, key derivation, the compound file's reader, the OOXML / ODF package forms opened. No encryption (writing) code | SwiftSheets |
-| `SheetEncrypt` | `encrypt(_:as:password:)` and `wb.write(to:password:)` / `data(as:password:)`: the cipher, salts, the compound file written. Re-exports SheetDecrypt | SheetDecrypt |
+| `SheetEncrypt` | `encrypt(_:as:password:)` and `wb.write(to:password:)` / `write(as:password:)`: the cipher, salts, the compound file written. Re-exports SheetDecrypt | SheetDecrypt |
 
 ## Model in one paragraph
 
@@ -221,7 +233,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `load_workbook(path)` / `data_only=True` | `Workbook(contentsOf:)` / `ReadOptions(dataOnly: true)`; `Workbook.read(contentsOf:)` for the warnings too |
 | (no equivalent) | `Workbook.inspect(contentsOf:)` — the sheets, how many cells each declares, what the package expands to and who wrote it, before any cell is read; `InspectOptions(countCells: true)` counts what is really there. How to choose a `ReadOptions.cellLimit` for a file you do not trust |
 | `keep_vba=True` | not needed — VBA is always preserved |
-| `Workbook()`, `wb.save(path)` | `Workbook()`, `wb.write(to:)` → `WriteResult` (`@discardableResult`) |
+| `Workbook()`, `wb.save(path)` | `Workbook()`, `wb.write(to:)` → `WriteResult` (inspect its warnings) |
 | `wb.sheetnames`, `wb['Sales']`, `wb.active` | `wb.sheetNames`, `wb.sheets["Sales"]`, `wb.activeSheet` |
 | `create_sheet`, `remove`, `copy_worksheet`, `move_sheet` | `addSheet(named:at:)`, `removeSheet(named:)`, `duplicateSheet(named:as:)`, `moveSheet(named:to:)` |
 | (no equivalent — reference types have no write-back to forget) | `wb.editSheet(named: "Sales") { sheet in … }` — scoped editing: applied when the closure returns, discarded whole when it throws, `SheetError.sheetNotFound` when the name is absent |
