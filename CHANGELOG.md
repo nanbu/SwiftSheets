@@ -7,7 +7,7 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.20.0] — 2026-09-09
 
 ### Changed
 
@@ -22,11 +22,6 @@ writes, so the constant, the README's status line and the tag always name the sa
   `CSVStreamingReader.pieceSize` have no public replacement. Calling a codec directly used to skip the umbrella's
   ODF-only loss warnings; through the set they are reported, so a migrated call may see warnings it did not before.
   Detection, formats, options, results and the refusal for an unregistered format are otherwise unchanged.
-
-- **`StreamingReader.tableNames(inSheet:)`** (Appendix B.50) answers what a sheet's tables are called, in the order
-  `table:` counts through and in the same number `tableCount(inSheet:)` reports. A table the format does not name is
-  `nil` — every table of an XLSX, ODS or CSV sheet, and a Numbers table whose document records no name; nothing is
-  invented to fill the gap.
 
 - **Renamed both conversion APIs** (Appendix B.49): `Workbook.convert` and `CodecSet.convert` now take
   `to: destination, as: format` instead of `to: format, output: destination`. The format remains required.
@@ -54,7 +49,19 @@ writes, so the constant, the README's status line and the tag always name the sa
   non-grid sheets, independently of tab visibility. State follows renaming and moving; a duplicate gets its own
   preservation and is a plain grid. A chart sheet left out of the selection stays `.nonGrid`. Writing cells
   does not make an unread or non-grid source readable; existing loss warnings still apply.
+- **`StreamingReader.tableNames(inSheet:)`** (Appendix B.50) answers what a sheet's tables are called, in the order
+  `table:` counts through and in the same number `tableCount(inSheet:)` reports. A table the format does not name is
+  `nil` — every table of an XLSX, ODS or CSV sheet, and a Numbers table whose document records no name; nothing is
+  invented to fill the gap.
+- `Codec` and the values each product publishes: `.xlsx` / `.xlsm` (SheetXLSX), `.ods` (SheetODS),
+  `.numbers` (SheetNumbers), `.csv` (SheetCSV). A `Codec` exposes only `format` and cannot be constructed.
 - An external-package check for the public preservation API and inaccessible internals, run on macOS and Linux CI.
+- An external-package check for the save APIs — each of the five file writes and conversions must warn when
+  its result is ignored, fail under warnings-as-errors, and accept an explicit use or discard — run on macOS
+  and Linux CI.
+- An external-package check for the codec API — four link configurations build and run, and the codec types,
+  `Codec`'s initializer, the old `CodecSet` initializer and the names without replacements must not resolve —
+  run on macOS and Linux CI.
 
 ## [0.19.1] — 2026-09-06
 
@@ -952,6 +959,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.20.0]: https://github.com/nanbu/SwiftSheets/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/nanbu/SwiftSheets/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/nanbu/SwiftSheets/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/nanbu/SwiftSheets/compare/0.17.2...0.18.0
