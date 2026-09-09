@@ -168,9 +168,12 @@ package protocol StreamingRowSink: AnyObject {
     func addSheet(named name: String) throws
     /// Appends a row of cells, formatting and all, at whatever row comes next.
     func append(_ cells: [Cell]) throws
-    /// Writes what is pending and completes the file. Calling it twice is harmless; not calling it leaves the file
-    /// unfinished.
+    /// Writes what is pending and completes the file. The `StreamingWriter` in front of this calls it once, and
+    /// renames the finished file over the destination only if it returns (spec Appendix B.51).
     func close() throws
+    /// Lets go of everything without finishing: file handles closed, whatever was spilled to disk released. Called
+    /// after a failure, on `cancel()`, and from `deinit` — so it never throws and never leaves work for later.
+    func cancel()
     /// What the format could not carry as asked — a number format it has no spelling for, a formula written as
     /// its value. Never silent (spec §6).
     var warnings: [ConversionWarning] { get }

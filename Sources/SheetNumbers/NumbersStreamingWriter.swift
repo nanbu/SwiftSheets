@@ -23,7 +23,10 @@ package final class NumbersStreamingWriter: StreamingRowSink {
     private let zip: ZipFileWriter
     private var sheetIDs: [Int] = []
     private var table: NumbersWriter.StreamedTable
+    /// `close()` ran to the end: the document on disk is complete.
     private var closed = false
+    /// The writer was let go of instead: the handle is gone and nothing more will be written.
+    private var cancelled = false
     /// What the rows carried that the format, or this writer, could not: final once `close()` has run.
     package private(set) var warnings: [ConversionWarning] = []
 
@@ -41,7 +44,7 @@ package final class NumbersStreamingWriter: StreamingRowSink {
 
     /// Finishes the sheet being written and starts another.
     package func addSheet(named name: String) throws {
-        precondition(!closed, "the writer is closed")
+        try checkOpen()
         try writer.streamFinish(&table) { try self.zip.add($0, $1, stored: true) }
         let sid = try writer.streamCloneSheet()
         sheetIDs.append(sid)
@@ -50,20 +53,31 @@ package final class NumbersStreamingWriter: StreamingRowSink {
 
     /// Appends a row of cells, formatting and all, at whatever row comes next.
     package func append(_ cells: [Cell]) throws {
-        precondition(!closed, "the writer is closed")
+        try checkOpen()
         try writer.streamAppend(cells, to: &table) { try self.zip.add($0, $1, stored: true) }
     }
 
     /// Packs the last tile, writes the rest of the document and closes the file. Calling it twice is harmless.
     package func close() throws {
-        guard !closed else { return }
-        closed = true
+        guard !closed, !cancelled else { return }
         try writer.streamFinish(&table) { try self.zip.add($0, $1, stored: true) }
         try writer.streamFinishDocument(sheets: sheetIDs)
         try writer.doc.encoded(into: zip)
         try zip.finish()
         warnings = writer.warnings
+        closed = true   // last, so a failure anywhere above leaves a writer that knows it did not finish
     }
 
-    deinit { if !closed { zip.abandon() } }
+    /// Drops the package: the handle goes now, and the unfinished file is the caller's to remove.
+    package func cancel() {
+        guard !closed, !cancelled else { return }
+        cancelled = true
+        zip.abandon()
+    }
+
+    private func checkOpen() throws {
+        guard !closed, !cancelled else { throw SheetError.invalidWorkbook("this writer is finished; rows cannot be added to it") }
+    }
+
+    deinit { if !closed, !cancelled { zip.abandon() } }
 }

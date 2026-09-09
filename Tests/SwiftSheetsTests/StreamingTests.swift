@@ -30,7 +30,7 @@ import SwiftSheets
         try writer.append([styled])
         try writer.addSheet(named: "空")
         try writer.append([.text("second sheet")])
-        try writer.close()
+        _ = try writer.close()
 
         let wb = try Workbook(contentsOf: url)
         #expect(wb.sheetNames == ["売上", "空"])
@@ -136,7 +136,7 @@ import SwiftSheets
         let writer = try StreamingWriter(url: url, sheetName: "Big")
         try writer.append([.text("n"), .text("square")])
         for i in 1...rows { try writer.append([.integer(i), .integer(i * i)]) }
-        try writer.close()
+        _ = try writer.close()
 
         var count = 0, total = 0
         let reader = try StreamingReader(contentsOf: url)
@@ -163,7 +163,7 @@ import SwiftSheets
         try writer.append([.text("x")])
         try writer.addSheet(named: "B")
         try writer.append([.integer(1)])
-        try writer.close()
+        _ = try writer.close()
 
         let data = try Data(contentsOf: url)
         let zip = try ZipArchive(data: data)

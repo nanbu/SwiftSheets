@@ -1910,6 +1910,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.40 Draft</td><td>2026-09-09</td><td>逐次書き込みを一時ファイル経由にし、正常終了したときだけ保存先へ反映する。close()がStreamingWriteResultを返し、cancel()とCodecSet.withStreamingWriterを追加（B.51）。</td></tr>
     <tr><td>4.39 Draft</td><td>2026-09-09</td><td>形式の選択を公開のCodec値へ。SpreadsheetCodecと形式別実装をpackageへ閉じ、StreamingReader.tableNames(inSheet:)を追加（B.50）。</td></tr>
     <tr><td>4.38 Draft</td><td>2026-09-08</td><td>WorkbookとCodecSetのconvertをto:出力先・as:形式へ統一（B.49）。</td></tr>
     <tr><td>4.37 Draft</td><td>2026-09-08</td><td>通常版・暗号化版のdata(as:)を撤去し、write(as:).dataへ統合（B.48）。</td></tr>
@@ -5881,6 +5882,88 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   正の対照はSheetXLSXだけ・SheetCSVだけ・複数製品・SwiftSheetsの4構成での<code>CodecSet([.xlsx, .csv])</code>と空配列、
   <code>codec(for:)</code>が返す値の<code>format</code>。負の対照は形式別コーデック型・<code>Codec</code>のinitializer・
   importしていない形式のプロパティ・返されたCodecのread・代替を置かない2宣言。CIのmacOSとLinuxで実行する。</p>
+  <h3>B.51 逐次書き込みは正常終了したときだけ保存先へ反映する（Rev 4.40）</h3>
+  <p>2026-09-09承認。逐次書き込み（B.42）の4つの書き手は保存先そのものを開いていた——CSVは初期化時に<code>createFile</code>、
+  XLSX・XLSM・Numbersは初期化時に<code>ZipFileWriter</code>、ODSは<code>close</code>の中で。途中でthrowすれば、
+  以前からそこにあったファイルは切り詰められたまま残る。全形式を、<strong>保存先と同じ親ディレクトリの一時ファイルへ書き、
+  終了処理まで成功したときだけ<code>rename</code>相当1回で反映する</strong>方式にそろえる。失敗した経路は保存先を触らない。
+  全載せの<code>write(to:as:)</code>が既に持っていた契約（B.47）を、逐次書き込みにも与える。</p>
+
+  <p>公開APIは3点。<code>StreamingWriter.close()</code>は<code>StreamingWriteResult</code>を返す（Voidから変更。
+  <code>@discardableResult</code>は付けない）。<code>StreamingWriter.cancel()</code>を足す——保存せずに資源を片づける。
+  <code>CodecSet.withStreamingWriter(to:as:sheetName:epoch:csv:_:)</code>を足し、クロージャーが正常に戻ったときだけ
+  ライブラリーが<code>close</code>と反映を行う。既存の<code>StreamingWriter(url:)</code>と
+  <code>CodecSet.streamingWriter(url:format:sheetName:epoch:csv:)</code>は引数を変えず、同じ保存契約を使う。
+  補助APIだけを安全にする案は採らない（手動APIに直接上書きの危険が残る）。手動APIの廃止も採らない
+  （行を供給する処理が複数の関数に分かれる用途がある）。SwiftSheets側に同義の別名APIは足さない——
+  <code>CodecSet.all.withStreamingWriter(…)</code>で足りる。</p>
+
+  <p><code>StreamingWriteResult</code>は<code>format</code>（実際に選んだ形式）と<code>warnings</code>（終了時に確定した損失）
+  だけを持つ公開structで、公開initializerを持たない。<code>Data</code>は返さない（完成ファイルを全量メモリへ戻すことになる）。
+  行数・バイト数・<code>suggestion</code>も載せない——<code>WriteResult</code>と同じ名前を持つ不完全な代替結果にはしない。
+  形式の決定は明示値→保存先の拡張子→xlsxの現行規則、未登録形式の断り方・CSVオプション・日付基準も現行を維持する。</p>
+
+  <p>保存の順序は4段。(1) 保存先と同じ親に、衝突しない名前の一時ファイルを<code>O_EXCL</code>で確保する
+  （権限は<code>0o666</code>とumaskに任せる。現行の<code>createFile</code>と同じ見え方にする）。(2) 行を書く——
+  保存先は触らない。(3) 終了処理（ZIPの目録・バッファの掃き出し・全ハンドルのclose）。(4) <code>rename</code>相当1回で反映し、
+  結果を返す。反映の後に失敗しうる処理は置かない。保存先がディレクトリ・シンボリックリンクなら開始時に断る
+  （<code>ioFailure</code>）。親ディレクトリは作らない。一時ファイルは保存先と同じ親に作るので、
+  出力先ディスクに完成出力1つ分の追加空き容量が要る（ODSの行の退避領域はそれとは別に要る）。</p>
+
+  <div class="compare"><table>
+    <tr><th>現在の状態</th><th>操作</th><th>結果</th></tr>
+    <tr><td>open</td><td>append / addSheetが成功</td><td>openのまま</td></tr>
+    <tr><td>open</td><td>append / addSheetがthrow</td><td>failedへ。最初のエラーを記録し、書き込みを再開しない</td></tr>
+    <tr><td>open</td><td>closeが終了処理と反映まで成功</td><td>finishedへ。確定結果を保持して返す</td></tr>
+    <tr><td>open</td><td>closeの終了処理または反映が失敗</td><td>failedへ。成功結果を返さない。保存先は元のまま</td></tr>
+    <tr><td>finished</td><td>closeを再度呼ぶ</td><td>保存を繰り返さず、同じ確定結果を返す</td></tr>
+    <tr><td>failed / cancelled</td><td>close・append・addSheet</td><td><code>invalidWorkbook</code>で断る。クラッシュさせない</td></tr>
+    <tr><td>finished</td><td>append / addSheet</td><td><code>invalidWorkbook</code>で断る</td></tr>
+    <tr><td>open / failed</td><td>cancel</td><td>保存せず資源を片づけ、cancelledへ。後始末の失敗はthrowする</td></tr>
+    <tr><td>cancelled</td><td>cancel</td><td>残った後始末だけ再試行する</td></tr>
+    <tr><td>finished</td><td>cancel</td><td>何もしない。完成したファイルを消さない</td></tr>
+  </table></div>
+
+  <p>状態は内部実装で、公開の<code>state</code>プロパティは足さない。close失敗を後の呼び出しが成功に見せることはない。
+  終了後・失敗後の操作は<code>precondition</code>ではなく<code>throws</code>で断る（現行のXLSXの<code>addSheet</code>には
+  検査そのものが無かった）。<code>warnings</code>プロパティは残り、終了前は途中経過、確定結果は<code>result.warnings</code>で読む。</p>
+
+  <p>失敗が重なったときの契約。初期化・本体・append・形式別closeの失敗は、後始末が成功したなら元のエラーをそのままthrowし、
+  保存先は元のまま（新規なら作らない）。反映（rename）の失敗は、削除してから移動する代替処理を行わず、
+  完成した一時ファイルの破棄を試みたうえで反映のエラーを返す。元の失敗と後始末の失敗が重なったときだけ、
+  公開の<code>StreamingCleanupError</code>（<code>primaryError</code>と<code>cleanupErrors</code>。公開initializerを持たない）
+  で両方を保持する——後始末の失敗が元の原因を隠さないため。cancelだけが失敗したときは最初の後始末エラーをthrowし、
+  複数あれば同じラッパーで残りを持つ。closeもcancelもせず解放されたときは<code>deinit</code>が後始末を試み、
+  throwも保存も行わない。プロセスの強制終了後まで一時ファイルの残留ゼロは約束しない。</p>
+
+  <p><code>withStreamingWriter</code>は同期・非escapingのクロージャーを実行する。渡す<code>StreamingWriter</code>は
+  <code>Sendable</code>にしない（別タスクからの同時利用は契約に含めない）。本体がthrowしたらそのエラーを保ち、
+  closeせずcancelする。appendのエラーを本体がcatchして戻っても、writerはfailedなので保存せず、記録した最初の
+  書き込みエラーを返す（本体が別のエラーをthrowしたときは本体のエラーを優先する）。管理されたクロージャーの中からの
+  close・cancelは<code>invalidWorkbook</code>で断り、failedにする——呼び手がそのエラーをcatchしても保存されない。
+  クロージャーの外へwriterを持ち出せても、処理が終わればfinishedかcancelledなので、後から行は足せない
+  （非escaping指定だけでは持ち出しを防げないため、実行時の状態で防ぐ）。</p>
+
+  <p>守る範囲を明確にする。対象はローカルの通常ファイルで、この処理が返すI/Oエラーに対して旧ファイルを壊さないこと。
+  電源断後の永続性、ネットワークファイルシステム、外部プロセスによる同時置換、既存ファイルの権限・拡張属性の継承は
+  約束しない。同じ保存先への2つのwriterは「最後に成功した保存が残る」を契約とし、競合検出は追加しない。
+  macOS・iOS・Linuxは同一ファイルシステムの<code>rename</code>を使う（<code>FileManager.replaceItemAt</code>ではない）。
+  WASIは同じ契約を実行で確認できた環境でだけ有効にし、確認できないうちは保存先を触る前に
+  <code>unsupportedFeature</code>で断る——非原子的なコピーへのfallbackは置かない。
+  保存前に警告を見て採否を決めるAPIは足さない（resultが返る時点は保存後）。その用途では別の出力先へ書くか、
+  全載せの<code>write(as:)</code>を使う。逐次読みの完了結果、暗号化した逐次書き込み、asyncクロージャー、
+  複数ファイルをまとめたトランザクションは対象外。</p>
+
+  <p>検査。5形式それぞれで、既存ファイルあり／新規の両方について、終了前は旧バイト列が1バイトも変わらないこと・
+  新規の保存先が存在しないことを確かめ、終了成功後は全載せ読みと逐次読みで内容を確かめる。
+  失敗の注入は、確保（保存先が通常ファイルでない・親が無い）・append・addSheet・形式別のclose（各形式が包を閉じ、
+  ハンドルを閉じる箇所）・rename・一時ファイル削除に個別に行い、注入点へ実際に到達したこともassertする
+  （権限やディスク満杯の偶然に頼らない）。形式が未登録のときは一時ファイルも作らないことを見る。本体のエラーは参照型の識別可能なエラーで投げ、
+  後始末が成功したときは同じエラーが返ること、複合失敗では両方が残ることを見る。失敗をcatchして続ける本体・
+  closeの再実行・cancelの再実行・終了後のappend・クロージャー内のclose/cancel・外へ持ち出したwriterのいずれでも、
+  プロセスが落ちず保存もされないこと。<code>scripts/check-streaming-api.py</code>が別のSwiftPMクライアントから
+  結果未使用の警告と明示的な破棄を確認する（CIのmacOSとLinux）。計測は変更前後を同じ機械で交互に採り、
+  時間とピークメモリを対にして報告する。</p>
 </section>
 
 </div><!-- /.container -->

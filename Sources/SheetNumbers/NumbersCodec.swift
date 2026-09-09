@@ -60,7 +60,7 @@ extension NumbersCodec {
         StreamingReader(source: try NumbersStreamingReader(data: data, limits: limits), format: .numbers)
     }
 
-    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
-        StreamingWriter(sink: try NumbersStreamingWriter(url: url, sheetName: sheetName, epoch: epoch), format: .numbers)
+    package static func streamingSink(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> any StreamingRowSink {
+        try NumbersStreamingWriter(url: url, sheetName: sheetName, epoch: epoch)
     }
 }

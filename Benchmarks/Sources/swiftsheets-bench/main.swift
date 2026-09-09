@@ -109,20 +109,23 @@ do {
         let t = try clock.measure {
             let w = try StreamingWriter(url: url, sheetName: "Sheet1")
             for i in 0..<rows { try w.append(row(i)) }
-            try w.close()
+            _ = try w.close()
         }
         report(op, rows, seconds(t))
     case "streamWriteCSV":
+        // through the umbrella writer, as an application reaches delimited text since Appendix B.50 closed the
+        // format's own writer into the package
         let t = try clock.measure {
-            let w = try CSVStreamingWriter(url: url)
+            let w = try StreamingWriter(url: url, format: .csv)
             for i in 0..<rows { try w.append(row(i)) }
-            try w.close()
+            _ = try w.close()
         }
         report(op, rows, seconds(t))
     case "streamReadCSV":
         var total = Decimal(0)
         let t = try clock.measure {
-            try CSVStreamingReader(contentsOf: url, options: CSVReadOptions(inferTypes: true)).forEachRow { r in for v in r { if let n = v?.numberValue { total += n } } }
+            let reader = try StreamingReader(contentsOf: url, csv: CSVReadOptions(inferTypes: true))
+            try reader.forEachRow(inSheet: reader.sheetNames[0]) { r in for c in r.cells { if let n = c.value?.numberValue { total += n } } }
         }
         report(op, rows, seconds(t), "sum=\(total)")
     case "edit":

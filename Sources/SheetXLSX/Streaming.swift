@@ -298,7 +298,10 @@ package final class XLSXStreamingWriter: StreamingRowSink {
     private var sheets: [(name: String, path: String)] = []
     private var open = false
     private var row = 0
+    /// `close()` ran to the end: the file on disk is complete.
     private var closed = false
+    /// The writer was let go of instead: the handle is gone and nothing more will be written.
+    private var cancelled = false
     private var epoch: DateEpoch
     private let macroEnabled: Bool
     /// Nothing this writer is handed is beyond the format: the list stays empty, and exists so that every
@@ -316,6 +319,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
 
     /// Finishes the sheet being written and starts another.
     package func addSheet(named name: String) throws {
+        try checkOpen()
         try finishSheet()
         try startSheet(named: name)
     }
@@ -327,7 +331,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
 
     /// Appends a row of cells, formatting and all.
     package func append(_ cells: [Cell]) throws {
-        precondition(!closed, "the writer is closed")
+        try checkOpen()
         row += 1
         var xml = "<row r=\"\(row)\">"
         for (column, cell) in cells.enumerated() {
@@ -362,8 +366,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
 
     /// Finishes the last sheet, writes the small parts beside it and closes the file. Calling it twice is harmless.
     package func close() throws {
-        guard !closed else { return }
-        closed = true
+        guard !closed, !cancelled else { return }
         try finishSheet()
 
         var ct = XMLWriter.header + "<Types xmlns=\"\(XMLWriter.nsContentTypes)\">"
@@ -405,9 +408,21 @@ package final class XLSXStreamingWriter: StreamingRowSink {
         try zip.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8))
         try zip.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
         try zip.finish()
+        closed = true   // last, so a failure anywhere above leaves a writer that knows it did not finish
     }
 
-    deinit { if !closed { zip.abandon() } }
+    /// Drops the package: the handle goes now, and the unfinished file is the caller's to remove.
+    package func cancel() {
+        guard !closed, !cancelled else { return }
+        cancelled = true
+        zip.abandon()
+    }
+
+    private func checkOpen() throws {
+        guard !closed, !cancelled else { throw SheetError.invalidWorkbook("this writer is finished; rows cannot be added to it") }
+    }
+
+    deinit { if !closed, !cancelled { zip.abandon() } }
 
     private func startSheet(named name: String) throws {
         let path = "xl/worksheets/sheet\(sheets.count + 1).xml"

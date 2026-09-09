@@ -37,7 +37,10 @@ package protocol SpreadsheetCodec: Sendable {
     static func streamingReader(data: Data, limits: ZipLimits, csv: CSVReadOptions, filename: String?) throws -> StreamingReader
     /// A writer that appends rows to a new file (spec Appendix B.42), starting with a sheet named `sheetName`.
     /// `epoch` is the date origin where the format has one; `csv` the dialect and encoding of a text file.
-    static func streamingWriter(url: URL, sheetName: String, epoch: DateEpoch, csv: CSVWriteOptions) throws -> StreamingWriter
+    ///
+    /// `url` is the temporary file the set reserved beside the destination, never the destination itself: what
+    /// makes the destination survive a failed write is that no codec is ever handed it (spec Appendix B.51).
+    static func streamingSink(url: URL, sheetName: String, epoch: DateEpoch, csv: CSVWriteOptions) throws -> any StreamingRowSink
 }
 
 extension SpreadsheetCodec {

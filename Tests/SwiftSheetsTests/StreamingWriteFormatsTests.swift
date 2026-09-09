@@ -35,7 +35,7 @@ import SwiftSheets
             cells[2].numberFormat = "0.00"
             try w.append(cells)
         }
-        try w.close()
+        _ = try w.close()
         return w
     }
 
@@ -172,17 +172,18 @@ import SwiftSheets
         #expect(wb.sheets[0][1, 3] == .integer(4) && wb.sheets[0][300, 0] == .integer(300))
     }
 
-    /// Delimited text holds one sheet; asking for a second is refused, and the first is still written.
+    /// Delimited text holds one sheet; asking for a second is refused — and the refusal ends the writer, which
+    /// then saves nothing (spec Appendix B.51: the first failure is the last thing that happens, whether it was
+    /// the disk or the format's own rules that raised it).
     @Test func delimitedTextRefusesASecondSheet() throws {
         let url = Self.temporary("one.csv")
         let w = try StreamingWriter(url: url)
         #expect(w.format == .csv)
         try w.append([.text("a"), .integer(1)])
         #expect(throws: SheetError.self) { try w.addSheet(named: "Two") }
-        try w.append([.text("b"), .integer(2)])
-        try w.close()
-        let wb = try Workbook(contentsOf: url)
-        #expect(wb.sheets[0][1, 0] == .text("b"))
+        #expect(throws: SheetError.self) { try w.append([.text("b"), .integer(2)]) }
+        #expect(throws: SheetError.self) { _ = try w.close() }
+        #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
     /// The format follows the extension the way `Workbook.write(to:)` decides it, or the argument; a path with
@@ -190,22 +191,22 @@ import SwiftSheets
     @Test func theFormatFollowsTheExtensionOrTheArgument() throws {
         let tsv = try StreamingWriter(url: Self.temporary("t.tsv"))
         #expect(tsv.format == .csv)
-        try tsv.close()
+        _ = try tsv.close()
         let bare = try StreamingWriter(url: Self.temporary("bare"))
         #expect(bare.format == .xlsx)
-        try bare.close()
+        _ = try bare.close()
         let datURL = Self.temporary("t.dat")
         let dat = try StreamingWriter(url: datURL, format: .ods, sheetName: "X")
         #expect(dat.format == .ods)
         try dat.append([.integer(7)])
-        try dat.close()
+        _ = try dat.close()
         let ods = try Workbook.read(contentsOf: datURL)   // the bytes say ODS whatever the extension
         #expect(ods.workbook.sheets[0].name == "X" && ods.workbook.sheets[0]["A1"] == .integer(7))
         let macro = Self.temporary("m.xlsm")
         let xlsm = try StreamingWriter(url: macro)
         #expect(xlsm.format == .xlsm)
         try xlsm.append([.text("macro-enabled, no macros")])
-        try xlsm.close()
+        _ = try xlsm.close()
         let read = try Workbook.read(contentsOf: macro)
         #expect(read.workbook.preserved.sourceFormat == .xlsm)
         #expect(read.workbook.sheets[0]["A1"] == .text("macro-enabled, no macros"))
@@ -224,7 +225,7 @@ import SwiftSheets
         let numbers = Self.temporary("said.numbers")
         let n = try StreamingWriter(url: numbers, sheetName: "S")
         try n.append(row()); try n.append(row())
-        try n.close()
+        _ = try n.close()
         let said = n.warnings.map(\.message).joined(separator: " | ")
         #expect(said.contains("4 formula(s)") && said.contains("2 without one"), Comment(rawValue: said))
         #expect(said.contains("2 link(s) dropped") && said.contains("2 note(s) dropped"), Comment(rawValue: said))
@@ -234,7 +235,7 @@ import SwiftSheets
         let xlsx = Self.temporary("said.xlsx")
         let x = try StreamingWriter(url: xlsx, sheetName: "S")
         try x.append(row())
-        try x.close()
+        _ = try x.close()
         #expect(x.warnings.isEmpty)
         let back = try Workbook(contentsOf: xlsx)
         #expect(back.sheets[0]["A1"] == .formula(FormulaExpr.parse("=1+1"), cached: .integer(2)))
@@ -246,7 +247,7 @@ import SwiftSheets
         let url = Self.temporary("empty.\(format.rawValue)")
         let w = try StreamingWriter(url: url, sheetName: "Empty")
         try w.addSheet(named: "Also")
-        try w.close()
+        _ = try w.close()
         let wb = try Workbook(contentsOf: url)
         #expect(wb.sheets.map(\.name) == ["Empty", "Also"])
         #expect(wb.sheets[0].table.cells.isEmpty && wb.sheets[1].table.cells.isEmpty)

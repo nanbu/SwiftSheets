@@ -32,8 +32,8 @@ package enum XLSXCodec: SpreadsheetCodec {
         StreamingReader(source: try XLSXStreamingReader(data: data, limits: limits), format: .xlsx)
     }
 
-    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
-        StreamingWriter(sink: try XLSXStreamingWriter(url: url, sheetName: sheetName, epoch: epoch), format: .xlsx)
+    package static func streamingSink(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> any StreamingRowSink {
+        try XLSXStreamingWriter(url: url, sheetName: sheetName, epoch: epoch)
     }
 }
 
@@ -65,7 +65,7 @@ package enum XLSMCodec: SpreadsheetCodec {
         StreamingReader(source: try XLSXStreamingReader(data: data, limits: limits), format: .xlsm)
     }
 
-    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
-        StreamingWriter(sink: try XLSXStreamingWriter(url: url, sheetName: sheetName, epoch: epoch, macroEnabled: true), format: .xlsm)
+    package static func streamingSink(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> any StreamingRowSink {
+        try XLSXStreamingWriter(url: url, sheetName: sheetName, epoch: epoch, macroEnabled: true)
     }
 }

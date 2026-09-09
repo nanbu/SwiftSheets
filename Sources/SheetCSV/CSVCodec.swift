@@ -499,7 +499,7 @@ extension CSVCodec {
         StreamingReader(source: CSVStreamingReader(data: data, options: csv, filename: filename), format: .csv)
     }
 
-    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
-        StreamingWriter(sink: try CSVStreamingWriter(url: url, options: csv), format: .csv)
+    package static func streamingSink(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> any StreamingRowSink {
+        try CSVStreamingWriter(url: url, options: csv)
     }
 }

@@ -247,7 +247,10 @@ package final class CSVStreamingWriter {
     private let options: CSVWriteOptions
     private let renderer: CSVCodec.FieldRenderer
     private var row = 0
+    /// `close()` ran to the end: everything buffered is on disk and the handle is shut.
     private var closed = false
+    /// The writer was let go of instead.
+    private var cancelled = false
     private var pending = Data()
     /// What could not be written as asked: a formula without a cached value, text the encoding cannot carry.
     package private(set) var warnings: [ConversionWarning] = []
@@ -270,7 +273,7 @@ package final class CSVStreamingWriter {
 
     /// Appends one record. `nil` is an empty field.
     package func append(_ values: [CellValue?]) throws {
-        precondition(!closed, "the writer is closed")
+        guard !closed, !cancelled else { throw SheetError.invalidWorkbook("this writer is finished; rows cannot be added to it") }
         var line: [String] = []
         for (c, value) in values.enumerated() {
             guard let value else { line.append(""); continue }
@@ -298,13 +301,21 @@ package final class CSVStreamingWriter {
 
     /// Writes what is buffered and closes the file. Calling it twice is harmless.
     package func close() throws {
-        guard !closed else { return }
-        closed = true
+        guard !closed, !cancelled else { return }
         try flush()
         try handle.close()
+        closed = true   // last: a flush that failed leaves a writer that knows it did not finish
     }
 
-    deinit { if !closed { try? handle.close() } }
+    /// Drops what is buffered and lets the handle go. The unfinished file is the caller's to remove.
+    package func cancel() {
+        guard !closed, !cancelled else { return }
+        cancelled = true
+        pending.removeAll()
+        try? handle.close()
+    }
+
+    deinit { if !closed, !cancelled { try? handle.close() } }
 }
 
 // MARK: - The same rows as every other format

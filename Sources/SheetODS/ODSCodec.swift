@@ -48,7 +48,7 @@ extension ODSCodec {
         StreamingReader(source: try ODSStreamingReader(data: data, limits: limits), format: .ods)
     }
 
-    package static func streamingWriter(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
-        StreamingWriter(sink: try ODSStreamingWriter(url: url, sheetName: sheetName), format: .ods)
+    package static func streamingSink(url: URL, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions()) throws -> any StreamingRowSink {
+        try ODSStreamingWriter(url: url, sheetName: sheetName)
     }
 }

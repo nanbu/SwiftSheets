@@ -35,6 +35,11 @@ jobs:
       - name: Build
         run: swift build --build-tests
 
+      # The measuring bench is a package of its own, so a narrowing of the public surface can leave it
+      # uncompilable without anything noticing — which is what happened between 0.20.0 and Appendix B.51.
+      - name: The measuring bench still builds against the public surface
+        run: swift build --package-path Benchmarks
+
       - name: Write API results and removed data conveniences
         run: python3 scripts/check-write-result-api.py
 
@@ -47,6 +52,11 @@ jobs:
       # And the other boundary: an outside client names formats by Codec value, and reaches no codec itself.
       - name: Codecs are chosen by value from outside
         run: python3 scripts/check-codec-api.py
+
+      # A row-by-row write answers with the save it made, and the parts that save is built from stay inside
+      # the package (spec Appendix B.51).
+      - name: The row-by-row writer's save contract holds from outside
+        run: python3 scripts/check-streaming-api.py
 
       # What the README promises about encryption code is read off symbol tables, not remembered: the plain
       # products link no cipher, SheetDecrypt nothing that encrypts (spec Appendix B.39.9). A positive control
@@ -103,6 +113,11 @@ jobs:
       # And the other boundary: an outside client names formats by Codec value, and reaches no codec itself.
       - name: Codecs are chosen by value from outside
         run: python3 scripts/check-codec-api.py
+
+      # A row-by-row write answers with the save it made, and the parts that save is built from stay inside
+      # the package (spec Appendix B.51).
+      - name: The row-by-row writer's save contract holds from outside
+        run: python3 scripts/check-streaming-api.py
 
       # Same as macOS: the symbol tables of the three ways of linking, on the other toolchain and linker.
       - name: The plain products carry no cipher

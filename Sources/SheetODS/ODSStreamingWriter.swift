@@ -30,7 +30,12 @@ package final class ODSStreamingWriter: StreamingRowSink {
     }
     private var sheets: [Pending] = []
     private var current: Pending
+    /// `close()` ran to the end: the package on disk is complete.
     private var closed = false
+    /// The writer was let go of instead: the rows set aside go now rather than at the next collection.
+    private var cancelled = false
+    /// The package, while `close()` is writing it — held so that a failure half way can drop it.
+    private var zip: ZipFileWriter?
     /// What the format could not carry as asked: a number format ODF has no data style for, a colour it cannot
     /// name. Final once `close()` has run.
     package private(set) var warnings: [ConversionWarning] = []
@@ -43,7 +48,7 @@ package final class ODSStreamingWriter: StreamingRowSink {
 
     /// Finishes the sheet being written and starts another.
     package func addSheet(named name: String) throws {
-        precondition(!closed, "the writer is closed")
+        try checkOpen()
         sheets.append(current)
         current = Pending(name: name, rows: TextSpill())
     }
@@ -51,7 +56,7 @@ package final class ODSStreamingWriter: StreamingRowSink {
     /// Appends a row of cells, formatting and all, at whatever row comes next. Empty cells between values are
     /// written as repeated empty cells; empty cells after the last value are not written.
     package func append(_ cells: [Cell]) throws {
-        precondition(!closed, "the writer is closed")
+        try checkOpen()
         var last = -1
         for (c, cell) in cells.enumerated() where cell.value != nil || cell.style != .default { last = c }
         var xml = "<table:table-row>"
@@ -80,8 +85,7 @@ package final class ODSStreamingWriter: StreamingRowSink {
     /// its head, the styles, and each sheet's rows copied out a piece at a time — and the small parts after it.
     /// Calling it twice is harmless.
     package func close() throws {
-        guard !closed else { return }
-        closed = true
+        guard !closed, !cancelled else { return }
         sheets.append(current)
 
         // the parts beside the body describe a workbook of these sheets and nothing more
@@ -93,6 +97,7 @@ package final class ODSStreamingWriter: StreamingRowSink {
         let tableStyles = sheets.map { _ in styles.table(display: true, masterPage: "PageStyle1") }
 
         let zip = try ZipFileWriter(url: url)
+        self.zip = zip
         try zip.add("mimetype", Data(ODSWriter.mimeType.utf8), stored: true)
         try zip.add("META-INF/manifest.xml", Data(ODSWriter.manifestXML(opaque: [:], mediaTypes: [:]).utf8))
         try zip.beginEntry("content.xml")
@@ -118,6 +123,7 @@ package final class ODSStreamingWriter: StreamingRowSink {
         try zip.add("meta.xml", Data(ODSWriter.metaXML(DocumentProperties()).utf8))
         try zip.add("settings.xml", Data(ODSWriter.settingsXML(workbook).utf8))
         try zip.finish()
+        self.zip = nil
 
         // what the styles could not say — the same reports the whole-workbook writer makes
         if styles.nonRGBColour { sink.add(.degraded, subject: .formatting, "theme/indexed colours written as default") }
@@ -125,5 +131,21 @@ package final class ODSStreamingWriter: StreamingRowSink {
         for code in styles.unexpressibleCodes { sink.add(.substituted, subject: .formatting, "number format \(code) has no ODF data style; General used") }
         for code in styles.partialCodes { sink.add(.substituted, subject: .formatting, "number format \(code): only its first section is written") }
         warnings = sink.warnings
+        closed = true   // last, so a failure anywhere above leaves a writer that knows it did not finish
+    }
+
+    /// Drops the rows set aside — this format holds them on disk until `close()`, so letting go of them is what
+    /// releases that space — and the half-written package, if `close()` had started one.
+    package func cancel() {
+        guard !closed, !cancelled else { return }
+        cancelled = true
+        zip?.abandon()
+        zip = nil
+        sheets.removeAll()
+        current = Pending(name: current.name, rows: TextSpill())
+    }
+
+    private func checkOpen() throws {
+        guard !closed, !cancelled else { throw SheetError.invalidWorkbook("this writer is finished; rows cannot be added to it") }
     }
 }

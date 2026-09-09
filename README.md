@@ -52,6 +52,21 @@ Convert with `try Workbook.convert(source, to: destination, as: .csv)` or
 `try codecs.convert(source, to: destination, as: .csv)`. The format is required, even when the destination has
 an extension. The former `to: format, output: destination` labels have been removed.
 
+Writing row by row — for a file with more rows than memory — saves the same way, at the end:
+
+```swift
+let result = try CodecSet.all.withStreamingWriter(to: url, as: .xlsx, sheetName: "Sales") { writer in
+    try writer.append([.text("Item"), .text("Quantity")])
+    for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
+}                                             // it returned, so the file is saved; had it thrown, nothing would be
+print(result.warnings)
+```
+
+The rows go into a temporary file beside the destination, which is replaced only once the file is complete, in every
+format. A row that fails, a closure that throws, a writer let go of: whatever was already at that path is untouched.
+Opening one by hand still works — `StreamingWriter(url:)`, then `append(_:)`, then `close()`, which returns the same
+result and must be called — and `cancel()` throws the rows away.
+
 ## Installation
 
 ```swift
@@ -102,7 +117,7 @@ past a limit comes back with a `degraded` warning, and a file that breaks a rule
 | Cell budget | None by default. A read holds every cell it finds; set `ReadOptions.cellLimit` for input you do not trust, and reading stops there with a `degraded` warning naming the sheet. ODS run-length compression can describe seventeen billion cells in a kilobyte of XML, which is what the option exists for. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | Hostile packages | What a package declares about itself is bounded before any of it is expanded: at most 100,000 parts, 16 GiB expanded in total, a thousandfold expansion for any part over 16 MiB, and no two parts sharing bytes. Past any of these the file is reported as `corruptedContainer`; `ReadOptions.limits` raises them for a package you know. ZIP64 (parts past 4 GB, more than 65,535 parts) is read and written. |
-| WebAssembly | Builds and runs under WASI (wasm32-wasi) with the swift.org toolchain and its Wasm SDK of the same version — Xcode's Swift has no WebAssembly backend. WASI has no zlib, so DEFLATE there is a pure Swift route: reading is a complete inflater, writing is stored blocks (valid DEFLATE that compresses nothing, so files are larger). One thread: the XLSX sheets are read one after another. The Numbers codec's schema and template are read from a directory the host mounts at `/SwiftSheets_SheetNumbers.resources/`. Verified with node's WASI and in a browser (spec Appendix B.45); not part of CI. |
+| WebAssembly | Builds and runs under WASI (wasm32-wasi) with the swift.org toolchain and its Wasm SDK of the same version — Xcode's Swift has no WebAssembly backend. WASI has no zlib, so DEFLATE there is a pure Swift route: reading is a complete inflater, writing is stored blocks (valid DEFLATE that compresses nothing, so files are larger). One thread: the XLSX sheets are read one after another. The Numbers codec's schema and template are read from a directory the host mounts at `/SwiftSheets_SheetNumbers.resources/`. Verified with node's WASI and in a browser (spec Appendix B.45); not part of CI. Writing a file row by row is refused there (`unsupportedFeature`): that save renames a temporary file over the destination, and the rename has not been run under a WASI runtime (spec Appendix B.51). Writing a workbook whole is unaffected. |
 | visionOS | Not built or tested. Nothing in the library is Apple-only any more — DEFLATE comes from the system zlib where Apple's Compression framework is absent, and the hashes (SHA-512 for sheet protection) are written out rather than taken from CryptoKit, as is the cipher in the separate `SheetDecrypt` / `SheetEncrypt` products — but a platform nobody runs the suite on is not a platform this README claims (spec Appendix B.1). Linux is claimed because CI runs the whole suite there on every push. |
 | Encrypted files | Recognised and refused by name by the plain products, which contain no cipher: a protected file read there throws `unsupportedFeature` saying it is encrypted and that `SheetDecrypt` opens it. Opening one is the `SheetDecrypt` product — `Workbook(contentsOf:password:)`, `StreamingReader(contentsOf:password:)`, or `SheetDecrypt.decrypt` for the plain package — for Excel's agile encryption (AES-256, SHA-512 — what Excel 2010 and later write) and ODF 1.2 / 1.3 package encryption (AES-CBC, PBKDF2 — what LibreOffice writes); a wrong password throws `wrongPassword`. Protecting one is the `SheetEncrypt` product — `wb.write(to:password:)` or `SheetEncrypt.encrypt`. Excel 2007's older "standard" encryption, ODF 1.1's Blowfish form, a password-protected Numbers document and a legacy `.xls` are recognised and refused by name. |
 
@@ -269,7 +284,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `load_workbook(path)` on a protected file (openpyxl cannot; msoffcrypto-tool decrypts first) | `Workbook(contentsOf: url, password: "…")` with `import SheetDecrypt` / `wb.write(to: url, password: "…")` with `import SheetEncrypt` — XLSX / XLSM as Excel's agile encryption, ODS as ODF package encryption; the plain products refuse a protected file by name; judged by msoffcrypto-tool and an independent ODF decryptor |
 | pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
 | `ws.add_image(Image(path), 'B2')` | `sheet.addImage(try SheetImage(data:), at: "B2", sizing: .resizeCellToFit)` / `addImage(_:over: "B2:D6")` — PNG / JPEG / GIF, format and pixel size read from the bytes; a sheet that already carries a drawing (a chart) gets the anchors spliced in, everything there staying byte for byte. Charts: `sheet.addChart(Chart(.column), over: "D2:K16")` — column / bar / line / pie with series, title and legend (`chart.addSeries(values: "B2:B13", categories: "A2:A13", name:)`; unqualified ranges gain the sheet name and absolute dollars). Other kinds and charts already in a file: preserved unchanged (F3), `dropped` warnings when converting |
-| `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)` or `for try await row in reader.rows(inSheet:)` — one reader for XLSX, ODS, Numbers and delimited text, the format detected from the bytes; a Numbers sheet's second and later tables by `table:`. Values and formatting only (see [Limits](#limits)). `StreamingWriter(url:sheetName:)` + `append(_:)` / `close()` writes the same way — XLSX, ODS, Numbers or delimited text, the format from the path's extension or `format:` — and `warnings` says what the format could not carry |
+| `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)` or `for try await row in reader.rows(inSheet:)` — one reader for XLSX, ODS, Numbers and delimited text, the format detected from the bytes; a Numbers sheet's second and later tables by `table:`. Values and formatting only (see [Limits](#limits)). `CodecSet.all.withStreamingWriter(to:as:) { writer in … }` writes the same way — XLSX, ODS, Numbers or delimited text, the format from the path's extension or `as:` — and the destination is replaced only when the file is complete, so a failed write leaves it as it was. `StreamingWriter(url:sheetName:)` + `append(_:)` / `close()` opens one by hand; the result of `close()` says what the format could not carry |
 | (no equivalent) | `ReadOptions(concurrency: 1)` — read the sheets of an XLSX workbook one at a time; left unsaid, a workbook of two or more sheets whose parts expand to 4 MiB or more is parsed side by side, up to one sheet per core, and `concurrency: n` caps it at `n`. The cap is also the ceiling on the memory a side-by-side read adds |
 | `load_workbook(path, read_only=True)` then one sheet | `ReadOptions(sheets: .named(["Summary"]))` — only the named sheets are parsed; an XLSX sheet left out is carried as the bytes it arrived in and written back unchanged, an ODS / Numbers one comes back empty and the write says so |
 
@@ -377,7 +392,7 @@ on who typed the code; it rests on the same things it would have to rest on anyw
   implementation decision with the reason behind it — including the ones that were measured and then rejected.
 - **Independent implementations are the judges.** openpyxl, LibreOffice, numbers-parser and Numbers.app read what
   SwiftSheets writes. A format is not called supported until something that did not come from this project agrees.
-- **1,000+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
+- **1,100+ tests**, including a fuzz campaign over every reader, run on every push — a test keeps this floor
   within a hundred of the count.
 - **Nothing is dropped in silence.** Every read and every write answers with the list of what it could not keep.
 

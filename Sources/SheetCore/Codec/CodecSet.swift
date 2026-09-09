@@ -189,13 +189,56 @@ public struct CodecSet: Sendable {
         return try implementation(for: f).streamingReader(data: data, limits: limits, csv: csv, filename: filename)
     }
 
-    /// A writer that appends rows to a new file, without ever building the workbook (spec Appendix B.42). The
+    /// A writer that appends rows to a file, without ever building the workbook (spec Appendix B.42). The
     /// format comes from `format`, else from the path's extension, else XLSX — the rule `write(to:)` uses. `epoch`
     /// is the date origin for XLSX and Numbers; `csv` the dialect and encoding of a text file.
+    ///
+    /// The rows go into a temporary file beside `url`, which is replaced only by a `close()` that completes
+    /// (spec Appendix B.51) — so a writer dropped, failed or never closed leaves whatever was at `url` alone.
+    /// `close()` returns the save's result and must be called; `withStreamingWriter` calls it for you.
     public func streamingWriter(url: URL, format: SheetFormat? = nil, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900,
                                 csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
+        let made = try streamingWriterParts(url: url, format: format, sheetName: sheetName, epoch: epoch, csv: csv)
+        return StreamingWriter(sink: made.sink, format: made.format, target: made.target)
+    }
+
+    /// Writes a file row by row and saves it when `body` returns: the usual way in (spec Appendix B.51).
+    ///
+    /// The closure returning is what saves the file — `close()` and the rename happen after it, and the result
+    /// comes back from here. A closure that throws saves nothing: the writer is cancelled, whatever was at `url`
+    /// is left as it was, and the closure's own error is what comes out. So is an error the closure caught and
+    /// swallowed: a writer that failed does not save.
+    ///
+    ///     let result = try codecs.withStreamingWriter(to: url, as: .xlsx, sheetName: "Sales") { writer in
+    ///         try writer.append([.text("Item"), .text("Quantity")])
+    ///         for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
+    ///     }
+    ///
+    /// The writer belongs to the closure: closing or cancelling it there is refused, and holding on to it past the
+    /// closure gets a writer that is over. Inspect the returned warnings, or explicitly discard the result with
+    /// `_ =` (spec Appendix B.47).
+    public func withStreamingWriter(to url: URL, as format: SheetFormat? = nil, sheetName: String = "Sheet1",
+                                    epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions(),
+                                    _ body: (StreamingWriter) throws -> Void) throws -> StreamingWriteResult {
+        try streamingWriter(url: url, format: format, sheetName: sheetName, epoch: epoch, csv: csv).run(body)
+    }
+
+    /// The three things a row-by-row writer is made of, for the `SwiftSheets` product's `StreamingWriter(url:)`,
+    /// which is this call under the name it has always had.
+    ///
+    /// The order matters: a format with no codec in this set is refused before anything is created on disk, and
+    /// the temporary file is removed again if the format's own writer cannot start.
+    package func streamingWriterParts(url: URL, format: SheetFormat?, sheetName: String, epoch: DateEpoch,
+                                      csv: CSVWriteOptions) throws -> (sink: any StreamingRowSink, format: SheetFormat, target: AtomicFileTarget) {
         let f = format ?? SheetFormat(fileExtension: url.pathExtension) ?? .xlsx
-        return try implementation(for: f).streamingWriter(url: url, sheetName: sheetName, epoch: epoch, csv: csv)
+        let codec = try implementation(for: f)
+        let target = try AtomicFileTarget(destination: url)
+        do {
+            return (try codec.streamingSink(url: target.url, sheetName: sheetName, epoch: epoch, csv: csv), f, target)
+        } catch {
+            target.discardQuietly()
+            throw error
+        }
     }
 }
 

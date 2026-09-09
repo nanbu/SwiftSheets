@@ -7,6 +7,46 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **A row-by-row write reaches the destination only when it finishes** (Appendix B.51). Every format's
+  `StreamingWriter` — `StreamingWriter(url:)` and `codecs.streamingWriter(url:)` alike — now writes into a
+  temporary file beside the destination and renames it over only when `close()` completes. A row that cannot be
+  serialized, a `close()` that fails half way, a writer let go of without closing: the file that was already there
+  is exactly as it was, and a destination that did not exist does not appear. Arguments are unchanged. Code that
+  read the destination while rows were still arriving now has to wait for `close()`, and the destination's
+  directory must exist (none is created) and hold a plain file — a directory or a symbolic link is refused.
+
+- **`StreamingWriter.close()` returns a `StreamingWriteResult`** instead of `Void`, and its result is not
+  discardable: keep it (`let result = try writer.close()`) or discard it explicitly (`_ = try writer.close()`).
+  The result carries the format written and the warnings as of the save; `writer.warnings` still reads the
+  running list. Assigning the call to a `Void` no longer compiles.
+
+- **The first failure ends a writer.** After a failed `append` or `addSheet` — including a refusal the format
+  itself raises, such as a second sheet in delimited text — the writer saves nothing: further rows and `close()`
+  throw `invalidWorkbook`. Code that caught such a refusal and carried on used to get a file; it now gets the
+  error back from `close()` (or from `withStreamingWriter`). Misuse after the end throws rather than trapping.
+
+- **Row-by-row writing to a file is refused on WASI** with `unsupportedFeature`, until the rename this save is
+  built on is verified under a WASI runtime. Whole-workbook `write(to:as:)` on WASI is unchanged.
+
+### Added
+
+- **`CodecSet.withStreamingWriter(to:as:sheetName:epoch:csv:_:)`** (Appendix B.51) — rows in a closure, saved when
+  the closure returns and cancelled when it throws:
+  `try CodecSet.all.withStreamingWriter(to: url, as: .xlsx) { writer in … }`. The closure's own error is what comes
+  out, and nothing is saved; the writer belongs to the closure, which may not `close()` or `cancel()` it.
+
+- **`StreamingWriter.cancel()`** — throws the rows away and releases what the format was holding (file handles, an
+  ODS writer's spilled rows) now rather than at the next collection. Harmless after a save: a finished file is not
+  deleted by cancelling the writer that wrote it.
+
+- **`StreamingWriteResult`** (`format`, `warnings`) and **`StreamingCleanupError`** (`primaryError`,
+  `cleanupErrors`) — the second only when cleaning up after a failure fails too, so neither half is lost. Neither
+  can be constructed by a caller.
+
 ## [0.20.0] — 2026-09-09
 
 ### Changed

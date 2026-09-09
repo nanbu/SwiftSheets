@@ -75,7 +75,7 @@ import SheetNumbers
         let writer = try Self.codecs.streamingWriter(url: streamed, sheetName: "Rows")
         try writer.append([.text("a"), .integer(1)])
         try writer.append([.text("b"), .integer(2)])
-        try writer.close()
+        _ = try writer.close()
         let back = try Self.codecs.read(contentsOf: streamed).workbook
         #expect(back.sheets[0].name == "Rows")
         #expect(back.sheets[0]["B2"] == .integer(2))
