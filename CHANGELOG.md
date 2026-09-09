@@ -38,6 +38,31 @@ writes, so the constant, the README's status line and the tag always name the sa
   now answer `unopenable(.encryptedODF)` whatever the set holds. Naming a format explicitly (`read(_:format:)`)
   is unchanged: the codec named finds the encryption in its own package.
 
+- **Changing a style is `setStyle`, taking one is still `style`** (Appendix B.53). `sheet.style("A1")` returned a
+  style and `sheet.style("A1") { … }` changed one — the same name for both. The six changing declarations on
+  `Sheet` and `Table` become `setStyle(at:_:)`, `setStyle(_:_:)` and `setStyle(_ range:_:)`, which is how every
+  other editor in this library is named (`setRowDimension`, `setColumnDimension`, `setWidth`, `setHeight`). The
+  four reading declarations keep the name `style`, and `sheet[cell: "A1"].style` is unchanged. There is no
+  compatibility alias: `sheet.style("A1:D1") { … }` becomes `sheet.setStyle("A1:D1") { … }`.
+
+- **An A1 string that will not parse now stops where it changes something, and returns a default where it only
+  reads** (Appendix B.53). The model used to answer five different ways, so the same typo crashed at one entry
+  point and silently wrote nothing at another. Ten entry points change: `removeCell(_:)`, `moveRange(_:rows:cols:)`,
+  `unmerge(_:)`, `setColumnDimension(_ name:_:)` (with `setWidth(_:ofColumn:)`), `groupColumns(_:_:outlineLevel:hidden:)`,
+  `addExcelTable(named:over a1:styleInfo:)`, `addConditionalFormatting(_:over sqref:)`, `freezePanes(at:)`,
+  `freezePanesA1` and `autoFilterA1` used to do nothing, or — for the freeze — quietly clear it; they now stop with a
+  message naming the string. `addImage(_:at:)` and `addImage(_:over:)` already stopped, on a bare `!`; they now say why.
+  The four that take a defined-name formula as a file saves it — `setPrintArea(_:)`, `setPrintTitles(_:)`,
+  `setPrintTitleRows(_:)`, `setPrintTitleColumns(_:)` — stay lenient and drop what will not parse: a workbook whose
+  print area reads `MySheet!#REF!` has to open.
+  Reading (`sheet["A1"]`, `style(_:)`, `rows(in:)`, `column(_:)`, `isMerged(_:)`, `columnDimension(_:)` …) is
+  unchanged and still answers with nil, an empty array, false or the default. **`""` and `nil` keep meaning
+  "clear"** — `freezePanes(at: "")`, `setPrintArea(nil)`, `freezePanesA1 = nil` and the rest behave as before.
+  Validate strings that come from a person with `CellRef(_:)` / `CellRange(_:)`, which return nil rather than stopping.
+
+- **`Sheet.addExcelTable(named:over a1:styleInfo:)` returns `String`**, not `String?`. The Optional only ever meant
+  "that range did not parse", which is now a programming error.
+
 ### Added
 
 - **`SheetFormat.productName`** is public — `.ods` → `"SheetODS"` — so a caller that catches `noCodec(for:)` can

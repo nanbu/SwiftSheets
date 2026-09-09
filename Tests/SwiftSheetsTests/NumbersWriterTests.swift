@@ -134,7 +134,7 @@ import SwiftSheets
         ws["A2"] = "apple"; ws["B2"] = .number(Decimal(string: "1234.5")!)
         ws["B3"] = .number(Decimal(string: "0.125")!)
         ws["C2"] = .date(CivilDateTime(date: CivilDate(year: 2026, month: 8, day: 25)!))
-        ws.style("A1:C1") {
+        ws.setStyle("A1:C1") {
             $0.font.bold = true
             $0.font.size = 14
             $0.font.color = Color(hex: "FFFFFF")
@@ -142,10 +142,10 @@ import SwiftSheets
             $0.alignment.horizontal = .center
             $0.alignment.vertical = .center
         }
-        ws.style("B2") { $0.numberFormat = "#,##0.00"; $0.font.italic = true }
-        ws.style("B3") { $0.numberFormat = "0.0%" }
-        ws.style("C2") { $0.numberFormat = "yyyy/mm/dd" }
-        ws.style("A2") { $0.border.bottom = Side(style: .thin, color: Color(hex: "FF0000")) }
+        ws.setStyle("B2") { $0.numberFormat = "#,##0.00"; $0.font.italic = true }
+        ws.setStyle("B3") { $0.numberFormat = "0.0%" }
+        ws.setStyle("C2") { $0.numberFormat = "yyyy/mm/dd" }
+        ws.setStyle("A2") { $0.border.bottom = Side(style: .thin, color: Color(hex: "FF0000")) }
         wb.sheets[0] = ws
 
         let result = try wb.write(as: .numbers)
@@ -192,8 +192,8 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0]["A2"] = 2
-        wb.sheets[0].style("A1") { $0.numberFormat = "[Red][>100]0.00;[Blue]0.00" }
-        wb.sheets[0].style("A2") { $0.numberFormat = "* #,##0_);_(* (#,##0)" }
+        wb.sheets[0].setStyle("A1") { $0.numberFormat = "[Red][>100]0.00;[Blue]0.00" }
+        wb.sheets[0].setStyle("A2") { $0.numberFormat = "* #,##0_);_(* (#,##0)" }
         let result = try wb.write(as: .numbers)
         #expect(result.warnings.contains { $0.kind == .substituted && $0.message.contains("colours, conditions") })
         let back = try NumbersCodec.read(result.data).workbook.sheets[0]
@@ -364,7 +364,7 @@ import SwiftSheets
         let cases = [("A1", 80, "0\"%\""), ("A2", 80, "0%"), ("A3", 1234, "#,##0\" 円\""), ("A4", 5, "0.00\"%\"")]
         for (ref, value, code) in cases {
             sheet[ref] = .integer(value)
-            sheet.style(ref) { $0.numberFormat = code }
+            sheet.setStyle(ref) { $0.numberFormat = code }
         }
         wb.sheets[0] = sheet
         let result = try wb.write(as: .numbers)

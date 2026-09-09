@@ -5,8 +5,8 @@ import Foundation
 /// The two are alternatives in the file format and in openpyxl alike — a cell has one fill, and it is either kind.
 /// `.none` and `.solid(_:)` cover the everyday cases, so ordinary code never has to name the enum:
 ///
-///     sheet.style("A1:D1") { $0.fill = .solid(Color(hex: "F5F5F7")) }
-///     sheet.style("A2") { $0.fill = .gradient(GradientFill(from: .white, to: Color(hex: "BFD7F5"), degree: 90)) }
+///     sheet.setStyle("A1:D1") { $0.fill = .solid(Color(hex: "F5F5F7")) }
+///     sheet.setStyle("A2") { $0.fill = .gradient(GradientFill(from: .white, to: Color(hex: "BFD7F5"), degree: 90)) }
 public enum Fill: Hashable, Sendable {
     case pattern(PatternFill)
     case gradient(GradientFill)

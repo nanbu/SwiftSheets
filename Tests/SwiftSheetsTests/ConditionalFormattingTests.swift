@@ -274,8 +274,8 @@ import SwiftSheets
         ws["A1"] = 1; ws["A2"] = 2
         let linear = GradientFill(from: .white, to: Color(hex: "BFD7F5"), degree: 90)
         let path = GradientFill.path(from: Color(hex: "FFF2CC"), to: Color(hex: "F8696B"), inset: 0.5)
-        ws.style("A1") { $0.fill = .gradient(linear) }
-        ws.style("A2") { $0.fill = .gradient(path) }
+        ws.setStyle("A1") { $0.fill = .gradient(linear) }
+        ws.setStyle("A2") { $0.fill = .gradient(path) }
         wb.sheets[0] = ws
 
         let data = try wb.write(as: .xlsx).data
@@ -293,7 +293,7 @@ import SwiftSheets
     @Test func odsSubstitutesTheFirstStop() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        wb.sheets[0].style("A1") { $0.fill = .gradient(GradientFill(from: .white, to: .black)) }
+        wb.sheets[0].setStyle("A1") { $0.fill = .gradient(GradientFill(from: .white, to: .black)) }
         let result = try wb.write(as: .ods)
         #expect(result.warnings.contains { $0.message.contains("gradient") })
     }

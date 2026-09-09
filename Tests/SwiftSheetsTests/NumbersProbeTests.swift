@@ -36,12 +36,12 @@ import SwiftSheets
 
         var styled = Workbook()
         styled.sheets[0]["A1"] = "styled"
-        styled.sheets[0].style("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFCC00")) }
+        styled.sheets[0].setStyle("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFCC00")) }
         out.append(("05-cell-style", styled))
 
         var formatted = Workbook()
         formatted.sheets[0]["A1"] = 1234.5
-        formatted.sheets[0].style("A1") { $0.numberFormat = "#,##0.00" }
+        formatted.sheets[0].setStyle("A1") { $0.numberFormat = "#,##0.00" }
         out.append(("06-number-format", formatted))
 
         var sized = Workbook()
@@ -65,7 +65,7 @@ import SwiftSheets
         styleOnSecond.sheets[0]["A1"] = "one"
         styleOnSecond.addSheet(named: "Second")
         styleOnSecond.sheets[1]["A1"] = "two"
-        styleOnSecond.sheets[1].style("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) }
+        styleOnSecond.sheets[1].setStyle("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) }
         out.append(("19-style-on-second-sheet", styleOnSecond))
 
         var twoTables = Workbook()

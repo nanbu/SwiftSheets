@@ -1590,7 +1590,7 @@ sheet[<span class="st">"C1"</span>] = <span class="ty">Date</span>()
   <h3>14.6 スタイルと書式</h3>
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
-    <tr><td><code>cell.font = Font(bold=True, size=14)</code></td><td><code>sheet.style("A1") { $0.font.bold = true; $0.font.size = 14 }</code></td><td>クロージャで部分更新。範囲指定可</td></tr>
+    <tr><td><code>cell.font = Font(bold=True, size=14)</code></td><td><code>sheet.setStyle("A1") { $0.font.bold = true; $0.font.size = 14 }</code></td><td>クロージャで部分更新。範囲指定可</td></tr>
     <tr><td><code>PatternFill(fgColor='FFF2CC', fill_type='solid')</code></td><td><code>$0.fill = .solid("FFF2CC")</code></td><td>塗り。RGB hex 文字列</td></tr>
     <tr><td><code>Border(bottom=Side(style='thin'))</code></td><td><code>$0.border.bottom = .thin</code> ／ <code>$0.border = .all(.thin)</code></td><td>罫線。辺ごと・一括の両方</td></tr>
     <tr><td><code>Alignment(horizontal='center', wrap_text=True)</code></td><td><code>$0.alignment = .init(horizontal: .center, wrap: true)</code></td><td>配置・折返し</td></tr>
@@ -1600,14 +1600,14 @@ sheet[<span class="st">"C1"</span>] = <span class="ty">Date</span>()
   </table></div>
 
   <pre><code><span class="cm">// 見出し行を一括装飾</span>
-sheet.style(<span class="st">"A1:D1"</span>) {
+sheet.setStyle(<span class="st">"A1:D1"</span>) {
     $0.font.bold = <span class="kw">true</span>
     $0.fill = .solid(<span class="st">"1D1D1F"</span>)
     $0.font.color = <span class="st">"FFFFFF"</span>
     $0.alignment = .init(horizontal: .center)
     $0.border.bottom = .medium
 }
-sheet.style(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="st">"#,##0"</span> }</code></pre>
+sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span class="st">"#,##0"</span> }</code></pre>
 
   <h3>14.7 数式</h3>
   <div class="compare pbauto"><table>
@@ -1703,13 +1703,13 @@ sheet.append([<span class="st">"部門"</span>, <span class="st">"担当"</span>
     sheet.append([row.dept, row.owner, row.amount, row.date])
 }
 
-sheet.style(<span class="st">"A1:D1"</span>) {                          <span class="cm">// 見出し行</span>
+sheet.setStyle(<span class="st">"A1:D1"</span>) {                          <span class="cm">// 見出し行</span>
     $0.font.bold = <span class="kw">true</span>
     $0.fill = .solid(<span class="st">"F5F5F7"</span>)
     $0.border.bottom = .medium
 }
-sheet.style(<span class="st">"C2:C1000"</span>) { $0.numberFormat = <span class="st">"#,##0"</span> }
-sheet.style(<span class="st">"D2:D1000"</span>) { $0.numberFormat = <span class="st">"yyyy/mm/dd"</span> }
+sheet.setStyle(<span class="st">"C2:C1000"</span>) { $0.numberFormat = <span class="st">"#,##0"</span> }
+sheet.setStyle(<span class="st">"D2:D1000"</span>) { $0.numberFormat = <span class="st">"yyyy/mm/dd"</span> }
 sheet.setWidth(<span class="nm">14</span>, ofColumn: <span class="st">"C"</span>)
 sheet.freezePanes = <span class="st">"A2"</span>
 sheet.autoFilter = <span class="st">"A1:D1"</span>
@@ -1812,7 +1812,7 @@ wb.sheets[<span class="st">"マスタ"</span>] = master
 
 <span class="kw">var</span> sheet = wb.sheets[<span class="nm">0</span>]
 sheet.name = <span class="st">"取引一覧"</span>
-sheet.style(<span class="st">"A1:E1"</span>) { $0.font.bold = <span class="kw">true</span>; $0.fill = .solid(<span class="st">"F5F5F7"</span>) }
+sheet.setStyle(<span class="st">"A1:E1"</span>) { $0.font.bold = <span class="kw">true</span>; $0.fill = .solid(<span class="st">"F5F5F7"</span>) }
 sheet.freezePanes = <span class="st">"A2"</span>
 wb.sheets[<span class="nm">0</span>] = sheet
 
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.42 Draft</td><td>2026-09-10</td><td>書式を変える6宣言をsetStyleへ改名し、読めないA1文字列の扱いを「書く入口は止まる／読む入口は既定値」に揃える（B.53）。</td></tr>
     <tr><td>4.41 Draft</td><td>2026-09-10</td><td>SheetErrorを分類する。unopenable(UnopenableInput)・noCodec(for:)・unsupportedEncryption(detail:)を追加し、read/inspectの判定をSheetFormat.probeへそろえる（B.52）。</td></tr>
     <tr><td>4.40 Draft</td><td>2026-09-09</td><td>逐次書き込みを一時ファイル経由にし、正常終了したときだけ保存先へ反映する。close()がStreamingWriteResultを返し、cancel()とCodecSet.withStreamingWriterを追加（B.51）。</td></tr>
     <tr><td>4.39 Draft</td><td>2026-09-09</td><td>形式の選択を公開のCodec値へ。SpreadsheetCodecと形式別実装をpackageへ閉じ、StreamingReader.tableNames(inSheet:)を追加（B.50）。</td></tr>
@@ -6033,6 +6034,76 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>UnopenableInput.error</code>を使う既存の検査8行は自動で追従し、<code>unsupportedFeature</code>を名指しで書いた6行だけ書き換える。
   断り文に触るので<code>scripts/check-no-crypto.sh</code>を走らせる。<code>read</code>を<code>probe</code>に通すと
   ZIPの包みでmanifestを1つ余分に読むので、読みの時間は旧新を同じ機械で交互に採り、時間とピークメモリを対にして確かめる。</p>
+
+  <h3>B.53 書式を変える入口の名前と、読めない A1 文字列の扱い（Rev 4.42）</h3>
+  <p>2026-09-10承認。2つの決定を1つの移行にまとめる。どちらもモデルの公開APIの話で、コーデックがファイルから読み取る
+  文字列には及ばない——壊れたファイルの参照はこれまでどおり警告か<code>malformedPart</code>で扱い、プロセスを止めない。</p>
+
+  <p><strong>決定1: 書式を変える6宣言を<code>setStyle</code>へ改名する。</strong>
+  <code>sheet.style("A1")</code>は書式を返し、<code>sheet.style("A1") { … }</code>は書式を変える——同じ名前が取得と変更の
+  両方を指していた。同じ形（末尾のクロージャーで値を編集する）のAPIは、この library ではすべて<code>set</code>で始まる:
+  <code>setRowDimension(_:_:)</code>・<code>setColumnDimension(_:_:)</code>・<code>setColumnDimension(_ name:_:)</code>・
+  <code>setWidth(_:ofColumn:)</code>・<code>setHeight(_:ofRow:)</code>。<code>style</code>だけが揃っていない。
+  改名するのは<code>Sheet</code>と<code>Table</code>の3宣言ずつ、
+  <code>setStyle(at:_:)</code>・<code>setStyle(_ a1:_:)</code>・<code>setStyle(_ range:_:)</code>。
+  取得用の4宣言（<code>style(at:)</code>・<code>style(_:)</code>）は名前も動きも変えない。旧名は互換として残さない——
+  1.0で両方が固定されてしまうため。roadmapにあった<code>updateStyle</code>は採らない: <code>set…</code>・<code>edit…</code>に
+  次ぐ3つ目の動詞になる。1セルだけなら<code>sheet[cell: "A1"].style</code>への直接代入がこれまでどおり使え、
+  クロージャーの形は範囲（<code>"A1:D1000"</code>を1つの<code>CellStyle</code>で塗る内部共有）のために残る。</p>
+
+  <p>改名の理由は<strong>読みやすさと揃い方だけ</strong>である。「同名で重ねるとコンパイラの指摘が悪くなる」という理由は
+  当たらないことを実測した（クロージャー内の綴り違い・<code>let</code>への変更・クロージャーが値を返す・クロージャーの
+  書き忘れの4通りで、いずれも過不足のない診断が出る）。</p>
+
+  <p><strong>決定2: 読めないA1文字列への答えを「書く入口は止まる／読む入口は既定値」に揃える。</strong>
+  コードの説明文は3か所で「読めない文字列はプログラムの誤り」と1つの方針を書いていたが、実装は5通りに分かれていた——
+  理由の文つきで止まる5か所、理由の文なしで止まる2か所（<code>CellRef(a1)!</code>）、黙って既定値・nil・falseを返す14か所、
+  黙って何も起きない4か所、黙って別の意味になる4か所（<code>freezePanes(at:)</code>は固定を<strong>解除</strong>していた）。
+  同じ1文字の打ち間違いが、入口によってプロセスを落としたり、何も書かなかったり、固定を外したりしていた。</p>
+
+  <p>揃える規則は2つだけ。<strong>(a) 値を変える入口は、読めない文字列で止まる</strong>——理由の文つきの
+  <code>preconditionFailure</code>で、どの文字列が読めなかったかを言う。<strong>(b) 値を読む入口は、これまでどおり
+  既定値（nil・空配列・false・既定の書式）を返す</strong>。読む側を止めるようにはしない——表示のために座標を引くだけの
+  コードが、入力の誤りでプロセスごと落ちるのは割に合わない。</p>
+
+  <p>例外と、分けて扱うもの。<code>Table.range(_ a1:)</code>は読む入口だが非Optionalの<code>RangeView</code>を返し、
+  空の<code>CellRange</code>という表現が無いので、止まるままにする（唯一の例外）。
+  <strong>空文字とnilは「解除」の意味として残す</strong>——<code>freezePanes(at: "")</code>と<code>freezePanes(at: "A1")</code>は
+  固定の解除、<code>setPrintArea(nil)</code>・<code>setPrintTitleRows(nil)</code>・<code>freezePanesA1 = nil</code>・
+  <code>autoFilterA1 = nil</code>も解除で、これは仕様として文書化済みの動き。いままではこの解除が「<code>CellRef("")</code>が
+  nilを返す」ことで実現されていたため、空（指定しない）と読めない（打ち間違い）の区別がついていなかった。この決定は
+  その2つを分ける変更でもある。</p>
+
+  <p>動きが変わる入口は10。<code>Table</code>: <code>removeCell(_ a1:)</code>・<code>moveRange(_ a1:rows:cols:)</code>・
+  <code>unmerge(_ a1:)</code>・<code>setColumnDimension(_ name:_:)</code>（<code>setWidth(_:ofColumn name:)</code>が従う）・
+  <code>groupColumns(_:_:outlineLevel:hidden:)</code>。<code>Sheet</code>: <code>addExcelTable(named:over a1:styleInfo:)</code>・
+  <code>addConditionalFormatting(_:over sqref:)</code>・<code>freezePanes(at:)</code>・<code>freezePanesA1</code>のsetter・
+  <code>autoFilterA1</code>のsetter。加えて<code>addImage(_:at a1:sizing:)</code>と<code>addImage(_:over a1:)</code>は
+  止まること自体は変わらないが、<code>!</code>による無言の停止を理由の文つきに直す。</p>
+
+  <p><strong>定義名の式を受け取る4つは寛容なまま残す</strong>——<code>setPrintArea(_:)</code>・
+  <code>setPrintTitles(_:)</code>・<code>setPrintTitleRows(_:)</code>・<code>setPrintTitleColumns(_:)</code>。
+  これらは<code>_xlnm.Print_Area</code>／<code>_xlnm.Print_Titles</code>の式をファイルが保存した形のまま受け取り、
+  XLSXの読み手（<code>WorkbookReader.assignLocalNames</code>）自身がこの入口を通る。印刷範囲が
+  <code>MySheet!#REF!</code>——参照先のシートを消したときにExcelが残す形——になっている書類は、開けなければならない。
+  読めない部分は落とす（openpyxlの<code>test_print_settings</code>も同じ動きを求めている）。
+  最初の実装ではここも止めるようにしたが、既存の照合検査が落ちて分かった。この線引きが「プログラマが書く座標」と
+  「ファイルから来た文字列」の境目である。
+  <code>moveRange</code>のnilと<code>unmerge</code>のfalseは、読めない文字列以外の意味（移動先が負になる／併合されていなかった）
+  で今後も返る。<code>addExcelTable(named:over a1:)</code>の戻り値は<code>String?</code>から<code>String</code>になる——
+  nilは「読めなかった」以外の意味を持っていなかったため。</p>
+
+  <p><code>throws</code>に揃える案は採れない。値の代入<code>sheet["A1"] = 5</code>と<code>sheet[cell: "A1"] = cell</code>は
+  添字のsetterで、Swiftの添字はthrowできない。ここだけ別の答えにすると「1つに揃える」という目的が果たせない。
+  受け取った文字列を確かめてから使いたい呼び出し側の道は別にある——<code>CellRef(_:)</code>と<code>CellRange(_:)</code>は
+  失敗可能なイニシャライザで、読めなければnilを返す。利用者が入力した座標はここで一度受け止める。</p>
+
+  <p>検査。改名は呼び出し側がコンパイルで全部見つかる（本体・テストで54行）ので、検査は取得用の4宣言が残っていることと、
+  READMEと仕様書の用例が新しい名前になっていることを見る。A1の規則は、13の入口それぞれについて
+  「読めない文字列で止まること」を別プロセスの検査（Swift Testingの<code>exitTest</code>）で確かめ、空文字とnilの解除が
+  残っていることを通常の検査で確かめる。読む入口が既定値を返し続けることも、代表的な入口で見る。
+  <code>exitTest</code>がこの環境で使えない場合は、止まることの検査を落とし、その理由をここに追記する——
+  「検査できないので書かない」を黙って行わない。</p>
 </section>
 
 </div><!-- /.container -->

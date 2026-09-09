@@ -169,7 +169,7 @@ import Testing
         // PORT-NOTE: reading `ws["A1"]` no longer creates a cell; a cell carrying only formatting is the nearest
         // "present but empty" cell, and identity (`===`) becomes value equality of the `Cell` struct.
         var ws = Self.freshSheet()
-        ws.style("A1") { $0.font.bold = true }
+        ws.setStyle("A1") { $0.font.bold = true }
         let c = ws[cell: "A1"]
         #expect(c.value == nil && ws.rows() == [[nil]] && ws.columns() == [[nil]])
         #expect(ws.cells(in: ws.extent!) == [[c]])

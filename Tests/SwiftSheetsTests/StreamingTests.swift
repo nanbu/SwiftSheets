@@ -108,7 +108,7 @@ import SwiftSheets
     @Test func stylesAreOptional() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = .text("x")
-        wb.sheets[0].style("A1") { $0.font.bold = true }
+        wb.sheets[0].setStyle("A1") { $0.font.bold = true }
         let data = try wb.write(as: .xlsx).data
         let reader = try StreamingReader(data: data)
         var plain: CellStyle?

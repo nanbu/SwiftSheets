@@ -132,25 +132,30 @@ public struct Table: Equatable, Sendable {
 
     /// Removes a cell entirely.
     public mutating func removeCell(at ref: CellRef) { put(nil, at: ref) }
-    public mutating func removeCell(_ a1: String) { if let r = CellRef(a1) { put(nil, at: r) } }
+    public mutating func removeCell(_ a1: String) {
+        guard let r = CellRef(a1) else { preconditionFailure("invalid cell reference \(a1)") }
+        put(nil, at: r)
+    }
 
     // MARK: - Styles
 
     public func style(at ref: CellRef) -> CellStyle { cells[ref]?.style ?? .default }
     public func style(_ a1: String) -> CellStyle { CellRef(a1).map(style(at:)) ?? .default }
 
-    /// Edits the style of one cell in place (the cell is created if needed).
-    public mutating func style(at ref: CellRef, _ update: (inout CellStyle) -> Void) {
+    /// Edits the style of one cell in place (the cell is created if needed). Named `setStyle` rather than `style`
+    /// so that taking a style and changing one are different words, as they are for a row's or a column's
+    /// dimension (spec Appendix B.53).
+    public mutating func setStyle(at ref: CellRef, _ update: (inout CellStyle) -> Void) {
         var c = storage[ref] ?? Cell()
         update(&c.style)
         put(c.isBlank ? nil : c, at: ref)
     }
     /// Edits the style of every cell in a range ("A1:D1") or of a single cell ("A1").
-    public mutating func style(_ a1: String, _ update: (inout CellStyle) -> Void) {
+    public mutating func setStyle(_ a1: String, _ update: (inout CellStyle) -> Void) {
         guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
-        style(r, update)
+        setStyle(r, update)
     }
-    public mutating func style(_ range: CellRange, _ update: (inout CellStyle) -> Void) {
+    public mutating func setStyle(_ range: CellRange, _ update: (inout CellStyle) -> Void) {
         // cells of a range usually start from the same style and end at the same one, so the result is interned:
         // styling A1:D1000 should cost one `CellStyle`, not a thousand copies of it
         var made: [CellStyle: SharedStyle] = [:]
@@ -352,9 +357,11 @@ public struct Table: Equatable, Sendable {
         }
         return target
     }
+    /// Nil still means "the move would go negative"; an unparsable string is a programming error (Appendix B.53).
     @discardableResult
     public mutating func moveRange(_ a1: String, rows: Int = 0, cols: Int = 0) -> CellRange? {
-        CellRange(a1).flatMap { moveRange($0, rows: rows, cols: cols) }
+        guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
+        return moveRange(r, rows: rows, cols: cols)
     }
 
     // MARK: - Merges
@@ -455,9 +462,12 @@ public struct Table: Equatable, Sendable {
         return existingRefs(in: r)
     }
 
-    /// Unmerges exactly this range; false when it was not merged.
+    /// Unmerges exactly this range; false when it was not merged. An unparsable string is a programming error.
     @discardableResult
-    public mutating func unmerge(_ a1: String) -> Bool { CellRange(a1).map { unmerge($0) } ?? false }
+    public mutating func unmerge(_ a1: String) -> Bool {
+        guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
+        return unmerge(r)
+    }
     @discardableResult
     public mutating func unmerge(_ range: CellRange) -> Bool {
         guard let i = merges.firstIndex(where: { $0.a1 == range.a1 }) else { return false }
@@ -483,7 +493,7 @@ public struct Table: Equatable, Sendable {
         var d = columnDimension(col); update(&d); columnDimensions[col] = d.isDefault ? nil : d
     }
     public mutating func setColumnDimension(_ name: String, _ update: (inout ColumnDimension) -> Void) {
-        guard let c = CellRef.columnIndex(name) else { return }
+        guard let c = CellRef.columnIndex(name) else { preconditionFailure("invalid column name \(name)") }
         setColumnDimension(c, update)
     }
     /// Column width in characters.
@@ -501,8 +511,11 @@ public struct Table: Equatable, Sendable {
         for c in range { setColumnDimension(c) { $0.outlineLevel = outlineLevel; $0.hidden = hidden } }
     }
     /// Puts columns "F"…"K" in an outline group.
+    /// An unparsable column name is a programming error; `start` after `end` is simply an empty group.
     public mutating func groupColumns(_ start: String, _ end: String, outlineLevel: Int = 1, hidden: Bool = false) {
-        guard let a = CellRef.columnIndex(start), let b = CellRef.columnIndex(end), a <= b else { return }
+        guard let a = CellRef.columnIndex(start) else { preconditionFailure("invalid column name \(start)") }
+        guard let b = CellRef.columnIndex(end) else { preconditionFailure("invalid column name \(end)") }
+        guard a <= b else { return }
         groupColumns(a...b, outlineLevel: outlineLevel, hidden: hidden)
     }
     /// Runs of adjacent outlined columns as "F:K" strings.

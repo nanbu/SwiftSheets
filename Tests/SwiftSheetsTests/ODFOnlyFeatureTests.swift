@@ -28,7 +28,7 @@ import SwiftSheets
         d.append([CellValue.text("West"), .integer(200)])
         d["D1"] = Formula("=SUM(B2:B3)")
         d["E1"] = .number(Decimal(string: "1234.5")!)
-        d.style("E1") { $0.numberFormat = "[$¥-411]#,##0.00" }
+        d.setStyle("E1") { $0.numberFormat = "[$¥-411]#,##0.00" }
         d.table.detective[CellRef("D1")!] = CellDetective(
             highlighted: [CellDetective.HighlightedRange(range: CellRange("Data!B2:B3"), direction: .fromSameTable)],
             operations: [CellDetective.Operation(.tracePrecedents, index: 0)])

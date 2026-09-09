@@ -116,7 +116,7 @@ import SheetEncrypt
         var wb = Workbook()
         wb.sheets[0]["A1"] = "秘密"
         wb.sheets[0]["B2"] = 3.25
-        wb.sheets[0].style("A1") { $0.font.bold = true }
+        wb.sheets[0].setStyle("A1") { $0.font.bold = true }
         let protected = try wb.write(as: .ods, password: "合言葉").data
         #expect(SheetFormat.detect(from: protected) == .ods, "the mimetype stays in the clear")
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedODF))

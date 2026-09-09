@@ -28,7 +28,7 @@ import SwiftSheets
         ws[cell: "A1"].value = .text("x")
         ws[cell: "A2"].value = .text("")
         // A3 is left without a value on purpose — only the fill below gives it a reason to exist.
-        for ref in ["A1", "A2", "A3"] { ws.style(ref) { $0.fill = .solid(Color(hex: "4472C4")) } }
+        for ref in ["A1", "A2", "A3"] { ws.setStyle(ref) { $0.fill = .solid(Color(hex: "4472C4")) } }
         wb.sheets[0] = ws
 
         let result = try wb.write(as: .numbers)
@@ -49,7 +49,7 @@ import SwiftSheets
         ws["A1"] = "task"                                  // one real value, as a real sheet has
         for row in 1...8 {
             for col in 0..<10 {
-                ws.style(at: CellRef(row: row, col: col)) { $0.fill = .solid(Color(hex: "70AD47")) }
+                ws.setStyle(at: CellRef(row: row, col: col)) { $0.fill = .solid(Color(hex: "70AD47")) }
             }
         }
         wb.sheets[0] = ws
@@ -74,7 +74,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "corner"
-        ws.style("F9") { $0.fill = .solid(Color(hex: "FFC000")) }
+        ws.setStyle("F9") { $0.fill = .solid(Color(hex: "FFC000")) }
         wb.sheets[0] = ws
 
         let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
@@ -86,7 +86,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "x"
-        ws.style("C3") { $0.border.bottom = Side(style: .thin, color: Color(hex: "FF0000")) }
+        ws.setStyle("C3") { $0.border.bottom = Side(style: .thin, color: Color(hex: "FF0000")) }
         wb.sheets[0] = ws
 
         let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
@@ -116,7 +116,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "task"
-        for row in 1...4 { ws.style(at: CellRef(row: row, col: 2)) { $0.fill = .solid(Color(hex: "70AD47")) } }
+        for row in 1...4 { ws.setStyle(at: CellRef(row: row, col: 2)) { $0.fill = .solid(Color(hex: "70AD47")) } }
         wb.sheets[0] = ws
 
         let result = try wb.write(as: .numbers)
@@ -140,10 +140,10 @@ import SwiftSheets
         for (row, name) in ["設計", "実装", "検証"].enumerated() {
             ws[cell: CellRef(row: row + 1, col: 0)].value = .text(name)
             for col in (2 + row)...(4 + row) {                       // the bar: colour, no value
-                ws.style(at: CellRef(row: row + 1, col: col)) { $0.fill = .solid(Color(hex: "70AD47")) }
+                ws.setStyle(at: CellRef(row: row + 1, col: col)) { $0.fill = .solid(Color(hex: "70AD47")) }
             }
         }
-        ws.style("C1") { $0.font.size = 11; $0.font.bold = true }    // the 11pt case, alongside the bars
+        ws.setStyle("C1") { $0.font.size = 11; $0.font.bold = true }    // the 11pt case, alongside the bars
         wb.sheets[0] = ws
 
         let result = try wb.write(as: .numbers)
@@ -157,7 +157,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "task"
-        for row in 1...6 { ws.style(at: CellRef(row: row, col: 1)) { $0.fill = .solid(Color(hex: "4472C4")) } }
+        for row in 1...6 { ws.setStyle(at: CellRef(row: row, col: 1)) { $0.fill = .solid(Color(hex: "4472C4")) } }
         wb.sheets[0] = ws
 
         let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
@@ -178,7 +178,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "sized"
-        ws.style("A1") { $0.font.size = size; $0.fill = .solid(Color(hex: "EEEEEE")) }
+        ws.setStyle("A1") { $0.font.size = size; $0.fill = .solid(Color(hex: "EEEEEE")) }
         wb.sheets[0] = ws
 
         let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
@@ -193,7 +193,7 @@ import SwiftSheets
         for (i, size) in [10.0, 11.0, 12.0].enumerated() {
             let ref = CellRef(row: i, col: 0)
             ws[cell: ref].value = .text("\(size)")
-            ws.style(at: ref) { $0.font.size = size; $0.font.bold = true }
+            ws.setStyle(at: ref) { $0.font.size = size; $0.font.bold = true }
         }
         wb.sheets[0] = ws
 
@@ -212,7 +212,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "plain"
-        ws.style("A1") { $0.font.size = 11 }
+        ws.setStyle("A1") { $0.font.size = 11 }
         wb.sheets[0] = ws
         #expect(ws.style("A1") == .default, "a style saying only 11pt is the model's default style")
 
@@ -238,7 +238,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "faced"
-        ws.style("A1") { $0.font.name = name; $0.fill = .solid(Color(hex: "EEEEEE")) }
+        ws.setStyle("A1") { $0.font.name = name; $0.fill = .solid(Color(hex: "EEEEEE")) }
         wb.sheets[0] = ws
 
         let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]
@@ -253,7 +253,7 @@ import SwiftSheets
         for (i, name) in ["Calibri", "Georgia"].enumerated() {
             let ref = CellRef(row: i, col: 0)
             ws[cell: ref].value = .text(name)
-            ws.style(at: ref) { $0.font.name = name; $0.font.bold = true }
+            ws.setStyle(at: ref) { $0.font.name = name; $0.font.bold = true }
         }
         wb.sheets[0] = ws
 
@@ -270,7 +270,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "plain"
-        ws.style("A1") { $0.font.name = "Calibri" }
+        ws.setStyle("A1") { $0.font.name = "Calibri" }
         wb.sheets[0] = ws
         #expect(ws.style("A1") == .default, "a style saying only Calibri is the model's default style")
 
@@ -284,7 +284,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "heading"
-        ws.style("A1") { $0.font.name = "Calibri"; $0.font.size = 11; $0.fill = .solid(Color(hex: "DDDDDD")) }
+        ws.setStyle("A1") { $0.font.name = "Calibri"; $0.font.size = 11; $0.fill = .solid(Color(hex: "DDDDDD")) }
         wb.sheets[0] = ws
 
         let back = try NumbersCodec.read(try wb.write(as: .numbers).data).workbook.sheets[0]

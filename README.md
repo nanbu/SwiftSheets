@@ -26,7 +26,7 @@ var wb = try Workbook(contentsOf: URL(filePath: "monthly-report.xlsx"))   // for
 try wb.editSheet(named: "Summary") { sheet in // sheets are value types; this edits one in place — nothing to put back
     sheet["B4"] = 1_380_000                   // Int / Double / Decimal / String / Bool / CivilDate literals and values
     sheet["B5"] = Formula("=B4/B3")           // parsed into an AST; follows row inserts and sheet renames
-    sheet.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
+    sheet.setStyle("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
 }                                             // a closure that throws leaves the workbook untouched; a missing name is loud
 var sheet = wb.sheets["Summary"]!             // the classic way still works…
 sheet["B6"] = "October"
@@ -256,7 +256,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | (no equivalent — reference types have no write-back to forget) | `wb.editSheet(named: "Sales") { sheet in … }` — scoped editing: applied when the closure returns, discarded whole when it throws, `SheetError.sheetNotFound` when the name is absent |
 | `ws.title = 'New'` | `wb.sheets[0].name = "New"` (formulas referring to the sheet follow) |
 | `ws['A1'].value`, `ws['A1'] = 42`, `ws.cell(row=1, column=2)` | `sheet["A1"]`, `sheet["A1"] = 42`, `sheet[0, 1]` |
-| `cell.font = Font(bold=True)` | `sheet.style("A1") { $0.font.bold = true }` or `sheet[cell: "A1"].font.bold = true` |
+| `cell.font = Font(bold=True)` | `sheet.setStyle("A1") { $0.font.bold = true }` or `sheet[cell: "A1"].font.bold = true` |
 | `wb.add_named_style(NamedStyle(...))`, `cell.style = 'Title'` | `wb.addNamedStyle(NamedStyle(...))`, `sheet[cell: "A1"].style = style.applied` (`CellStyle.namedStyle` is the link) |
 | `ws.iter_rows(values_only=True)`, `ws.values` | `sheet.rows(in: "A2:D100")`, `sheet.values(in:)` |
 | `ws['A1':'C3']` | `sheet.range("A1:C3")` — a lazy view: rows on demand, cells shared, nothing materialised |

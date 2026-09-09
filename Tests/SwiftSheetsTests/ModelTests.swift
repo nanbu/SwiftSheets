@@ -38,7 +38,7 @@ import Testing
         #expect(s.rowCount == 1 && s.columnCount == 8)
         s["A1"] = nil
         #expect(s.cell("A1") == nil)   // nothing left, so the cell is gone
-        s.style("B1") { $0.numberFormat = "#,##0" }
+        s.setStyle("B1") { $0.numberFormat = "#,##0" }
         s["B1"] = nil
         #expect(s.cell("B1") != nil)   // formatting keeps the cell
         #expect(Sheet(name: "E").extent == nil)
@@ -109,7 +109,7 @@ import Testing
 
     @Test func stylesAndDimensions() {
         var s = Sheet(name: "S")
-        s.style("A1:B1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")); $0.border.bottom = Side(style: .medium) }
+        s.setStyle("A1:B1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")); $0.border.bottom = Side(style: .medium) }
         #expect(s.style("B1").font.bold && s.style("C1").font.bold == false)
         #expect(s[cell: "A1"].fill == .solid(.rgb("FFF5F5F7")))
         s.setWidth(14, ofColumn: "C"); s.setHeight(24, ofRow: 0)

@@ -281,7 +281,7 @@ public struct NamedStyle: Hashable, Sendable {
     /// it. openpyxl spells the same thing `cell.style = "Title"`:
     ///
     ///     sheet[cell: "A1"].style = heading.applied
-    ///     sheet.style("A1:D1") { $0 = heading.applied }
+    ///     sheet.setStyle("A1:D1") { $0 = heading.applied }
     public var applied: CellStyle {
         var s = style
         s.namedStyle = name

@@ -36,8 +36,8 @@ import SwiftSheets
         d["H3"] = .richText([TextRun("赤", font: Font(bold: true)), TextRun("青")])
         d.merge("A11:B12")
         d["A11"] = "結合"
-        d.style("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "DDEBF7")); $0.alignment.horizontal = .center }
-        d.style("D2:D9") { $0.numberFormat = "#,##0.00" }
+        d.setStyle("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "DDEBF7")); $0.alignment.horizontal = .center }
+        d.setStyle("D2:D9") { $0.numberFormat = "#,##0.00" }
         d.setWidth(18, ofColumn: 0)
         d.setHeight(24, ofRow: 0)
         d.groupRows(3...5, outlineLevel: 1)
@@ -80,7 +80,7 @@ import SwiftSheets
             highlighted: [CellDetective.HighlightedRange(range: CellRange("Data!C2:C9"), direction: .fromSameTable)],
             operations: [CellDetective.Operation(.tracePrecedents, index: 0)])
         wb.sheets[0]["I1"] = .number(Decimal(string: "1234.5")!)
-        wb.sheets[0].style("I1") { $0.numberFormat = "[$¥-411]#,##0.00" }
+        wb.sheets[0].setStyle("I1") { $0.numberFormat = "[$¥-411]#,##0.00" }
 
         wb.addSheet(named: "Pivot")
         _ = wb.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A3")!, summarizing: CellRange("A1:D9")!,

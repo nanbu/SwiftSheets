@@ -43,8 +43,8 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0].name = "One"; wb.sheets[0]["A1"] = "first"
         wb.addSheet(named: "Two"); wb.sheets[1]["A1"] = "second"
-        if styleFirst { wb.sheets[0].style("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "DDEBF7")) } }
-        if styleSecond { wb.sheets[1].style("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) } }
+        if styleFirst { wb.sheets[0].setStyle("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "DDEBF7")) } }
+        if styleSecond { wb.sheets[1].setStyle("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) } }
         return wb
     }
 
@@ -64,9 +64,9 @@ import SwiftSheets
         for i in 1..<5 { wb.addSheet(named: "S\(i + 1)") }
         for i in 0..<5 {
             wb.sheets[i]["A1"] = .text("sheet \(i + 1)")
-            wb.sheets[i].style("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) }
+            wb.sheets[i].setStyle("A1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "FFC7CE")) }
             wb.sheets[i]["B1"] = .number(Decimal(string: "1234.5")!)
-            wb.sheets[i].style("B1") { $0.numberFormat = "#,##0.00" }
+            wb.sheets[i].setStyle("B1") { $0.numberFormat = "#,##0.00" }
         }
         let result = try wb.write(as: .numbers)
         let undeclared = try Self.undeclaredStyleCrossings(result.data)

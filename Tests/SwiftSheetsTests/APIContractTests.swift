@@ -156,7 +156,7 @@ import SwiftSheets
         let count = try wb.editSheet(named: "Sheet1") { sheet in
             sheet["B4"] = 1_380_000
             sheet["B5"] = Formula("=B4/B3")
-            sheet.style("A1") { $0.font.bold = true }
+            sheet.setStyle("A1") { $0.font.bold = true }
             return sheet.cells.count
         }
         #expect(count == 3)

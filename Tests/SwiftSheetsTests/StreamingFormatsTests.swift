@@ -29,8 +29,8 @@ import SwiftSheets
         ws["F8"] = .text("line\nbreak")
         ws.merge("H2:I3")
         ws["H2"] = "結合"
-        ws.style("A1:D1") { $0.font.bold = true }
-        ws.style("G10") { $0.fill = .solid(Color(hex: "FFFF00")) }   // styled, empty
+        ws.setStyle("A1:D1") { $0.font.bold = true }
+        ws.setStyle("G10") { $0.fill = .solid(Color(hex: "FFFF00")) }   // styled, empty
         ws["E100"] = .number(3.5)                                      // far away, after empty rows
         wb.sheets[0] = ws
         wb.addSheet(named: "Second")

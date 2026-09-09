@@ -24,7 +24,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = 1
-        ws["B1"] = 2; ws.style("B1") { $0.protection = Protection(locked: false) }   // the one editable cell
+        ws["B1"] = 2; ws.setStyle("B1") { $0.protection = Protection(locked: false) }   // the one editable cell
         var p = SheetProtection.on
         p.setPassword("secret")
         p.allowsSorting = true

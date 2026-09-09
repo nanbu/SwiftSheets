@@ -12,7 +12,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = "one"
         wb.addSheet(named: "Two"); wb.sheets[1]["A1"] = "two"; wb.sheets[1]["B2"] = Formula("=1+1")
-        wb.sheets[1].style("A1") { $0.font.bold = true }
+        wb.sheets[1].setStyle("A1") { $0.font.bold = true }
         wb.addSheet(named: "Three"); wb.sheets[2]["A1"] = "three"
         return try wb.write(as: .xlsx).data
     }

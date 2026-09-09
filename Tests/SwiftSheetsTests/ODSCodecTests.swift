@@ -63,16 +63,16 @@ import SwiftSheets
         ws["M1"] = .duration(.seconds(26 * 3600 + 90))
         ws["N1"] = .formula(FormulaExpr.parse("=Hidden!A1"), cached: .text("secret"))
         ws["A2"] = .text("styled")
-        ws.style("A2") {
+        ws.setStyle("A2") {
             $0.font = Font(name: "Arial", size: 14, bold: true, italic: true, color: Color(hex: "112233"))
             $0.fill = .solid(Color(hex: "BFD7F5"))
             $0.border = Border(left: Side(style: .thin, color: .black), right: Side(style: .medium, color: Color(hex: "FF0000")), top: Side(style: .thick, color: .black), bottom: Side(style: .double, color: .black))
             $0.alignment = Alignment(horizontal: .center, vertical: .top, wrapText: true)
         }
-        ws["B2"] = .number(Decimal(string: "1234.5")!); ws.style("B2") { $0.numberFormat = "#,##0.00" }
-        ws["C2"] = .number(Decimal(string: "0.25")!); ws.style("C2") { $0.numberFormat = "0%" }
-        ws["D2"] = .date(CivilDateTime(date: CivilDate(year: 2026, month: 9, day: 1)!)); ws.style("D2") { $0.numberFormat = "yyyy-mm-dd" }
-        ws["E2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws.style("E2") { $0.numberFormat = "h:mm" }
+        ws["B2"] = .number(Decimal(string: "1234.5")!); ws.setStyle("B2") { $0.numberFormat = "#,##0.00" }
+        ws["C2"] = .number(Decimal(string: "0.25")!); ws.setStyle("C2") { $0.numberFormat = "0%" }
+        ws["D2"] = .date(CivilDateTime(date: CivilDate(year: 2026, month: 9, day: 1)!)); ws.setStyle("D2") { $0.numberFormat = "yyyy-mm-dd" }
+        ws["E2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws.setStyle("E2") { $0.numberFormat = "h:mm" }
         ws["A3"] = .text("merged"); ws.merge("A3:C4")
         ws["A5"] = .text("link"); ws[cell: "A5"].hyperlink = Hyperlink(target: "https://example.com/")
         ws["B5"] = .text("noted"); ws[cell: "B5"].comment = CellNote("a note\nsecond line", author: "tester")
@@ -379,9 +379,9 @@ import SwiftSheets
 
     @Test func inexpressibleStylesAreReportedOnce() throws {
         var ws = Sheet(name: "W")
-        ws["A1"] = .integer(1); ws.style("A1") { $0.font.color = .theme(4); $0.numberFormat = "#,##0_);(#,##0)" }
-        ws["A2"] = .integer(2); ws.style("A2") { $0.fill = .solid(.indexed(12)); $0.numberFormat = "#,##0_);(#,##0)" }
-        ws["A3"] = .integer(3); ws.style("A3") { $0.numberFormat = "# ?/?" }
+        ws["A1"] = .integer(1); ws.setStyle("A1") { $0.font.color = .theme(4); $0.numberFormat = "#,##0_);(#,##0)" }
+        ws["A2"] = .integer(2); ws.setStyle("A2") { $0.fill = .solid(.indexed(12)); $0.numberFormat = "#,##0_);(#,##0)" }
+        ws["A3"] = .integer(3); ws.setStyle("A3") { $0.numberFormat = "# ?/?" }
         let result = try ODSCodec.write(Workbook(sheets: [ws]))
         let degraded = result.warnings.filter { $0.kind == .degraded }
         #expect(degraded.count == 1 && degraded[0].message.contains("colour"))

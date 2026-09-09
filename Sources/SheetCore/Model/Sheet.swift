@@ -140,9 +140,10 @@ public struct Sheet: Equatable, Sendable {
         excelTables.append(ExcelTable(name: final, ref: ref, headerRow: header, styleInfo: styleInfo))
         return final
     }
+    /// The A1 form. An unparsable range is a programming error, so the name always comes back (Appendix B.53).
     @discardableResult
-    public mutating func addExcelTable(named name: String, over a1: String, styleInfo: TableStyleInfo? = .default) -> String? {
-        guard let r = CellRange(a1) else { return nil }
+    public mutating func addExcelTable(named name: String, over a1: String, styleInfo: TableStyleInfo? = .default) -> String {
+        guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
         return addExcelTable(named: name, over: r, styleInfo: styleInfo)
     }
     /// The named table covering a cell, if any.
@@ -175,9 +176,9 @@ public struct Sheet: Equatable, Sendable {
         if let i = conditionalFormatting.firstIndex(where: { $0.ranges == ranges }) { conditionalFormatting[i].rules.append(r) }
         else { conditionalFormatting.append(ConditionalFormatting(ranges: ranges, rules: [r])) }
     }
-    /// Adds one rule over `"A2:D99"` (or `"A1 C1:C9"`); ignored when the text is not a range.
+    /// Adds one rule over `"A2:D99"` (or `"A1 C1:C9"`). An unparsable list is a programming error (Appendix B.53).
     public mutating func addConditionalFormatting(_ rule: ConditionalFormattingRule, over sqref: String) {
-        guard let ranges = MultiCellRange(sqref) else { return }
+        guard let ranges = MultiCellRange(sqref) else { preconditionFailure("invalid range list \(sqref)") }
         addConditionalFormatting(rule, over: ranges)
     }
     /// The rules covering a cell, most important first.
@@ -248,9 +249,9 @@ public struct Sheet: Equatable, Sendable {
 
     public func style(at ref: CellRef) -> CellStyle { table.style(at: ref) }
     public func style(_ a1: String) -> CellStyle { table.style(a1) }
-    public mutating func style(at ref: CellRef, _ update: (inout CellStyle) -> Void) { table.style(at: ref, update) }
-    public mutating func style(_ a1: String, _ update: (inout CellStyle) -> Void) { table.style(a1, update) }
-    public mutating func style(_ range: CellRange, _ update: (inout CellStyle) -> Void) { table.style(range, update) }
+    public mutating func setStyle(at ref: CellRef, _ update: (inout CellStyle) -> Void) { table.setStyle(at: ref, update) }
+    public mutating func setStyle(_ a1: String, _ update: (inout CellStyle) -> Void) { table.setStyle(a1, update) }
+    public mutating func setStyle(_ range: CellRange, _ update: (inout CellStyle) -> Void) { table.setStyle(range, update) }
 
     public var extent: CellRange? { table.extent }
     public var rowCount: Int { table.rowCount }
@@ -336,7 +337,8 @@ public struct Sheet: Equatable, Sendable {
     }
     /// A1 form of `addImage(_:at:sizing:)`. An unparseable reference is a programmer error, as with subscripts.
     public mutating func addImage(_ image: SheetImage, at a1: String, sizing: ImagePlacement = .original) {
-        addImage(image, at: CellRef(a1)!, sizing: sizing)
+        guard let r = CellRef(a1) else { preconditionFailure("invalid cell reference \(a1)") }
+        addImage(image, at: r, sizing: sizing)
     }
     /// Stretches a picture over a range (both corners follow their cells).
     public mutating func addImage(_ image: SheetImage, over range: CellRange) {
@@ -345,7 +347,10 @@ public struct Sheet: Equatable, Sendable {
         images.append(img)
     }
     /// A1 form of `addImage(_:over:)`.
-    public mutating func addImage(_ image: SheetImage, over a1: String) { addImage(image, over: CellRange(a1)!) }
+    public mutating func addImage(_ image: SheetImage, over a1: String) {
+        guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
+        addImage(image, over: r)
+    }
 
     public mutating func groupRows(_ range: ClosedRange<Int>, outlineLevel: Int = 1, hidden: Bool = false) { table.groupRows(range, outlineLevel: outlineLevel, hidden: hidden) }
     public mutating func groupColumns(_ range: ClosedRange<Int>, outlineLevel: Int = 1, hidden: Bool = false) { table.groupColumns(range, outlineLevel: outlineLevel, hidden: hidden) }
@@ -354,17 +359,31 @@ public struct Sheet: Equatable, Sendable {
 
     // MARK: - Panes / printing
 
-    /// Freeze at "B2" etc.; "" or "A1" clears.
-    public mutating func freezePanes(at a1: String) { freezePanes = CellRef(a1) }
-    /// The freeze cell as A1 text; assign "B2" or nil.
+    /// Freeze at "B2" etc.; "" or "A1" clears. Anything else that will not parse is a programming error, so that
+    /// a typo cannot pass for "clear it" (Appendix B.53).
+    public mutating func freezePanes(at a1: String) {
+        guard !a1.isEmpty else { freezePanes = nil; return }
+        guard let r = CellRef(a1) else { preconditionFailure("invalid cell reference \(a1)") }
+        freezePanes = r
+    }
+    /// The freeze cell as A1 text; assign "B2" or nil. Nil clears; a string that will not parse is a programming
+    /// error rather than a second way to clear (Appendix B.53).
     public var freezePanesA1: String? {
         get { freezePanes?.a1 }
-        set { freezePanes = newValue.flatMap(CellRef.init) }
+        set {
+            guard let newValue else { freezePanes = nil; return }
+            guard let r = CellRef(newValue) else { preconditionFailure("invalid cell reference \(newValue)") }
+            freezePanes = r
+        }
     }
-    /// The auto-filter range as A1 text; assign "A1:D100" or nil.
+    /// The auto-filter range as A1 text; assign "A1:D100" or nil. Nil clears; an unparsable string stops.
     public var autoFilterA1: String? {
         get { autoFilter?.a1 }
-        set { autoFilter = newValue.flatMap(CellRange.init) }
+        set {
+            guard let newValue else { autoFilter = nil; return }
+            guard let r = CellRange(newValue) else { preconditionFailure("invalid range \(newValue)") }
+            autoFilter = r
+        }
     }
 
     /// The `_xlnm.Print_Titles` formula, e.g. `'Sheet'!$1:$2,'Sheet'!$C:$D`. Nil when unset.
@@ -382,6 +401,12 @@ public struct Sheet: Equatable, Sendable {
     }
 
     /// Sets the print area from "A1:F5" / "$A$1:$F$5" (multiple areas comma separated). Nil or "" clears.
+    ///
+    /// This one takes a `_xlnm.Print_Area` formula exactly as a file saves it, and is the reader's own way in
+    /// (`WorkbookReader.assignLocalNames`), so it is **lenient**: a part that will not parse is dropped rather
+    /// than treated as a programming error. A workbook whose print area is `MySheet!#REF!` — what Excel leaves
+    /// behind when the sheet it pointed at is deleted — has to open. Spec Appendix B.53 draws the line there:
+    /// the strict rule is for coordinates a programmer writes, not for text that came out of a file.
     public mutating func setPrintArea(_ text: String?) {
         guard let text, !text.isEmpty else { printArea = []; return }
         printArea = text.split(separator: ",").compactMap { part in
@@ -402,7 +427,8 @@ public struct Sheet: Equatable, Sendable {
         }
     }
 
-    /// Parses "1:4" into `printTitleRows` and "A:F" into `printTitleColumns`.
+    /// Parses "1:4" into `printTitleRows` and "A:F" into `printTitleColumns`. Lenient for the same reason as
+    /// `setPrintArea`: this is the shape a `_xlnm.Print_Titles` formula arrives in from a file.
     public mutating func setPrintTitleRows(_ text: String?) {
         guard let text, let b = RangeBounds(text), let lo = b.minRow, let hi = b.maxRow, b.minCol == nil else { printTitleRows = nil; return }
         printTitleRows = lo...hi
