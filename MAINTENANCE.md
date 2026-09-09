@@ -151,13 +151,16 @@ thirty-nine commits of ODS and Numbers work landed on top of it, so anyone follo
 1. `SwiftSheetsInfo.version` — the constant the library stamps into every file it writes;
 2. `README.md` — the `Status: **x.y.z**` line **and** the `from: "x.y.z"` pin under Installation;
 3. `CHANGELOG.md` — a `## [x.y.z]` section and its compare link at the bottom;
-4. `docs/*.html` — the version in the `<title>` of every page that names one (`format-support.html`,
-   `interoperability.html`). This was a hand step, and it was missed for three releases: two pages sat at 0.7.2
-   until 2026-08-31.
-5. `scripts/spec-feature-matrix.json` — `meta.library_version`, then `python3 scripts/build-spec-feature-matrix.py`
-   to regenerate `docs/spec-feature-matrix.{html,yaml}`. **Never edit the generated page's title by hand**: CI's
-   `--check` compares the page with its source and fails on the difference (it did, on 0.11.2, when the title
-   was edited directly).
+4. `docs/*.html` — the version in the `<title>` of the **hand-written** pages that name one
+   (`format-support.html`, `interoperability.html`). This was a hand step, and it was missed for three releases:
+   two pages sat at 0.7.2 until 2026-08-31.
+5. The **generated** pages take their version from their source, and are rebuilt rather than edited:
+   `scripts/spec-feature-matrix.json` (`meta.library_version`) → `python3 scripts/build-spec-feature-matrix.py`,
+   and `docs/performance.json` (`meta.library_version`) → `python3 scripts/build-performance-page.py`.
+   **Never edit a generated page's title by hand**: CI's `--check` compares each page with its source and fails on
+   the difference. It did on 0.11.2, when the matrix's title was edited directly — and again on 0.22.0, when this
+   list named only the matrix and the performance page's title was bumped by hand while its JSON stayed behind.
+   Both `--check`s run in CI; run them locally before pushing a release commit.
 
 `APIContractTests.theReadmeSaysTheVersionTheLibraryWrites` fails if the constant, the README or the CHANGELOG
 disagree, and `APIContractTests.everyPublishedDocumentNamesTheCurrentVersion` fails if a published page does — so
