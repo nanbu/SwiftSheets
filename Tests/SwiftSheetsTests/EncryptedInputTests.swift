@@ -23,7 +23,9 @@ import SwiftSheets
 
         for read in [{ try Workbook(data: data) }, { try Workbook(data: data, format: .xlsx) }] {
             let error = #expect(throws: SheetError.self) { _ = try read() }
-            guard case .unsupportedFeature(let detail)? = error else { return #expect(Bool(false), "expected unsupportedFeature") }
+            guard case .unopenable(let input)? = error else { return #expect(Bool(false), "expected unopenable") }
+            #expect(input == .encryptedOOXML)
+            let detail = error!.description
             #expect(detail.contains("encrypted") && detail.contains("SheetDecrypt"), "names the fact and the product that opens it: \(detail)")
         }
     }
@@ -31,7 +33,7 @@ import SwiftSheets
     /// The extension hint must not talk the facade into treating an encrypted package as CSV.
     @Test func encryptedOOXMLIsNotMistakenForTextWhenTheNameSaysCSV() throws {
         let data = try Self.fixture("agile.xlsx")
-        #expect(throws: SheetError.unsupportedFeature(UnopenableInput.encryptedOOXML.reason)) {
+        #expect(throws: SheetError.unopenable(.encryptedOOXML)) {
             _ = try Workbook.read(data, options: ReadOptions(filename: "secret.csv"))
         }
     }
@@ -39,7 +41,7 @@ import SwiftSheets
     @Test func legacyXLSNamesItselfInsteadOfBeingUnrecognized() throws {
         let data = try Self.fixture("legacy.xls")
         #expect(UnopenableInput.probe(data) == .legacyCompoundFile)
-        #expect(throws: SheetError.unsupportedFeature(UnopenableInput.legacyCompoundFile.reason)) {
+        #expect(throws: SheetError.unopenable(.legacyCompoundFile)) {
             _ = try Workbook(data: data)
         }
     }
@@ -51,7 +53,7 @@ import SwiftSheets
         #expect(SheetFormat.detect(from: data) == .ods)
         #expect(UnopenableInput.probe(in: try ZipInspection(data: data)) == .encryptedODF)
         for read in [{ try Workbook(data: data) }, { try ODSCodec.read(data).workbook }] {
-            #expect(throws: SheetError.unsupportedFeature(UnopenableInput.encryptedODF.reason)) { _ = try read() }
+            #expect(throws: SheetError.unopenable(.encryptedODF)) { _ = try read() }
         }
         #expect(UnopenableInput.encryptedODF.reason.contains("SheetDecrypt"), "the refusal names the product that opens the file")
     }

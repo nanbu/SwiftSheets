@@ -970,19 +970,23 @@ pre .vr { color: var(--code-var); }
     <span class="kw">case</span> unrecognizedFormat
     <span class="kw">case</span> corruptedContainer(detail: <span class="ty">String</span>)      <span class="cm">// ZIP/Snappy 層の失敗</span>
     <span class="kw">case</span> malformedPart(path: <span class="ty">String</span>, detail: <span class="ty">String</span>)
-    <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// 暗号化ファイル（中核だけで開こうとしたとき）等</span>
+    <span class="kw">case</span> unopenable(<span class="ty">UnopenableInput</span>)             <span class="cm">// 見分けはついたが開かない入力（暗号化・旧 .xls — B.52）</span>
+    <span class="kw">case</span> noCodec(<span class="kw">for</span>: <span class="ty">SheetFormat</span>)              <span class="cm">// その CodecSet にコーデックが無い（B.52）</span>
+    <span class="kw">case</span> unsupportedEncryption(detail: <span class="ty">String</span>)   <span class="cm">// 扱わないパスワード保護（読む側・書く側とも — B.52）</span>
+    <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// 形式・環境そのものの限界（CSV は 1 枚 等）</span>
     <span class="kw">case</span> unsupportedVersion(found: <span class="ty">String</span>, supported: <span class="ty">ClosedRange</span>&lt;<span class="ty">Int</span>&gt;)  <span class="cm">// Numbers 用</span>
     <span class="kw">case</span> formulaSyntax(offset: <span class="ty">Int</span>, detail: <span class="ty">String</span>)
     <span class="kw">case</span> invalidWorkbook(<span class="ty">String</span>)                 <span class="cm">// 求められた形では書けないモデル（シート 0 枚 等）</span>
     <span class="kw">case</span> sheetNotFound(name: <span class="ty">String</span>)             <span class="cm">// 名指しされたシートが無い（editSheet — Rev 4.0・B.30）</span>
     <span class="kw">case</span> ioFailure(detail: <span class="ty">String</span>)               <span class="cm">// ファイル入出力そのものの失敗</span>
+    <span class="kw">case</span> wrongPassword                          <span class="cm">// 渡されたパスワードで開かない（Rev 4.28・B.39.9）</span>
 }</code></pre>
   <div class="callout callout-info">
     <span class="label">ファサードの動作</span>
     <p><code>Workbook(contentsOf:)</code> は判別 → 該当コーデックの <code>read</code> を呼ぶだけの薄い層とする。
     この振り分けは形式ごとの <code>switch</code> ではなく、<code>SheetFormat</code> を鍵にした表 <code>CodecSet</code>
     （SheetCore・Rev 4.32・B.44）が行い、全部入りは 5 コーデックを差し込んだ <code>CodecSet.all</code> に委ねる。
-    表に無い形式は <code>unsupportedFeature</code> で形式名と足す製品名を言って断る。
+    表に無い形式は <code>noCodec(for:)</code> で形式名と足す製品名を言って断る（Rev 4.41・B.52。従来は <code>unsupportedFeature</code>）。
     書き出しは <code>wb.write(to:as:)</code> で明示指定を基本とし、拡張子からの推定はコンビニエンスとして提供する。
     <strong>読み込み形式と異なる形式への書き出し＝変換</strong>であり、追加の実装は不要（中間モデルが仲介する）。</p>
   </div>
@@ -1910,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.41 Draft</td><td>2026-09-10</td><td>SheetErrorを分類する。unopenable(UnopenableInput)・noCodec(for:)・unsupportedEncryption(detail:)を追加し、read/inspectの判定をSheetFormat.probeへそろえる（B.52）。</td></tr>
     <tr><td>4.40 Draft</td><td>2026-09-09</td><td>逐次書き込みを一時ファイル経由にし、正常終了したときだけ保存先へ反映する。close()がStreamingWriteResultを返し、cancel()とCodecSet.withStreamingWriterを追加（B.51）。</td></tr>
     <tr><td>4.39 Draft</td><td>2026-09-09</td><td>形式の選択を公開のCodec値へ。SpreadsheetCodecと形式別実装をpackageへ閉じ、StreamingReader.tableNames(inSheet:)を追加（B.50）。</td></tr>
     <tr><td>4.38 Draft</td><td>2026-09-08</td><td>WorkbookとCodecSetのconvertをto:出力先・as:形式へ統一（B.49）。</td></tr>
@@ -5699,7 +5704,8 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
       <code>self.init(sink:format:)</code> へ渡す（器を 1 度余分に作るが、状態は sink が持つので無害）。</li>
     <li><strong>断り方</strong>: 束に無い形式は <code>SheetError.unsupportedFeature</code>（§4.3 の「未実装の形式」の枠）で
       「no codec for .csv is in this CodecSet — link the SheetCSV product, or the SwiftSheets product, which has every codec」。
-      形式名と製品名を言う。見分けは中核が全形式を知っているので、CSV を「不明な形式」にはしない。新しい <code>case</code> は足さない。</li>
+      形式名と製品名を言う。見分けは中核が全形式を知っているので、CSV を「不明な形式」にはしない。新しい <code>case</code> は足さない。
+      <em>Rev 4.41（B.52）で改める — 断り文はそのままに、<code>SheetError.noCodec(for:)</code> で答える。</em></li>
     <li><strong>依存の向き</strong>は 1 本も変えない。<code>SheetDecrypt</code> / <code>SheetEncrypt</code> は全部入りに依存したまま、
       今までの呼び名を使い続ける。<code>scripts/check-no-crypto.sh</code> は 6 モジュール名を順に見るだけで、モジュールは増えないので不変。</li>
   </ul>
@@ -5868,7 +5874,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   同じ形式を複数回指定したときは最後を採用し、<code>formats</code>は最初に現れた順序を保つ。空配列も許す。
   <code>contains</code>と<code>codec(for:)</code>が調べるのはそのCodecSetに登録された形式であり、
   バイナリーにリンクされているだけの形式を利用可能とは扱わない。未登録形式のエラーは現行の<code>SheetError.unsupportedFeature</code>を維持し、
-  文言は製品のリンクとCodecSetへの登録の両方を案内する。SwiftSheetsの<code>CodecSet.all</code>は引き続き全形式を登録する。</p>
+  文言は製品のリンクとCodecSetへの登録の両方を案内する（<em>Rev 4.41・B.52で<code>noCodec(for:)</code>へ改める。文言は維持</em>）。SwiftSheetsの<code>CodecSet.all</code>は引き続き全形式を登録する。</p>
   <p><code>StreamingReader.tableNames(inSheet:) throws -&gt; [String?]</code>を追加する。配列の順序と個数は同じシートの
   <code>tableCount(inSheet:)</code>および<code>forEachRow</code>のtable添字に一致させる。名前が無い表はnilを返し、"Table"を生成しない
   （実際に記録された"Table"や空文字はそのまま返す）。既定実装はtableCountと同じ個数のnil配列で、Numbersだけが実名を埋める。
@@ -5970,6 +5976,63 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   プロセスが落ちず保存もされないこと。<code>scripts/check-streaming-api.py</code>が別のSwiftPMクライアントから
   結果未使用の警告と明示的な破棄を確認する（CIのmacOSとLinux）。計測は変更前後を同じ機械で交互に採り、
   時間とピークメモリを対にして報告する。</p>
+
+  <h3>B.52 開けなかった理由を型で答える — SheetErrorの分類（Rev 4.41）</h3>
+  <p>2026-09-10承認。<code>SheetError.unsupportedFeature(String)</code>には性質の違う失敗が同居していた——
+  Sources全体で30か所から投げられ、暗号化ファイル・束に無い形式・扱わない暗号の形・形式そのものの限界が同じcaseに入る。
+  呼び出し側がこの4つを区別するには、断り文に<code>encrypted</code>が入っているか、<code>no codec for</code>で始まるかを
+  文字列で調べるしかない。ライブラリーが書いた文章を利用側が読み解く形になっていた。読む前の問い合わせ
+  <code>SheetFormat.probe</code>はすでに<code>FormatProbe.unopenable(UnopenableInput)</code>という型で同じことを答えているので、
+  投げる側だけが文字列に落ちている不揃いでもある。1.0で公開enumにcaseを足すと利用側の網羅switchが壊れるため、1.0の前に決める。</p>
+
+  <p>caseを3つ足す。新しい型・新しい語彙は作らず、既にある公開の型をそのまま値として運ぶ。</p>
+  <ul>
+    <li><code>unopenable(UnopenableInput)</code> — 見分けはついたがこのライブラリーでは開かない入力。
+      暗号化OOXML・暗号化ODF・暗号化Numbers・旧<code>.xls</code>の4つで、<code>UnopenableInput.error</code>が返す値を
+      <code>unsupportedFeature</code>から差し替える（17の投げ口が1か所のアクセサに集まっている）。
+      <code>FormatProbe.unopenable</code>と同じcase名・同じ値にそろえる。</li>
+    <li><code>noCodec(for: SheetFormat)</code> — そのCodecSetにコーデックが無い（B.44・B.50の断り）。文言は変えず、
+      製品のリンクとCodecSetへの登録の両方を案内し続ける。</li>
+    <li><code>unsupportedEncryption(detail: String)</code> — このライブラリーが扱わないパスワード保護。読む側10か所
+      （ODF 1.1のBlowfish、Excel 2007のstandard暗号、知らないハッシュ・鍵長・チェックサム）と、書く側2か所
+      （CSVは定義上平文、Numbersの暗号化は非公開）。<strong>読み・書きの両方を含む</strong>。</li>
+  </ul>
+
+  <p>残る16か所の<code>unsupportedFeature</code>は形式・環境そのものの限界（CSVは1シート、CSVの文字コードで表せない文字、
+  Numbersの100万行×1000列と登録簿に無い型、画像形式、WASIでの逐次書き）で、意味を「そのライブラリー・その形式・
+  その環境ではできない」に限定する。分類しきれない新しい断りはここへ入れられるので、1.0でenumを閉じても行き止まりにならない。</p>
+
+  <p>名前は<strong>手当てではなく事実</strong>で付ける。2026-09-07の案にあった<code>passwordRequired</code>は採らない。
+  ①このライブラリーには「パスワードを待っている状態」が無い——パスワードは読む前に渡す作りで
+  （<code>SheetDecrypt.decrypt(_:password:)</code>）、読んでいる途中で聞き返す口が無い。
+  ②パスワードで解決するのは4つのうち2つ（暗号化OOXML・暗号化ODF）だけで、暗号化Numbersと旧<code>.xls</code>で
+  同じ名前を返すと、呼び出し側のUIはパスワード欄を出し続け、利用者は何度打っても開けない。
+  ③したがって「それが何であるか」を名乗る<code>UnopenableInput</code>の4つをそのまま使う。
+  <code>formatNotLinked</code>も採らない——製品はリンクされていてCodecSetに名前が無いだけ、という場合に嘘になる。</p>
+
+  <p>断り文（<code>description</code>の本文）は1字も変えない。変わるのは<code>unsupportedFeature</code>が付けていた前置き
+  <code>unsupported: </code>だけで、<code>unopenable</code>は理由をそのまま、<code>noCodec</code>は
+  <code>no codec for …</code>をそのまま、<code>unsupportedEncryption</code>は<code>unsupported protection: </code>を前置きにする。
+  <code>SheetFormat.productName</code>をpackageからpublicへ上げる——<code>noCodec(for:)</code>を受けた側が
+  「SheetODSを足してください」と自分の言葉で書けるようにするため。</p>
+
+  <p><strong>判定の順序</strong>。入口によって答えが食い違っていた——暗号化された<code>.ods</code>を、<code>.ods</code>の
+  コーデックを持たない束に渡すと、<code>read</code> / <code>inspect</code>は「束に無い」と答え
+  （複合ファイルの見分けのあと<code>detect</code>に進み、ODFの暗号はODSコーデックの中で見るため）、
+  <code>streamingReader</code>は「暗号化されたODF」と答える（<code>SheetFormat.probe</code>を通り、包みのmanifestを先に見るため）。
+  <code>read(_:format:options:)</code>と<code>inspect(_:format:options:)</code>も、<strong>形式が指定されていないときは
+  <code>SheetFormat.probe(source:filename:limits:)</code>を通す</strong>ことでそろえる
+  （<code>ReadOptions</code>・<code>InspectOptions</code>のどちらにも<code>filename</code>と<code>limits</code>がある）。
+  契約は「暗号化された入力は、何をリンクしていようと先に、暗号化されていると答える」。形式が明示されたときは従来どおり
+  複合ファイルの見分けだけを行う——名指しされたコーデックが包みの中の暗号を自分で答えるため。順序は
+  (1)複合ファイルの見分け → (2)形式の判別と包みの中の暗号の見分け → (3)束からコーデックを取り出す → (4)コーデックの読み。</p>
+
+  <p>検査。4つの区別が<code>switch</code>だけで書けること（変更前は落ちる）。同じ暗号化<code>.ods</code>を
+  <code>read</code>・<code>inspect</code>・<code>streamingReader</code>に渡し、束に<code>.ods</code>が無くても3つが同じcaseを返すこと。
+  束に<code>.ods</code>を足したときも同じcaseであること。断り文の本文が変わっていないこと。
+  <code>UnopenableInput.error</code>を使う既存の検査8行は自動で追従し、<code>unsupportedFeature</code>を名指しで書いた6行だけ書き換える。
+  断り文に触るので<code>scripts/check-no-crypto.sh</code>を走らせる。<code>read</code>を<code>probe</code>に通すと
+  ZIPの包みでmanifestを1つ余分に読むので、読みの時間は旧新を同じ機械で交互に採り、時間とピークメモリを対にして確かめる。</p>
 </section>
 
 </div><!-- /.container -->

@@ -74,7 +74,7 @@ import SwiftSheets
         zip.add("Index/Document.iwa", Data([0]), stored: true)
         let data = zip.finish()
         #expect(SheetFormat.probe(data) == .unopenable(.encryptedNumbers))
-        #expect(throws: SheetError.unsupportedFeature(UnopenableInput.encryptedNumbers.reason)) { _ = try Workbook(data: data) }
+        #expect(throws: SheetError.unopenable(.encryptedNumbers)) { _ = try Workbook(data: data) }
     }
 
     /// Text is judged as bytes now; the verdicts have not moved.

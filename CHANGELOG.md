@@ -7,6 +7,42 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **A refusal says which kind of refusal it is** (Appendix B.52). Four failures used to arrive as
+  `SheetError.unsupportedFeature(String)`, told apart only by reading the message. Each now has its own case:
+
+  | it was | it is now |
+  |---|---|
+  | `unsupportedFeature("the OOXML package is encrypted …")` | `unopenable(.encryptedOOXML)` |
+  | `unsupportedFeature("the ODF package is encrypted …")` | `unopenable(.encryptedODF)` |
+  | `unsupportedFeature("the Numbers document is password-protected …")` | `unopenable(.encryptedNumbers)` |
+  | `unsupportedFeature("an OLE compound file: the legacy .xls …")` | `unopenable(.legacyCompoundFile)` |
+  | `unsupportedFeature("no codec for .ods is in this CodecSet …")` | `noCodec(for: .ods)` |
+  | `unsupportedFeature("the ODF entry is encrypted with Blowfish CFB …")` and the other protection refusals of `SheetDecrypt` / `SheetEncrypt` | `unsupportedEncryption(detail:)` |
+
+  `unsupportedFeature(String)` keeps everything that is a limit of a format or of the environment — a second sheet
+  in delimited text, a Numbers table past its row and column caps, text an encoding cannot carry, a row-by-row
+  write on WASI. The messages themselves are unchanged, so code that shows `error.description` (or
+  `localizedDescription`) shows what it showed before, less `unsupportedFeature`'s `unsupported: ` prefix. Code
+  that matched on `case .unsupportedFeature` for an encrypted file, a missing codec or an unsupported cipher has to
+  match the new case; code that switches exhaustively over `SheetError` has three more cases to answer for.
+  `passwordRequired` was considered and rejected: it would name a remedy that works for two of the four
+  (a password cannot open a protected Numbers document or a legacy `.xls`).
+
+- **An encrypted package says so before the set is asked for a codec.** `CodecSet.read` and `CodecSet.inspect`
+  used to find ODF and Numbers encryption inside the codec, so an encrypted `.ods` given to a set without the ODS
+  codec answered "no codec for .ods" while `streamingReader`, which probes first, answered "encrypted". All three
+  now answer `unopenable(.encryptedODF)` whatever the set holds. Naming a format explicitly (`read(_:format:)`)
+  is unchanged: the codec named finds the encryption in its own package.
+
+### Added
+
+- **`SheetFormat.productName`** is public — `.ods` → `"SheetODS"` — so a caller that catches `noCodec(for:)` can
+  name the product to link in its own words.
+
 ## [0.21.0] — 2026-09-10
 
 ### Changed

@@ -50,9 +50,7 @@ public struct CodecSet: Sendable {
 
     /// The same lookup, for this package's own dispatch.
     package func implementation(for format: SheetFormat) throws -> any SpreadsheetCodec.Type {
-        guard let codec = table[format] else {
-            throw SheetError.unsupportedFeature("no codec for .\(format.rawValue) is in this CodecSet — link the \(format.productName) product and name .\(format.rawValue) in the set, or use the SwiftSheets product's CodecSet.all, which has every codec")
-        }
+        guard let codec = table[format] else { throw SheetError.noCodec(for: format) }
         return codec
     }
 
@@ -74,12 +72,34 @@ public struct CodecSet: Sendable {
 
     /// Parses bytes. `format` overrides detection.
     public func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        // An encrypted package or a legacy .xls says so plainly rather than passing for noise (spec §1.3 / §14.11).
-        // Ahead of detection, because the filename hint would otherwise offer "secret.csv" to the CSV reader.
-        // Opening a protected package is the SheetDecrypt product's (Appendix B.39.9): nothing here decrypts.
-        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
-        guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
+        let f = try resolve(data, format: format, filename: options.filename, limits: options.limits)
         return try implementation(for: f).read(data, options: options)
+    }
+
+    /// What to read these bytes as, or the refusal — the one place detection and the refusals meet, so that every
+    /// entry point answers the same way (spec Appendix B.52).
+    ///
+    /// A compound file is named first: an encrypted package or a legacy .xls must say so plainly rather than pass
+    /// for noise (spec §1.3 / §14.11), and ahead of detection, because the filename hint would otherwise offer
+    /// "secret.csv" to the CSV reader. Opening a protected package is the SheetDecrypt product's (Appendix
+    /// B.39.9): nothing here decrypts. An encrypted ODF or Numbers package can only be seen once the package is
+    /// open, and is named **before** the set is asked for a codec — otherwise the same file answers "no codec for
+    /// .ods" to a set without one and "encrypted" to `streamingReader`, which probes first. A named format skips
+    /// all of this but the compound-file test: the codec it names finds the encryption inside its own package.
+    private func resolve(_ data: Data, format: SheetFormat?, filename: String?, limits: ZipLimits) throws -> SheetFormat {
+        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
+        if let format { return format }
+        // opened with the caller's limits, as the codec will open it; a package those limits refuse falls through
+        // to plain detection, which leaves the codec to say what is wrong with it
+        if ZipInspection.looksLikeZip(data), let zip = try? ZipArchive(data: data, limits: limits) {
+            let container = ZipInspection(archive: zip)
+            if let f = SheetFormat.detect(in: container) {
+                if let unopenable = UnopenableInput.probe(in: container) { throw unopenable.error }
+                return f
+            }
+        }
+        guard let f = SheetFormat.detect(from: data, filename: filename) else { throw SheetError.unrecognizedFormat }
+        return f
     }
 
     // MARK: - Asking before reading
@@ -100,8 +120,7 @@ public struct CodecSet: Sendable {
 
     /// `inspect` over bytes. `format` overrides detection.
     public func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
-        if let unopenable = UnopenableInput.probe(data) { throw unopenable.error }
-        guard let f = format ?? SheetFormat.detect(from: data, filename: options.filename) else { throw SheetError.unrecognizedFormat }
+        let f = try resolve(data, format: format, filename: options.filename, limits: options.limits)
         return try implementation(for: f).inspect(data, options: options)
     }
 

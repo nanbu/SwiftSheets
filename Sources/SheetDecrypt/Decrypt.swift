@@ -16,7 +16,7 @@ import Foundation
 /// pass every file through with the password it has — what `ReadOptions.password` did before 0.17.0. Whether a
 /// file is protected is `SheetFormat.probe`'s question. A wrong password throws `SheetError.wrongPassword`; a
 /// form this library does not open (Excel 2007's "standard" encryption, ODF 1.1's Blowfish, a password-protected
-/// Numbers document) throws `unsupportedFeature` naming it. `limits` is what the container may declare about
+/// Numbers document) throws `unsupportedEncryption` naming it — asking for the password again cannot help. `limits` is what the container may declare about
 /// itself before it is refused (`ReadOptions.limits`).
 public func decrypt(_ data: Data, password: String, limits: ZipLimits = ZipLimits()) throws -> Data {
     // a compound file: Excel's protected package, or a legacy .xls — the probe says which

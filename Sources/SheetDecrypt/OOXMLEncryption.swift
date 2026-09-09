@@ -63,7 +63,7 @@ package enum OOXMLEncryption {
         let major = Zip.u16(b, 0), minor = Zip.u16(b, 2)
         guard major == 4, minor == 4 else {
             let kind = minor == 2 ? "the 'standard' encryption of Excel 2007 (version \(major).\(minor))" : minor == 3 ? "the 'extensible' encryption (version \(major).\(minor))" : "encryption version \(major).\(minor)"
-            throw SheetError.unsupportedFeature("\(kind) is not supported; only the agile encryption of Excel 2010 and later is")
+            throw SheetError.unsupportedEncryption(detail: "\(kind) is not supported; only the agile encryption of Excel 2010 and later is")
         }
         let params = try parse(info.dropFirst(8))
         let key = try intermediateKey(params, password: password)
@@ -96,12 +96,12 @@ package enum OOXMLEncryption {
             return d
         }
         func hash(_ s: String?) throws -> Hash {
-            guard let name = s, let h = Hash(name: name) else { throw SheetError.unsupportedFeature("hash algorithm \(s ?? "?") in an encrypted package (SHA-1, SHA-256 and SHA-512 are supported)") }
+            guard let name = s, let h = Hash(name: name) else { throw SheetError.unsupportedEncryption(detail: "hash algorithm \(s ?? "?") in an encrypted package (SHA-1, SHA-256 and SHA-512 are supported)") }
             return h
         }
         var p = Parameters()
-        guard kd["cipherAlgorithm"]?.uppercased() == "AES", ek["cipherAlgorithm"]?.uppercased() == "AES" else { throw SheetError.unsupportedFeature("cipher \(kd["cipherAlgorithm"] ?? "?") in an encrypted package (only AES is supported)") }
-        guard kd["cipherChaining"] == "ChainingModeCBC", ek["cipherChaining"] == "ChainingModeCBC" else { throw SheetError.unsupportedFeature("cipher chaining \(kd["cipherChaining"] ?? "?") in an encrypted package (only CBC is supported)") }
+        guard kd["cipherAlgorithm"]?.uppercased() == "AES", ek["cipherAlgorithm"]?.uppercased() == "AES" else { throw SheetError.unsupportedEncryption(detail: "cipher \(kd["cipherAlgorithm"] ?? "?") in an encrypted package (only AES is supported)") }
+        guard kd["cipherChaining"] == "ChainingModeCBC", ek["cipherChaining"] == "ChainingModeCBC" else { throw SheetError.unsupportedEncryption(detail: "cipher chaining \(kd["cipherChaining"] ?? "?") in an encrypted package (only CBC is supported)") }
         p.keyDataSalt = try base64(kd["saltValue"], "keyData salt")
         p.keyDataHash = try hash(kd["hashAlgorithm"])
         p.keyBits = Int(kd["keyBits"] ?? "") ?? 256
@@ -120,7 +120,7 @@ package enum OOXMLEncryption {
         p.encryptedVerifierHashValue = try base64(ek["encryptedVerifierHashValue"], "encryptedVerifierHashValue")
         p.encryptedKeyValue = try base64(ek["encryptedKeyValue"], "encryptedKeyValue")
         guard [16, 24, 32].contains(p.keyBits / 8), [16, 24, 32].contains(p.passwordKeyBits / 8), p.blockSize == 16, p.passwordBlockSize == 16 else {
-            throw SheetError.unsupportedFeature("AES with \(p.keyBits)-bit keys and \(p.blockSize)-byte blocks in an encrypted package")
+            throw SheetError.unsupportedEncryption(detail: "AES with \(p.keyBits)-bit keys and \(p.blockSize)-byte blocks in an encrypted package")
         }
         return p
     }

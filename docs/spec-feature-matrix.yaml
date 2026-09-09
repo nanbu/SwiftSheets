@@ -1709,8 +1709,8 @@ formats:
             read: "none"
             write: "none"
             api:
-              - "SheetError.unsupportedFeature"
-            warning: "throw「encrypted Numbers documents are not supported」"
+              - "SheetError.unopenable"
+            warning: "throw「the Numbers document is password-protected (an .iwph package)」"
             evidence: "code"
             note: "Numbers 側の「パスワードを要求」で守った書類は開かない。"
           - id: "num.package.version"

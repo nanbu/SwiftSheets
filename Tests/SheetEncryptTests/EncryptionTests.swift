@@ -154,8 +154,12 @@ import SheetEncrypt
             let back = try decrypt(protected, password: "p")
             #expect(try Workbook(data: back).sheets[0]["A1"] == .text("往復"), "\(format)")
         }
-        #expect(throws: SheetError.self) { _ = try encrypt(Data("a,b\n".utf8), as: .csv, password: "p") }
-        #expect(throws: SheetError.self) { _ = try encrypt(Data(), as: .numbers, password: "p") }
+        #expect(throws: SheetError.unsupportedEncryption(detail: "a CSV file cannot be password-protected: it is plain text by definition")) {
+            _ = try encrypt(Data("a,b\n".utf8), as: .csv, password: "p")
+        }
+        #expect(throws: SheetError.unsupportedEncryption(detail: "a password-protected Numbers document cannot be written: Numbers' encryption is not documented")) {
+            _ = try encrypt(Data(), as: .numbers, password: "p")
+        }
     }
 
     /// A protected package past a mebibyte is still recognised as one. The compound file's directory — where the
@@ -205,12 +209,18 @@ import SheetEncrypt
         }
     }
 
-    /// Formats that have no protection say so instead of writing an unprotected file under a password.
+    /// Formats that have no protection say so instead of writing an unprotected file under a password. The refusal
+    /// is `unsupportedEncryption`, not a wrong password and not a limit of the format's cells (Appendix B.52).
     @Test func formatsWithoutProtectionRefuseAPassword() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        #expect(throws: SheetError.self) { _ = try wb.write(as: .csv, password: "p").data }
-        #expect(throws: SheetError.self) { _ = try wb.write(as: .numbers, password: "p").data }
+        for format in [SheetFormat.csv, .numbers] {
+            let error = #expect(throws: SheetError.self) { _ = try wb.write(as: format, password: "p").data }
+            guard case .unsupportedEncryption? = error else {
+                Issue.record("expected unsupportedEncryption for \(format), got \(String(describing: error))")
+                continue
+            }
+        }
     }
 }
 

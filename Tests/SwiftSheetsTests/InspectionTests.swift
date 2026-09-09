@@ -113,7 +113,7 @@ import SwiftSheets
     /// An encrypted file is refused here as it is on reading, with the same reason.
     @Test func anEncryptedFileIsRefusedWithItsReason() throws {
         let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("encrypted/agile.xlsx"))
-        #expect(throws: SheetError.unsupportedFeature(UnopenableInput.encryptedOOXML.reason)) { _ = try Workbook.inspect(data) }
+        #expect(throws: SheetError.unopenable(.encryptedOOXML)) { _ = try Workbook.inspect(data) }
     }
 
     /// From a file and from its bytes, the same answer.

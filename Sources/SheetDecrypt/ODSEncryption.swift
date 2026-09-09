@@ -48,9 +48,9 @@ package enum ODSEncryption {
     static func decryptEntry(_ cipher: Data, _ enc: ODSEncryptedEntry, password: String) throws -> Data {
         guard let algorithm = enc.algorithm else { throw SheetError.corruptedContainer(detail: "an encrypted entry names no algorithm") }
         guard aesAlgorithms.contains(algorithm) else {
-            throw SheetError.unsupportedFeature("the ODF entry is encrypted with \(algorithm); only AES-CBC (ODF 1.2 and later) is supported — the Blowfish form of ODF 1.1 is not")
+            throw SheetError.unsupportedEncryption(detail: "the ODF entry is encrypted with \(algorithm); only AES-CBC (ODF 1.2 and later) is supported — the Blowfish form of ODF 1.1 is not")
         }
-        guard enc.keyDerivation == nil || enc.keyDerivation == "PBKDF2" else { throw SheetError.unsupportedFeature("the ODF key derivation \(enc.keyDerivation!) is not supported (only PBKDF2 is)") }
+        guard enc.keyDerivation == nil || enc.keyDerivation == "PBKDF2" else { throw SheetError.unsupportedEncryption(detail: "the ODF key derivation \(enc.keyDerivation!) is not supported (only PBKDF2 is)") }
         guard let salt = enc.salt, let iv = enc.iv, let size = enc.size else { throw SheetError.corruptedContainer(detail: "an encrypted entry lacks its salt, vector or size") }
         let iterations = enc.iterations ?? 1024
         guard iterations > 0, iterations <= 10_000_000 else { throw SheetError.corruptedContainer(detail: "an encrypted entry asks for \(iterations) rounds") }
@@ -60,7 +60,7 @@ package enum ODSEncryption {
         if let name = enc.startKeyGeneration {
             if name.hasSuffix("#sha256") { startKey = SHA256.hash(Data(password.utf8)) }
             else if name.hasSuffix("#sha1") { startKey = SHA1.hash(Data(password.utf8)) }
-            else { throw SheetError.unsupportedFeature("the ODF start-key generation \(name) is not supported") }
+            else { throw SheetError.unsupportedEncryption(detail: "the ODF start-key generation \(name) is not supported") }
         } else {
             startKey = SHA1.hash(Data(password.utf8))
         }
@@ -76,7 +76,7 @@ package enum ODSEncryption {
             let computed: Data
             if type.hasSuffix("#sha256-1k") { computed = SHA256.hash(window) }
             else if type.hasSuffix("#sha1-1k") || type == "SHA1/1K" { computed = SHA1.hash(window) }
-            else { throw SheetError.unsupportedFeature("the ODF checksum type \(type) is not supported") }
+            else { throw SheetError.unsupportedEncryption(detail: "the ODF checksum type \(type) is not supported") }
             guard computed == checksum else { throw SheetError.wrongPassword }
         }
         do {

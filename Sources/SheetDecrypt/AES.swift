@@ -52,7 +52,7 @@ package struct AES {
     package let rounds: Int
 
     package init(key: Data) throws {
-        guard key.count == 16 || key.count == 24 || key.count == 32 else { throw SheetError.unsupportedFeature("AES key of \(key.count) bytes") }
+        guard key.count == 16 || key.count == 24 || key.count == 32 else { throw SheetError.unsupportedEncryption(detail: "AES key of \(key.count) bytes") }
         let nk = key.count / 4
         rounds = nk + 6
         let total = 4 * (rounds + 1)

@@ -89,6 +89,43 @@ import SheetDecrypt
         #expect(throws: UnopenableInput.encryptedNumbers.error) { _ = try decrypt(protected, password: "p") }
         #expect(throws: UnopenableInput.encryptedNumbers.error) { _ = try Workbook(data: protected, password: "p") }
     }
+
+    /// A protection form this product does not open is not a wrong password: the caller must stop asking, and the
+    /// two answers are different cases rather than two shapes of the same message (spec Appendix B.52).
+    @Test func aProtectionFormThisProductDoesNotOpenIsNotAWrongPassword() throws {
+        let blowfish = BlowfishODF.make()
+        let error = #expect(throws: SheetError.self) { _ = try decrypt(blowfish, password: Self.password) }
+        guard case .unsupportedEncryption(let detail)? = error else {
+            Issue.record("expected unsupportedEncryption, got \(String(describing: error))")
+            return
+        }
+        #expect(detail.contains("Blowfish"))
+        #expect(error != .wrongPassword)
+        // the plain products still say only what they can see: that the package is encrypted
+        #expect(throws: SheetError.unopenable(.encryptedODF)) { _ = try Workbook(data: blowfish) }
+    }
+}
+
+/// An ODF package whose manifest names ODF 1.1's Blowfish — a form this product does not open. Built here because
+/// nothing in this repository writes one (the encrypting product only writes AES-CBC).
+enum BlowfishODF {
+    static func make() -> Data {
+        let zip = ZipWriter()
+        zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
+        zip.add("content.xml", Data(count: 32), stored: true)
+        zip.add("META-INF/manifest.xml", Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
+         <manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml" manifest:size="64">
+          <manifest:encryption-data manifest:checksum-type="SHA1/1K" manifest:checksum="AAAAAAAAAAAAAAAAAAAAAAAAAAA=">
+           <manifest:algorithm manifest:algorithm-name="Blowfish CFB" manifest:initialisation-vector="AAAAAAAAAAAAAAAAAAAAAA=="/>
+           <manifest:key-derivation manifest:key-derivation-name="PBKDF2" manifest:iteration-count="1024" manifest:salt="AAAAAAAAAAAAAAAAAAAAAA=="/>
+          </manifest:encryption-data>
+         </manifest:file-entry>
+        </manifest:manifest>
+        """.utf8), stored: true)
+        return zip.finish()
+    }
 }
 
 /// The shape of a password-protected Numbers document — an `.iwph` entry and no readable index — built here since

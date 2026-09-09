@@ -39,9 +39,10 @@ public enum UnopenableInput: Sendable, Hashable {
         return String(decoding: manifest, as: UTF8.self).contains("encryption-data") ? .encryptedODF : nil
     }
 
-    /// The error to throw. `unsupportedFeature` is the case spec §4.3 reserves for "encrypted files, formats not
-    /// implemented yet".
-    public var error: SheetError { .unsupportedFeature(reason) }
+    /// The error to throw: the same value `SheetFormat.probe` answers with, so a caller sees one vocabulary
+    /// whether it asked first or opened straight away (spec Appendix B.52; until Rev 4.41 this was
+    /// `unsupportedFeature(reason)`, and the reason itself is unchanged).
+    public var error: SheetError { .unopenable(self) }
 
     var reason: String {
         switch self {

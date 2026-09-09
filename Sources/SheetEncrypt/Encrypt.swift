@@ -12,14 +12,14 @@ import Foundation
 /// format protects files: XLSX / XLSM as Excel's agile encryption (AES-256, SHA-512, a hundred thousand rounds —
 /// what Excel 2010 and later write), ODS as ODF 1.3 §4.3 package encryption (AES-CBC, PBKDF2 — what LibreOffice
 /// writes). CSV has no protected form (it is plain text by definition) and Numbers' is not documented; both throw
-/// `unsupportedFeature` saying so. What comes back opens with `SheetDecrypt.decrypt` and with the format's own
+/// `unsupportedEncryption` saying so. What comes back opens with `SheetDecrypt.decrypt` and with the format's own
 /// applications.
 public func encrypt(_ plain: Data, as format: SheetFormat, password: String) throws -> Data {
     switch format {
     case .xlsx, .xlsm: return try OOXMLEncryption.encrypt(plain, password: password)
     case .ods: return try ODSEncryption.encrypt(plain, password: password)
-    case .csv: throw SheetError.unsupportedFeature("a CSV file cannot be password-protected: it is plain text by definition")
-    case .numbers: throw SheetError.unsupportedFeature("a password-protected Numbers document cannot be written: Numbers' encryption is not documented")
+    case .csv: throw SheetError.unsupportedEncryption(detail: "a CSV file cannot be password-protected: it is plain text by definition")
+    case .numbers: throw SheetError.unsupportedEncryption(detail: "a password-protected Numbers document cannot be written: Numbers' encryption is not documented")
     }
 }
 
