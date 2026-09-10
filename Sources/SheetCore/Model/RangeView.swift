@@ -78,7 +78,7 @@ public struct RangeView: Sendable, Sequence {
         self[CellRef(row: range.minRow + rowOffset, column: range.minColumn + columnOffset)]
     }
 
-    /// Rows × columns, materialised — the same array `Sheet.values(in:)` returns.
+    /// Rows × columns, materialised — the same array `Sheet.rows(in:)` returns.
     public var values: [[CellValue?]] { map(Array.init) }
     /// The cells that actually exist inside the range, in row-major order.
     public var existingCells: [(ref: CellRef, cell: Cell)] {

@@ -91,7 +91,6 @@ public struct Sheets: RandomAccessCollection, MutableCollection, RangeReplaceabl
         storage.replaceSubrange(range, with: incoming)
     }
 
-    public var names: [String] { storage.map(\.name) }
     public func index(of name: String) -> Int? { storage.firstIndex { $0.name == name } }
     public func contains(_ name: String) -> Bool { index(of: name) != nil }
 
@@ -176,7 +175,7 @@ public struct Workbook: Equatable, Sendable {
     public init() { sheets = Sheets([Sheet(name: "Sheet1")]) }
     public init(sheets: [Sheet]) { self.sheets = Sheets(sheets) }
 
-    public var sheetNames: [String] { sheets.names }
+    public var sheetNames: [String] { sheets.map(\.name) }
 
     /// Adds (or replaces, by name) a named cell style. openpyxl's `wb.add_named_style`.
     public mutating func addNamedStyle(_ style: NamedStyle) {

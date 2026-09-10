@@ -1553,7 +1553,7 @@ print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "
     <tr><td><code>ws['A1':'C3']</code></td><td><code>sheet.range("A1:C3")</code></td><td>範囲ビュー（遅延・コピーなし）</td></tr>
     <tr><td><code>ws.iter_rows(values_only=True)</code></td><td><code>for row in sheet.rows(in: "A2:D100")</code></td><td>行単位走査。<code>row</code> は <code>[CellValue?]</code></td></tr>
     <tr><td><code>ws.iter_cols(...)</code></td><td><code>sheet.columns(in:)</code></td><td>列単位走査</td></tr>
-    <tr><td><code>ws.values</code></td><td><code>sheet.values(in:)</code></td><td>値のみの二次元配列</td></tr>
+    <tr><td><code>ws.values</code></td><td><code>sheet.rows(in:)</code></td><td>値のみの二次元配列（Rev 4.55 で <code>values(in:)</code> の別名は消えた）</td></tr>
     <tr><td><code>ws.append([...])</code></td><td><code>sheet.append(["Alice", 30, Date()])</code></td><td>最終行の次に1行追加</td></tr>
     <tr><td><code>cell.coordinate</code> / <code>row</code> / <code>column_letter</code></td><td><code>ref.a1</code> / <code>ref.row</code> / <code>ref.columnName</code></td><td><code>CellRef</code> のプロパティ</td></tr>
     <tr><td><code>ws.max_row</code> / <code>ws.max_column</code></td><td><code>sheet.extent</code></td><td>使用範囲を <code>CellRange?</code> で返す（空なら nil — max_row=1 問題を回避）</td></tr>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.55 Draft</td><td>2026-09-11</td><td>同じ物の別名を 1 つに。<code>values(in:)</code>（= <code>rows(in:)</code>）と <code>Sheets.names</code>（= <code>Workbook.sheetNames</code>）を削除。<code>freezePanes(at:)</code> を削除し <code>freezePanesA1</code> の setter に一本化（"A1" も解除）。印刷の文字列の双子を settable な <code>printTitlesFormula</code>・<code>printAreaFormula</code>（どちらも <code>String?</code>）にし、<code>setPrintArea</code>・<code>setPrintTitles</code>・<code>setPrintTitleRows</code>・<code>setPrintTitleColumns</code> を削除（B.65）。</td></tr>
     <tr><td>4.54 Draft</td><td>2026-09-11</td><td>Bool のプロパティの綴りを叙述形に統一。命令形だった 28 語（<code>includeStyles</code>・<code>allowBlank</code>・<code>showGridLines</code>・<code>lockStructure</code>・<code>refreshOnLoad</code> …）を <code>includesStyles</code>・<code>allowsBlank</code>・<code>showsGridLines</code>・<code>locksStructure</code>・<code>refreshesOnLoad</code> に。ファイルの属性名は変えない（B.64）。</td></tr>
     <tr><td>4.53 Draft</td><td>2026-09-11</td><td>同じ動作は同じ語・同じラベルに。<code>CellRef.offset(rows:columns:)</code> → <code>shifted(rows:columns:)</code>（<code>CellRange.shifted</code> と同じ語）、<code>CellRange.shrunk(right:bottom:left:top:)</code> → <code>shrunk(right:down:left:up:)</code>（<code>expanded</code> と同じラベル）、<code>streamingWriter(url:format:)</code> と <code>StreamingWriter(url:format:)</code> → <code>(to:as:)</code>（<code>write(to:as:)</code>・<code>withStreamingWriter(to:as:)</code> と同じ）、<code>streamingReader(data:)</code> → <code>streamingReader(_:)</code>（<code>read(_:)</code> と同じ）、<code>SheetFormat.detect</code> の 4 宣言を <code>detect(_:filename:)</code>・<code>detect(contentsOf:)</code> の 2 つに（<code>probe</code> と同じ形。<code>detect(in:)</code> は package へ）（B.63）。</td></tr>
     <tr><td>4.52 Draft</td><td>2026-09-11</td><td>A1 文字列の双子のラベルを揃える。型つきの <code>cell(at:)</code>・<code>removeCell(at:)</code>・<code>style(at:)</code>・<code>setStyle(at:_:)</code> の <code>at:</code> を外し、文字列の相棒（<code>cell("B2")</code>）と同じくラベル無しにする（<code>Sheet</code>・<code>Table</code> の 8 宣言・B.62）。</td></tr>
@@ -6446,6 +6447,36 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>やり方。</strong>28 語の置換は、文字列リテラルの中（ファイルの属性名）を飛ばし、補間 <code>\( )</code> の中だけ直す置換器で行った——B.60 の一括置換が
   <code>&lt;xdr:col&gt;</code> のタグまで書き換えた事故（a2bd5a2）を繰り返さないため。置換後に <code>"shows…</code> のような文字列が生まれていないことを diff で確かめた。</p>
   <p><strong>利用側。</strong>Stream: <code>allowBlank</code> 1・<code>preserveUnknownParts</code> 2・<code>hideDropDown</code> 1・<code>showErrorMessage</code> 1 か所。LeftRight: 0。</p>
+
+  <h3>B.65 同じ物の別名は 1 つに（続き）——<code>rows(in:)</code>・<code>freezePanesA1</code>・<code>printTitlesFormula</code>（Rev 4.55）</h3>
+  <p>2026-09-11 決定。1.0 前の一貫性の見直し（群 4）。B.58 の規則「同じ物の別名は 1 つに」を、B.58 が届いていなかった 4 か所に当てる。互換の別名は残さない（B.53）。</p>
+  <p><strong>なぜ。</strong>①<code>values(in:)</code> は説明文が「<code>rows(in:)</code> と同じ」で、戻り値も実装も同じだった。②<code>Sheets.names</code> は
+  <code>Workbook.sheetNames</code> と同じ配列で、外からは使われていなかった（<code>StreamingReader.sheetNames</code> と同じ名の <code>Workbook.sheetNames</code> を残す）。
+  ③<code>freezePanes</code> は格納プロパティ（<code>CellRef?</code>）とメソッド <code>freezePanes(at: "B2")</code> の両方の名前で、A1 文字列の側には
+  <code>freezePanesA1</code> の setter もあり、同じ代入に 2 つの入口があった。④印刷の設定は <code>printTitles</code>（get）＋ <code>setPrintTitles(_:)</code>、
+  <code>printAreaFormula</code>（get）＋ <code>setPrintArea(_:)</code>、さらに <code>setPrintTitleRows(_:)</code>・<code>setPrintTitleColumns(_:)</code> と、
+  型つき（<code>printArea: [CellRange]</code>・<code>printTitleRows</code>・<code>printTitleColumns</code>）に対して文字列の入口が 6 つあった。
+  B.53 の双子の型は「型つきのプロパティ ＋ <code>…A1</code> / <code>…Formula</code> の settable な文字列プロパティ」で、getter と setter が別名なのはこの 2 組だけだった。</p>
+  <p><strong>移行表。</strong></p>
+  <table>
+    <thead><tr><th>Rev 4.54 まで</th><th>Rev 4.55 から</th></tr></thead>
+    <tbody>
+      <tr><td><code>sheet.values(in: "A1:C3")</code>・<code>table.values(in:)</code></td><td><code>sheet.rows(in: "A1:C3")</code>（同じ戻り値）</td></tr>
+      <tr><td><code>wb.sheets.names</code></td><td><code>wb.sheetNames</code></td></tr>
+      <tr><td><code>sheet.freezePanes(at: "B2")</code></td><td><code>sheet.freezePanesA1 = "B2"</code>（または <code>sheet.freezePanes = CellRef(row: 2, column: 2)</code>）</td></tr>
+      <tr><td><code>sheet.freezePanes(at: "")</code>・<code>freezePanes(at: "A1")</code>（解除）</td><td><code>sheet.freezePanesA1 = nil</code>（<code>"A1"</code> の代入も解除——A1 は角で、何も固定しない）</td></tr>
+      <tr><td><code>sheet.printTitles</code>（get）・<code>setPrintTitles(f)</code></td><td><code>sheet.printTitlesFormula</code>（get / set・<code>String?</code>）</td></tr>
+      <tr><td><code>sheet.setPrintTitleRows("1:4")</code>・<code>setPrintTitleColumns("A:F")</code></td><td><code>sheet.printTitleRows = 1...4</code>・<code>printTitleColumns = 1...6</code>（型つき）、または <code>printTitlesFormula = "1:4"</code>（文字列）</td></tr>
+      <tr><td><code>sheet.printAreaFormula</code>（get・未設定は <code>""</code>）・<code>setPrintArea(f)</code></td><td><code>sheet.printAreaFormula</code>（get / set・<code>String?</code>・未設定は nil）</td></tr>
+    </tbody>
+  </table>
+  <p><strong>動きは変えない。</strong>2 つの <code>…Formula</code> の setter は、ファイル由来の式（<code>MySheet!#REF!</code>）を落とさず読めない部分だけを捨てる
+  <strong>寛容</strong>のまま（B.53 の線引き）。<code>freezePanesA1</code> の setter は読めない文字列で止まる（B.53）。変わる表現は <code>printAreaFormula</code> の
+  未設定が <code>""</code> から nil になる 1 点だけで、<code>printTitlesFormula</code>（もとの <code>printTitles</code>）と同じ規則になる。</p>
+  <p><strong>変えないもの。</strong><code>freezePanes: CellRef?</code>・<code>autoFilter</code> / <code>autoFilterA1</code>・<code>dimensions</code>（B.53 の双子）、
+  <code>rows(in:)</code> / <code>columns(in:)</code> / <code>cells(in:)</code> / <code>range(_:)</code>、<code>StreamingReader.sheetNames</code>。</p>
+  <p><strong>利用側。</strong>Stream: <code>sheetNames</code> 3 か所は <code>Workbook.sheetNames</code> なので変わらない。LeftRight: 同じく 4 か所とも変わらない。<code>values(in:)</code>・<code>freezePanes(at:)</code>・
+  <code>setPrint…</code> はどちらのアプリも 0。</p>
 </section>
 
 </div><!-- /.container -->

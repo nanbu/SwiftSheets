@@ -80,7 +80,7 @@ import SwiftSheets
         ws.setColumnDimension("C") { $0.hidden = true }
         ws.setHeight(30, ofRow: 2)
         ws.setRowDimension(4) { $0.hidden = true }
-        ws.freezePanes(at: "B2")
+        ws.freezePanesA1 = "B2"
         ws.definedNames["Local"] = "Data!$A$2"
         var hidden = Sheet(name: "Hidden")
         hidden["A1"] = .text("secret")
@@ -627,7 +627,7 @@ import SwiftSheets
         ws.headerFooter.oddHeader = "&L左&C中&R右"
         ws.headerFooter.oddFooter = "&Cページ &P / &N"
         ws.rowBreaks = [4]; ws.columnBreaks = [2]
-        ws.setPrintArea("A1:C9")
+        ws.printAreaFormula = "A1:C9"
         ws.printTitleRows = 1...1
         ws.protection.enabled = true
         wb.sheets[0] = ws

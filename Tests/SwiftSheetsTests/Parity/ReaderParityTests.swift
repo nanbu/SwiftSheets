@@ -216,7 +216,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_row_and_cell_without_coordinates
     @Test func rowAndCellWithoutCoordinates() throws {
         let ws = try sheet("<sheetData><row><c><v>2</v></c><c><v>4</v></c><c><v>3</v></c></row></sheetData>")
-        #expect(ws.values() == [[2, 4, 3]] && ws.extent?.minRow == 1)
+        #expect(ws.rows() == [[2, 4, 3]] && ws.extent?.minRow == 1)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_row_and_cell_skipping_coordinates
@@ -446,7 +446,7 @@ private enum ReaderParity {
         let wb = try XLSXCodec.read(try ReaderParity.fixture("reader/print_settings.xlsx")).workbook
         #expect(wb.definedNames.count == 2)
         let ws = wb.sheets["Sheet"]!
-        #expect(ws.printTitleRows == 1...1 && ws.printTitles == "'Sheet'!$1:$1")
+        #expect(ws.printTitleRows == 1...1 && ws.printTitlesFormula == "'Sheet'!$1:$1")
         #expect(ws.printAreaFormula == "'Sheet'!$A$1:$D$5,'Sheet'!$B$9:$F$14" && ws.definedNames.isEmpty)
     }
 
@@ -543,7 +543,7 @@ private enum ReaderParity {
         let expected: [[CellValue?]] = [["This is cell A1 in Sheet 1", nil, nil, nil, nil, nil, nil], [nil, nil, nil, nil, nil, nil, nil], [nil, nil, nil, nil, nil, nil, nil],
                                         [nil, nil, nil, nil, nil, nil, nil], [nil, nil, nil, nil, nil, nil, "This is cell G5"]]
         let ws = try sample().sheets["Sheet1 - Text"]!
-        for (row, want) in zip(ws.values(), expected) { #expect(row == want) }
+        for (row, want) in zip(ws.rows(), expected) { #expect(row == want) }
     }
 
     // openpyxl: tests/test_iter.py::test_read_single_cell_range
@@ -616,7 +616,7 @@ private enum ReaderParity {
     // openpyxl: tests/test_iter.py::test_read_with_missing_cells
     @Test func readWithMissingCells() throws {
         let ws = try ReaderParity.sheet(try ReaderParity.fixtureText("reader/bug393-worksheet.xml"))
-        let rows = ws.values()
+        let rows = ws.rows()
         #expect(rows[1] == [nil, nil, 1, 2, 3] && rows[3] == [1, 2, nil, nil, 3])
     }
 

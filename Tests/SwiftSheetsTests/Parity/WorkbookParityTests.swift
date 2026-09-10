@@ -339,13 +339,13 @@ import Testing
 
     // openpyxl: workbook/tests/test_writer.py::test_print_area
     @Test func printArea() throws {
-        var wb = unicodeWorkbook(); wb.sheets[0].setPrintArea("A1:D4")
+        var wb = unicodeWorkbook(); wb.sheets[0].printAreaFormula = "A1:D4"
         #expect(try workbookXML(wb).contains("<definedNames><definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">'D\u{fc}sseldorf Sheet'!$A$1:$D$4</definedName></definedNames>"))
     }
 
     // openpyxl: workbook/tests/test_writer.py::test_print_titles
     @Test func printTitles() throws {
-        var wb = unicodeWorkbook(); wb.sheets[0].setPrintTitleRows("1:5")
+        var wb = unicodeWorkbook(); wb.sheets[0].printTitlesFormula = "1:5"
         #expect(try workbookXML(wb).contains("<definedNames><definedName name=\"_xlnm.Print_Titles\" localSheetId=\"0\">'D\u{fc}sseldorf Sheet'!$1:$5</definedName></definedNames>"))
     }
 

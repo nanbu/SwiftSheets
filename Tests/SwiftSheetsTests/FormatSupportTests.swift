@@ -63,7 +63,7 @@ import SwiftSheets
         d.pageSetup.orientation = .landscape
         d.pageSetup.paperSize = 9
         d.printOptions.gridLines = true
-        d.setPrintArea("A1:D9")
+        d.printAreaFormula = "A1:D9"
         d.printTitleRows = 1...1
         d.definedNames["Local"] = "$A$1"
         d.tabColor = Color(hex: "FF0000")

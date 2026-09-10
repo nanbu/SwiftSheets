@@ -32,6 +32,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   `lockWindows` / `lockRevision` on `WorkbookProtection`, `useWildcards` / `useRegularExpressions` / `useFirstPageNumber` /
   `linkToSourceData` / `fitToPage`. File attributes are unchanged.
 
+- **One name per thing, continued** (B.65). `values(in:)` (documented as "same as `rows(in:)`") and `Sheets.names`
+  (the same array as `Workbook.sheetNames`) are gone. `freezePanes(at:)` is gone: `freezePanesA1 = "B2"` is the string way
+  in, and assigning `"A1"` clears like nil. The print settings' string twins are settable properties instead of getter
+  plus setter method: `printTitles` + `setPrintTitles(_:)` → `printTitlesFormula: String?`, `printAreaFormula` +
+  `setPrintArea(_:)` → `printAreaFormula: String?` (nil when unset, where it was `""`); `setPrintTitleRows(_:)` and
+  `setPrintTitleColumns(_:)` are gone — assign `printTitleRows` / `printTitleColumns` or the formula.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

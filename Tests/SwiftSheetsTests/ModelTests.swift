@@ -116,9 +116,9 @@ import Testing
         #expect(s.columnDimension("C").width == 14 && s.columnDimension(3).width == 14 && s.rowDimension(1).height == 24)
         s.groupColumns("F", "H")
         #expect(s.columnGroups == ["F:H"])
-        s.freezePanes(at: "B2")
+        s.freezePanesA1 = "B2"
         #expect(s.freezePanes == CellRef(row: 2, column: 2) && s.freezePanesA1 == "B2")
-        s.freezePanes(at: "A1")
+        s.freezePanesA1 = "A1"
         #expect(s.freezePanes == nil)
         s.autoFilterA1 = "A1:D100"
         #expect(s.autoFilter == CellRange("A1:D100"))

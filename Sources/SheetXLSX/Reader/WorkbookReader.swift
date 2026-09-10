@@ -208,8 +208,8 @@ enum WorkbookReader {
             guard wb.sheets.indices.contains(index) else { continue }
             for (name, text) in byName {
                 switch name {
-                case "_xlnm.Print_Titles": wb.sheets[index].setPrintTitles(text)
-                case "_xlnm.Print_Area": wb.sheets[index].setPrintArea(text)
+                case "_xlnm.Print_Titles": wb.sheets[index].printTitlesFormula = text
+                case "_xlnm.Print_Area": wb.sheets[index].printAreaFormula = text
                 case "_xlnm._FilterDatabase": break   // implied by <autoFilter>; regenerated on save
                 default: wb.sheets[index].definedNames[name] = text
                 }

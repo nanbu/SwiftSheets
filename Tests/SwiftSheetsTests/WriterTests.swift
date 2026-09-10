@@ -25,7 +25,7 @@ import Testing
         ws["G2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws[cell: "G2"].numberFormat = "h:mm"
         ws["H2"] = .error("#N/A")
         ws.merge("A3:C3"); ws["A3"] = "merged"
-        ws.freezePanes(at: "B2")
+        ws.freezePanesA1 = "B2"
         ws.setWidth(20, ofColumn: 1); ws.setColumnDimension("C") { $0.hidden = true }
         ws.setRowDimension(2) { $0.height = 30 }
         ws.setRowDimension(4) { $0.hidden = true; $0.outlineLevel = 1 }

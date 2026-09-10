@@ -417,7 +417,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     // openpyxl: worksheet/tests/test_print_settings.py::TestColRange::test_from_string
     @Test func colRangeFromString() {
         var ws = Workbook().sheets[0]
-        ws.setPrintTitleColumns("$B:$E")
+        ws.printTitlesFormula = "$B:$E"
         #expect(ws.printTitleColumns == 2...5)
     }
 
@@ -425,20 +425,20 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test func colRangeStr() {
         var ws = Workbook().sheets[0]
         ws.printTitleColumns = 1...4
-        #expect(ws.printTitles == "'Sheet1'!$A:$D")
+        #expect(ws.printTitlesFormula == "'Sheet1'!$A:$D")
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestColRange::test_eq
     @Test(arguments: ["$B:$E", "B:E"]) func colRangeEq(_ expected: String) {
         var ws = Workbook().sheets[0]
-        ws.setPrintTitleColumns(expected)
+        ws.printTitlesFormula = expected
         #expect(ws.printTitleColumns == 2...5)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestRowRange::test_from_string
     @Test func rowRangeFromString() {
         var ws = Workbook().sheets[0]
-        ws.setPrintTitleRows("$2:$6")
+        ws.printTitlesFormula = "$2:$6"
         #expect(ws.printTitleRows == 2...6)
     }
 
@@ -446,13 +446,13 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test func rowRangeStr() {
         var ws = Workbook().sheets[0]
         ws.printTitleRows = 1...4
-        #expect(ws.printTitles == "'Sheet1'!$1:$4")
+        #expect(ws.printTitlesFormula == "'Sheet1'!$1:$4")
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestRowRange::test_eq
     @Test(arguments: ["$2:$7", "2:7"]) func rowRangeEq(_ expected: String) {
         var ws = Workbook().sheets[0]
-        ws.setPrintTitleRows(expected)
+        ws.printTitlesFormula = expected
         #expect(ws.printTitleRows == 2...7)
     }
 
@@ -465,15 +465,15 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     func printTitlesFromString(_ value: String, _ expected: String) {
         var wb = Workbook()
         wb.sheets[0].name = CellRange.splitSheetName(value.split(separator: ",").map(String.init)[0])!.sheet
-        wb.sheets[0].setPrintTitles(value)
-        #expect(wb.sheets[0].printTitles == expected)
+        wb.sheets[0].printTitlesFormula = value
+        #expect(wb.sheets[0].printTitlesFormula == expected)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestPrintTitles::test_eq
     @Test func printTitlesEq() {
         var wb = Workbook()
-        wb.sheets[0].name = "Sheet 1"; wb.sheets[0].setPrintTitles("'Sheet 1'!$A:$A")
-        #expect(wb.sheets[0].printTitles == "'Sheet 1'!$A:$A")
+        wb.sheets[0].name = "Sheet 1"; wb.sheets[0].printTitlesFormula = "'Sheet 1'!$A:$A"
+        #expect(wb.sheets[0].printTitlesFormula == "'Sheet 1'!$A:$A")
     }
 
     static let areaCases: [(String, Set<CellRange>)] = [
@@ -485,27 +485,27 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test(arguments: areaCases)
     func printAreaFromString(_ value: String, _ expected: Set<CellRange>) {
         var ws = Workbook().sheets[0]
-        ws.setPrintArea(value)
+        ws.printAreaFormula = value
         #expect(Set(ws.printArea) == expected)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::test_empty
     @Test func printAreaEmpty() {
         let ws = Workbook().sheets[0]
-        #expect(ws.printArea.isEmpty && ws.printAreaFormula == "")
+        #expect(ws.printArea.isEmpty && ws.printAreaFormula == nil)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestPrintArea::test_str
     @Test func printAreaStr() {
         var ws = Workbook().sheets[0]
-        ws.setPrintArea("Sheet!$A$1:$D$5,Sheet!$B$9:$F$14")
+        ws.printAreaFormula = "Sheet!$A$1:$D$5,Sheet!$B$9:$F$14"
         #expect(ws.printAreaFormula == "'Sheet1'!$A$1:$D$5,'Sheet1'!$B$9:$F$14")
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestPrintArea::test_eq
     @Test func printAreaEq() {
         var ws = Workbook().sheets[0]
-        ws.setPrintArea("Sheet1!$A$1:$E$15")
+        ws.printAreaFormula = "Sheet1!$A$1:$E$15"
         #expect(ws.printAreaFormula == "'Sheet1'!$A$1:$E$15")
     }
 }

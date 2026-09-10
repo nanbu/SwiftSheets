@@ -475,8 +475,8 @@ enum WorkbookWriter {
         var names: [String] = wb.definedNames.keys.sorted().map { "<definedName name=\"\(XML.esc($0))\">\(XML.esc(wb.definedNames[$0]!))</definedName>" }
         for (i, sheet) in wb.sheets.enumerated() {
             var local = sheet.definedNames
-            if let t = sheet.printTitles { local["_xlnm.Print_Titles"] = t }
-            if !sheet.printArea.isEmpty { local["_xlnm.Print_Area"] = sheet.printAreaFormula }
+            if let t = sheet.printTitlesFormula { local["_xlnm.Print_Titles"] = t }
+            if let a = sheet.printAreaFormula { local["_xlnm.Print_Area"] = a }
             if let af = sheet.autoFilter { local["_xlnm._FilterDatabase"] = "\(CellRef.quoteSheetName(sheet.name))!\(af.absoluteA1)" }
             for k in local.keys.sorted() {
                 names.append("<definedName name=\"\(XML.esc(k))\" localSheetId=\"\(i)\"\(k == "_xlnm._FilterDatabase" ? " hidden=\"1\"" : "")>\(XML.esc(local[k]!))</definedName>")

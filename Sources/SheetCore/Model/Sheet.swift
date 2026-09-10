@@ -264,11 +264,9 @@ public struct Sheet: Equatable, Sendable {
     public func rows(in a1: String) -> [[CellValue?]] { table.rows(in: a1) }
     public func columns(in range: CellRange? = nil) -> [[CellValue?]] { table.columns(in: range) }
     public func columns(in a1: String) -> [[CellValue?]] { table.columns(in: a1) }
-    public func values(in range: CellRange? = nil) -> [[CellValue?]] { table.values(in: range) }
     /// A lazy view over a rectangle (spec §14.4): `for row in sheet.range("A2:D100")`.
     public func range(_ range: CellRange) -> RangeView { table.range(range) }
     public func range(_ a1: String) -> RangeView { table.range(a1) }
-    public func values(in a1: String) -> [[CellValue?]] { table.values(in: a1) }
     public func cells(in range: CellRange) -> [[Cell]] { table.cells(in: range) }
     public func column(_ name: String) -> [CellValue?] { table.column(name) }
     public func row(_ r: Int) -> [CellValue?] { table.row(r) }
@@ -361,19 +359,12 @@ public struct Sheet: Equatable, Sendable {
 
     // MARK: - Panes / printing
 
-    /// Freeze at "B2" etc.; "" or "A1" clears. Anything else that will not parse is a programming error, so that
-    /// a typo cannot pass for "clear it" (Appendix B.53).
-    public mutating func freezePanes(at a1: String) {
-        guard !a1.isEmpty else { freezePanes = nil; return }
-        guard let r = CellRef(a1) else { preconditionFailure("invalid cell reference \(a1)") }
-        freezePanes = r
-    }
-    /// The freeze cell as A1 text; assign "B2" or nil. Nil clears; a string that will not parse is a programming
-    /// error rather than a second way to clear (Appendix B.53).
+    /// The freeze cell as A1 text; assign "B2" or nil. Nil and "A1" clear (A1 is the corner — nothing frozen); a string
+    /// that will not parse is a programming error rather than a second way to clear (Appendix B.53).
     public var freezePanesA1: String? {
         get { freezePanes?.a1 }
         set {
-            guard let newValue else { freezePanes = nil; return }
+            guard let newValue, newValue != "A1" else { freezePanes = nil; return }
             guard let r = CellRef(newValue) else { preconditionFailure("invalid cell reference \(newValue)") }
             freezePanes = r
         }
@@ -388,55 +379,47 @@ public struct Sheet: Equatable, Sendable {
         }
     }
 
-    /// The `_xlnm.Print_Titles` formula, e.g. `'Sheet'!$1:$2,'Sheet'!$C:$D`. Nil when unset.
-    public var printTitles: String? {
-        var parts: [String] = []
-        let q = CellRef.quoteSheetName(name)
-        if let r = printTitleRows { parts.append("\(q)!$\(r.lowerBound):$\(r.upperBound)") }
-        if let c = printTitleColumns { parts.append("\(q)!$\(CellRef.columnName(c.lowerBound)):$\(CellRef.columnName(c.upperBound))") }
-        return parts.isEmpty ? nil : parts.joined(separator: ",")
-    }
-
-    /// The `_xlnm.Print_Area` formula, e.g. `'Sheet'!$A$1:$F$5`. Empty string when unset.
-    public var printAreaFormula: String {
-        printArea.map { "\(CellRef.quoteSheetName(name))!\($0.absoluteA1)" }.joined(separator: ",")
-    }
-
-    /// Sets the print area from "A1:F5" / "$A$1:$F$5" (multiple areas comma separated). Nil or "" clears.
+    /// The `_xlnm.Print_Titles` formula, e.g. `'Sheet'!$1:$2,'Sheet'!$C:$D` — the A1-string twin of `printTitleRows`
+    /// and `printTitleColumns`. Nil when neither is set; assigning nil clears both.
     ///
-    /// This one takes a `_xlnm.Print_Area` formula exactly as a file saves it, and is the reader's own way in
-    /// (`WorkbookReader.assignLocalNames`), so it is **lenient**: a part that will not parse is dropped rather
-    /// than treated as a programming error. A workbook whose print area is `MySheet!#REF!` — what Excel leaves
-    /// behind when the sheet it pointed at is deleted — has to open. Spec Appendix B.53 draws the line there:
-    /// the strict rule is for coordinates a programmer writes, not for text that came out of a file.
-    public mutating func setPrintArea(_ text: String?) {
-        guard let text, !text.isEmpty else { printArea = []; return }
-        printArea = text.split(separator: ",").compactMap { part in
-            let s = String(part)
-            return CellRange(CellRange.splitSheetName(s)?.cells ?? s).map { var r = $0; r.sheet = nil; return r }
+    /// The setter takes the formula exactly as a file saves it, and is the reader's own way in
+    /// (`WorkbookReader.assignLocalNames`), so it is **lenient**: a part that will not parse is dropped rather than
+    /// treated as a programming error. Spec Appendix B.53 draws the line there: the strict rule is for coordinates
+    /// a programmer writes, not for text that came out of a file.
+    public var printTitlesFormula: String? {
+        get {
+            var parts: [String] = []
+            let q = CellRef.quoteSheetName(name)
+            if let r = printTitleRows { parts.append("\(q)!$\(r.lowerBound):$\(r.upperBound)") }
+            if let c = printTitleColumns { parts.append("\(q)!$\(CellRef.columnName(c.lowerBound)):$\(CellRef.columnName(c.upperBound))") }
+            return parts.isEmpty ? nil : parts.joined(separator: ",")
+        }
+        set {
+            printTitleRows = nil; printTitleColumns = nil
+            guard let newValue else { return }
+            for part in newValue.split(separator: ",") {
+                let cells = CellRange.splitSheetName(String(part))?.cells ?? String(part)
+                guard let b = RangeBounds(cells) else { continue }
+                if b.minColumn == nil, let lo = b.minRow, let hi = b.maxRow { printTitleRows = lo...hi }
+                else if b.minRow == nil, let lo = b.minColumn, let hi = b.maxColumn { printTitleColumns = lo...hi }
+            }
         }
     }
 
-    /// Parses a `_xlnm.Print_Titles` formula such as `'Sheet1'!$1:$2,$A:$A`.
-    public mutating func setPrintTitles(_ formula: String?) {
-        printTitleRows = nil; printTitleColumns = nil
-        guard let formula else { return }
-        for part in formula.split(separator: ",") {
-            let cells = CellRange.splitSheetName(String(part))?.cells ?? String(part)
-            guard let b = RangeBounds(cells) else { continue }
-            if b.minColumn == nil, let lo = b.minRow, let hi = b.maxRow { printTitleRows = lo...hi }
-            else if b.minRow == nil, let lo = b.minColumn, let hi = b.maxColumn { printTitleColumns = lo...hi }
+    /// The `_xlnm.Print_Area` formula, e.g. `'Sheet'!$A$1:$F$5` (several areas comma separated) — the A1-string twin
+    /// of `printArea`. Nil when unset; assigning nil or "" clears.
+    ///
+    /// Lenient for the same reason as `printTitlesFormula`: a workbook whose print area is `MySheet!#REF!` — what
+    /// Excel leaves behind when the sheet it pointed at is deleted — has to open, so a part that will not parse is
+    /// dropped.
+    public var printAreaFormula: String? {
+        get { printArea.isEmpty ? nil : printArea.map { "\(CellRef.quoteSheetName(name))!\($0.absoluteA1)" }.joined(separator: ",") }
+        set {
+            guard let newValue, !newValue.isEmpty else { printArea = []; return }
+            printArea = newValue.split(separator: ",").compactMap { part in
+                let s = String(part)
+                return CellRange(CellRange.splitSheetName(s)?.cells ?? s).map { var r = $0; r.sheet = nil; return r }
+            }
         }
-    }
-
-    /// Parses "1:4" into `printTitleRows` and "A:F" into `printTitleColumns`. Lenient for the same reason as
-    /// `setPrintArea`: this is the shape a `_xlnm.Print_Titles` formula arrives in from a file.
-    public mutating func setPrintTitleRows(_ text: String?) {
-        guard let text, let b = RangeBounds(text), let lo = b.minRow, let hi = b.maxRow, b.minColumn == nil else { printTitleRows = nil; return }
-        printTitleRows = lo...hi
-    }
-    public mutating func setPrintTitleColumns(_ text: String?) {
-        guard let text, let b = RangeBounds(text), let lo = b.minColumn, let hi = b.maxColumn, b.minRow == nil else { printTitleColumns = nil; return }
-        printTitleColumns = lo...hi
     }
 }

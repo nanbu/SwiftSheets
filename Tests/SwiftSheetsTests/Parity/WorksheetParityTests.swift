@@ -129,7 +129,7 @@ import Testing
     @Test func append2dList() {
         var ws = Self.freshSheet()
         ws.append(["This is A1", "This is B1"]); ws.append(["This is A2", "This is B2"])
-        #expect(ws.values() == [[.text("This is A1"), .text("This is B1")], [.text("This is A2"), .text("This is B2")]])
+        #expect(ws.rows() == [[.text("This is A1"), .text("This is B1")], [.text("This is A2"), .text("This is B2")]])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_append_cell
@@ -197,7 +197,7 @@ import Testing
     @Test func values() {
         var ws = Self.freshSheet()
         ws.append([1, 2, 3]); ws.append([4, 5, 6])
-        #expect(ws.values() == [[1, 2, 3], [4, 5, 6]])
+        #expect(ws.rows() == [[1, 2, 3], [4, 5, 6]])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_auto_filter
@@ -268,9 +268,9 @@ import Testing
         var ws = Self.freshSheet()
         ws.freezePanes = CellRef("b2")
         #expect(ws.freezePanes?.a1 == "B2")
-        ws.freezePanes(at: "")
+        ws.freezePanesA1 = nil
         #expect(ws.freezePanes == nil)
-        ws.freezePanes(at: "C5")
+        ws.freezePanesA1 = "C5"
         #expect(ws.freezePanes?.a1 == "C5")
         ws.freezePanes = CellRef("A1")
         #expect(ws.freezePanes == nil)
@@ -341,16 +341,16 @@ import Testing
     @Test(arguments: printTitleCases)
     func printTitles(_ rows: String?, _ cols: String?, _ titles: String) {
         var ws = Self.freshSheet()
-        ws.setPrintTitleRows(rows); ws.setPrintTitleColumns(cols)
-        #expect(ws.printTitles == titles)
+        ws.printTitlesFormula = [rows, cols].compactMap { $0 }.joined(separator: ",")
+        #expect(ws.printTitlesFormula == titles)
     }
 
-    static let printAreaCases: [(String?, String)] = [("A1:F5", "'Sheet1'!$A$1:$F$5"), ("$A$1:$F$5", "'Sheet1'!$A$1:$F$5"), (nil, ""), ("", "")]
+    static let printAreaCases: [(String?, String?)] = [("A1:F5", "'Sheet1'!$A$1:$F$5"), ("$A$1:$F$5", "'Sheet1'!$A$1:$F$5"), (nil, nil), ("", nil)]
     // openpyxl: worksheet/tests/test_worksheet.py::test_print_area
     @Test(arguments: printAreaCases)
-    func printArea(_ cellRange: String?, _ result: String) {
+    func printArea(_ cellRange: String?, _ result: String?) {
         var ws = Self.freshSheet()
-        ws.setPrintArea(cellRange)
+        ws.printAreaFormula = cellRange
         #expect(ws.printAreaFormula == result)
     }
 
@@ -383,7 +383,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_freeze_panes_horiz
     @Test func freezePanesHoriz() {
         var ws = Self.freshSheet()
-        ws.freezePanes(at: "A4")
+        ws.freezePanesA1 = "A4"
         let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         // openpyxl (and Excel) omit a zero split and make the single remaining pane active
         #expect(xml.contains("<pane ySplit=\"3\" topLeftCell=\"A4\" activePane=\"bottomLeft\" state=\"frozen\"/>"))
@@ -393,7 +393,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_freeze_panes_vert
     @Test func freezePanesVert() {
         var ws = Self.freshSheet()
-        ws.freezePanes(at: "D1")
+        ws.freezePanesA1 = "D1"
         let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         #expect(xml.contains("<pane xSplit=\"3\" topLeftCell=\"D1\" activePane=\"topRight\" state=\"frozen\"/>"))
         #expect(xml.contains("<selection pane=\"topRight\""))
@@ -402,7 +402,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_freeze_panes_both
     @Test func freezePanesBoth() {
         var ws = Self.freshSheet()
-        ws.freezePanes(at: "D4")
+        ws.freezePanesA1 = "D4"
         let xml = WorkbookWriter.sheetXML(ws, epoch: .windows1900, styles: StyleRegistry(), strings: SharedStringTable(), preserve: false, isActive: false, comments: nil, sink: WarningSink()).xml
         #expect(xml.contains("<pane xSplit=\"3\" ySplit=\"3\" topLeftCell=\"D4\" activePane=\"bottomRight\" state=\"frozen\"/>"))
         #expect(xml.contains("<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/><selection pane=\"bottomRight\" activeCell=\"A1\" sqref=\"A1\"/>"))

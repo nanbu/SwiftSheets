@@ -234,9 +234,6 @@ public struct Table: Equatable, Sendable {
         return range(r)
     }
 
-    /// Same as `rows(in:)` — the two-dimensional value array.
-    public func values(in range: CellRange? = nil) -> [[CellValue?]] { rows(in: range) }
-    public func values(in a1: String) -> [[CellValue?]] { rows(in: a1) }
 
     /// The cells of a rectangle, row by row (empty `Cell()` where none exists).
     public func cells(in range: CellRange) -> [[Cell]] {

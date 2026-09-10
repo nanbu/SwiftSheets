@@ -29,7 +29,7 @@ import Testing
         ws["G2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws[cell: "G2"].numberFormat = "h:mm"
         ws["H2"] = .error("#N/A")
         ws["A3"] = "merged"; ws.merge("A3:C3")
-        ws.freezePanes(at: "B2")
+        ws.freezePanesA1 = "B2"
         ws.setWidth(20, ofColumn: 1); ws.setColumnDimension("C") { $0.hidden = true }
         ws.setRowDimension(2) { $0.height = 30 }
         ws.setRowDimension(4) { $0.hidden = true; $0.outlineLevel = 1 }
@@ -41,7 +41,7 @@ import Testing
                             FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "10")])]
         ws.sortState = SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)])
         ws.printTitleRows = 1...1
-        ws.setPrintArea("A1:H6")
+        ws.printAreaFormula = "A1:H6"
         wb.activeSheet = ws
         let hidden = wb.addSheet(named: "Hidden"); wb.sheets[hidden].state = .hidden; wb.sheets[hidden]["A1"] = "secret"
         wb.metadata.creator = "interop"; wb.metadata.title = "Interop"
