@@ -377,6 +377,12 @@ final class ODSStyleCatalog {
         return chain
     }
 
+    /// `style:writing-mode="rl-tb"` on the table style: column A on the right (B.76).
+    func isTableRightToLeft(_ styleName: String?) -> Bool {
+        guard let n = styleName, let s = styles[n] else { return false }
+        return ODSAttr.get(s.table, "style:writing-mode")?.hasPrefix("rl") == true
+    }
+
     func isTableHidden(_ styleName: String?) -> Bool {
         guard let n = styleName, let s = styles[n] else { return false }
         return ODSAttr.bool(s.table, "table:display") == false

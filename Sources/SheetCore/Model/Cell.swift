@@ -277,6 +277,11 @@ public struct SheetProperties: Hashable, Sendable {
 }
 
 public struct SheetView: Hashable, Sendable {
+    /// How the sheet is shown (spec Appendix B.76): the grid, the page layout, or the page-break preview. Fixed at
+    /// three by the specification (ST_SheetViewType), so an enum.
+    public enum Kind: String, Hashable, Sendable, CaseIterable {
+        case normal, pageLayout, pageBreakPreview
+    }
     public var showsGridLines = true
     public var zoomScale = 100
     public var tabSelected = false
@@ -284,6 +289,15 @@ public struct SheetView: Hashable, Sendable {
     public var activeCell = "A1"
     /// The selected ranges, space separated ("A1" / "A1:B2 D4").
     public var selectedRanges = "A1"
+    /// The row numbers and column letters along the edges (`showRowColHeaders`).
+    public var showsRowColumnHeaders = true
+    /// Zero values are shown as `0` rather than as an empty cell (`showZeros`).
+    public var showsZeros = true
+    /// Column A on the right (`rightToLeft`; ODF's `style:writing-mode="rl-tb"`).
+    public var rightToLeft = false
+    /// The cell in the top-left corner of the window, when the sheet is scrolled (`topLeftCell`); nil is A1.
+    public var topLeftCell: CellRef?
+    public var kind: Kind = .normal
     public init() {}
 }
 

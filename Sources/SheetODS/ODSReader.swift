@@ -91,12 +91,24 @@ enum ODSReader {
         if zip.contains("settings.xml") {
             let settings = SettingsParser()
             try? settings.run(try zip.read("settings.xml"), part: "settings.xml")
+            // the view (B.76): what the document says for every sheet, and what a sheet's own entry says over it
+            let doc = settings.document
+            if doc["AutoCalculate"] == "false" { wb.calculationSettings.calcMode = .manual }
             for i in wb.sheets.indices {
+                if doc["ShowGrid"] == "false" { wb.sheets[i].view.showsGridLines = false }
+                if doc["ShowZeroValues"] == "false" { wb.sheets[i].view.showsZeros = false }
+                if doc["HasColumnRowHeaders"] == "false" { wb.sheets[i].view.showsRowColumnHeaders = false }
                 guard let items = settings.tables[wb.sheets[i].name] else { continue }
                 let hMode = Int(items["HorizontalSplitMode"] ?? "0") ?? 0, vMode = Int(items["VerticalSplitMode"] ?? "0") ?? 0
                 let cols = hMode == 2 ? Int(items["HorizontalSplitPosition"] ?? "0") ?? 0 : 0
                 let rows = vMode == 2 ? Int(items["VerticalSplitPosition"] ?? "0") ?? 0 : 0
                 if rows > 0 || cols > 0 { wb.sheets[i].freezePanes = CellRef(row: rows + 1, column: cols + 1) }   // the split counts frozen rows / columns
+                if let g = items["ShowGrid"] { wb.sheets[i].view.showsGridLines = g != "false" }
+                if let z = Int(items["ZoomValue"] ?? ""), z > 0 { wb.sheets[i].view.zoomScale = z }
+                // the scrolled position: of the whole window, or of the scrolling pane past a frozen split
+                let left = Int(items[cols > 0 ? "PositionRight" : "PositionLeft"] ?? "0") ?? 0
+                let top = Int(items[rows > 0 ? "PositionBottom" : "PositionTop"] ?? "0") ?? 0
+                if left > cols || top > rows { wb.sheets[i].view.topLeftCell = CellRef(row: max(top, rows) + 1, column: max(left, cols) + 1) }
             }
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
@@ -399,6 +411,7 @@ final class ContentParser: SAXHandler {
             let styleName = ODSAttr.get(a, "table:style-name")
             if catalog.isTableHidden(styleName) { s.state = .hidden }
             s.tabColor = catalog.tableTabColor(styleName)
+            s.view.rightToLeft = catalog.isTableRightToLeft(styleName)
             tableStyleNames.append(styleName ?? "")
             if ODSAttr.bool(a, "table:protected") == true { s.protection.enabled = true }
             if let ranges = ODSAttr.get(a, "table:print-ranges") {
@@ -1064,6 +1077,9 @@ final class SettingsParser: SAXHandler {
     /// Sheet name → config item name → text.
     var tables: [String: [String: String]] = [:]
     var activeTable: String?
+    /// The document-level items of `ooo:configuration-settings` and `ooo:view-settings` (ShowGrid, ShowZeroValues,
+    /// HasColumnRowHeaders, AutoCalculate, …), which a headless LibreOffice writes instead of per-table views (B.76).
+    var document: [String: String] = [:]
     private var inTables = false
     private var entryName: String?
     private var itemName: String?
@@ -1084,6 +1100,7 @@ final class SettingsParser: SAXHandler {
             if let n = itemName {
                 if let e = entryName { tables[e, default: [:]][n] = buffer }
                 else if n == "ActiveTable" { activeTable = buffer }
+                else { document[n] = buffer }
             }
             itemName = nil
         case "config-item-map-entry": if inTables { entryName = nil }

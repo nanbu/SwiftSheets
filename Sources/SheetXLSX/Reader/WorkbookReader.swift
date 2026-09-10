@@ -58,6 +58,7 @@ enum WorkbookReader {
         if let n = Int(calc["iterateCount"] ?? "") { wb.calculationSettings.iterationSteps = n }
         if let d = Double(calc["iterateDelta"] ?? "") { wb.calculationSettings.iterationMaximumDifference = d }
         if let full = calc["fullPrecision"] { wb.calculationSettings.precisionAsShown = full == "0" || full.lowercased() == "false" }
+        wb.calculationSettings.calcMode = calc["calcMode"].flatMap { CalculationSettings.CalcMode(rawValue: $0) }
         wb.preserved.workbookFragments = wbParser.fragments
         wb.preserved.workbookRootAttributes = wbParser.rootAttributes
         wb.preserved.workbookPrAttributes = wbParser.workbookPrAttributes

@@ -54,8 +54,8 @@ formats:
       public: true
       note: "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
     totals:
-      read: {full: 50, partial: 10, preserved: 14, none: 1, na: 3, unverified: 0}
-      write: {full: 50, partial: 10, preserved: 14, none: 1, na: 3, unverified: 0}
+      read: {full: 51, partial: 9, preserved: 14, none: 1, na: 3, unverified: 0}
+      write: {full: 51, partial: 9, preserved: 14, none: 1, na: 3, unverified: 0}
       rows: 78
     areas:
       - id: "package"
@@ -165,13 +165,15 @@ formats:
             note: "1900 年 2 月 29 日の幻の日も openpyxl と同じ扱いに揃えてある。"
           - id: "xlsx.wb.calcpr"
             name: "計算プロパティと計算チェーン"
-            spec_anchor: "<calcPr>, xl/calcChain.xml"
+            spec_anchor: "<calcPr calcMode iterate fullPrecision>, xl/calcChain.xml"
             read: "partial"
             write: "partial"
-            api: []
+            api:
+              - "wb.calculationSettings.calcMode"
+              - "CalculationSettings.CalcMode"
             warning: null
-            evidence: "code"
-            note: "calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため。"
+            evidence: "measured"
+            note: "calcMode（auto / autoNoTable / manual）・反復計算・表示桁で計算は読み書きし、残りの属性は同じ形式への書き戻しで保全する。calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため（B.76）。"
           - id: "xlsx.wb.protection"
             name: "ブックの保護（シート構成・ウィンドウの固定）"
             spec_anchor: "<workbookProtection>"
@@ -358,15 +360,16 @@ formats:
             note: "分割（split）は固定として扱う。"
           - id: "xlsx.ws.sheetview"
             name: "シートビュー（表示倍率・目盛線の表示・選択）"
-            spec_anchor: "<sheetView zoomScale showGridLines tabSelected>, <selection>"
-            read: "partial"
-            write: "partial"
+            spec_anchor: "<sheetView zoomScale showGridLines tabSelected showRowColHeaders showZeros rightToLeft topLeftCell view>, <selection>"
+            read: "full"
+            write: "full"
             api:
               - "sheet.view"
               - "SheetView"
-            warning: "なし（README の既知の限界）"
-            evidence: "readme"
-            note: "一部の sheetView 属性は保全の対象外。README「Known limits of the current preservation」に明記。"
+              - "SheetView.Kind"
+            warning: null
+            evidence: "measured"
+            note: "倍率・目盛線・選択に加え、行列見出し・ゼロの表示・右から左・スクロール位置・表示の種類（normal / pageLayout / pageBreakPreview）を読み書きする（B.76）。showFormulas・colorId・表示種類ごとの倍率など残りの属性は持たない（README の既知の限界）。"
           - id: "xlsx.ws.tabcolor"
             name: "タブの色"
             spec_anchor: "<sheetPr>/<tabColor>"

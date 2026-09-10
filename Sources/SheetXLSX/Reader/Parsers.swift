@@ -586,6 +586,11 @@ final class SheetParser: SAXHandler {
             sheet.view.showsGridLines = XMLBool.isNotFalse(a["showGridLines"])
             sheet.view.zoomScale = Int(a["zoomScale"] ?? "100") ?? 100
             sheet.view.tabSelected = XMLBool.isTrue(a["tabSelected"])
+            sheet.view.showsRowColumnHeaders = XMLBool.isNotFalse(a["showRowColHeaders"])
+            sheet.view.showsZeros = XMLBool.isNotFalse(a["showZeros"])
+            sheet.view.rightToLeft = XMLBool.isTrue(a["rightToLeft"])
+            sheet.view.topLeftCell = a["topLeftCell"].flatMap { CellRef($0) }.flatMap { $0 == CellRef(row: 1, column: 1) ? nil : $0 }
+            sheet.view.kind = a["view"].flatMap { SheetView.Kind(rawValue: $0) } ?? .normal
         case "selection": if let ac = a["activeCell"] { sheet.view.activeCell = ac }; if let sq = a["sqref"] { sheet.view.selectedRanges = sq }
         case "sheetFormatPr":
             var f = SheetFormatProperties()

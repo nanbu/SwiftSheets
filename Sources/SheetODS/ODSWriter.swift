@@ -31,7 +31,7 @@ final class ODSStyleRegistry {
     private var texts: [Font: String] = [:]
     private(set) var textOrder: [(name: String, font: Font)] = []
     private var tables: [String: String] = [:]
-    private(set) var tableOrder: [(name: String, display: Bool, masterPage: String, tabColor: String?)] = []
+    private(set) var tableOrder: [(name: String, display: Bool, masterPage: String, tabColor: String?, rightToLeft: Bool)] = []
     private var graphics: [String: String] = [:]
     private(set) var graphicOrder: [(name: String, xml: String)] = []
     private var paragraphs: [String: String] = [:]
@@ -77,11 +77,11 @@ final class ODSStyleRegistry {
     }
 
     /// The automatic table style naming a sheet's master page (its print setup) and whether the sheet is shown.
-    func table(display: Bool, masterPage: String, tabColor: String? = nil) -> String {
-        let key = "\(display)|\(masterPage)|\(tabColor ?? "")"
+    func table(display: Bool, masterPage: String, tabColor: String? = nil, rightToLeft: Bool = false) -> String {
+        let key = "\(display)|\(masterPage)|\(tabColor ?? "")|\(rightToLeft)"
         if let n = tables[key] { return n }
         let n = "ta\(tableOrder.count + 1)"
-        tables[key] = n; tableOrder.append((n, display, masterPage, tabColor))
+        tables[key] = n; tableOrder.append((n, display, masterPage, tabColor, rightToLeft))
         return n
     }
 
@@ -156,7 +156,7 @@ final class ODSStyleRegistry {
         }
         for t in tableOrder {
             s += "<style:style style:name=\"\(t.name)\" style:family=\"table\" style:master-page-name=\"\(t.masterPage)\">"
-            s += "<style:table-properties table:display=\"\(t.display)\" style:writing-mode=\"lr-tb\""
+            s += "<style:table-properties table:display=\"\(t.display)\" style:writing-mode=\"\(t.rightToLeft ? "rl-tb" : "lr-tb")\""
             if let c = t.tabColor { s += " table:tab-color=\"\(c)\"" }
             s += "/></style:style>"
         }
@@ -585,17 +585,32 @@ enum ODSWriter {
         for sheet in wb.sheets {
             let f = sheet.freezePanes
             let cols = f.map { $0.column - 1 } ?? 0, rows = f.map { $0.row - 1 } ?? 0   // the split counts the frozen columns / rows
+            // the scrolled position (B.76): the window's, or the scrolling pane's past a frozen split
+            let scrolledLeft = max((sheet.view.topLeftCell?.column ?? 1) - 1, cols), scrolledTop = max((sheet.view.topLeftCell?.row ?? 1) - 1, rows)
             s += "<config:config-item-map-entry config:name=\"\(XML.esc(sheet.name))\">"
             s += item("CursorPositionX", "int", "0") + item("CursorPositionY", "int", "0")
             s += item("HorizontalSplitMode", "short", cols > 0 ? "2" : "0") + item("VerticalSplitMode", "short", rows > 0 ? "2" : "0")
             s += item("HorizontalSplitPosition", "int", String(cols)) + item("VerticalSplitPosition", "int", String(rows))
             s += item("ActiveSplitRange", "short", "2")
-            s += item("PositionLeft", "int", "0") + item("PositionRight", "int", String(cols)) + item("PositionTop", "int", "0") + item("PositionBottom", "int", String(rows))
+            s += item("PositionLeft", "int", String(cols > 0 ? 0 : scrolledLeft)) + item("PositionRight", "int", String(scrolledLeft))
+            s += item("PositionTop", "int", String(rows > 0 ? 0 : scrolledTop)) + item("PositionBottom", "int", String(scrolledTop))
+            s += item("ZoomType", "short", "0") + item("ZoomValue", "int", String(sheet.view.zoomScale)) + item("PageViewZoomValue", "int", "60")
+            s += item("ShowGrid", "boolean", sheet.view.showsGridLines ? "true" : "false")
             s += "</config:config-item-map-entry>"
         }
         s += "</config:config-item-map-named>"
         s += item("ActiveTable", "string", wb.sheets[wb.activeIndex].name)
+        // the document-level view items LibreOffice reads when a sheet has no entry of its own: the first sheet's
+        s += item("ShowZeroValues", "boolean", wb.sheets[0].view.showsZeros ? "true" : "false")
+        s += item("HasColumnRowHeaders", "boolean", wb.sheets[0].view.showsRowColumnHeaders ? "true" : "false")
+        s += item("ShowGrid", "boolean", wb.sheets[0].view.showsGridLines ? "true" : "false")
         s += "</config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set>"
+        s += "<config:config-item-set config:name=\"ooo:configuration-settings\">"
+        s += item("AutoCalculate", "boolean", wb.calculationSettings.calcMode == .manual ? "false" : "true")
+        s += item("ShowZeroValues", "boolean", wb.sheets[0].view.showsZeros ? "true" : "false")
+        s += item("HasColumnRowHeaders", "boolean", wb.sheets[0].view.showsRowColumnHeaders ? "true" : "false")
+        s += item("ShowGrid", "boolean", wb.sheets[0].view.showsGridLines ? "true" : "false")
+        s += "</config:config-item-set>"
         return s + "</office:settings></office:document-settings>"
     }
 
@@ -796,7 +811,10 @@ enum ODSWriter {
         if tabNonRGB {
             sink.add(.degraded, subject: .formatting, sheet: sheet.name, "the tab colour is not an RGB colour the workbook's theme can resolve; it is written black")
         }
-        var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage, tabColor: tabColor))\""
+        if sheet.view.kind != .normal {
+            sink.add(.degraded, subject: .other, sheet: sheet.name, "the sheet's \(sheet.view.kind.rawValue) view is shown as the normal view: ODF saves no view kind")
+        }
+        var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage, tabColor: tabColor, rightToLeft: sheet.view.rightToLeft))\""
         if sheet.protection.enabled { s += " table:protected=\"true\"" }
         if !sheet.printArea.isEmpty {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())

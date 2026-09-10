@@ -345,8 +345,8 @@ after them. What makes it work:
 Reading reports its losses the same way writing does: `Workbook.read(contentsOf:)` answers with a `ReadResult`, and
 `Workbook(contentsOf:)` leaves the same list on `wb.readWarnings`.
 
-Known limits of the current preservation: `cm` / `vm` rich-value attributes and some `<sheetView>` attributes are not
-carried over.
+Known limits of the current preservation: `cm` / `vm` rich-value attributes and a few `<sheetView>` attributes
+(`showFormulas`, `colorId`, the per-kind zoom scales) are not carried over.
 
 ## Design notes
 

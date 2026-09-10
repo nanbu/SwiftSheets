@@ -35,12 +35,21 @@ public struct CalculationSettings: Hashable, Sendable {
     public var iterationSteps: Int?
     /// Stop when a step moves every value less than this (`table:maximum-difference`).
     public var iterationMaximumDifference: Double?
+    /// When formulas are recalculated (spec Appendix B.76): `<calcPr calcMode>` in OOXML, LibreOffice's
+    /// `AutoCalculate` setting in ODS (which knows only automatic and manual). Fixed at three by the specification
+    /// (ST_CalcMode), so an enum. Nil is the application's default (automatic).
+    public enum CalcMode: String, Hashable, Sendable, CaseIterable {
+        case auto, autoNoTable, manual
+    }
+    public var calcMode: CalcMode?
 
     /// ODF's own defaults (§9.4.1): everything off except the wildcard and heading conveniences.
     public init(caseSensitive: Bool = false, precisionAsShown: Bool = false,
                 searchCriteriaMustApplyToWholeCell: Bool = true, automaticFindLabels: Bool = true,
                 usesRegularExpressions: Bool = false, usesWildcards: Bool = true, nullYear: Int? = nil,
-                iterationEnabled: Bool = false, iterationSteps: Int? = nil, iterationMaximumDifference: Double? = nil) {
+                iterationEnabled: Bool = false, iterationSteps: Int? = nil, iterationMaximumDifference: Double? = nil,
+                calcMode: CalcMode? = nil) {
+        self.calcMode = calcMode
         self.caseSensitive = caseSensitive
         self.precisionAsShown = precisionAsShown
         self.searchCriteriaMustApplyToWholeCell = searchCriteriaMustApplyToWholeCell

@@ -19,6 +19,11 @@ writes, so the constant, the README's status line and the tag always name the sa
   and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
   shapes as dropped (spec Appendix B.75).
 
+- **The sheet view's remaining words, and the calculation mode.** `SheetView` gains `showsRowColumnHeaders`,
+  `showsZeros`, `rightToLeft`, `topLeftCell` and `kind` (normal / page layout / page-break preview);
+  `CalculationSettings.calcMode` is `<calcPr calcMode>` (auto / autoNoTable / manual). XLSX reads and writes all
+  of them; ODS carries them through LibreOffice's settings (`ShowGrid`, `ZoomValue`, `AutoCalculate`, …) and the
+  table style's writing mode, and reports the view kind as not carried (spec Appendix B.76).
 - **ODS carries the tab colour.** `sheet.tabColor` is written as `table:tab-color` on the table style — the
   attribute ODF 1.3 defines and LibreOffice writes — and read back; a theme colour is resolved to RGB first. The
   "ODF 1.3 has no tab colour" warning is gone, and the all-features workbook now returns 8 warnings for ODS, not 9

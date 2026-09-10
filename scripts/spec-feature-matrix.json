@@ -200,13 +200,16 @@
             {
               "id": "xlsx.wb.calcpr",
               "name": "計算プロパティと計算チェーン",
-              "spec_anchor": "<calcPr>, xl/calcChain.xml",
+              "spec_anchor": "<calcPr calcMode iterate fullPrecision>, xl/calcChain.xml",
               "read": "partial",
               "write": "partial",
-              "api": [],
+              "api": [
+                "wb.calculationSettings.calcMode",
+                "CalculationSettings.CalcMode"
+              ],
               "warning": null,
-              "evidence": "code",
-              "note": "calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため。"
+              "evidence": "measured",
+              "note": "calcMode（auto / autoNoTable / manual）・反復計算・表示桁で計算は読み書きし、残りの属性は同じ形式への書き戻しで保全する。calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため（B.76）。"
             },
             {
               "id": "xlsx.wb.protection",
@@ -444,16 +447,17 @@
             {
               "id": "xlsx.ws.sheetview",
               "name": "シートビュー（表示倍率・目盛線の表示・選択）",
-              "spec_anchor": "<sheetView zoomScale showGridLines tabSelected>, <selection>",
-              "read": "partial",
-              "write": "partial",
+              "spec_anchor": "<sheetView zoomScale showGridLines tabSelected showRowColHeaders showZeros rightToLeft topLeftCell view>, <selection>",
+              "read": "full",
+              "write": "full",
               "api": [
                 "sheet.view",
-                "SheetView"
+                "SheetView",
+                "SheetView.Kind"
               ],
-              "warning": "なし（README の既知の限界）",
-              "evidence": "readme",
-              "note": "一部の sheetView 属性は保全の対象外。README「Known limits of the current preservation」に明記。"
+              "warning": null,
+              "evidence": "measured",
+              "note": "倍率・目盛線・選択に加え、行列見出し・ゼロの表示・右から左・スクロール位置・表示の種類（normal / pageLayout / pageBreakPreview）を読み書きする（B.76）。showFormulas・colorId・表示種類ごとの倍率など残りの属性は持たない（README の既知の限界）。"
             },
             {
               "id": "xlsx.ws.tabcolor",

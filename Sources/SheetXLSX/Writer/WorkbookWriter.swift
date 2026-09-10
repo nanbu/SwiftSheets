@@ -550,6 +550,7 @@ enum WorkbookWriter {
         calc["iterateCount"] = settings.iterationSteps.map(String.init)
         calc["iterateDelta"] = settings.iterationMaximumDifference.map(XML.num)
         calc["fullPrecision"] = settings.precisionAsShown ? "0" : nil
+        if let mode = settings.calcMode { calc["calcMode"] = mode.rawValue }
         generated.append(("calcPr", "<calcPr" + calc.keys.sorted().map { " \($0)=\"\(XML.esc(calc[$0]!))\"" }.joined() + "/>"))
         if !cachePlans.isEmpty {
             generated.append(("pivotCaches", "<pivotCaches>" + cachePlans.map {
@@ -956,7 +957,9 @@ enum WorkbookWriter {
         s += "<pageSetUpPr\(ws.properties.fitsToPage.map { " fitToPage=\"\($0 ? 1 : 0)\"" } ?? "")/></sheetPr>"
         generated.append(("sheetPr", s))
         generated.append(("dimension", "<dimension ref=\"\(table.extentAddress)\"/>"))
-        s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showsGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
+        s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showsGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")"
+        s += (ws.view.showsRowColumnHeaders ? "" : " showRowColHeaders=\"0\"") + (ws.view.showsZeros ? "" : " showZeros=\"0\"") + (ws.view.rightToLeft ? " rightToLeft=\"1\"" : "")
+        s += (ws.view.topLeftCell.map { " topLeftCell=\"\($0.address)\"" } ?? "") + (ws.view.kind == .normal ? "" : " view=\"\(ws.view.kind.rawValue)\"") + ">"
         if let f = ws.freezePanes {
             // Excel omits a zero split and makes the single remaining pane active
             let active = f.column > 1 ? (f.row > 1 ? "bottomRight" : "topRight") : "bottomLeft"
