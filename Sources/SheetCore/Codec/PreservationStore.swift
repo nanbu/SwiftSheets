@@ -48,6 +48,9 @@ package struct PreservationStore: Sendable, Hashable {
     package var sharedStrings: [CellValue]?
     /// The phonetic guides of `sharedStrings`, entry by entry (nil where a string has none).
     package var sharedStringPhonetics: [PhoneticText?]?
+    /// The theme as read from the source's theme part: while `Workbook.theme` still equals it, the part is written
+    /// back byte for byte; once it differs, the part is regenerated from the model (B.70).
+    package var theme: Theme?
 
     package init() {}
 

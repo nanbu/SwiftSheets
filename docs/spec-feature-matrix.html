@@ -108,7 +108,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。形式ごとの対応表（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。</p>
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
-<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○47 △10 ▣17 ×1 ／ 書き ○49 △9 ▣16 ×1<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○48 △9 ▣17 ×1 ／ 書き ○50 △9 ▣15 ×1<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○37 △11 ▣1 ×4 ／ 書き ○34 △9 ▣0 ×14<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △9 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
@@ -189,8 +189,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>件数</h2>
 <div class="tablewrap"><table>
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">47</td><td class="m">10</td><td class="m">17</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">49</td><td class="m">9</td><td class="m">16</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">48</td><td class="m">9</td><td class="m">17</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">50</td><td class="m">9</td><td class="m">15</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">37</td><td class="m">11</td><td class="m">1</td><td class="m">4</td><td class="m">6</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">34</td><td class="m">9</td><td class="m">0</td><td class="m">14</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
@@ -252,7 +252,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>グラデーションの塗り</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;gradientFill&gt;</code></td><td><code>Fill.gradient(_:)</code> <code>GradientFill</code></td><td>ODS・Numbers はセルに 1 色しか持てないので、変換すると最初の色になり警告が出る。 <span class="chip">実測</span></td></tr>
 <tr><td>名前付きセルスタイル</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;cellStyles&gt;, &lt;cellStyleXfs&gt;</code></td><td><code>wb.namedStyles</code> <code>addNamedStyle(_:)</code> <code>CellStyle.namedStyle</code></td><td><span class="chip">コード確認</span></td></tr>
 <tr><td>差分書式（条件付き書式・テーブルが指す書式）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;dxfs&gt;/&lt;dxf&gt;</code></td><td><code>wb.differentialStyles</code> <code>DifferentialStyle</code> <code>DifferentialFont</code></td><td>全ての欄が省略可。nil は「そのままにする」の意味。 <span class="chip">コード確認</span></td></tr>
-<tr><td>テーマ（配色・書体）</td><td class="m h">△</td><td class="m">▣</td><td><code>xl/theme/theme1.xml, Color.theme</code></td><td><code>Color.theme(_:tint:)</code> <code>Color.indexed(_:)</code> <code>wb.indexedColors</code></td><td><strong>言うこと</strong>: 他形式では「theme/indexed colours written as default」 読んだテーマはパートごと保全する。新規ブックにはテーマを作らず、色は RGB で明示する。 <span class="chip">コード確認</span></td></tr>
+<tr><td>テーマ（配色・書体）</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/theme/theme1.xml, Color.theme</code></td><td><code>wb.theme</code> <code>Theme</code> <code>wb.rgb(of:)</code> <code>Color.theme(_:tint:)</code> <code>Color.indexed(_:)</code> <code>wb.indexedColors</code></td><td>テーマ部品の 12 色と 2 書体を wb.theme に読む。触らなければ部品はバイトのまま、変えれば同じパスに作り直す。wb.rgb(of:) がテーマ色（濃淡つき）と索引色を RGB に解決し、ODS・Numbers の書き手はその色を書く（従来の「written as default」警告は解決できない色だけに残る）（B.70）。 <span class="chip">実測</span></td></tr>
 <tr><td>テーブルスタイル定義</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;tableStyles&gt;</code></td><td>—</td><td>そのまま複写する。索引がずれないことを優先。 <span class="chip">コード確認</span></td></tr>
 <tr class="group"><td colspan="6">条件付き書式</td></tr>
 <tr><td>規則 17 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;conditionalFormatting&gt;/&lt;cfRule type operator&gt;</code></td><td><code>sheet.addConditionalFormatting(.cellIs(.greaterThan, &quot;100&quot;, paint: red), over: &quot;B2:B99&quot;)</code> <code>ConditionalFormattingRule.Kind</code></td><td>優先順位はシート内で 1…n に振り直す。 <span class="chip">実測</span></td></tr>

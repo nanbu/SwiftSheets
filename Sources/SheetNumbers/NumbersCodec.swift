@@ -23,7 +23,7 @@ package enum NumbersCodec: SpreadsheetCodec {
     }
 
     package static func write(_ workbook: Workbook, options: WriteOptions = WriteOptions()) throws -> WriteResult {
-        var writer = try NumbersWriter(workbook: workbook, options: options)
+        var writer = try NumbersWriter(workbook: workbook.resolvingColors(), options: options)   // B.70
         let data = try writer.write()
         return WriteResult(data: data, warnings: writer.warnings, suggestion: WriteResult.suggest(from: writer.warnings, target: .numbers, options: options))
     }

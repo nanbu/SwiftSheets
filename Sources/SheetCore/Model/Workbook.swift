@@ -140,6 +140,10 @@ public struct Workbook: Equatable, Sendable {
     package mutating func noteUnmodelledODFFeatures(_ features: UnmodelledODFFeatures) { unmodelledODFFeatures.formUnion(features) }
     /// The legacy indexed palette (`<colors><indexedColors>`), when the file overrides it. ARGB strings.
     public var indexedColors: [String] = []
+    /// The theme the workbook's `Color.theme(_:tint:)` colours and scheme fonts resolve against (spec Appendix
+    /// B.70): read from an XLSX file's theme part, nil for a new workbook (which resolves as `Theme.office`).
+    /// `rgb(of:)` answers the colour a `Color` stands for here.
+    public var theme: Theme?
     /// VBA code name of the workbook (`<workbookPr codeName>`), preserved when present.
     public var codeName: String?
     /// Whether the shape of the workbook can be changed (`<workbookProtection>`).

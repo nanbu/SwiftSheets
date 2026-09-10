@@ -393,8 +393,13 @@ enum WorkbookWriter {
         let generatedNoteParts = sheetParts.flatMap(\.parts)
         // styles reference theme colours, so a theme part must exist: keep the source's, or ship the default one
         let preservedTheme = opaque.keys.first { $0.hasPrefix("xl/theme/") }
-        let themePath = preservedTheme ?? Theme.partPath
+        let themePath = preservedTheme ?? ThemePart.partPath
         let needsGeneratedTheme = preservedTheme == nil
+        // a source theme travels as bytes while the model's theme still equals what was read; once the model's
+        // theme differs, the part is regenerated from the model under the same path and relationship (B.70)
+        if let preservedTheme, let modelTheme = wb.theme, modelTheme != preserved.theme {
+            opaque[preservedTheme] = .bytes(Data((XMLWriter.header + ThemePart.xml(for: modelTheme)).utf8))
+        }
         let stylesId = freshId()
         let themeId = needsGeneratedTheme ? freshId() : nil
         // the rows are written after the workbook's own parts now, so whether a shared-string table will exist
@@ -418,7 +423,7 @@ enum WorkbookWriter {
         }
         overrides["xl/styles.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"
         if hasStrings { overrides["xl/sharedStrings.xml"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" }
-        overrides[themePath] = Theme.contentType
+        overrides[themePath] = ThemePart.contentType
         overrides["docProps/core.xml"] = "application/vnd.openxmlformats-package.core-properties+xml"
         overrides["docProps/app.xml"] = "application/vnd.openxmlformats-officedocument.extended-properties+xml"
         if !wb.customProperties.isEmpty { overrides[customPropertiesPath] = ctCustomProperties }
@@ -522,7 +527,7 @@ enum WorkbookWriter {
             let type = (sameFamily ? sheet.preserved.foreignSheet?.relationshipType : nil) ?? "\(XMLWriter.nsRel)/worksheet"
             rels += "<Relationship Id=\"\(plan.rId)\" Type=\"\(XML.esc(type))\" Target=\"\(XML.esc(relativeTarget(plan.path, from: "xl")))\"/>"
         }
-        if let themeId { rels += "<Relationship Id=\"\(themeId)\" Type=\"\(XMLWriter.nsRel)\(Theme.relationshipType)\" Target=\"\(XML.esc(relativeTarget(themePath, from: "xl")))\"/>" }
+        if let themeId { rels += "<Relationship Id=\"\(themeId)\" Type=\"\(XMLWriter.nsRel)\(ThemePart.relationshipType)\" Target=\"\(XML.esc(relativeTarget(themePath, from: "xl")))\"/>" }
         rels += "<Relationship Id=\"\(stylesId)\" Type=\"\(XMLWriter.nsRel)/styles\" Target=\"styles.xml\"/>"
         if let sstId { rels += "<Relationship Id=\"\(sstId)\" Type=\"\(XMLWriter.nsRel)/sharedStrings\" Target=\"sharedStrings.xml\"/>" }
         for plan in cachePlans {
@@ -557,7 +562,7 @@ enum WorkbookWriter {
                 + "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\"><Relationship Id=\"rId1\" Type=\"\(XMLWriter.nsRel)\(PivotParts.relCacheRecords)\" Target=\"\(XML.esc(relativeTarget(records, from: definitionDir)))\"/></Relationships>").utf8))
             archive.add(records, bytes)
         }
-        if needsGeneratedTheme { archive.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8)) }
+        if needsGeneratedTheme { archive.add(ThemePart.partPath, Data((XMLWriter.header + ThemePart.xml(for: wb.theme ?? .office)).utf8)) }
         if hasStrings { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml(styles: styles)).utf8)) }
         archive.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
         for name in opaque.keys.sorted() { archive.add(name, part: opaque[name]!) }

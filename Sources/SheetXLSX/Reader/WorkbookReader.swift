@@ -77,6 +77,12 @@ enum WorkbookReader {
         let styles = StylesParser()
         if zip.contains(stylesPath) { try styles.run(try zip.read(stylesPath), part: stylesPath); consumed.insert(stylesPath) }
         styles.resolveNamedStyleLinks()
+        // the theme: read into the model, and kept as a part too (B.70)
+        if let themePath = rels.first(where: { $0.type.hasSuffix("/theme") }).map({ resolve($0.target) }), zip.contains(themePath) {
+            let themeParser = ThemeParser()
+            try themeParser.run(try zip.read(themePath), part: themePath)
+            if let theme = themeParser.theme { wb.theme = theme; wb.preserved.theme = theme }
+        }
         wb.indexedColors = styles.indexedColors
         wb.differentialStyles = styles.dxfs
         wb.preserved.styleFragments = styles.fragments

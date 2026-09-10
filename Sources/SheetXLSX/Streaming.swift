@@ -377,7 +377,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
             ct += "<Override PartName=\"/\(sheet.path)\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
         }
         ct += "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>"
-        ct += "<Override PartName=\"/\(Theme.partPath)\" ContentType=\"\(Theme.contentType)\"/>"
+        ct += "<Override PartName=\"/\(ThemePart.partPath)\" ContentType=\"\(ThemePart.contentType)\"/>"
         ct += "<Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/>"
         ct += "<Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/>"
         try zip.add("[Content_Types].xml", Data((ct + "</Types>").utf8))
@@ -403,9 +403,9 @@ package final class XLSXStreamingWriter: StreamingRowSink {
             rels += "<Relationship Id=\"rId\(i + 1)\" Type=\"\(XMLWriter.nsRel)/worksheet\" Target=\"\(XML.esc(WorkbookWriter.relativeTarget(sheet.path, from: "xl")))\"/>"
         }
         rels += "<Relationship Id=\"rId\(sheets.count + 1)\" Type=\"\(XMLWriter.nsRel)/styles\" Target=\"styles.xml\"/>"
-        rels += "<Relationship Id=\"rId\(sheets.count + 2)\" Type=\"\(XMLWriter.nsRel)\(Theme.relationshipType)\" Target=\"\(XML.esc(WorkbookWriter.relativeTarget(Theme.partPath, from: "xl")))\"/>"
+        rels += "<Relationship Id=\"rId\(sheets.count + 2)\" Type=\"\(XMLWriter.nsRel)\(ThemePart.relationshipType)\" Target=\"\(XML.esc(WorkbookWriter.relativeTarget(ThemePart.partPath, from: "xl")))\"/>"
         try zip.add("xl/_rels/workbook.xml.rels", Data((rels + "</Relationships>").utf8))
-        try zip.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8))
+        try zip.add(ThemePart.partPath, Data((XMLWriter.header + ThemePart.xml).utf8))
         try zip.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
         try zip.finish()
         closed = true   // last, so a failure anywhere above leaves a writer that knows it did not finish

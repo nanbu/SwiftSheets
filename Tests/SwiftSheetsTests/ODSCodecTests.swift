@@ -406,8 +406,10 @@ import SwiftSheets
         ws["A2"] = .integer(2); ws.setStyle("A2") { $0.fill = .solid(.indexed(12)); $0.numberFormat = "#,##0_);(#,##0)" }
         ws["A3"] = .integer(3); ws.setStyle("A3") { $0.numberFormat = "# ?/?" }
         let result = try ODSCodec.write(Workbook(sheets: [ws]))
-        let degraded = result.warnings.filter { $0.kind == .degraded }
-        #expect(degraded.count == 1 && degraded[0].message.contains("colour"))
+        // theme and indexed colours resolve through the workbook's theme and palette (B.70): no loss to report
+        #expect(!result.warnings.contains { $0.kind == .degraded }, "\(result.warnings.map(\.message))")
+        let content = try Package.part("content.xml", of: result.data)
+        #expect(content.contains("fo:color=\"#4472c4\"") && content.contains("fo:background-color=\"#0000ff\""))
         let substituted = result.warnings.filter { $0.kind == .substituted }
         #expect(substituted.count == 2)
         #expect(substituted.contains { $0.message.contains("#,##0_);(#,##0)") && $0.message.contains("first section") })

@@ -353,7 +353,9 @@ carried over.
   lossless. The intersection operator is understood in both spellings (Excel's space, OpenFormula's `!`); external
   workbook references (`[1]Sheet!A1`) are carried as text rather than resolved.
 - **Element order matters to Excel.** Generated and preserved elements are merged in schema order; the two mandatory
-  fills come first; colours are explicit RGB (no theme part is generated — a source theme is preserved).
+  fills come first; a source theme is preserved as bytes until `wb.theme` is changed, and a new workbook's theme part
+  is generated from `wb.theme` (Excel's Office theme when nil). `wb.rgb(of:)` resolves a theme or indexed colour to
+  RGB, and the ODS and Numbers writers draw that RGB rather than defaulting to black.
 - **Sendable throughout.** Every model type is a `Sendable` value.
 
 ## Development

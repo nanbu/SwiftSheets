@@ -205,6 +205,44 @@ struct FontAttributes {
 /// styles.xml → the style tables and resolved cellXfs. Fonts / fills / borders are parsed *and* kept as raw XML,
 /// and the index-referencing sections (`cellStyleXfs`, `cellStyles`, `dxfs`, `tableStyles`, `extLst`) are kept
 /// verbatim, so a rewrite can keep every index the file relies on.
+/// xl/theme/theme1.xml → `Theme` (B.70): the twelve scheme colours (`a:srgbClr@val`, or `a:sysClr@lastClr` for the
+/// system colours dk1 / lt1) and the two scheme fonts' latin typefaces. Nil when the part names no colour scheme.
+final class ThemeParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    private var scheme: [String: String] = [:]
+    private var slot: String?
+    private var fontSlot: String?
+    private var majorFont: String?, minorFont: String?
+    private var sawScheme = false
+    private static let slots = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"]
+
+    var theme: Theme? {
+        guard sawScheme else { return nil }
+        let colors = Self.slots.map { scheme[$0] ?? Theme.office.colors[Self.slots.firstIndex(of: $0)!] }
+        return Theme(colors: colors, majorFont: majorFont, minorFont: minorFont)
+    }
+    func start(_ name: String, _ a: [String: String]) {
+        switch name {
+        case "clrScheme": sawScheme = true
+        case _ where Self.slots.contains(name): slot = name
+        case "srgbClr": if let slot, let v = a["val"] { scheme[slot] = v }
+        case "sysClr": if let slot, let v = a["lastClr"] { scheme[slot] = v }
+        case "majorFont", "minorFont": fontSlot = name
+        case "latin":
+            if let face = a["typeface"], !face.isEmpty {
+                if fontSlot == "majorFont" { majorFont = face } else if fontSlot == "minorFont" { minorFont = face }
+            }
+        default: break
+        }
+    }
+    func text(_ s: String) {}
+    func end(_ name: String) {
+        if Self.slots.contains(name) { slot = nil }
+        if name == "majorFont" || name == "minorFont" { fontSlot = nil }
+    }
+}
+
 final class StylesParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]

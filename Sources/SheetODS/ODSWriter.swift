@@ -247,8 +247,9 @@ enum ODSWriter {
     ]
     static func ns(_ prefixes: [String]) -> String { prefixes.map { " xmlns:\($0)=\"\(namespaces[$0]!)\"" }.joined() }
 
-    static func write(_ wb: Workbook, options: WriteOptions) throws -> WriteResult {
-        guard !wb.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
+    static func write(_ source: Workbook, options: WriteOptions) throws -> WriteResult {
+        guard !source.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
+        let wb = source.resolvingColors()   // ODF has no theme: every theme / indexed colour becomes its RGB (B.70)
         let sink = ODSWarningSink()
         let styles = ODSStyleRegistry()
         let conditionalStyles = ODSConditionalStyleRegistry()
