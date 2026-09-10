@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.70 Draft</td><td>2026-09-11</td><td>スパークライン。<code>SparklineGroup</code>（種類・色・点の表示・空セルの扱い・複数のスパークライン）を <code>sheet.sparklines</code> に持ち、XLSX の <code>x14:sparklineGroups</code>（写しの規則で保全）と ODS の <code>calcext:sparkline-groups</code>（LibreOffice）を読み書きする。Numbers は落として言う（B.79）。</td></tr>
     <tr><td>4.69 Draft</td><td>2026-09-11</td><td>外部ブックの参照先。<code>wb.externalLinks: [ExternalLink]</code>（番号・参照先・シート名）を XLSX の externalLinks/ 部品から読み、ODS は数式が名指しする文書から導く。値は解決しない（B.78）。</td></tr>
     <tr><td>4.68 Draft</td><td>2026-09-11</td><td>解釈しない部品の目録。<code>preservationSummary.parts: [PreservedPartKind: Int]</code> が、模型に入らなかった物を種類別に数える。読んだ物（図面・グラフ・テーマ・メモ）は数えない（B.77）。</td></tr>
     <tr><td>4.67 Draft</td><td>2026-09-11</td><td>シートビューの残りの言葉と計算モード。<code>SheetView</code> に行列見出し・ゼロ表示・右から左・スクロール位置・表示の種類、<code>CalculationSettings.calcMode</code>。XLSX は全部、ODS は LibreOffice の settings と表の様式が言える分（B.76）。</td></tr>
@@ -6855,6 +6856,31 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   ODS には現れない。Numbers は読まない（Numbers の外部参照は模型に無い）。</p>
   <p><strong>検査。</strong><code>ExternalLinkTests</code> 3 件: 手作りの <code>external-links.xlsx</code>（Excel の形: sheetNames と取ってあった値）を読む・
   同じ形式への書き戻しで部品と断片がバイトのまま・手作りの <code>external-links.ods</code> から 2 文書と 3 シート名を導く。</p>
+</section>
+
+<section>
+  <h3>B.79 スパークライン（Rev 4.70）</h3>
+  <p>2026-09-11 決定。9 月 10 日の案 8 は Excel だけの物として <code>sheet.excel.sparklines</code>（付録流）を提案したが、LibreOffice 26.2.3 は ODS に
+  <code>calcext:sparkline-groups</code> を書き、XLSX の <code>x14:sparklineGroups</code> と相互に変換する（2026-09-11 実測: 手作りの ODS → XLSX → ODS で 2 群が往復）。
+  両形式が持つ物なので平坦に <code>sheet.sparklines: [SparklineGroup]</code> とする。</p>
+  <p><strong>模型。</strong><code>SparklineGroup</code>: <code>kind: Kind</code>（構造体・raw は OOXML の type: line / column / stacked）、
+  <code>sparklines: [Sparkline(dataRange, location)]</code>（1 群に複数——Excel の群の形）、色 8 つ（系列・負・軸・印・最初・最後・最大・最小）、
+  点の表示 6 つと軸、<code>lineWidth</code>（pt）、<code>emptyCells: EmptyCells</code>（gap / zero / span・仕様が 3 値で固定するので列挙型）。
+  <code>addSparkline(_:data:at:)</code> が 1 本の群を足す。データ範囲は文字（<code>'Trend'!A2:H2</code> か <code>A2:H2</code>——書くときに
+  シート名を補う。グラフの系列と同じ）。</p>
+  <p><strong>XLSX。</strong>ワークシートの <code>extLst</code> は読み手が知らない子として断片に残る。読み: 断片が sparklineGroups を含めば、ルートが宣言する
+  接頭辞（x14 / xm / mc / xr2）を宣言した根で包んで <code>SparklineParser</code> に通し、<code>sheet.sparklines</code> と写し
+  <code>SheetPreservation.sparklines</code> に入れる。書き（写しの規則・B.72）: 模型が写しと同じなら断片をそのまま。違えば断片から uri
+  <code>{05C60535-1F16-4fd2-B633-F4F36F0B64E0}</code> の <code>ext</code> だけを切り取り（他の拡張——x14 の条件付き書式など——は残す）、模型から作った
+  <code>ext</code>（名前空間は自分で宣言）を <code>&lt;/extLst&gt;</code> の前に継ぎ足す。切り取って空になった extLst は消す。色は
+  <code>StyleRegistry.colorXML</code>（テーマ色のまま書ける）。</p>
+  <p><strong>ODS。</strong>読み: 表の中の <code>calcext:sparkline-group</code>（type・color-*・high / low / first / last / negative / markers /
+  display-x-axis・line-width・display-empty-cells-as）と <code>calcext:sparkline</code>（cell-address・data-range を Excel の書き方に）。
+  書き: 条件付き書式の後に <code>calcext:sparkline-groups</code>（id は連番の GUID 形・min/max-axis-type は individual）。色は
+  <code>resolvingColors()</code> が解決するので RGB で着地する。範囲に読めないデータ範囲は degraded で言って書かない。Numbers は落として言う。</p>
+  <p><strong>検査。</strong><code>SparklineTests</code> 5 件: LibreOffice が書いた 2 群の XLSX と ODS（検体 <code>libreoffice-sparklines.*</code>）を読む・
+  触らなければ extLst がバイトのまま・変えれば作り直す（他の物は残す）・2 形式の往復と Numbers の警告・LibreOffice が両方の書き手のスパークラインを
+  読む（gated）。</p>
 </section>
 
 </div><!-- /.container -->

@@ -141,6 +141,10 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
         }
+        for sheet in workbook.sheets where !sheet.sparklines.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.sparklines.count) sparkline group(s) dropped: Numbers has no sparklines (write .xlsx or .ods to keep them)"))
+        }
         for sheet in workbook.sheets where !sheet.shapes.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.shapes.count) shape(s) / text box(es) dropped: writing shapes into Numbers is not implemented yet (write .xlsx or .ods to keep them)"))

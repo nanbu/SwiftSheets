@@ -483,6 +483,12 @@ final class SheetReadContext: @unchecked Sendable {
                 }
             }
         }
+        // sparklines (B.79): read out of the preserved extension list; the fragment itself stays until a change
+        if let ext = sheet.preserved.fragments.first(where: SparklineParts.holdsSparklines) {
+            let groups = SparklineParts.groups(in: ext, sheetName: sheet.name)
+            sheet.sparklines = groups + sheet.sparklines
+            sheet.preserved.sparklines = groups
+        }
         result.sheet = sheet
     }
 }

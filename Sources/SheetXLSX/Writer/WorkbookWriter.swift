@@ -1168,6 +1168,19 @@ enum WorkbookWriter {
             preservedRels.removeAll { $0.type.hasSuffix(DrawingParts.relationshipType) }
             noteFragments.removeAll { $0.element == "drawing" }
         }
+        // sparklines (B.79): the source's extension while the model still equals what was read; otherwise the
+        // extension is regenerated and spliced into whatever else the extension list held
+        let asReadSparklines = preserve ? ws.preserved.sparklines : []
+        if ws.sparklines != asReadSparklines || (!preserve && !ws.sparklines.isEmpty) {
+            let existing = noteFragments.first { $0.element == "extLst" }
+            noteFragments.removeAll { $0.element == "extLst" }
+            let remaining = existing.flatMap { SparklineParts.removingSparklines(from: $0) }
+            if ws.sparklines.isEmpty {
+                if let remaining { noteFragments.append(remaining) }
+            } else {
+                noteFragments.append(XMLFragment(element: "extLst", xml: SparklineParts.extLstXML(SparklineParts.extensionXML(ws.sparklines, sheetName: ws.name), into: remaining)))
+            }
+        }
         var extraParts: [(path: String, data: Data)] = []
         var rels: String?
         var relXML = "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\">" + preservedRels.map(relationshipXML).joined()

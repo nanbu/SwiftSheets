@@ -108,7 +108,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。形式ごとの対応表（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。</p>
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
-<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○51 △10 ▣13 ×1 ／ 書き ○51 △9 ▣14 ×1<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○52 △10 ▣12 ×1 ／ 書き ○52 △9 ▣13 ×1<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○39 △13 ▣0 ×2 ／ 書き ○35 △11 ▣0 ×11<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △9 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
@@ -189,8 +189,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>件数</h2>
 <div class="tablewrap"><table>
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">51</td><td class="m">10</td><td class="m">13</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">51</td><td class="m">9</td><td class="m">14</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">52</td><td class="m">10</td><td class="m">12</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">52</td><td class="m">9</td><td class="m">13</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">39</td><td class="m">13</td><td class="m">0</td><td class="m">2</td><td class="m">5</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">35</td><td class="m">11</td><td class="m">0</td><td class="m">11</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
@@ -278,7 +278,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>スレッド形式のコメント</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/threadedComments/, xl/persons/</code></td><td>—</td><td><strong>言うこと</strong>: 他形式へ変換すると dropped モデル化していない。 <span class="chip">コード確認</span></td></tr>
 <tr><td>図形・テキストボックス・SmartArt・背景画像</td><td class="m h">△</td><td class="m h">△</td><td><code>&lt;xdr:sp&gt;, &lt;xdr:cxnSp&gt;, &lt;xdr:grpSp&gt;, dgm:*, &lt;picture&gt;</code></td><td><code>sheet.shapes</code> <code>sheet.addShape(_:over:)</code> <code>sheet.addTextBox(_:over:font:)</code> <code>Shape.Geometry</code></td><td><strong>言うこと</strong>: 作り直しで落ちる物は「N object(s) of the sheet&#x27;s drawing the model could not read (a group of shapes, SmartArt) dropped」／プリセットに無い幾何は「written as a rectangle」 図形とテキストボックス（xdr:sp / xdr:cxnSp）は読み書きする: プリセットの幾何・文と 1 書体・揃え・塗り・線・錨（B.75）。回転・影・グラデーション・段落ごとの書式は持たず、触らなければバイトのまま残る。SmartArt（dgm: の 4 部品）と図形のグループは模型に入れず「あった」と控え、同じ形式に触らず保存すればバイトのまま、図面を作り直すときは名指しで落とす。背景画像は保全のまま。LibreOffice が書いた 7 図形を読み、書いた図形を LibreOffice が読む（gated）。 <span class="chip">実測</span></td></tr>
 <tr><td>OLE オブジェクト・ActiveX コントロール</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;oleObjects&gt;, &lt;controls&gt;</code></td><td>—</td><td><strong>言うこと</strong>: 他形式へ変換すると dropped <span class="chip">コード確認</span></td></tr>
-<tr><td>スパークライン</td><td class="m">▣</td><td class="m">▣</td><td><code>&lt;extLst&gt; x14:sparklineGroups</code></td><td>—</td><td><strong>言うこと</strong>: 他形式へ変換すると dropped worksheet の extLst ごと保持される。モデルの言葉はない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>スパークライン</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;extLst&gt; x14:sparklineGroups, x14:sparklineGroup, x14:sparkline</code></td><td><code>sheet.sparklines</code> <code>sheet.addSparkline(_:data:at:)</code> <code>SparklineGroup</code></td><td><strong>言うこと</strong>: Numbers へは「N sparkline group(s) dropped: Numbers has no sparklines」 種類（line / column / stacked）・色 8 つ・点の表示・空セルの扱い・1 群に複数のスパークラインを読み書きする（B.79）。触らなければ extLst の拡張はバイトのまま、変えれば拡張だけ作り直して他の拡張は残す。ODS は LibreOffice の calcext:sparkline-groups で運び、LibreOffice が両方向に変換する（gated テスト）。 <span class="chip">実測</span></td></tr>
 <tr class="group"><td colspan="6">印刷</td></tr>
 <tr><td>用紙・向き・拡大率・先頭ページ番号</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;pageSetup&gt;</code></td><td><code>sheet.pageSetup</code> <code>PageSetup</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>余白・中央寄せ・目盛線と見出しの印刷</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;pageMargins&gt;, &lt;printOptions&gt;</code></td><td><code>sheet.pageMargins</code> <code>sheet.printOptions</code> <code>PageMargins</code> <code>PrintOptions</code></td><td><span class="chip">実測</span></td></tr>

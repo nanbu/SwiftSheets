@@ -81,6 +81,8 @@ public struct Sheet: Equatable, Sendable {
     /// The sheet's shapes and text boxes: those placed by `addShape` / `addTextBox` (spec Appendix B.75) and
     /// those read from the file's drawing. An untouched shape is written back as the bytes it arrived in.
     public var shapes: [Shape] = []
+    /// The sheet's sparkline groups (spec Appendix B.79): read from the file, or added with `addSparkline`.
+    public var sparklines: [SparklineGroup] = []
     /// Material the reader kept for a lossless write-back (spec §6).
     package var preserved = SheetPreservation()
 

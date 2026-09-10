@@ -909,6 +909,7 @@ enum ODSWriter {
         flushEmpty()
         s += namedExpressionsXML(sheet.definedNames, baseSheet: sheet.name, extra: printTitlesXML(sheet))
         s += ODSConditionalFormatWriter.xml(sheet, styles: conditionalStyles, sink: sink)
+        s += ODSFeatures.sparklinesXML(sheet, sink: sink)
         out.write(s + "</table:table>")
     }
 

@@ -33,6 +33,39 @@ enum ODSFeatures {
     /// The date origin travels here too: ODF calls it `table:null-date` and lets it be any date, while the model
     /// (like Excel) knows two. LibreOffice omits the element for the usual origin and writes it only for 1904 —
     /// so does this.
+    /// `calcext:sparkline-groups` as LibreOffice writes them (B.79), after the rows and the conditional formats.
+    static func sparklinesXML(_ sheet: Sheet, sink: ODSWarningSink) -> String {
+        guard !sheet.sparklines.isEmpty else { return "" }
+        var s = "<calcext:sparkline-groups>"
+        var n = 0
+        for g in sheet.sparklines {
+            var nonRGB = false
+            func color(_ key: String, _ c: Color?) -> String { c.map { " calcext:\(key)=\"\(ODSColor.hex($0, nonRGB: &nonRGB))\"" } ?? "" }
+            n += 1
+            s += "<calcext:sparkline-group calcext:id=\"{00000000-0000-0000-0000-\(String(format: "%012d", n))}\" calcext:type=\"\(XML.esc(g.kind.rawValue))\""
+            s += " calcext:line-width=\"\(XML.num(g.lineWidth ?? 0.75))pt\" calcext:display-empty-cells-as=\"\(g.emptyCells.rawValue)\""
+            for (flag, key) in [(g.showsMarkers, "markers"), (g.showsHighPoint, "high"), (g.showsLowPoint, "low"), (g.showsFirstPoint, "first"),
+                                (g.showsLastPoint, "last"), (g.showsNegativePoints, "negative"), (g.showsAxis, "display-x-axis")] where flag {
+                s += " calcext:\(key)=\"true\""
+            }
+            s += " calcext:min-axis-type=\"individual\" calcext:max-axis-type=\"individual\""
+            s += color("color-series", g.color) + color("color-negative", g.negativeColor) + color("color-axis", g.axisColor) + color("color-marker", g.markersColor)
+            s += color("color-first", g.firstColor) + color("color-last", g.lastColor) + color("color-high", g.highColor) + color("color-low", g.lowColor)
+            if nonRGB { sink.add(.degraded, subject: .formatting, sheet: sheet.name, "a sparkline colour is not an RGB colour the workbook's theme can resolve; it is written black") }
+            s += "><calcext:sparklines>"
+            for line in g.sparklines {
+                let bare = line.dataRange.replacingOccurrences(of: "$", with: "")
+                guard let range = CellRange(bare) ?? CellRef(bare).map({ CellRange(from: $0, to: $0) }) else {
+                    sink.add(.degraded, subject: .formatting, sheet: sheet.name, at: line.location, "a sparkline's data range (\(line.dataRange)) is not a cell range; the sparkline is not written")
+                    continue
+                }
+                s += "<calcext:sparkline calcext:cell-address=\"\(XML.esc(address(line.location, sheet: sheet.name)))\" calcext:data-range=\"\(XML.esc(address(range, sheet: range.sheet ?? sheet.name)))\"/>"
+            }
+            s += "</calcext:sparklines></calcext:sparkline-group>"
+        }
+        return s + "</calcext:sparkline-groups>"
+    }
+
     static func calculationSettingsXML(_ wb: Workbook) -> String {
         let c = wb.calculationSettings
         let defaults = CalculationSettings()

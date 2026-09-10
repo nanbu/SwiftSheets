@@ -266,6 +266,7 @@ final class ContentParser: SAXHandler {
     private var frame: ODSFrame?
     private var frameDepth = 0
     private var inShapes = false
+    private var sparklineGroup: SparklineGroup?   // calcext:sparkline-group being read (B.79)
     private var frameParagraphDepth = 0   // inside a text:p of a shape or text box
     private var frameParagraph = ""
 
@@ -394,6 +395,25 @@ final class ContentParser: SAXHandler {
 
         switch name {
         case "shapes" where inTable: inShapes = true
+        case "sparkline-group" where inTable:
+            // LibreOffice's sparklines (B.79): the group's kind, colours and options, then its sparklines
+            var g = SparklineGroup(ODSAttr.get(a, "calcext:type").map { SparklineGroup.Kind(rawValue: $0) } ?? .line)
+            func color(_ key: String) -> Color? { ODSAttr.get(a, key).flatMap { $0.hasPrefix("#") ? Color(hex: $0) : nil } }
+            g.color = color("calcext:color-series"); g.negativeColor = color("calcext:color-negative"); g.axisColor = color("calcext:color-axis")
+            g.markersColor = color("calcext:color-marker"); g.firstColor = color("calcext:color-first"); g.lastColor = color("calcext:color-last")
+            g.highColor = color("calcext:color-high"); g.lowColor = color("calcext:color-low")
+            g.showsHighPoint = ODSAttr.bool(a, "calcext:high") ?? false; g.showsLowPoint = ODSAttr.bool(a, "calcext:low") ?? false
+            g.showsFirstPoint = ODSAttr.bool(a, "calcext:first") ?? false; g.showsLastPoint = ODSAttr.bool(a, "calcext:last") ?? false
+            g.showsNegativePoints = ODSAttr.bool(a, "calcext:negative") ?? false; g.showsMarkers = ODSAttr.bool(a, "calcext:markers") ?? false
+            g.showsAxis = ODSAttr.bool(a, "calcext:display-x-axis") ?? false
+            if let w = ODSAttr.get(a, "calcext:line-width").flatMap(ODSLength.points), abs(w - 0.75) > 0.001 { g.lineWidth = (w * 100).rounded() / 100 }
+            g.emptyCells = ODSAttr.get(a, "calcext:display-empty-cells-as").flatMap { SparklineGroup.EmptyCells(rawValue: $0) } ?? .zero
+            sparklineGroup = g
+        case "sparkline" where sparklineGroup != nil:
+            if let cell = ODSAttr.get(a, "calcext:cell-address").flatMap({ CellRef(ContentParser.excelAddress($0).split(separator: "!").last.map(String.init) ?? $0) }),
+               let data = ODSAttr.get(a, "calcext:data-range") {
+                sparklineGroup?.sparklines.append(SparklineGroup.Sparkline(dataRange: ContentParser.excelAddress(data), location: cell))
+            }
         case "spreadsheet":
             if ODSAttr.bool(a, "table:structure-protected") == true { structureProtected = true }
         case "table":
@@ -757,6 +777,7 @@ final class ContentParser: SAXHandler {
             if let s = sheet { sheets.append(s) }
             sheet = nil
         case "table-row-group": groupDepth = Swift.max(0, groupDepth - 1)
+        case "sparkline-group": if let g = sparklineGroup { sheet?.sparklines.append(g) }; sparklineGroup = nil
         default: break
         }
     }

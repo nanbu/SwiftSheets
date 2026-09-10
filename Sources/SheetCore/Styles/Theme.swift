@@ -119,6 +119,13 @@ extension Workbook {
         for si in wb.sheets.indices {
             var sheet = wb.sheets[si]
             if let tab = sheet.tabColor, isUnresolved(tab) { sheet.tabColor = resolved(tab) }
+            sheet.sparklines = sheet.sparklines.map { g in
+                var g = g
+                for key in [\SparklineGroup.color, \.negativeColor, \.axisColor, \.highColor, \.lowColor, \.firstColor, \.lastColor, \.markersColor] {
+                    if let c = g[keyPath: key], isUnresolved(c) { g[keyPath: key] = resolved(c) }
+                }
+                return g
+            }
             sheet.shapes = sheet.shapes.map { shape in
                 var s = shape
                 if let f = s.fill, isUnresolved(f) { s.fill = resolved(f) }

@@ -1049,13 +1049,17 @@
             {
               "id": "xlsx.draw.sparkline",
               "name": "スパークライン",
-              "spec_anchor": "<extLst> x14:sparklineGroups",
-              "read": "preserved",
-              "write": "preserved",
-              "api": [],
-              "warning": "他形式へ変換すると dropped",
-              "evidence": "code",
-              "note": "worksheet の extLst ごと保持される。モデルの言葉はない。"
+              "spec_anchor": "<extLst> x14:sparklineGroups, x14:sparklineGroup, x14:sparkline",
+              "read": "full",
+              "write": "full",
+              "api": [
+                "sheet.sparklines",
+                "sheet.addSparkline(_:data:at:)",
+                "SparklineGroup"
+              ],
+              "warning": "Numbers へは「N sparkline group(s) dropped: Numbers has no sparklines」",
+              "evidence": "measured",
+              "note": "種類（line / column / stacked）・色 8 つ・点の表示・空セルの扱い・1 群に複数のスパークラインを読み書きする（B.79）。触らなければ extLst の拡張はバイトのまま、変えれば拡張だけ作り直して他の拡張は残す。ODS は LibreOffice の calcext:sparkline-groups で運び、LibreOffice が両方向に変換する（gated テスト）。"
             }
           ]
         },

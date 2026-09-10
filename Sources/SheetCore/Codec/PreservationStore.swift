@@ -250,6 +250,9 @@ package struct SheetPreservation: Sendable, Hashable {
     package var images: [SheetImage] = []
     package var charts: [Chart] = []
     package var shapes: [Shape] = []
+    /// The sparkline groups as the file's extension list had them (B.79): while `Sheet.sparklines` equals this,
+    /// the extension travels as bytes; otherwise it is regenerated from the model.
+    package var sparklines: [SparklineGroup] = []
     /// The drawing part, the parts it referenced, and what it held that the model could not (shapes, …).
     package var drawingPath: String?
     package var drawingParts: [String] = []

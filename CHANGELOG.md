@@ -19,6 +19,10 @@ writes, so the constant, the README's status line and the tag always name the sa
   and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
   shapes as dropped (spec Appendix B.75).
 
+- **Sparklines.** `sheet.sparklines` holds `SparklineGroup`s (line / column / win-loss, colours, the points shown,
+  empty-cell handling, one or more sparklines each drawing a range into a cell); `addSparkline(_:data:at:)` adds
+  one. XLSX reads and writes the `x14:sparklineGroups` extension (untouched: byte for byte), ODS reads and writes
+  LibreOffice's `calcext:sparkline-groups`. Numbers reports them as dropped (spec Appendix B.79).
 - **An inventory of what the model does not represent.** `preservationSummary.parts` counts the preserved
   material by kind (`PreservedPartKind`: `.smartArt`, `.vbaProject`, `.slicer`, `.externalLink`, …) — the answer to
   "what will a conversion drop?" before any write. Parts the model read (a sheet's drawing and its charts, the
