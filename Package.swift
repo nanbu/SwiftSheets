@@ -14,7 +14,7 @@ import PackageDescription
 //   SheetODS    .ods codec (ODF 1.3 OpenDocument Spreadsheet)
 //   SheetNumbers .numbers codec (Apple iWork IWA: Snappy + Protobuf, schema from numbers-parser — see NOTICE)
 //   SwiftSheets everything: CodecSet.all and its conveniences — Workbook(contentsOf:), write(to:as:), convert,
-//               StreamingReader(contentsOf:), StreamingWriter(url:)
+//               StreamingReader(contentsOf:), StreamingWriter(to:)
 //
 // None of the above contains encryption code: a protected file is recognised and refused by name. Opening one
 // is a separate product, and protecting one another, so that an app declares what it links (spec Appendix B.39.9):

@@ -15,10 +15,9 @@ the five places where behaviour changed are named in their entries.
 
 ### Changed
 
-- **The A1-string twins have twin labels** (B.62). `cell(at:)`, `removeCell(at:)`, `style(at:)` and `setStyle(at:_:)`
-  on `Sheet` and `Table` lose the `at:` — `sheet.cell(ref)` beside `sheet.cell("B2")`, the way `merge(_:)`, `range(_:)`
-  and `isMerged(_:)` already were. `addImage(_:at:)` and `subscript(cell:)`, whose two sides already shared a label,
-  are unchanged.
+- **`cell(at:)` and `removeCell(at:)` lose the `at:`** (B.62). `sheet.cell(ref)` stands beside `sheet.cell("B2")`, the
+  way `merge(_:)`, `range(_:)` and `isMerged(_:)` already were. `style(at:)` and `setStyle(at:_:)` keep their label: the
+  method name says nothing about a cell, so the label does. `addImage(_:at:)` and `subscript(cell:)` are unchanged.
 
 - **Same operation, same word; same role, same label** (B.63). `CellRef.offset(rows:columns:)` → `shifted(rows:columns:)`
   (the word `CellRange` already used); `CellRange.shrunk(right:bottom:left:top:)` → `shrunk(right:down:left:up:)` (the

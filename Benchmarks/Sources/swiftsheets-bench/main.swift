@@ -65,7 +65,7 @@ func workbook(sheets: Int = 1) -> Workbook {
 }
 func sum(_ wb: Workbook) -> Decimal {
     var total = Decimal(0)
-    for sheet in wb.sheets { for r in sheet.values() { for v in r { if let n = v?.numberValue { total += n } } } }
+    for sheet in wb.sheets { for r in sheet.rows() { for v in r { if let n = v?.numberValue { total += n } } } }
     return total
 }
 
@@ -107,7 +107,7 @@ do {
     case "streamWrite", "streamWriteODS", "streamWriteNumbers":
         // the one streaming writer for every format (spec Appendix B.42): the path's extension decides the writer
         let t = try clock.measure {
-            let w = try StreamingWriter(url: url, sheetName: "Sheet1")
+            let w = try StreamingWriter(to: url, sheetName: "Sheet1")
             for i in 0..<rows { try w.append(row(i)) }
             _ = try w.close()
         }
@@ -116,7 +116,7 @@ do {
         // through the umbrella writer, as an application reaches delimited text since Appendix B.50 closed the
         // format's own writer into the package
         let t = try clock.measure {
-            let w = try StreamingWriter(url: url, format: .csv)
+            let w = try StreamingWriter(to: url, as: .csv)
             for i in 0..<rows { try w.append(row(i)) }
             _ = try w.close()
         }

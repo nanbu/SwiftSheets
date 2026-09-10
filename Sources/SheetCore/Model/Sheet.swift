@@ -249,9 +249,9 @@ public struct Sheet: Equatable, Sendable {
     public mutating func removeCell(_ ref: CellRef) { table.removeCell(ref) }
     public mutating func removeCell(_ a1: String) { table.removeCell(a1) }
 
-    public func style(_ ref: CellRef) -> CellStyle { table.style(ref) }
+    public func style(at ref: CellRef) -> CellStyle { table.style(at: ref) }
     public func style(_ a1: String) -> CellStyle { table.style(a1) }
-    public mutating func setStyle(_ ref: CellRef, _ update: (inout CellStyle) -> Void) { table.setStyle(ref, update) }
+    public mutating func setStyle(at ref: CellRef, _ update: (inout CellStyle) -> Void) { table.setStyle(at: ref, update) }
     public mutating func setStyle(_ a1: String, _ update: (inout CellStyle) -> Void) { table.setStyle(a1, update) }
     public mutating func setStyle(_ range: CellRange, _ update: (inout CellStyle) -> Void) { table.setStyle(range, update) }
 
