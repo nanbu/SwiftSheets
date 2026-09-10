@@ -22,11 +22,7 @@ struct ODSPicture {
     }
 
     static func fileExtension(_ format: SheetImage.Format) -> String {
-        switch format {
-        case .png: "png"
-        case .jpeg: "jpg"
-        case .gif: "gif"
-        }
+        format == .jpeg ? "jpg" : format.rawValue
     }
 
     /// 96 pixels to the inch — the assumption every spreadsheet application makes of a picture's pixel size.

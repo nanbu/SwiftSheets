@@ -138,17 +138,28 @@ public struct CivilDateTime: Hashable, Sendable, CustomStringConvertible, Codabl
     }
 }
 
-/// Which day serial 0 means. Windows workbooks use 1900 (with Lotus's phantom 1900-02-29); Mac legacy uses 1904.
-public enum DateEpoch: Sendable, Hashable {
-    case windows1900
-    case mac1904
+/// Which day serial 0 means. Windows workbooks use 1900 (with Lotus's phantom 1900-02-29); Mac legacy uses 1904;
+/// OpenDocument lets the origin be any date (`table:null-date`), which `DateEpoch(origin:)` carries as read.
+/// A struct with static members rather than an enum, so `wb.epoch = .mac1904` and `wb.epoch == .mac1904` read
+/// as before while any origin fits (spec Appendix B.68). Excel and Numbers know only the two named origins:
+/// their writers re-base another origin onto 1900 and say so.
+public struct DateEpoch: Sendable, Hashable {
+    /// The day serial 0 stands for.
+    public let origin: CivilDate
+    public init(origin: CivilDate) { self.origin = origin }
+    /// Serial 0 is 1899-12-30, and serials 1…59 skip the phantom 1900-02-29 — the Windows Excel system.
+    public static let windows1900 = DateEpoch(origin: CivilDate(year: 1899, month: 12, day: 30)!)
+    /// Serial 0 is 1904-01-01 — the legacy Mac Excel system.
+    public static let mac1904 = DateEpoch(origin: CivilDate(year: 1904, month: 1, day: 1)!)
+    /// Whether this is one of the two origins Excel's file format can name.
+    public var isExcelOrigin: Bool { self == .windows1900 || self == .mac1904 }
 }
 
 extension DateEpoch {
     /// The day number (`CivilDate.dayNumber`) that serial 0 stands for.
-    package var baseDayNumber: Int { self == .mac1904 ? DateEpoch.day1904 : DateEpoch.day1899_12_30 }
-    package static let day1899_12_30 = CivilDate(year: 1899, month: 12, day: 30)!.dayNumber
-    package static let day1904 = CivilDate(year: 1904, month: 1, day: 1)!.dayNumber
+    package var baseDayNumber: Int { origin.dayNumber }
+    /// Whether serials 1…59 skip Lotus's phantom 1900-02-29 (only the Windows 1900 system does).
+    package var hasPhantomLeapDay: Bool { self == .windows1900 }
 }
 
 // Excel date serials ⇄ civil dates, on the types themselves (spec Appendix B.66). Mirrors openpyxl.utils.datetime
@@ -163,7 +174,7 @@ extension CellValue {
         let ms = Int((fraction * 86_400_000).rounded())
         let diffDays = ms / 86_400_000, rest = ms % 86_400_000
         if serial >= 0, serial < 1, diffDays == 0 { self = .time(TimeOfDay(millisecondsSinceMidnight: rest)); return }
-        if serial > 0, serial < 60, epoch == .windows1900 { day += 1 }
+        if serial > 0, serial < 60, epoch.hasPhantomLeapDay { day += 1 }
         self = .date(CivilDateTime(date: CivilDate(dayNumber: epoch.baseDayNumber + day + diffDays), time: TimeOfDay(millisecondsSinceMidnight: rest)))
     }
 
@@ -214,13 +225,8 @@ extension CivilDateTime {
     /// The Excel serial: whole days from the epoch plus the day fraction.
     public func serial(epoch: DateEpoch = .windows1900) -> Double {
         let day = date.dayNumber
-        var whole: Int
-        switch epoch {
-        case .mac1904: whole = day - DateEpoch.day1904
-        case .windows1900:
-            whole = day - DateEpoch.day1899_12_30
-            if whole > 0, whole <= 60 { whole -= 1 }   // before the phantom 1900-02-29
-        }
+        var whole = day - epoch.baseDayNumber
+        if epoch.hasPhantomLeapDay, whole > 0, whole <= 60 { whole -= 1 }   // before the phantom 1900-02-29
         return Double(whole) + time.dayFraction
     }
 }

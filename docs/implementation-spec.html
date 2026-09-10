@@ -1916,6 +1916,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
     <tr><td>4.59 Draft</td><td>2026-09-11</td><td>「A1」を名前から外す。<code>freezePanesA1</code>・<code>autoFilterA1</code> を削除（型つきの <code>freezePanes = CellRef("B2")</code>・<code>autoFilter = CellRange("A1:D9")</code> で書く）。A1 記法を作る getter を address 系に: <code>CellRef.a1</code> / <code>CellRange.a1</code> → <code>address</code>、<code>absoluteA1</code> → <code>absoluteAddress</code>、<code>qualifiedA1</code> → <code>qualifiedAddress</code>、<code>Sheet.dimensions</code> / <code>Table.dimensions</code> → <code>extentAddress</code>。ISO 8601 の初期化子を <code>iso8601:</code> に統一（<code>CivilDate</code>・<code>TimeOfDay</code>・<code>CivilDateTime</code> の <code>iso:</code> を改名）（B.68）。</td></tr>
     <tr><td>4.58 Draft</td><td>2026-09-11</td><td>B.62 の一部を戻す。<code>style(at:)</code>・<code>setStyle(at:_:)</code> の型つきの側は <code>at:</code> を残す（メソッド名がセルを言わないため）。<code>cell(_:)</code>・<code>removeCell(_:)</code> はラベル無しのまま。</td></tr>
+    <tr><td>4.58 Draft</td><td>2026-09-11</td><td>増える一覧を構造体に。<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code> を、静的メンバーを持つ <code>RawRepresentable</code> の構造体へ（呼び方は不変・switch には default が要る）。<code>DateEpoch(origin:)</code> で ODF の任意の日付原点をそのまま持ち、Excel・Numbers へは 1900 系に据え直して言う。描けない種類のグラフは書き手が名指しで落とす（B.68）。</td></tr>
     <tr><td>4.57 Draft</td><td>2026-09-11</td><td>内部の道具を公開面から外す。<code>CRC32</code>・<code>ZipInspection</code>・<code>TextEncodingSniffer</code>・<code>OOXMLEscape</code>・<code>Units</code>・<code>CellPixels</code>・<code>TextWidth</code>・<code>LegacyPasswordHash</code>・<code>ModernPasswordHash</code>・<code>Table.cleanMergedRange</code>・<code>WriteResult.suggest</code>・<code>Workbook.noteUnmodelledODFFeatures</code>・<code>UnopenableInput.probe(in:)</code> を package に。略語の残り 3 件（<code>baseColWidth</code>・<code>defaultColWidth</code>・<code>firstDataCol</code>）を語に（B.67）。</td></tr>
     <tr><td>4.56 Draft</td><td>2026-09-11</td><td>Swift の型で言えるものを型で言う。<code>hashValue: String?</code>（保護 3 型・<code>Hashable</code> の要件と同名）→ <code>saltedHash</code>。<code>validationError() -> String?</code>（2 型）→ <code>validate() throws</code>。<code>ExcelDate</code> の from/to 関数を <code>CellValue(serial:epoch:)</code>・<code>serial(epoch:)</code>・<code>CellValue(iso8601:)</code>・<code>iso8601</code>・<code>CivilDateTime.serial</code>・<code>CivilDate.serial</code>・<code>Duration(serialDays:)</code>・<code>serialDays</code> へ。仕様で閉じた列挙 5 つ（<code>Font.verticalAlignment</code>（旧 <code>vertAlign</code>）・<code>Font.scheme</code>・<code>ConditionalFormattingRule.timePeriod</code>・<code>StructuredTableColumn.totalsRowFunction</code>・<code>DynamicFilter.kind</code>）を String から enum に（B.66）。</td></tr>
     <tr><td>4.55 Draft</td><td>2026-09-11</td><td>同じ物の別名を 1 つに。<code>values(in:)</code>（= <code>rows(in:)</code>）と <code>Sheets.names</code>（= <code>Workbook.sheetNames</code>）を削除。<code>freezePanes(at:)</code> を削除し <code>freezePanesA1</code> の setter に一本化（"A1" も解除）。印刷の文字列の双子を settable な <code>printTitlesFormula</code>・<code>printAreaFormula</code>（どちらも <code>String?</code>）にし、<code>setPrintArea</code>・<code>setPrintTitles</code>・<code>setPrintTitleRows</code>・<code>setPrintTitleColumns</code> を削除（B.65）。</td></tr>
@@ -6578,6 +6579,40 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>Date.ISO8601FormatStyle</code>・<code>ISO8601DateFormatter</code>・<code>.iso8601</code> と規格番号まで書く。<code>isoDate:</code> は時刻や経過時間も作る初期化子には不正確、
   <code>isoString:</code> は型名でラベルの流儀に合わない。<code>NumberFormat.isoDate</code> / <code>isoDateTime</code> は表示書式の定数で別物。</p>
   <p><strong>利用側。</strong>Stream・LeftRight とも 0（<code>freezePanesA1</code>・<code>.a1</code>・<code>(iso:)</code> のどれも呼んでいない）。</p>
+</section>
+
+<section>
+  <h3>B.68 増える一覧は構造体で持つ——<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code>（Rev 4.58）</h3>
+  <p>2026-09-11 決定。1.0 の約束の草案（2026-09-05 の見直し計画）では、公開の列挙型に選択肢を足すのは破壊的変更
+  である——利用側が全部の場合を書き分けた <code>switch</code> は、選択肢が 1 つ増えると通らなくなる。ライブラリ進化（<code>-enable-library-evolution</code>）は
+  使わず、<code>@unknown default</code> を求める文書も置いていないので、この判断は妥当。ところが 3 つの型は、これから入る機能が確実に選択肢を足す:</p>
+  <ul>
+    <li><code>Chart.Kind</code>——ファイルのグラフを読むと（B.71・B.72）、書き手が描ける 4 種の外の種類（散布図・面・ドーナツ）が模型に入る。</li>
+    <li><code>SheetImage.Format</code>——ファイルの絵を読むと、PNG・JPEG・GIF の外の形式（BMP・TIFF・EMF・SVG）に出会う。</li>
+    <li><code>DateEpoch</code>——ODF の <code>table:null-date</code> は任意の日付を原点にできる。1900 と 1904 の二択では持てない。</li>
+  </ul>
+  <p><strong>流儀。</strong>凍結流（足すのは 2.0——Swift 標準ライブラリの frozen・Go 1）／方針流（minor で足し、利用側に default を求める——Rust の
+  <code>#[non_exhaustive]</code> は言語がこれを支える）／構造体流（静的メンバーを持つ構造体——Foundation の <code>Notification.Name</code>・<code>UTType</code>）／
+  予備の選択肢流（<code>.other(String)</code> を最初から置く——SwiftNIO の <code>HTTPMethod.RAW</code>）。<strong>この 3 つは構造体流</strong>を採る。
+  呼び方（<code>Chart(.column)</code>・<code>chart.kind == .pie</code>・<code>wb.epoch = .mac1904</code>）は 1 字も変わらず、未知の値（読んだファイルの
+  知らない種類）も同じ型で持てる。失うのは <code>switch</code> の網羅検査だけで、本体 2 か所（日付の変換とグラフの書き出し）に default を足した。
+  ほかの列挙型は凍結流のまま（仕様が値を固定している <code>Kind</code> 類は増えない）。</p>
+  <p><strong>形。</strong>3 型とも <code>Hashable, Sendable, RawRepresentable</code>。<code>Chart.Kind</code> の raw は <code>column</code> /
+  <code>bar</code> / <code>line</code> / <code>pie</code>、未知の種類は元の名（OOXML の要素名 <code>scatterChart</code>、ODF の class <code>chart:area</code>）を
+  そのまま持つ。<code>Kind.drawable</code> と <code>isDrawable</code> が「書き手が描ける 4 種か」を答え、描けない種類の <code>addChart</code> は
+  XLSX の書き手が <code>dropped</code>「a scatterChart chart was not written: the writer draws column, bar, line and pie charts」で落とす（空のグラフ部品は作らない）。
+  <code>SheetImage.Format</code> の raw は拡張子（<code>png</code> / <code>jpeg</code> / <code>gif</code>）、<code>contentType</code> は既知の 3 つを名指しし、
+  それ以外は <code>image/&lt;raw&gt;</code>。<code>init(data:)</code> が受け付けるのは従来どおり 3 形式。<code>DateEpoch</code> は <code>origin: CivilDate</code> を
+  持ち、<code>.windows1900</code>（1899-12-30・幻の 1900-02-29 を飛ばす）と <code>.mac1904</code>（1904-01-01）が静的メンバー。幻の日の扱いは
+  <code>.windows1900</code> のときだけで、<code>isExcelOrigin</code> が「Excel の形式が名指しできる 2 つか」を答える。</p>
+  <p><strong>任意の原点の往復。</strong>ODS の読み手は 1899-12-30・1900-01-01（LibreOffice の設定名）を <code>.windows1900</code>、1904-01-01 を
+  <code>.mac1904</code>、それ以外の日付を <code>DateEpoch(origin:)</code> に読む——従来の「1900 系として読み、そう言う」degraded 警告は消えた（日付でない値だけ残る）。
+  書き手は <code>.windows1900</code> 以外の原点を <code>table:null-date</code> に書く。XLSX と Numbers は 2 つの原点しか名指しできないので、他の原点は 1900 系に
+  据え直し、degraded「the date origin 2000-01-01 is written as the 1900 system: … (dates keep their day; a raw serial formatted as a date shifts)」と言う——模型の日付は
+  暦の日付なので同じ日に着地し、ずれるのは「日付書式のついた生の通し番号」だけ。</p>
+  <p><strong>検査。</strong><code>ReservedEnumTests</code> 4 件: 呼び方と 2 つの原点の通し番号が不変・自前の原点に幻の日が無い・ODS が任意の原点を往復し
+  XLSX が据え直して言う・描けない種類が名指しで落ちる。<strong>利用側。</strong>Stream は <code>DateEpoch</code> を引数と <code>==</code> で 6 か所、switch は無く直す行は 0。
+  LeftRight は 3 型とも使っていない。</p>
 </section>
 
 </div><!-- /.container -->

@@ -178,8 +178,8 @@ import SwiftSheets
         #expect(try warnings(iterating).isEmpty, "XLSX keeps iteration in <calcPr>")
     }
 
-    /// A date origin ODF allows and the model cannot hold is read as the 1900 system, and says so.
-    @Test func anUnusualDateOriginIsReported() throws {
+    /// A date origin ODF allows is carried as it is (B.68): no re-basing on read, no warning.
+    @Test func anUnusualDateOriginIsCarried() throws {
         let plain = try ODSCodec.write(Workbook()).data
         let content = try Self.contentXML(plain).replacingOccurrences(
             of: "<office:body>",
@@ -190,8 +190,8 @@ import SwiftSheets
                 of: #"<table:calculation-settings><table:null-date table:date-value="1950-06-01"/></table:calculation-settings><office:body><office:spreadsheet>"#,
                 with: #"<office:body><office:spreadsheet><table:calculation-settings><table:null-date table:date-value="1950-06-01"/></table:calculation-settings>"#).utf8))
         let result = try ODSCodec.read(patched)
-        #expect(result.workbook.epoch == .windows1900)
-        #expect(result.warnings.contains { $0.message.contains("1950-06-01") })
+        #expect(result.workbook.epoch == DateEpoch(origin: CivilDate(year: 1950, month: 6, day: 1)!))
+        #expect(!result.warnings.contains { $0.message.contains("1950-06-01") })
     }
 
     /// Material the file carried and the model has no word for is remembered and reported on the way out.

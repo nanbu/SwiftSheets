@@ -49,6 +49,8 @@ enum ChartParts {
                 + "<c:marker val=\"1\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:lineChart>"
         case .pie:
             return "<c:pieChart><c:varyColors val=\"1\"/>" + sers + "<c:firstSliceAng val=\"0\"/></c:pieChart>"
+        default:
+            return ""   // the writer refuses a kind it cannot draw before it gets here (B.68)
         }
     }
 

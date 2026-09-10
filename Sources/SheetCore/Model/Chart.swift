@@ -7,14 +7,26 @@ import Foundation
 /// (`'集計'!$B$2:$B$13`) or not (`B2:B13`) — an unqualified range is qualified with the host sheet's name and
 /// made absolute at write time, since chart references accept nothing less.
 public struct Chart: Hashable, Sendable {
-    public enum Kind: String, Sendable {
+    /// The kind of chart. A struct with static members rather than an enum, so a kind can be added without
+    /// breaking a caller's `switch` (spec Appendix B.68). The four named here are the ones the writers draw;
+    /// a chart read from a file may carry any other kind by its raw name (the OOXML chart-group element, e.g.
+    /// `scatterChart`, or the ODF class, e.g. `chart:area`) — it is written back unchanged when untouched, and
+    /// reported as dropped when it has to be rebuilt.
+    public struct Kind: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
+        public let rawValue: String
+        public init(rawValue: String) { self.rawValue = rawValue }
         /// Vertical bars (Excel's "column").
-        case column
+        public static let column = Kind(rawValue: "column")
         /// Horizontal bars.
-        case bar
-        case line
+        public static let bar = Kind(rawValue: "bar")
+        public static let line = Kind(rawValue: "line")
         /// Drawn without axes, as the format defines it.
-        case pie
+        public static let pie = Kind(rawValue: "pie")
+        /// The kinds every writer can draw.
+        public static let drawable: [Kind] = [.column, .bar, .line, .pie]
+        /// Whether the writers can draw this kind (`column`, `bar`, `line`, `pie`).
+        public var isDrawable: Bool { Kind.drawable.contains(self) }
+        public var description: String { rawValue }
     }
 
     /// One plotted series: where its numbers are, optionally where its labels are and what it is called.

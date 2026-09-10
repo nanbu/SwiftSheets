@@ -6,17 +6,26 @@ import Foundation
 /// (F3) and do not appear here; `images` holds what `addImage` put in. The format and pixel size are read from
 /// the bytes themselves — what the caller believes the data to be plays no part.
 public struct SheetImage: Hashable, Sendable {
-    /// The three formats OOXML viewers render everywhere. What the leading bytes say, never the file extension.
-    public enum Format: String, Sendable {
-        case png, jpeg, gif
-        /// The `[Content_Types].xml` default for this format's extension.
+    /// The picture's format — what the leading bytes say, never the file extension. A struct with static
+    /// members rather than an enum, so a format can be added without breaking a caller's `switch` (spec
+    /// Appendix B.68). `init(data:)` accepts the three formats OOXML viewers render everywhere.
+    public struct Format: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
+        /// The file extension the format is written under (`png`, `jpeg`, `gif`).
+        public let rawValue: String
+        public init(rawValue: String) { self.rawValue = rawValue }
+        public static let png = Format(rawValue: "png")
+        public static let jpeg = Format(rawValue: "jpeg")
+        public static let gif = Format(rawValue: "gif")
+        /// The `[Content_Types].xml` default for this format's extension (the MIME type in ODF's manifest).
         public var contentType: String {
-            switch self {
-            case .png: "image/png"
-            case .jpeg: "image/jpeg"
-            case .gif: "image/gif"
+            switch rawValue {
+            case "png": "image/png"
+            case "jpeg": "image/jpeg"
+            case "gif": "image/gif"
+            default: "image/" + rawValue
             }
         }
+        public var description: String { rawValue }
     }
 
     /// How the picture is sized at its anchor.

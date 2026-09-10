@@ -425,14 +425,19 @@ final class ContentParser: SAXHandler {
             if let v = ODSAttr.bool(a, "table:use-wildcards") { calculationSettings.usesWildcards = v }
             if let v = ODSAttr.int(a, "table:null-year") { calculationSettings.nullYear = v }
         case "null-date":
-            // ODF lets the date origin be any date; the model, like Excel, knows two
+            // ODF lets the date origin be any date, and DateEpoch(origin:) carries it as read (B.68);
+            // 1900-01-01 is the name LibreOffice's option gives the Windows system, so it maps to that epoch
             let value = ODSAttr.get(a, "table:date-value") ?? "1899-12-30"
             switch value {
             case "1904-01-01": epoch = .mac1904
             case "1899-12-30", "1900-01-01": epoch = .windows1900
             default:
-                epoch = .windows1900
-                warnings.append(ConversionWarning(.degraded, message: "the date origin \(value) is neither 1899-12-30 nor 1904-01-01; read as the 1900 system, so dates may be out"))
+                if let day = CivilDate(iso: String(value.prefix(10))) {
+                    epoch = DateEpoch(origin: day)
+                } else {
+                    epoch = .windows1900
+                    warnings.append(ConversionWarning(.degraded, message: "the date origin \(value) is not a date; read as the 1900 system, so dates may be out"))
+                }
             }
         case "iteration":
             calculationSettings.iterationEnabled = ODSAttr.get(a, "table:status") == "enable"

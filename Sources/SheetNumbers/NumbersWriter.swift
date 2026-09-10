@@ -156,6 +156,9 @@ struct NumbersWriter {
         } else if workbook.epoch == .mac1904 {
             warnings.append(ConversionWarning(.dropped, message: "the 1904 date origin is dropped: the template has no calculation engine to record it on"))
         }
+        if !workbook.epoch.isExcelOrigin {
+            warnings.append(ConversionWarning(.degraded, subject: .formatting, message: "the date origin \(workbook.epoch.origin) is written as the 1900 system: Numbers knows only 1899-12-30 and 1904-01-01 (dates keep their day)"))
+        }
         // Every sheet is copied before any of them is patched. A sheet cloned later would inherit whatever the
         // template sheet had grown by then — the second table of the first sheet, for instance, which Numbers finds
         // and cannot make sense of (Appendix B.18).

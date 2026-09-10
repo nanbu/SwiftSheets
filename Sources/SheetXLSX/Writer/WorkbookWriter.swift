@@ -199,6 +199,10 @@ enum WorkbookWriter {
             }
             var charts: [Chart] = []
             for chart in sheet.charts {
+                guard chart.kind.isDrawable else {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart was not written: the writer draws column, bar, line and pie charts")
+                    continue
+                }
                 guard !chart.series.isEmpty, chart.anchor != nil else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart with no series was not written")
                     continue
@@ -371,10 +375,16 @@ enum WorkbookWriter {
             }
         }
 
-        // sheets first: they register styles and strings
+        // sheets first: they register styles and strings. A date origin Excel cannot name (an ODF null-date
+        // that is neither 1899-12-30 nor 1904-01-01) is re-based onto the 1900 system: the model's dates are civil
+        // dates, so they land on the same day; only a raw serial that the file formats as a date would shift (B.68).
+        let epoch = wb.epoch.isExcelOrigin ? wb.epoch : DateEpoch.windows1900
+        if !wb.epoch.isExcelOrigin {
+            sink.add(.degraded, subject: .formatting, "the date origin \(wb.epoch.origin) is written as the 1900 system: Excel knows only 1899-12-30 and 1904-01-01 (dates keep their day; a raw serial formatted as a date shifts)")
+        }
         var sheetParts: [SheetPart] = []
         for (i, sheet) in wb.sheets.enumerated() {
-            sheetParts.append(sheetPart(sheet, epoch: wb.epoch, styles: styles, strings: strings, preserve: sameFamily,
+            sheetParts.append(sheetPart(sheet, epoch: epoch, styles: styles, strings: strings, preserve: sameFamily,
                                         isActive: i == wb.activeIndex, comments: commentPlans[i],
                                         tables: tablePlans[i] ?? [], pivots: pivotPlans[i] ?? [],
                                         images: imagePlans[i], sharedSourceStyles: sharedSourceStyles, sink: sink))
@@ -420,7 +430,7 @@ enum WorkbookWriter {
             else { overrides[part.path] = CommentParts.contentType }
         }
         for ext in imageExtensions.sorted() where defaults[ext] == nil {
-            defaults[ext] = SheetImage.Format(rawValue: ext)!.contentType
+            defaults[ext] = SheetImage.Format(rawValue: ext).contentType
         }
         for (path, type) in generatedOverrides { overrides[path] = type }
         for plan in cachePlans {

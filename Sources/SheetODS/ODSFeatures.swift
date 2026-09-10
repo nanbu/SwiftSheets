@@ -48,7 +48,7 @@ enum ODSFeatures {
         if let year = c.nullYear { attrs += " table:null-year=\"\(year)\"" }
 
         var children = ""
-        if wb.epoch == .mac1904 { children += "<table:null-date table:value-type=\"date\" table:date-value=\"1904-01-01\"/>" }
+        if wb.epoch != .windows1900 { children += "<table:null-date table:value-type=\"date\" table:date-value=\"\(wb.epoch.origin)\"/>" }
         if c.iterationEnabled || c.iterationSteps != nil || c.iterationMaximumDifference != nil {
             children += "<table:iteration table:status=\"\(c.iterationEnabled ? "enable" : "disable")\""
             if let steps = c.iterationSteps { children += " table:steps=\"\(steps)\"" }

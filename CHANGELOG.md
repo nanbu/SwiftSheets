@@ -7,6 +7,20 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Changed
+
+- **Three lists that will grow are structs, not enums** (B.68). `Chart.Kind`, `SheetImage.Format` and `DateEpoch` are
+  `RawRepresentable` structs with the same static members (`.column`, `.png`, `.mac1904` …), so a kind, a format or
+  a date origin can be added without breaking a `switch` — which is what reading charts and pictures from files, and
+  ODF's free date origin, need. Every spelling is unchanged; a `switch` over one of them now needs a `default`.
+  `Chart.Kind.drawable` / `isDrawable` name the four kinds the writers draw; a chart of another kind is reported as
+  dropped instead of written as an empty part. `DateEpoch(origin:)` carries any origin: the ODS reader keeps a
+  `table:null-date` that is neither 1899-12-30 nor 1904-01-01 instead of reading it as 1900 with a warning, the ODS
+  writer writes it back, and the XLSX and Numbers writers re-base such an origin onto 1900 and say so (the model's
+  dates are civil dates, so they land on the same day).
+
 ## [0.24.0] — 2026-09-11
 
 The consistency pass of the 1.0 API review: six groups of naming rules made uniform (spec Appendices B.62–B.67),

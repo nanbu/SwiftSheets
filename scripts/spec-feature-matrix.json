@@ -974,7 +974,7 @@
               ],
               "warning": "系列のないグラフは「a … chart with no series was not written」／他形式へは dropped",
               "evidence": "judge",
-              "note": "書けるのは 4 種。既にファイルにあるグラフは触らずそのまま（F3）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。"
+              "note": "書けるのは 4 種。既にファイルにあるグラフは触らずそのまま（F3）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。 Chart.Kind は構造体で、描けない種類は名指しで落とす（B.68）。"
             },
             {
               "id": "xlsx.draw.comment",
@@ -2002,15 +2002,15 @@
               "id": "ods.only.nulldate",
               "name": "日付の原点（任意の日付を置ける）",
               "spec_anchor": "table:null-date",
-              "read": "partial",
-              "write": "partial",
+              "read": "full",
+              "write": "full",
               "api": [
                 "wb.epoch",
-                "DateEpoch"
+                "DateEpoch(origin:)"
               ],
-              "warning": "1899-12-30 でも 1904-01-01 でもない原点は「read as the 1900 system, so dates may be out」",
+              "warning": null,
               "evidence": "measured",
-              "note": "Excel は 1900 か 1904 の二択、ODF は任意の日付。読むときは、その他の原点を 1900 系として読み、そう言う。書くときもモデルが持てるのは 2 つの原点だけなので、任意の日付は書けない。"
+              "note": "ODF は任意の日付を原点にできる。DateEpoch(origin:) がそのまま持ち、書き戻す（B.68）。Excel・Numbers へは 1900 系に据え直して degraded で言う（暦の日付は同じ日に着地する）。"
             }
           ]
         },
