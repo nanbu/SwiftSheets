@@ -382,6 +382,10 @@ final class SheetReadContext: @unchecked Sendable {
             let tp = TablePartParser()
             try? tp.run(data, part: tablePart)
             guard var t = tp.table else { continue }
+            for unknown in tp.unknownTotalsRowFunctions {
+                result.warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name,
+                                                  message: "table \"\(t.name)\": totals-row function \"\(unknown.value)\" of column \"\(unknown.column)\" is not one the schema names and was dropped"))
+            }
             t.partPath = tablePart
             t.relationshipId = rel.id
             sheet.structuredTables.append(t)

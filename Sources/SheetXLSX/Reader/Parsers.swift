@@ -949,6 +949,8 @@ final class TablePartParser: SAXHandler {
                                                "totalsRowShown", "comment", "tableType"]
     static let knownChildren: Set<String> = ["autoFilter", "tableColumns", "tableStyleInfo"]
     var table: StructuredTable?
+    /// A `totalsRowFunction` outside the schema's list, with its column: reported by the reader, never guessed at.
+    var unknownTotalsRowFunctions: [(column: String, value: String)] = []
     private var depth = 0
     private var filterColumn: FilterColumn?
     private var column: StructuredTableColumn?
@@ -986,9 +988,12 @@ final class TablePartParser: SAXHandler {
             filterColumn!.rank = RankFilter(count: Double(a["val"] ?? "") ?? 10, top: XMLBool.isNotFalse(a["top"]),
                                               percent: XMLBool.isTrue(a["percent"]), boundary: Double(a["filterVal"] ?? ""))
         case "tableColumn":
+            let function = a["totalsRowFunction"].flatMap(StructuredTableColumn.TotalsRowFunction.init(rawValue:))
             column = StructuredTableColumn(id: Int(a["id"] ?? "0") ?? 0, name: OOXMLEscape.unescape(a["name"] ?? ""),
-                                      totalsRowLabel: a["totalsRowLabel"],
-                                      totalsRowFunction: a["totalsRowFunction"].flatMap(StructuredTableColumn.TotalsRowFunction.init(rawValue:)))
+                                      totalsRowLabel: a["totalsRowLabel"], totalsRowFunction: function)
+            if let raw = a["totalsRowFunction"], raw != "none", function == nil {
+                unknownTotalsRowFunctions.append((column: column!.name, value: raw))
+            }
         case "calculatedColumnFormula", "totalsRowFormula": inFormula = name; formulaText = ""
         case "tableStyleInfo":
             table?.styleInfo = TableStyleInfo(name: a["name"], showsFirstColumn: XMLBool.isTrue(a["showFirstColumn"]),

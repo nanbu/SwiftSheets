@@ -6447,7 +6447,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>isDefault</code>・<code>hasStyle</code>・<code>includesBlanks</code>・<code>allows…</code> の 45 語もそのまま。<code>ConditionalFormattingRule.bottom</code>・<code>aboveAverage</code> は
   OOXML の語そのもの（B.56 の 3 段目「業界の共通語は残す」）。</p>
   <p><strong>やり方。</strong>28 語の置換は、文字列リテラルの中（ファイルの属性名）を飛ばし、補間 <code>\( )</code> の中だけ直す置換器で行った——B.60 の一括置換が
-  <code>&lt;xdr:col&gt;</code> のタグまで書き換えた事故（a2bd5a2）を繰り返さないため。置換後に <code>"shows…</code> のような文字列が生まれていないことを diff で確かめた。</p>
+  <code>&lt;xdr:col&gt;</code> のタグまで書き換えた事故（a2bd5a2）を繰り返さないため。置換後に <code>"shows…</code> のような文字列が生まれていないことを diff で確かめた。置換器は伴走リポジトリの scripts に <code>rename-swift-identifiers.py</code> として置き、語の対応表（JSON）を渡して使う。</p>
   <p><strong>利用側。</strong>Stream: <code>allowBlank</code> 1・<code>preserveUnknownParts</code> 2・<code>hideDropDown</code> 1・<code>showErrorMessage</code> 1 か所。LeftRight: 0。</p>
 
   <h3>B.65 同じ物の別名は 1 つに（続き）——<code>rows(in:)</code>・<code>freezePanesA1</code>・<code>printTitlesFormula</code>（Rev 4.55）</h3>
@@ -6505,7 +6505,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   </table>
   <p><strong>4. 仕様で閉じた列挙は enum。</strong>OOXML のスキーマが値の集合を閉じている 5 つを String から <code>rawValue</code> つきの enum にする。綴り違いがコンパイルで止まり、補完が効く。
   ファイルには <code>rawValue</code> をそのまま書くので出力は同じ。読む側は、スキーマ外の値に出会ったら黙って別の値にせず、シートの <code>hasUnmodelledFilters</code> /
-  <code>hasUnmodelledConditionalFormats</code> を立てて落とす（<code>totalsRowFunction</code> の未知の値は nil——「何も出さない」——になる）。</p>
+  <code>hasUnmodelledConditionalFormats</code> を立てて落とす。<code>totalsRowFunction</code> の未知の値は nil になり、読み込みの警告（<code>dropped</code>・<code>tables</code>）で列名と値を報告する。この 3 つは動きの変更なので、それぞれ検査を持つ（<code>SchemaClosedValuesTests</code>——未知の値で落ちて印が立つこと、既知の値では立たないこと）。</p>
   <table>
     <thead><tr><th>プロパティ</th><th>Rev 4.55 まで</th><th>Rev 4.56 から</th><th>ファイルの "none"</th></tr></thead>
     <tbody>

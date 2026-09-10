@@ -49,7 +49,8 @@ writes, so the constant, the README's status line and the tag always name the sa
   `verticalAlignment: Font.VerticalAlignment?` (also on `DifferentialFont`), `Font.scheme: Font.Scheme?`,
   `ConditionalFormattingRule.timePeriod: TimePeriod?`, `StructuredTableColumn.totalsRowFunction: TotalsRowFunction?`,
   `DynamicFilter.kind: Kind`. Files are written with the same values; a value outside the schema is dropped on read
-  with the sheet's unmodelled flag set, never guessed at.
+  and reported — `hasUnmodelledFilters` / `hasUnmodelledConditionalFormats` on the sheet, a `dropped` read warning
+  naming the column for a totals-row function — never guessed at.
 
 - **Plumbing leaves the public surface** (B.67). `CRC32`, `ZipInspection`, `TextEncodingSniffer`, `OOXMLEscape`, `Units`,
   `CellPixels`, `TextWidth`, `LegacyPasswordHash` and `ModernPasswordHash`, with `Table.cleanMergedRange(_:)`,
