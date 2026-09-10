@@ -18,7 +18,7 @@ import SwiftSheets
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
-        struct Table: Decodable { let name: String; let rows: Int; let columns: Int; let merges: [String]; let cells: [String: Cell] }
+        struct Table: Decodable { let name: String; let rows: Int; let cols: Int; let merges: [String]; let cells: [String: Cell] }
         struct Sheet: Decodable { let name: String; let tables: [Table] }
         let sheets: [Sheet]
     }

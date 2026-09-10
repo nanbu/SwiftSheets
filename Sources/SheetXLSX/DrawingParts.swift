@@ -22,7 +22,7 @@ enum DrawingParts {
                           cellSize: (width: Double, height: Double)) -> String {
         let ns = "xmlns:xdr=\"\(nsSpreadsheetDrawing)\" xmlns:a=\"\(nsDrawingMain)\""
         func at(column: Int, row: Int) -> String {
-            "<xdr:column>\(column)</xdr:column><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+            "<xdr:col>\(column)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
         let pic = """
             <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="\(shapeID)" name="Picture \(shapeID)"/>\

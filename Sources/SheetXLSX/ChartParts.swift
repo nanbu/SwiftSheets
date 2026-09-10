@@ -80,7 +80,7 @@ enum ChartParts {
     static func anchorXML(over range: CellRange, shapeID: Int, relID: String) -> String {
         let ns = "xmlns:xdr=\"\(DrawingParts.nsSpreadsheetDrawing)\" xmlns:a=\"\(DrawingParts.nsDrawingMain)\""
         func at(column: Int, row: Int) -> String {
-            "<xdr:column>\(column)</xdr:column><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+            "<xdr:col>\(column)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
         return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
             + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
