@@ -19,6 +19,11 @@ writes, so the constant, the README's status line and the tag always name the sa
   and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
   shapes as dropped (spec Appendix B.75).
 
+- **Excel 2010's conditional-format extension.** `DataBar` gains `negativeColor`, `axisColor`, `axisPosition`,
+  `direction`, `isGradient` and `borderColor`; `IconSet` gains `customIcons`. XLSX folds the `x14:` extension into
+  the rules on read — a data bar LibreOffice wrote is no longer "a rule the model could not say" — and writes
+  the extension back beside the rules with fresh ids. ODS carries what its data bar can say and reports custom
+  icons (spec Appendix B.82).
 - **A link on part of a cell's text.** `TextRun.hyperlink` carries the links ODS and Numbers hang on runs of
   text, so a cell with several links reads as rich text with each link on its run (the cell's own `hyperlink` is
   still the first); both formats write them back run by run. Excel holds one link per cell: its writer keeps the

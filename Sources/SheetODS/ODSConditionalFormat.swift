@@ -267,7 +267,13 @@ enum ODSConditionalFormatWriter {
                     standalone += "<calcext:data-bar"
                     if let v = bar.minLength { standalone += " calcext:min-length=\"\(v)\"" }
                     if let v = bar.maxLength { standalone += " calcext:max-length=\"\(v)\"" }
-                    standalone += " calcext:positive-color=\"\(colour)\" calcext:negative-color=\"#ff0000\" calcext:axis-position=\"none\" calcext:axis-color=\"#000000\">"
+                    // only what the model says (B.82): LibreOffice supplies its own defaults for the rest
+                    if !bar.isGradient { standalone += " calcext:gradient=\"false\"" }
+                    standalone += " calcext:positive-color=\"\(colour)\""
+                    if let c = bar.negativeColor { standalone += " calcext:negative-color=\"\(ODSColor.hex(c, nonRGB: &nonRGB))\"" }
+                    if let p = bar.axisPosition { standalone += " calcext:axis-position=\"\(p.rawValue)\"" }
+                    if let c = bar.axisColor { standalone += " calcext:axis-color=\"\(ODSColor.hex(c, nonRGB: &nonRGB))\"" }
+                    standalone += ">"
                     for v in [bar.minimum, bar.maximum] {
                         standalone += "<calcext:formatting-entry calcext:value=\"\(XML.esc(v.value ?? "0"))\" calcext:type=\"\(ODSCondition.valueType(v.kind))\"/>"
                     }
@@ -285,6 +291,9 @@ enum ODSConditionalFormatWriter {
                     standalone += "</calcext:icon-set></calcext:conditional-format>"
                     if !icons.showsValue {
                         sink.add(.degraded, subject: .formatting, sheet: sheet.name, "icon set written with its number showing: ODF has no way to hide it")
+                    }
+                    if icons.customIcons != nil {
+                        sink.add(.degraded, subject: .formatting, sheet: sheet.name, "icon set written with the icons of \(icons.name): ODF has no custom icons (B.82)")
                     }
                 case .timePeriod:
                     guard let period = rule.timePeriod, let odf = ODSCondition.dateIs(period) else {

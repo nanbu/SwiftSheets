@@ -505,6 +505,22 @@ final class SheetReadContext: @unchecked Sendable {
                 }
             }
         }
+        // the conditional-format extension (B.82): folded into the rules that name an x14:id; whatever else the
+        // extension held is counted, and reported when the rules are regenerated
+        if let ext = sheet.preserved.fragments.first(where: { ExtensionList.holds(uri: X14ConditionalParts.sheetURI, $0) }) {
+            let found = X14ConditionalParts.extensions(in: ext)
+            var unmatched = found.unmodelled
+            var matched = Set<String>()
+            for b in sheet.conditionalFormatting.indices {
+                for r in sheet.conditionalFormatting[b].rules.indices {
+                    guard let id = sheet.conditionalFormatting[b].rules[r].extensionID, let x = found.byID[id] else { continue }
+                    X14ConditionalParts.apply(x, to: &sheet.conditionalFormatting[b].rules[r])
+                    matched.insert(id)
+                }
+            }
+            unmatched += found.byID.keys.filter { !matched.contains($0) }.count
+            sheet.preserved.unmatchedConditionalExtensions = unmatched
+        }
         // sparklines (B.79): read out of the preserved extension list; the fragment itself stays until a change
         if let ext = sheet.preserved.fragments.first(where: SparklineParts.holdsSparklines) {
             let groups = SparklineParts.groups(in: ext, sheetName: sheet.name)

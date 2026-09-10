@@ -579,6 +579,7 @@ final class SheetParser: SAXHandler {
     private var cfFormula: Bool = false
     private var cfFormulaText = ""
     private var unmodelledConditional = false
+    private var inCfExtension = false, cfExtensionField = false, cfExtensionText = ""
     private var validation: DataValidation?
     private var validationFormula: Int?          // 1 or 2 while inside <formula1> / <formula2>
     private var validationFormulaText = ""
@@ -773,7 +774,10 @@ final class SheetParser: SAXHandler {
                                 showsValue: XMLBool.isNotFalse(a["showValue"]), percent: XMLBool.isNotFalse(a["percent"]),
                                 reverse: XMLBool.isTrue(a["reverse"]))
         case "formula" where cfRule != nil: cfFormula = true; cfFormulaText = ""
+        case "extLst" where cfRule != nil: inCfExtension = true
         case "extLst" where conditional != nil: unmodelledConditional = true
+        case "id" where inCfExtension: cfExtensionField = true; cfExtensionText = ""
+        case _ where inCfExtension && name != "ext": unmodelledConditional = true   // an extension saying more than the id
         case "dataValidations":
             // read into the model *and* captured: `captured(_:)` throws the capture away unless a rule uses
             // something the model cannot say, in which case the block is written back verbatim instead
@@ -843,6 +847,7 @@ final class SheetParser: SAXHandler {
         if inV { vText += s } else if inF { fText += s }
         else if inT, skipDepth == 0 { if isPhonetic.inRPh { isPhonetic.runText += s } else if inR { runText += s } else { isText += s } }
         else if cfFormula { cfFormulaText += s }
+        else if cfExtensionField { cfExtensionText += s }
         else if validationFormula != nil { validationFormulaText += s }
         else if headerFooterPart != nil { headerFooterText += s }
     }
@@ -879,6 +884,10 @@ final class SheetParser: SAXHandler {
         case "rowBreaks", "colBreaks": breakAxis = nil
         case "scenario": if let sc = scenario { sheet.scenarios.append(sc) }; scenario = nil
         case "formula" where cfFormula: cfRule?.formulas.append(cfFormulaText); cfFormula = false
+        case "id" where cfExtensionField: cfRule?.extensionID = cfExtensionText.trimmingCharacters(in: .whitespacesAndNewlines); cfExtensionField = false
+        case "extLst" where inCfExtension:
+            inCfExtension = false
+            if cfRule?.extensionID == nil { unmodelledConditional = true }   // an extension that is not the x14 rule id
         case "cfRule":
             guard var rule = cfRule else { return }
             switch rule.kind {

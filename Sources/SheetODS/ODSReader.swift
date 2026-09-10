@@ -717,9 +717,20 @@ final class ContentParser: SAXHandler {
             } else if !cfBar.isEmpty, cfValues.count >= 2 {
                 cfPriority += 1
                 let colour = cfBar["calcext:positive-color"].map { Color(hex: $0) } ?? Color(hex: "638EC6")
-                cfRules.append(.dataBar(DataBar(color: colour, minimum: cfValues[0], maximum: cfValues[1],
-                                                minLength: cfBar["calcext:min-length"].flatMap { Int($0) },
-                                                maxLength: cfBar["calcext:max-length"].flatMap { Int($0) }), priority: cfPriority))
+                var bar = DataBar(color: colour, minimum: cfValues[0], maximum: cfValues[1],
+                                  minLength: cfBar["calcext:min-length"].flatMap { Int($0) },
+                                  maxLength: cfBar["calcext:max-length"].flatMap { Int($0) })
+                // the extension words (B.82), as LibreOffice spells them
+                bar.negativeColor = cfBar["calcext:negative-color"].flatMap { $0.hasPrefix("#") ? Color(hex: $0) : nil }
+                bar.axisColor = cfBar["calcext:axis-color"].flatMap { $0.hasPrefix("#") ? Color(hex: $0) : nil }
+                switch cfBar["calcext:axis-position"] {
+                case "middle"?: bar.axisPosition = .middle
+                case "none"?: bar.axisPosition = DataBar.AxisPosition.none
+                case "automatic"?: bar.axisPosition = .automatic
+                default: break
+                }
+                if cfBar["calcext:gradient"] == "false" { bar.isGradient = false }
+                cfRules.append(.dataBar(bar, priority: cfPriority))
             } else if !cfColors.isEmpty, cfColors.count == cfValues.count {
                 cfPriority += 1
                 cfRules.append(.colorScale(ColorScale(values: cfValues, colors: cfColors), priority: cfPriority))

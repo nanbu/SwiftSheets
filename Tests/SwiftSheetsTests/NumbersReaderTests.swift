@@ -153,16 +153,21 @@ import SwiftSheets
         #expect(formats.contains("0%"))
     }
 
-    /// Hyperlinks: Numbers puts a link on a *run* of a cell's rich text, so a cell can hold several. The model has
-    /// one per cell, as Excel does, so the first one is kept and the rest are reported.
+    /// Hyperlinks: Numbers puts a link on a *run* of a cell's rich text, so a cell can hold several. The cell's own
+    /// link is the first; the cell that holds two carries both on runs of its rich text (spec Appendix B.81).
     @Test func readsHyperlinks() throws {
         let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-hlinks.numbers"))
         let result = try NumbersCodec.read(data)
         let table = result.workbook.sheets[0].tables[0]
         #expect(table.cell("A1")?.hyperlink?.target == "http://news.bbc.co.uk/")
         #expect(table.cell("A2")?.hyperlink?.target == "http://google.co.uk/")
-        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("2 links") },
-                "the cell that holds two links says so")
+        #expect(!result.warnings.contains { $0.message.contains("2 links") }, "both links are carried, so nothing is reported")
+        let twoLinks = table.cells.values.compactMap { cell -> [Hyperlink]? in
+            guard case .richText(let runs)? = cell.value else { return nil }
+            let links = runs.compactMap(\.hyperlink)
+            return links.count == 2 ? links : nil
+        }
+        #expect(twoLinks.count == 1, "the cell with two links reads as rich text with a link on each run: \(twoLinks)")
     }
 
     @Test func sourceInfoAndFacade() throws {

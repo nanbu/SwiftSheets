@@ -273,6 +273,9 @@ package struct SheetPreservation: Sendable, Hashable {
     /// The sparkline groups as the file's extension list had them (B.79): while `Sheet.sparklines` equals this,
     /// the extension travels as bytes; otherwise it is regenerated from the model.
     package var sparklines: [SparklineGroup] = []
+    /// `x14:cfRule` elements of the source's extension that no modelled rule claimed (B.82): dropped, out loud,
+    /// when the conditional formats are regenerated.
+    package var unmatchedConditionalExtensions = 0
     /// The drawing part, the parts it referenced, and what it held that the model could not (shapes, …).
     package var drawingPath: String?
     package var drawingParts: [String] = []

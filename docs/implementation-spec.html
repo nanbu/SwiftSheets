@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.73 Draft</td><td>2026-09-11</td><td>拡張の条件付き書式。<code>DataBar</code> に負の色・軸の色と位置・向き・単色・枠、<code>IconSet</code> に <code>customIcons</code>。XLSX は x14 の拡張を規則に畳み込んで読み、規則と並べて作り直す。ODS は LibreOffice のデータバーが言える分を運ぶ（B.82）。</td></tr>
     <tr><td>4.72 Draft</td><td>2026-09-11</td><td>書式付き文字の区間ごとのリンク。<code>TextRun.hyperlink</code> を足し、ODS と Numbers は 1 セルの複数のリンクを run ごとに読み書きする。Excel は先頭を採って言う（B.81）。</td></tr>
     <tr><td>4.71 Draft</td><td>2026-09-11</td><td>スレッド形式のコメント。<code>CommentThread</code>（本文・返信・解決済み・日時）を <code>cell.thread</code> に持ち、XLSX の threadedComments / persons 部品を読み書きし（写しの規則・人の id は保つ・古い読み手向けの鏡のメモは隠す）、ODS・Numbers はメモに置き換えて言う（B.80）。</td></tr>
     <tr><td>4.70 Draft</td><td>2026-09-11</td><td>スパークライン。<code>SparklineGroup</code>（種類・色・点の表示・空セルの扱い・複数のスパークライン）を <code>sheet.sparklines</code> に持ち、XLSX の <code>x14:sparklineGroups</code>（写しの規則で保全）と ODS の <code>calcext:sparkline-groups</code>（LibreOffice）を読み書きする。Numbers は落として言う（B.79）。</td></tr>
@@ -6929,6 +6930,37 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong><code>RunHyperlinkTests</code> 4 件: ODF の形で手作りした 2 リンクのセル（検体 <code>two-links.ods</code>・片方は
   <code>text:a</code> の中の太字の span。LibreOffice 26.2.3 に再保存させるとその span の文字が消えたので、手作りのまま置く）を run に読む・ODS に run ごと書いて戻る・XLSX は先頭を採って言う（セル自身のリンクがあればそれが勝つ）・Numbers を往復する。
   Numbers 本体が読むかは手動一覧へ。</p>
+</section>
+
+<section>
+  <h3>B.82 拡張の条件付き書式（Rev 4.73）</h3>
+  <p>2026-09-11 決定。Excel 2010 はデータバーの負の色・軸・向き・単色・枠と、アイコンを 1 つずつ選ぶ独自のアイコンセットを、2007 形式の規則の外に置く:
+  <code>&lt;cfRule&gt;</code> の <code>extLst</code> が <code>x14:id</code> を名乗り、ワークシートの <code>extLst</code> の
+  <code>x14:conditionalFormattings</code> がその id の <code>x14:cfRule</code> で中身を言う。今まではこの <code>extLst</code> を見た時点で規則の塊を
+  「読み切れない」として元の XML を戻していた——LibreOffice がデータバーを書くたびに付ける形なので、データバーは事実上いつも編集できなかった。</p>
+  <p><strong>模型。</strong><code>DataBar</code>: <code>negativeColor</code>・<code>axisColor</code>・<code>axisPosition</code>（automatic / middle / none・
+  仕様が 3 値で固定するので列挙型）・<code>direction</code>（context / leftToRight / rightToLeft・同じく）・<code>isGradient</code>（既定 true）・
+  <code>borderColor</code>、<code>usesExtension</code>。<code>IconSet</code>: <code>customIcons: [Icon(set, index)]?</code>。既存の呼び方は変わらない。</p>
+  <p><strong>XLSX の読み。</strong>規則の <code>extLst</code> は、<code>x14:id</code> だけなら読み切れない印にせず <code>rule.extensionID</code>
+  （package・provenance で <code>==</code> に入らない）に控える。それ以外を言う拡張は従来どおり読み切れない印。ワークシートの <code>extLst</code> 断片に
+  <code>{78C0D931-…}</code> があれば <code>X14ConditionalParser</code> で id → 拡張（dataBar の属性と色・iconSet の <code>cfIcon</code>）に読み、
+  <code>X14ConditionalParts.apply</code> が規則に畳み込む。dataBar / iconSet でない <code>x14:cfRule</code>（2010 の新種の規則）と、どの規則も名指さない id は
+  <code>unmatchedConditionalExtensions</code> に数える。</p>
+  <p><strong>XLSX の書き。</strong>規則は毎回作り直す（元から）。拡張を要る規則（<code>needsExtension</code>）には新しい GUID を振り、
+  <code>&lt;cfRule&gt;</code> の中に id の <code>extLst</code>、ワークシートの <code>extLst</code> に <code>x14:conditionalFormattings</code>
+  （塊ごとに <code>x14:cfRule</code> と <code>xm:sqref</code>。境界は <code>autoMin</code> / <code>autoMax</code> と <code>xm:f</code>）。
+  拡張の一覧は B.79 のスパークラインと同じ仕組みに揃えた（<code>ExtensionList</code>: uri で退け、まとめて継ぎ足す）: 規則を作り直すときは
+  <code>{78C0D931-…}</code> の拡張を必ず退けて作り直し、数えておいた読めない拡張は dropped で言う。元の規則を verbatim で戻すシート（読み切れない規則が
+  あった）は拡張もそのまま。</p>
+  <p><strong>ODS。</strong>LibreOffice の <code>calcext:data-bar</code> は負の色・軸の色・軸の位置・gradient を持つ: 読み書きする（書くのは模型が言う分だけ。
+  以前書いていた既定の <code>negative-color="#ff0000"</code> と <code>axis-position="none"</code> はやめ、LibreOffice の既定に任せる——読み戻しで nil が
+  nil のまま戻るため）。独自アイコンは持てないので、名指しのセットのアイコンで書いて degraded で言う。</p>
+  <p><strong>LibreOffice の限界（実測 2026-09-11）。</strong>LibreOffice 26.2.3 は <code>x14:iconSet</code> を含む XLSX を開けない（Excel の形そのままでも
+  「Unspecified Application Error」で落ちる。<code>cfIcon</code> の有無・セットの同異によらない）。データバーの拡張は読む。gated テストはデータバーだけを
+  審判にかける。独自アイコンを持つブックを LibreOffice で開かせたい利用者は、<code>customIcons</code> を nil にしてから書く。</p>
+  <p><strong>検査。</strong><code>ConditionalExtensionTests</code> 5 件: LibreOffice が書いた x14 のデータバー（検体 <code>libreoffice-databar-x14.xlsx</code>）を
+  規則として読む・書き戻しで規則と拡張が同じ id を持つ・データバーの全項目と独自アイコンの往復と 2 度目の保存・ODS が言える分と言えない分・
+  書いた拡張を LibreOffice が読む（gated）。</p>
 </section>
 
 </div><!-- /.container -->

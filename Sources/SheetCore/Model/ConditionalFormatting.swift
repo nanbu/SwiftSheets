@@ -77,6 +77,8 @@ public struct ConditionalFormattingRule: Hashable, Sendable {
     /// Where this rule's format sat in the source file's table (`dxfId`), so an untouched rule keeps that entry —
     /// including whatever the model could not read out of it.
     public package(set) var sourceStyleID: Int?
+    /// The `x14:id` the source file gave this rule's extension (B.82) — provenance, like `sourceStyleID`.
+    package var extensionID: String?
     /// The `<formula>` children, as text without a leading `=`. One for most kinds, two for `.between`.
     public var formulas: [String]
     public var `operator`: Operator?
@@ -294,6 +296,24 @@ public struct DataBar: Hashable, Sendable {
     public var maxLength: Int?
     /// Show the number as well as the bar.
     public var showsValue: Bool
+    /// Where the axis sits when there are negative values (Excel 2010's extension, spec Appendix B.82; fixed at
+    /// three by the specification, ST_DataBarAxisPosition). Nil is the application's default (automatic).
+    public enum AxisPosition: String, Hashable, Sendable, CaseIterable { case automatic, middle, none }
+    /// Which way the bars grow (ST_DataBarDirection). Nil is the application's default (by the sheet's direction).
+    public enum Direction: String, Hashable, Sendable, CaseIterable { case context, leftToRight, rightToLeft }
+    /// The bar of a negative value (nil: the application's default, red).
+    public var negativeColor: Color?
+    public var axisColor: Color?
+    public var axisPosition: AxisPosition?
+    public var direction: Direction?
+    /// A gradient fill (Excel's default) rather than a solid one.
+    public var isGradient = true
+    /// A border around the bar (nil: none).
+    public var borderColor: Color?
+    /// Whether the bar says anything only Excel 2010's extension can carry.
+    public var usesExtension: Bool {
+        negativeColor != nil || axisColor != nil || axisPosition != nil || direction != nil || !isGradient || borderColor != nil
+    }
 
     public init(color: Color, minimum: ConditionalValue = .min, maximum: ConditionalValue = .max,
                 minLength: Int? = nil, maxLength: Int? = nil, showsValue: Bool = true) {
@@ -315,6 +335,16 @@ public struct IconSet: Hashable, Sendable {
     public var percent: Bool
     /// Use the icons the other way round.
     public var reverse: Bool
+    /// One icon of a custom set (spec Appendix B.82): taken from a named set by its position in it.
+    public struct Icon: Hashable, Sendable {
+        /// The set the icon is taken from ("3TrafficLights1", "5Arrows", …).
+        public var set: String
+        /// The icon's position in that set, from 0.
+        public var index: Int
+        public init(set: String, index: Int) { self.set = set; self.index = index }
+    }
+    /// The icons chosen one by one, band by band, instead of the set named — Excel 2010's extension; nil uses `name`'s icons.
+    public var customIcons: [Icon]?
 
     public init(name: String, values: [ConditionalValue], showsValue: Bool = true, percent: Bool = true, reverse: Bool = false) {
         self.name = name; self.values = values; self.showsValue = showsValue; self.percent = percent; self.reverse = reverse

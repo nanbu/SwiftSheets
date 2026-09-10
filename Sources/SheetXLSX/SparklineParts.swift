@@ -18,27 +18,13 @@ enum SparklineParts {
     /// The groups of an `extLst` fragment. The fragment is parsed inside a root that declares the prefixes the
     /// worksheet root declared, so an undeclared `x14:` cannot trip the parser.
     static func groups(in fragment: XMLFragment, sheetName: String) -> [SparklineGroup] {
-        let wrapped = "<root xmlns:x14=\"\(nsX14)\" xmlns:xm=\"\(nsXM)\" xmlns:x=\"\(XMLWriter.nsMain)\" xmlns:r=\"\(XMLWriter.nsRel)\""
-            + " xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:xr2=\"http://schemas.microsoft.com/office/spreadsheetml/2015/revision2\">"
-            + fragment.xml + "</root>"
         let parser = SparklineParser()
-        guard (try? parser.run(Data(wrapped.utf8), part: "extLst")) != nil else { return [] }
+        guard (try? parser.run(ExtensionList.wrapped(fragment), part: "extLst")) != nil else { return [] }
         return parser.groups
     }
 
     /// The fragment without its sparkline extension; nil when nothing else was in it.
-    static func removingSparklines(from fragment: XMLFragment) -> XMLFragment? {
-        var xml = fragment.xml
-        // the extension: from its `<ext` (with any prefix) whose uri is ours to the matching `</ext>`
-        guard let uriRange = xml.range(of: uri) else { return fragment }
-        guard let open = xml.range(of: "<[A-Za-z0-9_]*:?ext[ \\t\\r\\n]", options: [.regularExpression, .backwards], range: xml.startIndex..<uriRange.lowerBound),
-              let close = xml.range(of: "</[A-Za-z0-9_]*:?ext[ \\t\\r\\n]*>", options: .regularExpression, range: uriRange.upperBound..<xml.endIndex)
-        else { return fragment }
-        xml.removeSubrange(open.lowerBound..<close.upperBound)
-        // an extLst left with no ext is dropped
-        if xml.range(of: "<[A-Za-z0-9_]*:?ext[ \\t\\r\\n]", options: .regularExpression) == nil { return nil }
-        return XMLFragment(element: fragment.element, xml: xml)
-    }
+    static func removingSparklines(from fragment: XMLFragment) -> XMLFragment? { ExtensionList.removing(uri: uri, from: fragment) }
 
     /// The extension for the model's groups, self-contained (its namespaces declared on itself).
     static func extensionXML(_ groups: [SparklineGroup], sheetName: String) -> String {
@@ -72,12 +58,7 @@ enum SparklineParts {
     }
 
     /// The extension spliced into a preserved `extLst`, or a fresh `extLst` around it.
-    static func extLstXML(_ ext: String, into fragment: XMLFragment?) -> String {
-        if let fragment, let close = fragment.xml.range(of: "</[A-Za-z0-9_]*:?extLst[ \\t\\r\\n]*>", options: [.regularExpression, .backwards]) {
-            return String(fragment.xml[..<close.lowerBound]) + ext + String(fragment.xml[close.lowerBound...])
-        }
-        return "<extLst>" + ext + "</extLst>"
-    }
+    static func extLstXML(_ ext: String, into fragment: XMLFragment?) -> String { ExtensionList.splicing([ext], into: fragment).xml }
 }
 
 /// `x14:sparklineGroups` → groups. Element names arrive without prefixes.

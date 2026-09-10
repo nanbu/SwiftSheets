@@ -868,7 +868,7 @@ enum WorkbookWriter {
 
     /// One `<cfRule>`. CT_CfRule's children in schema order: formula*, colorScale | dataBar | iconSet.
     static func conditionalRuleXML(_ rule: ConditionalFormattingRule, priority: Int, styles: StyleRegistry,
-                                   sharedSourceStyles: Set<Int> = []) -> String {
+                                   sharedSourceStyles: Set<Int> = [], extensionID: String? = nil) -> String {
         var s = "<cfRule type=\"\(rule.kind.rawValue)\""
         if let style = rule.style, !style.isEmpty {
             if let source = rule.sourceStyleID, styles.differentialStyles.indices.contains(source),
@@ -909,6 +909,7 @@ enum WorkbookWriter {
             inner += "<iconSet iconSet=\"\(XML.esc(icons.name))\"\(icons.showsValue ? "" : " showValue=\"0\"")\(icons.percent ? "" : " percent=\"0\"")\(XML.attr("reverse", icons.reverse))>"
             inner += icons.values.map { conditionalValueXML($0, includeGTE: true) }.joined() + "</iconSet>"
         }
+        if let extensionID { inner += X14ConditionalParts.ruleReferenceXML(id: extensionID) }
         return inner.isEmpty ? s + "/>" : s + ">" + inner + "</cfRule>"
     }
 
@@ -1175,6 +1176,7 @@ enum WorkbookWriter {
         }
         // conditional formatting: one element per block, and priorities renumbered 1…n over the whole sheet
         // (Excel wants them distinct, and only their order carries meaning)
+        var conditionalExtensions: [(sqref: String, rules: String)] = []   // the 2010 extension's blocks (B.82)
         if !ws.conditionalFormatting.isEmpty {
             if fragments.contains(where: { $0.element == "conditionalFormatting" }) {
                 sink.add(.degraded, subject: .formatting, sheet: ws.name,
@@ -1193,10 +1195,15 @@ enum WorkbookWriter {
                 for (i, key) in order.enumerated() { renumbered["\(key.block).\(key.rule)"] = i + 1 }
                 for (b, block) in ws.conditionalFormatting.enumerated() {
                     var x = "<conditionalFormatting sqref=\"\(block.ranges.description)\"\(XML.attr("pivot", block.pivot))>"
+                    var extended = ""
                     for (r, rule) in block.rules.enumerated() {
+                        // a rule saying what only the 2010 extension can carry names an id there (B.82)
+                        let id = X14ConditionalParts.needsExtension(rule) ? X14ConditionalParts.freshID() : nil
                         x += conditionalRuleXML(rule, priority: renumbered["\(b).\(r)"] ?? rule.priority, styles: styles,
-                                                sharedSourceStyles: sharedSourceStyles)
+                                                sharedSourceStyles: sharedSourceStyles, extensionID: id)
+                        if let id { extended += X14ConditionalParts.ruleXML(rule, id: id) }
                     }
+                    if !extended.isEmpty { conditionalExtensions.append((block.ranges.description, extended)) }
                     generated.append(("conditionalFormatting", x + "</conditionalFormatting>"))
                 }
             }
@@ -1224,18 +1231,30 @@ enum WorkbookWriter {
             preservedRels.removeAll { $0.type.hasSuffix(DrawingParts.relationshipType) }
             noteFragments.removeAll { $0.element == "drawing" }
         }
-        // sparklines (B.79): the source's extension while the model still equals what was read; otherwise the
-        // extension is regenerated and spliced into whatever else the extension list held
+        // the extension list (B.79, B.82): sparklines travel as the source's bytes while the model still equals
+        // what was read; the conditional-format extension is regenerated whenever the rules are (they are, unless
+        // the source's own rules were kept verbatim). Whatever else the list held stays.
+        var extensions: [String] = []
+        var retiredURIs: [String] = []
         let asReadSparklines = preserve ? ws.preserved.sparklines : []
         if ws.sparklines != asReadSparklines || (!preserve && !ws.sparklines.isEmpty) {
-            let existing = noteFragments.first { $0.element == "extLst" }
-            noteFragments.removeAll { $0.element == "extLst" }
-            let remaining = existing.flatMap { SparklineParts.removingSparklines(from: $0) }
-            if ws.sparklines.isEmpty {
-                if let remaining { noteFragments.append(remaining) }
-            } else {
-                noteFragments.append(XMLFragment(element: "extLst", xml: SparklineParts.extLstXML(SparklineParts.extensionXML(ws.sparklines, sheetName: ws.name), into: remaining)))
+            retiredURIs.append(SparklineParts.uri)
+            if !ws.sparklines.isEmpty { extensions.append(SparklineParts.extensionXML(ws.sparklines, sheetName: ws.name)) }
+        }
+        if !fragments.contains(where: { $0.element == "conditionalFormatting" }) {
+            retiredURIs.append(X14ConditionalParts.sheetURI)
+            if !conditionalExtensions.isEmpty { extensions.append(X14ConditionalParts.sheetExtensionXML(conditionalExtensions)) }
+            if preserve, ws.preserved.unmatchedConditionalExtensions > 0 {
+                sink.add(.dropped, subject: .formatting, sheet: ws.name,
+                         "\(ws.preserved.unmatchedConditionalExtensions) conditional format(s) of Excel 2010's extension dropped: the rules were regenerated, and those had no 2007 form the model could carry")
             }
+        }
+        if !retiredURIs.isEmpty || !extensions.isEmpty {
+            var remaining = noteFragments.first { $0.element == "extLst" }
+            noteFragments.removeAll { $0.element == "extLst" }
+            for uri in retiredURIs { remaining = remaining.flatMap { ExtensionList.removing(uri: uri, from: $0) } }
+            if !extensions.isEmpty { noteFragments.append(ExtensionList.splicing(extensions, into: remaining)) }
+            else if let remaining { noteFragments.append(remaining) }
         }
         var extraParts: [(path: String, data: Data)] = []
         var rels: String?
