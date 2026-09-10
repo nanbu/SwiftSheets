@@ -41,8 +41,8 @@ import SwiftSheets
         let table = result.workbook.sheets[0].tables[0]
         // the rows the filter hides come back hidden — the same rows Numbers' own Excel export hides
         // (data rows 1–4, 6 and 8; rows 5 and 7 — 東京本社 and 恵比寿事業所 — stay visible)
-        for hidden in [1, 2, 3, 4, 6, 8] { #expect(table.rowDimensions[hidden]?.hidden == true, "row \(hidden)") }
-        for visible in [0, 5, 7] { #expect(table.rowDimensions[visible]?.hidden != true, "row \(visible)") }
+        for hidden in [2, 3, 4, 5, 7, 9] { #expect(table.rowDimensions[hidden]?.hidden == true, "row \(hidden)") }
+        for visible in [1, 6, 8] { #expect(table.rowDimensions[visible]?.hidden != true, "row \(visible)") }
         // …and the rules are dropped out loud, counted
         let named = result.warnings.filter { $0.message.contains("Numbers filter") }
         #expect(named.count == 1, Comment(rawValue: "\(result.warnings.map(\.message))"))
@@ -57,9 +57,9 @@ import SwiftSheets
         let wb = try Workbook(data: try Self.fixture("filter-15.numbers"), format: .numbers)
         let back = try Workbook(data: try wb.write(as: format).data)
         let table = back.sheets[0].tables[0]
-        #expect(table.rowDimensions[1]?.hidden == true)
-        #expect(table.rowDimensions[6]?.hidden == true)
-        #expect(table.rowDimensions[5]?.hidden != true)
+        #expect(table.rowDimensions[2]?.hidden == true)
+        #expect(table.rowDimensions[7]?.hidden == true)
+        #expect(table.rowDimensions[6]?.hidden != true)
     }
 
     /// The same document with its filter switched **off** (the owner's second hand-made specimen): Numbers
@@ -102,8 +102,8 @@ import SwiftSheets
         let result = try NumbersCodec.read(try Self.fixture("sort-15.numbers"))
         let table = result.workbook.sheets[0].tables[0]
         // the stored rows are the sorted rows: No. runs 8 down to 1
-        #expect(table[1, 0]?.intValue == 8)
-        #expect(table[8, 0]?.intValue == 1)
+        #expect(table[2, 1]?.intValue == 8)
+        #expect(table[9, 1]?.intValue == 1)
         let named = result.warnings.filter { $0.message.contains("Numbers sort order") }
         #expect(named.count == 1, Comment(rawValue: "\(result.warnings.map(\.message))"))
         #expect(named.first?.kind == .degraded)

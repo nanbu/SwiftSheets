@@ -9,12 +9,23 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
-The last seven items of the 1.0 API review, each its own commit and spec appendix (B.54–B.60). No compatibility
+The last seven items of the 1.0 API review, each its own commit and spec appendix (B.54–B.60), and the change of
+cell numbering that came out of reviewing them (B.61). No compatibility
 aliases: a name that stays at 1.0 stays for good, so the old ones go now. Every change is a rename or a typed
 replacement; no file output changes.
 
 ### Changed
 
+- **Cell coordinates are the numbers the sheet shows — 1-based** (B.61). `CellRef(row: 1, column: 1)` is A1;
+  `sheet[1, 2]` is B1; `insertRows(at: 2)` inserts above row 2, as Excel's own command does. This reaches every
+  integer that names a cell, row or column: `CellRef`, `CellRange`, `RangeBounds`, the subscripts, the
+  dimension dictionaries and their accessors, insert/delete, groups, print titles, `autofitColumn`, `append([Int:…])`,
+  `Table.anchor`, `nextAppendRow`, `StreamedRow.index`, `columnName(_:)` (1 → "A"), `columnIndex(_:)` ("A" → 1),
+  `maxRow` (1,048,576) and `maxColumn` (16,384). Positions in Swift collections stay 0-based: `sheets[i]`, pivot field
+  indices, the `table:` argument of a streaming read, and every returned array (`values(width:)` index 0 is column A).
+  `rowNumber` is gone — it is `row`. `FilterColumn.column` is renamed `columnOffset` (an offset, unchanged in value);
+  `RangeView`'s relative subscript is `view[rowOffset:columnOffset:]`. `rowBreaks` / `columnBreaks` keep the file's
+  own `<brk id>` values.
 - **How a formula cell is read is an enum, not a Bool** (B.54). `ReadOptions(dataOnly: true)` →
   `ReadOptions(formulaCells: .cachedValues)`; the same on `StreamingReadOptions` and `Workbook`. The default is
   `.formulas`. Under `.cachedValues` a formula the file never computed reads as an empty cell — the readers already

@@ -70,14 +70,14 @@ import SwiftSheets
 
         var seen: [Int] = []
         try reader.forEachRow(inSheet: "Data") { seen.append($0.index) }
-        #expect(seen.first == 0 && seen.last == 99)
+        #expect(seen.first == 1 && seen.last == 100)
     }
 
     /// Throwing from the handler stops the walk there and comes back out.
     @Test func throwingFromTheHandlerStopsTheWalk() throws {
         struct Stop: Error {}
         var wb = Workbook()
-        for i in 0..<100 { wb.sheets[0][i, 0] = .integer(i) }
+        for i in 0..<100 { wb.sheets[0][i + 1, 1] = .integer(i) }
         let data = try wb.write(as: .xlsx).data
         let reader = try StreamingReader(data: data)
         var count = 0

@@ -21,7 +21,7 @@ import SheetCore
 
     private func workbook(_ rows: [[CellValue?]]) -> Workbook {
         var sheet = Sheet(name: "Data")
-        for (r, row) in rows.enumerated() { for (c, v) in row.enumerated() { sheet[r, c] = v } }
+        for (r, row) in rows.enumerated() { for (c, v) in row.enumerated() { sheet[r + 1, c + 1] = v } }
         return Workbook(sheets: [sheet])
     }
 
@@ -57,7 +57,7 @@ import SheetCore
     @Test func explicitUTF8StillStripsBOM() throws {
         let data = Data([0xEF, 0xBB, 0xBF]) + bytes("a\n")
         let sheet = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .utf8))).workbook.sheets[0]
-        #expect(sheet[0, 0] == .text("a"))
+        #expect(sheet[1, 1] == .text("a"))
     }
 
     @Test func invalidUTF8ReportsByteOffset() throws {
@@ -88,20 +88,20 @@ import SheetCore
         let data = bytes("ab,") + Data([0xFF]) + bytes("c\n")
         let result = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(lossy: true)))
         let (wb, warnings) = (result.workbook, result.warnings)
-        #expect(wb.sheets[0][0, 1] == .text("\u{FFFD}c"))
+        #expect(wb.sheets[0][1, 2] == .text("\u{FFFD}c"))
         #expect(warnings.count == 1)
         #expect(warnings[0].kind == .degraded)
         #expect(warnings[0].message.contains("offset 3"))
         // `read` is the same thing minus the warnings
-        #expect(try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(lossy: true))).workbook.sheets[0][0, 1] == .text("\u{FFFD}c"))
+        #expect(try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(lossy: true))).workbook.sheets[0][1, 2] == .text("\u{FFFD}c"))
     }
 
     @Test func lossyReadOfLegacyEncoding() throws {
         let data = bytes("あ,", .shiftJIS) + Data([0xFF]) + bytes("い\n", .shiftJIS)
         let result = try CSVCodec.read(data, options: ReadOptions(csv: CSVReadOptions(encoding: .shiftJIS, lossy: true)))
         let (wb, warnings) = (result.workbook, result.warnings)
-        #expect(wb.sheets[0][0, 0] == .text("あ"))
-        #expect(wb.sheets[0][0, 1] == .text("\u{FFFD}い"))
+        #expect(wb.sheets[0][1, 1] == .text("あ"))
+        #expect(wb.sheets[0][1, 2] == .text("\u{FFFD}い"))
         #expect(warnings.count == 1)
     }
 
@@ -143,7 +143,7 @@ import SheetCore
     @Test func excelSepLineSetsDelimiterAndIsSkipped() throws {
         let sheet = try read("sep=;\r\na,b;c\r\n")
         #expect(values(sheet) == [[.text("a,b"), .text("c")]])
-        #expect(sheet.nextAppendRow == 1)
+        #expect(sheet.nextAppendRow == 2)
         #expect(values(try read("sep=|\nx|y\n")) == [[.text("x"), .text("y")]])
     }
 
@@ -165,31 +165,31 @@ import SheetCore
     @Test func mixedLineEndings() throws {
         let sheet = try read("a\r\nb\nc\rd")
         #expect(values(sheet) == [[.text("a")], [.text("b")], [.text("c")], [.text("d")]])
-        #expect(sheet.nextAppendRow == 4)
+        #expect(sheet.nextAppendRow == 5)
     }
 
     @Test func emptyLinesBecomeEmptyRecords() throws {
         let sheet = try read("a\n\nb\n")
-        #expect(sheet[0, 0] == .text("a"))
-        #expect(sheet[1, 0] == nil)
-        #expect(sheet[2, 0] == .text("b"))
-        #expect(sheet.nextAppendRow == 3)
+        #expect(sheet[1, 1] == .text("a"))
+        #expect(sheet[2, 1] == nil)
+        #expect(sheet[3, 1] == .text("b"))
+        #expect(sheet.nextAppendRow == 4)
     }
 
     @Test func trailingNewlineAddsNoRecord() throws {
-        #expect(try read("a\n").nextAppendRow == 1)
-        #expect(try read("a").nextAppendRow == 1)
-        #expect(try read("a\r\n").nextAppendRow == 1)
-        #expect(try read("").nextAppendRow == 0)
+        #expect(try read("a\n").nextAppendRow == 2)
+        #expect(try read("a").nextAppendRow == 2)
+        #expect(try read("a\r\n").nextAppendRow == 2)
+        #expect(try read("").nextAppendRow == 1)
     }
 
     @Test func emptyFieldsProduceNoCell() throws {
         let sheet = try read("a,,c\n,\n")
-        #expect(sheet[0, 0] == .text("a"))
-        #expect(sheet[0, 1] == nil)
-        #expect(sheet[0, 2] == .text("c"))
-        #expect(sheet.row(1) == [nil, nil, nil])
-        #expect(sheet.nextAppendRow == 2)
+        #expect(sheet[1, 1] == .text("a"))
+        #expect(sheet[1, 2] == nil)
+        #expect(sheet[1, 3] == .text("c"))
+        #expect(sheet.row(2) == [nil, nil, nil])
+        #expect(sheet.nextAppendRow == 3)
     }
 
     @Test func whitespaceIsPreserved() throws {
@@ -211,7 +211,7 @@ import SheetCore
     @Test func inferenceOn() throws {
         let options = ReadOptions(csv: CSVReadOptions(inferTypes: true, dateFormats: ["yyyy/MM/dd"]))
         let sheet = try read("42,-7,0,01234,3.5,1e3,.5,true,FALSE,2026/08/22,2026-08-22,2026-08-22T13:45:10,1-2\n", options: options)
-        let row = sheet.row(0)
+        let row = sheet.row(1)
         #expect(row[0] == .integer(42))
         #expect(row[1] == .integer(-7))
         #expect(row[2] == .integer(0))
@@ -231,7 +231,7 @@ import SheetCore
     @Test func inferenceKeepsHugeIntegersAsNumbers() throws {
         let options = ReadOptions(csv: CSVReadOptions(inferTypes: true))
         let sheet = try read("99999999999999999999,+5,1.5E-3,1e,1.2.3,TrUe\n", options: options)
-        let row = sheet.row(0)
+        let row = sheet.row(1)
         #expect(row[0] == .number(Decimal(string: "99999999999999999999")!))
         #expect(row[1] == .integer(5))
         #expect(row[2] == .number(Decimal(string: "0.0015")!))
@@ -270,7 +270,7 @@ import SheetCore
         let utf16 = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(encoding: .utf16LittleEndian, includeBOM: true)))
         #expect([UInt8](utf16.data.prefix(4)) == [0xFF, 0xFE, 0x61, 0x00])
         // and the result reads back through BOM detection
-        #expect(try CSVCodec.read(utf16.data).workbook.sheets[0][0, 0] == .text("a"))
+        #expect(try CSVCodec.read(utf16.data).workbook.sheets[0][1, 1] == .text("a"))
     }
 
     @Test func writeTSVWithLF() throws {
@@ -296,7 +296,7 @@ import SheetCore
         let result = try CSVCodec.write(wb, options: lossy)
         #expect(result.warnings.count == 1)
         #expect(result.warnings[0].kind == .degraded)
-        #expect(result.warnings[0].location == CellRef(row: 0, column: 1))
+        #expect(result.warnings[0].location == CellRef(row: 1, column: 2))
         #expect(result.warnings[0].sheet == "Data")
         let text = String(data: result.data, encoding: .shiftJIS)
         #expect(text?.hasPrefix("ok,?") == true && text?.hasSuffix("\r\n") == true)   // the emoji became "?" marks
@@ -325,9 +325,9 @@ import SheetCore
     /// A canvas with several tables (Numbers) collapses to the first one — with a warning, never in silence.
     @Test func extraTablesOfASheetAreReported() throws {
         var sheet = Sheet(name: "Canvas")
-        sheet[0, 0] = .text("first")
+        sheet[1, 1] = .text("first")
         let second = sheet.addTable(named: "Second", anchor: CellRef("D1")!)
-        sheet.tables[second][0, 0] = .text("second")
+        sheet.tables[second][1, 1] = .text("second")
         let (text, result) = try writeText(Workbook(sheets: [sheet]))
         #expect(text == "first\r\n")
         #expect(result.warnings.count == 1)
@@ -339,7 +339,7 @@ import SheetCore
     @Test func sheetSelectionByName() throws {
         var wb = workbook([[.text("first")]])
         wb.addSheet(named: "Second")
-        wb.sheets["Second"]?[0, 0] = .text("second")
+        wb.sheets["Second"]?[1, 1] = .text("second")
         let (text, _) = try writeText(wb, options: WriteOptions(csv: CSVWriteOptions(sheet: "Second")))
         #expect(text == "second\r\n")
         #expect(throws: SheetError.invalidWorkbook("no sheet named Nope")) {
@@ -349,9 +349,9 @@ import SheetCore
 
     @Test func styledCellsWarnExactlyOnce() throws {
         var sheet = Sheet(name: "S")
-        sheet[0, 0] = .text("a"); sheet.setStyle(at: CellRef(row: 0, column: 0)) { $0.font.bold = true }
-        sheet[0, 1] = .text("b"); sheet.setStyle(at: CellRef(row: 0, column: 1)) { $0.numberFormat = "0.00" }
-        sheet[1, 0] = .integer(1)
+        sheet[1, 1] = .text("a"); sheet.setStyle(at: CellRef(row: 1, column: 1)) { $0.font.bold = true }
+        sheet[1, 2] = .text("b"); sheet.setStyle(at: CellRef(row: 1, column: 2)) { $0.numberFormat = "0.00" }
+        sheet[2, 1] = .integer(1)
         let result = try CSVCodec.write(Workbook(sheets: [sheet]))
         #expect(result.warnings.count == 1)
         #expect(result.warnings[0] == ConversionWarning(.degraded, subject: .formatting, message: "formatting and formula structure are not kept in CSV"))
@@ -373,7 +373,7 @@ import SheetCore
         #expect(text == "=SUM(A2:A3)\r\n")
         #expect(result.warnings.count == 2)
         let perCell = result.warnings.first { $0.location != nil }
-        #expect(perCell?.location == CellRef(row: 0, column: 0))
+        #expect(perCell?.location == CellRef(row: 1, column: 1))
         #expect(perCell?.sheet == "Data")
         #expect(perCell?.message == "formula without a cached value written as text")
     }
@@ -381,14 +381,14 @@ import SheetCore
     @Test func valueRendering() throws {
         let day = CivilDate(year: 2026, month: 8, day: 22)!
         var sheet = Sheet(name: "V")
-        sheet[0, 0] = .date(CivilDateTime(date: day))
-        sheet[0, 1] = .date(CivilDateTime(date: day, time: TimeOfDay(hour: 9, minute: 5, second: 7)))
-        sheet[0, 2] = .time(TimeOfDay(hour: 23, minute: 59, second: 1))
-        sheet[0, 3] = .error("#N/A")
-        sheet[0, 4] = .richText([TextRun("rich "), TextRun("text")])
-        sheet[0, 5] = .number(Decimal(string: "1234567.891")!)
-        sheet[0, 6] = .bool(false)
-        sheet[0, 7] = .duration(.seconds(3661))
+        sheet[1, 1] = .date(CivilDateTime(date: day))
+        sheet[1, 2] = .date(CivilDateTime(date: day, time: TimeOfDay(hour: 9, minute: 5, second: 7)))
+        sheet[1, 3] = .time(TimeOfDay(hour: 23, minute: 59, second: 1))
+        sheet[1, 4] = .error("#N/A")
+        sheet[1, 5] = .richText([TextRun("rich "), TextRun("text")])
+        sheet[1, 6] = .number(Decimal(string: "1234567.891")!)
+        sheet[1, 7] = .bool(false)
+        sheet[1, 8] = .duration(.seconds(3661))
         let (text, _) = try writeText(Workbook(sheets: [sheet]))
         #expect(text == "2026-08-22,2026-08-22T09:05:07,23:59:01,#N/A,rich text,1234567.891,FALSE,1:01:01\r\n")
         let custom = WriteOptions(csv: CSVWriteOptions(dateFormat: "yyyy/M/d HH:mm"))

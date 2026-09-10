@@ -11,7 +11,7 @@ public struct Sheet: Equatable, Sendable {
     public var tables: [Table] = [Table()]
     /// Freeze rows above and columns left of this cell ("B2" freezes row 1 and column A). A1 / nil means no freeze.
     public var freezePanes: CellRef? {
-        didSet { if freezePanes == CellRef(row: 0, column: 0) { freezePanes = nil } }
+        didSet { if freezePanes == CellRef(row: 1, column: 1) { freezePanes = nil } }
     }
     public var autoFilter: CellRange?
     /// What each filtered column lets through. Only meaningful together with `autoFilter`.
@@ -58,12 +58,12 @@ public struct Sheet: Equatable, Sendable {
     public var pageSetup = PageSetup()
     public var printOptions = PrintOptions()
     public var headerFooter = HeaderFooter()
-    /// Manual page breaks: the 0-based row / column index the break sits *above* / *left of*.
+    /// Manual page breaks, as the file spells them (`<brk id>`): the number of the row / column the break sits below / right of (B.61).
     public var rowBreaks: [Int] = []
     public var columnBreaks: [Int] = []
-    /// Rows repeated at the top of every printed page (`_xlnm.Print_Titles`), 0-based.
+    /// Rows repeated at the top of every printed page (`_xlnm.Print_Titles`), by row number (1 = the first row).
     public var printTitleRows: ClosedRange<Int>?
-    /// Columns repeated at the left of every printed page, 0-based.
+    /// Columns repeated at the left of every printed page, by column number (1 = A).
     public var printTitleColumns: ClosedRange<Int>?
     /// The print area(s) (`_xlnm.Print_Area`).
     public var printArea: [CellRange] = []
@@ -120,7 +120,7 @@ public struct Sheet: Equatable, Sendable {
 
     /// Adds a table (Numbers: several per sheet). Returns its index.
     @discardableResult
-    public mutating func addTable(named name: String? = nil, anchor: CellRef = CellRef(row: 0, column: 0)) -> Int {
+    public mutating func addTable(named name: String? = nil, anchor: CellRef = CellRef(row: 1, column: 1)) -> Int {
         var t = Table(name: name); t.anchor = anchor
         tables.append(t)
         return tables.count - 1
@@ -392,7 +392,7 @@ public struct Sheet: Equatable, Sendable {
     public var printTitles: String? {
         var parts: [String] = []
         let q = CellRef.quoteSheetName(name)
-        if let r = printTitleRows { parts.append("\(q)!$\(r.lowerBound + 1):$\(r.upperBound + 1)") }
+        if let r = printTitleRows { parts.append("\(q)!$\(r.lowerBound):$\(r.upperBound)") }
         if let c = printTitleColumns { parts.append("\(q)!$\(CellRef.columnName(c.lowerBound)):$\(CellRef.columnName(c.upperBound))") }
         return parts.isEmpty ? nil : parts.joined(separator: ",")
     }

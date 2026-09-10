@@ -284,7 +284,9 @@ public struct PageSetup: Hashable, Sendable {
 /// 5. `colorFilter` — one fill or font colour
 /// 6. `iconFilter` — one icon of a conditional-format icon set
 public struct FilterColumn: Hashable, Sendable {
-    public var column: Int
+    /// Which column of the filter range, counted from its first column as 0 — the file's `colId`, an offset rather
+    /// than a coordinate (spec Appendix B.61).
+    public var columnOffset: Int
     /// The values that pass (`<filters><filter val>`); empty when the column filters some other way.
     public var values: [String]
     /// Blank cells pass too (`<filters blank="1">`).
@@ -312,11 +314,11 @@ public struct FilterColumn: Hashable, Sendable {
     /// The button is drawn at all (`showButton="0"` takes it away entirely). Excel's default is true.
     public var buttonShown: Bool
 
-    public init(column: Int, values: [String] = [], includesBlanks: Bool = false, conditions: [FilterCondition] = [],
+    public init(columnOffset: Int, values: [String] = [], includesBlanks: Bool = false, conditions: [FilterCondition] = [],
                 matchesAllConditions: Bool = false, buttonHidden: Bool = false, dateGroups: [DateGroup] = [],
                 calendarType: String? = nil, rank: RankFilter? = nil, dynamicFilter: DynamicFilter? = nil,
                 colorFilter: ColorFilter? = nil, iconFilter: IconFilter? = nil, buttonShown: Bool = true) {
-        self.column = column; self.values = values; self.includesBlanks = includesBlanks
+        self.columnOffset = columnOffset; self.values = values; self.includesBlanks = includesBlanks
         self.conditions = conditions; self.matchesAllConditions = matchesAllConditions; self.buttonHidden = buttonHidden
         self.dateGroups = dateGroups; self.calendarType = calendarType; self.rank = rank
         self.dynamicFilter = dynamicFilter; self.colorFilter = colorFilter; self.iconFilter = iconFilter

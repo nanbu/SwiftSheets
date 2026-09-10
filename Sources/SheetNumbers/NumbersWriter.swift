@@ -275,8 +275,8 @@ struct NumbersWriter {
                 // header rows / columns are Numbers' frozen panes
                 let fp = sheet.freezePanes!
                 doc.update(doc.object(infos[0])!.reference("tableModel")!) { m in
-                    m.set("number_of_header_rows", int: fp.row); m.set("number_of_header_columns", int: fp.column)
-                    m.set("header_rows_frozen", bool: fp.row > 0); m.set("header_columns_frozen", bool: fp.column > 0)
+                    m.set("number_of_header_rows", int: fp.row - 1); m.set("number_of_header_columns", int: fp.column - 1)   // the freeze cell → header counts
+                    m.set("header_rows_frozen", bool: fp.row > 1); m.set("header_columns_frozen", bool: fp.column > 1)
                 }
             }
         }
@@ -611,8 +611,8 @@ struct NumbersWriter {
         // the copy of the source: the range's own cells, its heading row kept as a header row
         var sourceTable = Table(name: "\(pivot.name) Source")
         for (c, column) in columns.enumerated() {
-            sourceTable[0, c] = .text(column.name)
-            for (r, value) in column.values.enumerated() { sourceTable[r + 1, c] = value }
+            sourceTable[1, c + 1] = .text(column.name)
+            for (r, value) in column.values.enumerated() { sourceTable[r + 2, c + 1] = value }
         }
         let sourceName = "\(pivot.cache.sourceSheet) as Pivot Source Table"
         _ = try patch(tableInfo: sourceInfo, with: sourceTable, name: sourceName, sheetName: sheetName)
@@ -1246,10 +1246,10 @@ struct NumbersWriter {
         // rows. Anything reaching past 10,000 rows or 256 columns stops at the table's edge instead, the way
         // Numbers itself cuts a whole-column rule when it imports one (measured), and the cut is reported below.
         let formRanges = popupRules.flatMap(\.rule.ranges.ranges).filter { $0.maxRow < 10_000 && $0.maxColumn < 256 }
-        let rows = Swift.max(1, Swift.max(table.rowCount, table.nextAppendRow, (table.rowDimensions.keys.max() ?? -1) + 1,
-                                          (table.merges.map(\.maxRow).max() ?? -1) + 1, (formRanges.map(\.maxRow).max() ?? -1) + 1))
-        let columns = Swift.max(1, Swift.max(table.columnCount, (table.columnDimensions.keys.max() ?? -1) + 1,
-                                          (table.merges.map(\.maxColumn).max() ?? -1) + 1, (formRanges.map(\.maxColumn).max() ?? -1) + 1))
+        let rows = Swift.max(1, Swift.max(table.rowCount, table.nextAppendRow - 1, table.rowDimensions.keys.max() ?? 0,
+                                          table.merges.map(\.maxRow).max() ?? 0, formRanges.map(\.maxRow).max() ?? 0))
+        let columns = Swift.max(1, Swift.max(table.columnCount, table.columnDimensions.keys.max() ?? 0,
+                                          table.merges.map(\.maxColumn).max() ?? 0, formRanges.map(\.maxColumn).max() ?? 0))
         guard rows <= 1_000_000, columns <= 1000 else { throw SheetError.unsupportedFeature("Numbers tables are limited to 1,000,000 rows × 1,000 columns (\(rows)×\(columns) requested)") }
         model.set("number_of_rows", int: rows)
         model.set("number_of_columns", int: columns)
@@ -1342,8 +1342,8 @@ struct NumbersWriter {
             entry.set("key", int: key); entry.set("refcount", int: 0); entry.set("reference", reference: id)
             conditionalEntries.append(entry)
             for range in block.ranges.ranges {
-                for r in range.minRow...range.maxRow where r < rows {
-                    for c in range.minColumn...range.maxColumn where c < columns {
+                for r in range.minRow...range.maxRow where r <= rows {
+                    for c in range.minColumn...range.maxColumn where c <= columns {
                         conditionalKeys[CellRef(row: r, column: c)] = key
                     }
                 }
@@ -1365,7 +1365,7 @@ struct NumbersWriter {
         var controlEntries: [ProtoMessage] = []
         var controlKeys: [CellRef: Int] = [:]
         var clippedRules = 0
-        let controlledCells = table.cells.filter { $0.value.control != nil && $0.key.row < rows && $0.key.column < columns && !covered.contains($0.key) }
+        let controlledCells = table.cells.filter { $0.value.control != nil && $0.key.row <= rows && $0.key.column <= columns && !covered.contains($0.key) }
         if !popupRules.isEmpty || !controlledCells.isEmpty, controlList == nil {
             warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
                                               message: "\(popupRules.count + controlledCells.count) validation rule(s) / cell control(s) dropped: the template's table has no control list"))
@@ -1386,9 +1386,9 @@ struct NumbersWriter {
                 controlEntries.append(entry)
                 var clipped = false
                 for range in rule.ranges.ranges {
-                    if range.maxRow >= rows || range.maxColumn >= columns { clipped = true }
-                    for r in range.minRow...range.maxRow where r < rows {
-                        for c in range.minColumn...range.maxColumn where c < columns {
+                    if range.maxRow > rows || range.maxColumn > columns { clipped = true }
+                    for r in range.minRow...range.maxRow where r <= rows {
+                        for c in range.minColumn...range.maxColumn where c <= columns {
                             controlKeys[CellRef(row: r, column: c)] = key
                         }
                     }
@@ -1507,7 +1507,7 @@ struct NumbersWriter {
         // has a reason: a fill, a border, a note, a link. A sheet draws with exactly these — a Gantt bar, a
         // weekend column, a legend swatch are colour and nothing else — and skipping them here sent the drawing
         // out blank and unreported (Appendix B.20).
-        for (ref, cell) in table.cells where ref.row < rows && ref.column < columns && !covered.contains(ref) {
+        for (ref, cell) in table.cells where ref.row <= rows && ref.column <= columns && !covered.contains(ref) {
             var value: CellValue? = cell.value
             var formulaID: Int?
             if case .formula(let expr, let cached)? = cell.value {
@@ -1561,7 +1561,8 @@ struct NumbersWriter {
                     }
                 }
             }
-            records[ref.row][ref.column] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
+            // the file counts from 0
+            records[ref.row - 1][ref.column - 1] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
                                                formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
                                                conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref],
                                                richID: richID, commentID: commentID)
@@ -1573,8 +1574,8 @@ struct NumbersWriter {
         // an empty cell inside a rule's range still names the rule — otherwise the rule stops at the last cell
         // that happened to hold something. The same for a pop-up menu: an empty cell wearing one is what a
         // dropdown on an entry form is.
-        for ref in Set(conditionalKeys.keys).union(controlKeys.keys) where records[ref.row][ref.column] == nil {
-            records[ref.row][ref.column] = CellStorage.encode(type: .generic, conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref])
+        for ref in Set(conditionalKeys.keys).union(controlKeys.keys) where records[ref.row - 1][ref.column - 1] == nil {
+            records[ref.row - 1][ref.column - 1] = CellStorage.encode(type: .generic, conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref])
         }
         for code in styleWriter.unexpressibleFormats {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
@@ -1682,7 +1683,7 @@ struct NumbersWriter {
                 var headers: [ProtoMessage] = []
                 for r in 0..<rows {
                     var h = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
-                    let dim = table.rowDimensions[r]
+                    let dim = table.rowDimensions[r + 1]   // the file counts from 0
                     h.set("index", int: r); h.set("size", float: Float(dim?.height ?? defaultRowHeight)); h.set("hidingState", int: dim?.hidden == true ? 1 : 0)
                     h.set("numberOfCells", int: records[r].filter { $0 != nil }.count)
                     headers.append(h)
@@ -1695,7 +1696,7 @@ struct NumbersWriter {
                 var headers: [ProtoMessage] = []
                 for c in 0..<columns {
                     var h = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
-                    let dim = table.columnDimensions[c]
+                    let dim = table.columnDimensions[c + 1]   // the file counts from 0
                     h.set("index", int: c); h.set("size", float: Float(dim?.width.map { $0 * NumbersReader.pointsPerCharacter } ?? defaultColumnWidth)); h.set("hidingState", int: dim?.hidden == true ? 1 : 0)
                     h.set("numberOfCells", int: records.filter { $0[c] != nil }.count)
                     headers.append(h)
@@ -1707,7 +1708,7 @@ struct NumbersWriter {
         var mergeMap = ProtoMessage(typeName: "TST.MergeRegionMapArchive")
         for m in table.merges {
             var range = ProtoMessage(typeName: "TST.CellRange")
-            var origin = ProtoMessage(typeName: "TST.CellID"); origin.set("packedData", int: (m.minColumn << 16) | m.minRow)
+            var origin = ProtoMessage(typeName: "TST.CellID"); origin.set("packedData", int: ((m.minColumn - 1) << 16) | (m.minRow - 1))   // the file counts from 0
             var size = ProtoMessage(typeName: "TST.TableSize"); size.set("packedData", int: ((m.maxColumn - m.minColumn + 1) << 16) | (m.maxRow - m.minRow + 1))
             range.set("origin", message: origin); range.set("size", message: size)
             mergeMap.append("cell_range", message: range)
@@ -1765,8 +1766,8 @@ struct NumbersWriter {
         model.set("base_data_store", message: store)
         doc.replace(modelID, with: model)
 
-        let width = (0..<columns).reduce(0.0) { $0 + (table.columnDimensions[$1]?.width.map { $0 * NumbersReader.pointsPerCharacter } ?? defaultColumnWidth) }
-        let height = (0..<rows).reduce(0.0) { $0 + (table.rowDimensions[$1]?.height ?? defaultRowHeight) }
+        let width = (1...columns).reduce(0.0) { $0 + (table.columnDimensions[$1]?.width.map { $0 * NumbersReader.pointsPerCharacter } ?? defaultColumnWidth) }
+        let height = (1...rows).reduce(0.0) { $0 + (table.rowDimensions[$1]?.height ?? defaultRowHeight) }
         return (width, height)
     }
 

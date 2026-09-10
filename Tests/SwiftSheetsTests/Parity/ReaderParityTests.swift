@@ -60,7 +60,7 @@ private enum ReaderParity {
         #expect((ws["A1"]?.openpyxlDataType == "n"))
     }
 
-    static let dimensionCases: [(String, CellRange?)] = [("dimension.xml", CellRange(minRow: 0, minColumn: 3, maxRow: 29, maxColumn: 26)), ("no_dimension.xml", nil), ("invalid_dimension.xml", nil)]
+    static let dimensionCases: [(String, CellRange?)] = [("dimension.xml", CellRange(minRow: 1, minColumn: 4, maxRow: 30, maxColumn: 27)), ("no_dimension.xml", nil), ("invalid_dimension.xml", nil)]
     // openpyxl: worksheet/tests/test_reader.py::test_read_dimension
     @Test(arguments: dimensionCases)
     func readDimension(_ filename: String, _ expected: CellRange?) throws {
@@ -71,14 +71,14 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_col_width
     @Test func colWidth() throws {
         let ws = try ReaderParity.sheet(try ReaderParity.fixtureText("worksheet/complex-styles-worksheet.xml"))
-        #expect(Set(ws.columnDimensions.keys) == [0, 2, 4, 8, 6])   // A, C, E, I, G
+        #expect(Set(ws.columnDimensions.keys) == [1, 3, 5, 9, 7])   // A, C, E, I, G
         #expect(ws.columnDimension("A") == ColumnDimension(width: 31.1640625))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_hidden_col
     @Test func hiddenCol() throws {
         let ws = try sheet("<cols><col min=\"4\" max=\"4\" width=\"0\" hidden=\"1\" customWidth=\"1\"/></cols>")
-        #expect(ws.columnDimensions[3] == ColumnDimension(width: 0, hidden: true))   // D
+        #expect(ws.columnDimensions[4] == ColumnDimension(width: 0, hidden: true))   // D
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_styled_col
@@ -91,25 +91,25 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_row_dimensions
     @Test func rowDimensions() throws {
         let ws = try sheet("<sheetData><row r=\"2\" spans=\"1:6\" /></sheetData>")
-        #expect(ws.rowDimensions[1] == nil)
+        #expect(ws.rowDimensions[2] == nil)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_hidden_row
     @Test func hiddenRow() throws {
         let ws = try sheet("<sheetData><row r=\"2\" spans=\"1:4\" hidden=\"1\" /></sheetData>")
-        #expect(ws.rowDimensions[1] == RowDimension(hidden: true))
+        #expect(ws.rowDimensions[2] == RowDimension(hidden: true))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_styled_row
     @Test func styledRow() throws {
         let ws = try sheet("<sheetData><row r=\"23\" s=\"28\" spans=\"1:8\" /></sheetData>")
-        #expect(ws.rowDimensions[22]?.style != nil)
+        #expect(ws.rowDimensions[23]?.style != nil)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_read_row_with_exponent
     @Test func readRowWithExponent() throws {
         let ws = try sheet("<sheetData><row r=\"1.048573e6\" spans=\"1:8\" /></sheetData>")
-        #expect(ws.nextAppendRow == 1048573)
+        #expect(ws.nextAppendRow == 1048574)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_invalid_row_number
@@ -210,13 +210,13 @@ private enum ReaderParity {
     @Test func cellWithoutCoordinates() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c t=\"s\"><v>2</v></c><c t=\"s\"><v>4</v></c><c t=\"s\"><v>3</v></c><c t=\"s\"><v>6</v></c><c t=\"s\"><v>9</v></c></row></sheetData>",
                            sst: Array(repeating: .text("Whatever"), count: 10))
-        #expect(ws.nextAppendRow == 1 && ws.columnCount == 5 && ws["E1"] == .text("Whatever"))
+        #expect(ws.nextAppendRow == 2 && ws.columnCount == 5 && ws["E1"] == .text("Whatever"))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_row_and_cell_without_coordinates
     @Test func rowAndCellWithoutCoordinates() throws {
         let ws = try sheet("<sheetData><row><c><v>2</v></c><c><v>4</v></c><c><v>3</v></c></row></sheetData>")
-        #expect(ws.values() == [[2, 4, 3]] && ws.extent?.minRow == 0)
+        #expect(ws.values() == [[2, 4, 3]] && ws.extent?.minRow == 1)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_row_and_cell_skipping_coordinates
@@ -331,7 +331,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_more_rows_than_cells
     @Test func moreRowsThanCells() throws {
         let ws = try ReaderParity.sheet(try ReaderParity.fixtureText("worksheet/more_rows_than_cells.xml"))
-        #expect(ws.nextAppendRow == 3)
+        #expect(ws.nextAppendRow == 4)
     }
 }
 
@@ -446,7 +446,7 @@ private enum ReaderParity {
         let wb = try XLSXCodec.read(try ReaderParity.fixture("reader/print_settings.xlsx")).workbook
         #expect(wb.definedNames.count == 2)
         let ws = wb.sheets["Sheet"]!
-        #expect(ws.printTitleRows == 0...0 && ws.printTitles == "'Sheet'!$1:$1")
+        #expect(ws.printTitleRows == 1...1 && ws.printTitles == "'Sheet'!$1:$1")
         #expect(ws.printAreaFormula == "'Sheet'!$A$1:$D$5,'Sheet'!$B$9:$F$14" && ws.definedNames.isEmpty)
     }
 
@@ -522,9 +522,9 @@ private enum ReaderParity {
         // PORT-NOTE: openpyxl checks that `ws[row][col] is ws["A1"]` (object identity). Cells are values now, so the
         // nearest equivalent is equality of the whole Cell reached through both paths; coordinates come from the
         // range's refs because cells no longer know their position.
-        #expect(ws.cells(in: CellRange(minRow: 0, minColumn: 0, maxRow: 0, maxColumn: 0))[0][0] == ws[cell: "A1"])
-        #expect(CellRange(minRow: 0, minColumn: 0, maxRow: 29, maxColumn: 3).rows.map { $0.map(\.a1) } == CellRange("A1:D30")!.rows.map { $0.map(\.a1) })
-        #expect(ws.cells(in: CellRange(minRow: 0, minColumn: 0, maxRow: 29, maxColumn: 3)) == ws.cells(in: CellRange("A1:D30")!))
+        #expect(ws.cells(in: CellRange(minRow: 1, minColumn: 1, maxRow: 1, maxColumn: 1))[0][0] == ws[cell: "A1"])
+        #expect(CellRange(minRow: 1, minColumn: 1, maxRow: 30, maxColumn: 4).rows.map { $0.map(\.a1) } == CellRange("A1:D30")!.rows.map { $0.map(\.a1) })
+        #expect(ws.cells(in: CellRange(minRow: 1, minColumn: 1, maxRow: 30, maxColumn: 4)) == ws.cells(in: CellRange("A1:D30")!))
     }
 
     // openpyxl: tests/test_iter.py::test_max_row

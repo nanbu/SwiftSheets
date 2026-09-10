@@ -78,8 +78,8 @@ import SwiftSheets
         ws["B5"] = .text("noted"); ws[cell: "B5"].note = CellNote("a note\nsecond line", author: "tester")
         ws.setWidth(20, ofColumn: "A")
         ws.setColumnDimension("C") { $0.hidden = true }
-        ws.setHeight(30, ofRow: 1)
-        ws.setRowDimension(3) { $0.hidden = true }
+        ws.setHeight(30, ofRow: 2)
+        ws.setRowDimension(4) { $0.hidden = true }
         ws.freezePanes(at: "B2")
         ws.definedNames["Local"] = "Data!$A$2"
         var hidden = Sheet(name: "Hidden")
@@ -142,9 +142,9 @@ import SwiftSheets
         #expect(ws.definedNames["Local"] == "Data!$A$2")
         #expect(ws.columnDimension("A").width == 20)
         #expect(ws.columnDimension("C").hidden)
-        #expect(ws.rowDimension(1).height == 30)
-        #expect(ws.rowDimension(3).hidden)
-        #expect(ws.freezePanes == CellRef(row: 1, column: 1))
+        #expect(ws.rowDimension(2).height == 30)
+        #expect(ws.rowDimension(4).hidden)
+        #expect(ws.freezePanes == CellRef(row: 2, column: 2))
         #expect(back.sheets[1].state == .hidden)
         #expect(back.sheets[1]["A1"] == .text("secret"))
         #expect(back.definedNames["MyRange"] == "Data!$A$1:$B$2")
@@ -427,8 +427,8 @@ import SwiftSheets
         #expect(a.style("A1").font.size == 14)
         #expect(a.style("A1").font.name == "Arial")
         #expect(a.columnDimension("C").hidden)
-        #expect(a.rowDimension(3).hidden)
-        #expect(a.rowDimension(1).height.map { abs($0 - 30) < 0.5 } == true)
+        #expect(a.rowDimension(4).hidden)
+        #expect(a.rowDimension(2).height.map { abs($0 - 30) < 0.5 } == true)
         #expect(a.cell("A6")?.hyperlink?.target == "https://example.com/")
         #expect(a.style("E1").numberFormat == "yyyy/m/d")
         #expect(a.style("H1").numberFormat == "0%")
@@ -499,10 +499,10 @@ import SwiftSheets
         #expect(ws.style("A2").font.bold && ws.style("A2").font.italic)
         #expect(ws.style("B2").numberFormat == "#,##0.00")
         #expect(ws.style("C2").numberFormat == "0%")
-        #expect(ws.freezePanes == CellRef(row: 1, column: 1))
+        #expect(ws.freezePanes == CellRef(row: 2, column: 2))
         // LibreOffice writes `hidden="true"` (xsd:boolean words); the XLSX reader accepts both spellings
         #expect(ws.columnDimension("C").hidden, "column C hidden")
-        #expect(ws.rowDimension(3).hidden, "row 4 hidden")
+        #expect(ws.rowDimension(4).hidden, "row 4 hidden")
         #expect(back.sheets[1].state == .hidden)
         #expect(back.sheets[1]["A1"] == .text("secret"))
         #expect(back.definedNames["MyRange"]?.replacingOccurrences(of: "'", with: "") == "Data!$A$1:$B$2")
@@ -605,7 +605,7 @@ import SwiftSheets
         ws.headerFooter.oddFooter = "&Cページ &P / &N"
         ws.rowBreaks = [4]; ws.columnBreaks = [2]
         ws.setPrintArea("A1:C9")
-        ws.printTitleRows = 0...0
+        ws.printTitleRows = 1...1
         ws.protection.enabled = true
         wb.sheets[0] = ws
 
@@ -627,7 +627,7 @@ import SwiftSheets
         #expect(back.rowBreaks == [4])
         #expect(back.columnBreaks == [2])
         #expect(back.printArea == [CellRange("A1:C9")!])
-        #expect(back.printTitleRows == 0...0)
+        #expect(back.printTitleRows == 1...1)
         #expect(back.protection.enabled)
     }
 
@@ -715,15 +715,15 @@ import SwiftSheets
     /// Grouped rows: ODF nests them inside `table:table-row-group` rather than numbering an outline level.
     @Test func rowGroupsRoundTrip() throws {
         var wb = Workbook()
-        for r in 0..<8 { wb.sheets[0][r, 0] = .integer(r) }
-        wb.sheets[0].groupRows(2...4, outlineLevel: 1)
-        wb.sheets[0].groupRows(3...3, outlineLevel: 2, hidden: true)
+        for r in 0..<8 { wb.sheets[0][r + 1, 1] = .integer(r) }
+        wb.sheets[0].groupRows(3...5, outlineLevel: 1)
+        wb.sheets[0].groupRows(4...4, outlineLevel: 2, hidden: true)
         let ods = try ODSCodec.write(wb).data
         #expect(try contentXML(ods).contains("<table:table-row-group>"))
         let back = try ODSCodec.read(ods).workbook.sheets[0]
-        #expect(back.rowDimension(2).outlineLevel == 1)
-        #expect(back.rowDimension(3).outlineLevel == 2)
-        #expect(back.rowDimension(3).hidden)
-        #expect(back.rowDimension(5).outlineLevel == 0)
+        #expect(back.rowDimension(3).outlineLevel == 1)
+        #expect(back.rowDimension(4).outlineLevel == 2)
+        #expect(back.rowDimension(4).hidden)
+        #expect(back.rowDimension(6).outlineLevel == 0)
     }
 }

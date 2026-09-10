@@ -143,11 +143,11 @@ import SwiftSheets
         var last: StreamedRow?
         for try await row in reader.rows(inSheet: "Sheet1") { count += 1; last = row }
         #expect(count == 5_000)
-        #expect(last?.index == 4_999 && last?.cells.last?.value == .text("v4999"))
+        #expect(last?.index == 5_000 && last?.cells.last?.value == .text("v4999"))
         // stopping early is allowed and reads no further
         var first: StreamedRow?
         for try await row in reader.rows(inSheet: "Sheet1") { first = row; break }
-        #expect(first?.index == 0)
+        #expect(first?.index == 1)
     }
 
     @Test func anUnknownSheetThrowsFromTheSequence() async throws {

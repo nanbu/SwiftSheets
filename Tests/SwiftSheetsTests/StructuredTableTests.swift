@@ -96,7 +96,7 @@ import SwiftSheets
 
         let again = try Workbook(data: data).sheets[0].structuredTables[0]
         #expect(again == table)
-        #expect(again.dataRows == 1...2, "the header and the totals row are not data")
+        #expect(again.dataRows == 2...3, "the header and the totals row are not data")
     }
 
     /// A table the file format would refuse is reported, not written: Excel offers to repair such a workbook.
@@ -164,7 +164,7 @@ import SwiftSheets
     @Test func theTablesOwnFilterLivesInThePart() throws {
         var wb = Self.sales()
         var table = StructuredTable(name: "Sales", ref: CellRange("A1:C3")!, headerRow: [.text("Item"), .text("Qty"), .text("Price")])
-        table.filterColumns = [FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "3")])]
+        table.filterColumns = [FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "3")])]
         wb.sheets[0].structuredTables = [table]
         let data = try wb.write(as: .xlsx).data
         #expect(try Package.part("xl/tables/table1.xml", of: data).contains("<customFilter operator=\"greaterThan\" val=\"3\"/>"))

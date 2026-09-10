@@ -246,7 +246,7 @@ package final class CSVStreamingWriter {
     private let handle: FileHandle
     private let options: CSVWriteOptions
     private let renderer: CSVCodec.FieldRenderer
-    private var row = 0
+    private var row = 1
     /// `close()` ran to the end: everything buffered is on disk and the handle is shut.
     private var closed = false
     /// The writer was let go of instead.
@@ -277,16 +277,16 @@ package final class CSVStreamingWriter {
         var line: [String] = []
         for (c, value) in values.enumerated() {
             guard let value else { line.append(""); continue }
-            let ref = CellRef(row: row, column: c)
+            let ref = CellRef(row: row, column: c + 1)
             let field = renderer.render(value, at: ref, sheet: "Sheet1", warnings: &warnings)
             line.append(CSVCodec.quoted(field, delimiter: options.dialect.delimiter, quote: options.dialect.quote))
         }
         let text = line.joined(separator: String(options.dialect.delimiter)) + options.newline.rawValue
         guard let bytes = text.data(using: options.encoding) ?? (options.lossy ? text.data(using: options.encoding, allowLossyConversion: true) : nil) else {
-            throw SheetError.unsupportedFeature("text in row \(row + 1) cannot be represented in \(String.localizedName(of: options.encoding))")
+            throw SheetError.unsupportedFeature("text in row \(row) cannot be represented in \(String.localizedName(of: options.encoding))")
         }
         if text.data(using: options.encoding) == nil {
-            warnings.append(ConversionWarning(.degraded, sheet: "Sheet1", location: CellRef(row: row, column: 0), message: "text cannot be represented in \(String.localizedName(of: options.encoding)); unencodable characters replaced"))
+            warnings.append(ConversionWarning(.degraded, sheet: "Sheet1", location: CellRef(row: row, column: 1), message: "text cannot be represented in \(String.localizedName(of: options.encoding)); unencodable characters replaced"))
         }
         pending.append(bytes)
         row += 1
@@ -339,14 +339,14 @@ extension CSVStreamingReader: StreamingRowSource {
     final class RowWalk: StreamingRowWalk {
         private let walk: Walk
         private let options: StreamingReadOptions
-        private var index = 0
+        private var index = 1
         init(walk: Walk, options: StreamingReadOptions) { self.walk = walk; self.options = options }
 
         func next() throws -> StreamedRow? {
             while let record = try walk.next() {
                 defer { index += 1 }
                 let style: CellStyle? = options.includeStyles ? .default : nil
-                let row = StreamedRow(index: index, cells: record.enumerated().map { StreamedCell(ref: CellRef(row: index, column: $0), value: $1, style: style) })
+                let row = StreamedRow(index: index, cells: record.enumerated().map { StreamedCell(ref: CellRef(row: index, column: $0 + 1), value: $1, style: style) })
                 if options.includesEmptyRows || !row.isEmpty { return row }
             }
             return nil

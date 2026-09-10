@@ -100,7 +100,7 @@ import SwiftSheets
 
     @Test func aRangeIsALazyViewOverTheSheet() {
         var sheet = Workbook().sheets[0]
-        for r in 0..<10 { sheet[r, 0] = .integer(r); sheet[r, 2] = .text("row \(r)") }
+        for r in 0..<10 { sheet[r + 1, 1] = .integer(r); sheet[r + 1, 3] = .text("row \(r)") }
         let view = sheet.range("A3:C5")
 
         #expect(view.range == CellRange("A3:C5"))
@@ -108,8 +108,8 @@ import SwiftSheets
         #expect(view.map(\.count) == [3, 3, 3])
         #expect(view[CellRef("A3")!] == .integer(2))
         #expect(view["C5"] == .text("row 4"))
-        #expect(view[0, 0] == .integer(2))          // relative to the range's top-left
-        #expect(view[2, 2] == .text("row 4"))
+        #expect(view[rowOffset: 0, columnOffset: 0] == .integer(2))          // relative to the range's top-left
+        #expect(view[rowOffset: 2, columnOffset: 2] == .text("row 4"))
         #expect(view[CellRef("A1")!] == nil)        // outside the range
         #expect(view.values == sheet.values(in: "A3:C5"))
         #expect(view.existingCells.map(\.ref.a1) == ["A3", "C3", "A4", "C4", "A5", "C5"])

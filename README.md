@@ -234,8 +234,9 @@ is reported, never dropped in silence.
 
 Everything is a value type. `Workbook.sheets` is a collection addressable by index or name; a `Sheet` holds one or
 more `Table`s (exactly one for XLSX / ODS — the sheet forwards the whole cell API to it, so `tables` only matters for
-Numbers later). A `Cell` is a `CellValue?` plus `CellStyle`, hyperlink and note. Integer coordinates are **0-based**
-(`CellRef(row:column:)`, `sheet[0, 1]`); A1 strings are the only 1-based form. Values carry meaning, never representation:
+Numbers later). A `Cell` is a `CellValue?` plus `CellStyle`, hyperlink and note. Integer coordinates are the numbers
+the sheet shows: `CellRef(row: 1, column: 2)` and `sheet[1, 2]` are B1, exactly as `"B1"` is. Only positions in
+Swift collections (`workbook.sheets[0]`, the arrays `rows(in:)` returns) count from 0. Values carry meaning, never representation:
 `.text`, `.integer`, `.number(Decimal)`, `.bool`, `.date(CivilDateTime)` (no time zone), `.time`, `.duration`,
 `.formula(FormulaExpr, cached:)`, `.error`, `.richText`.
 
@@ -255,7 +256,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `create_sheet`, `remove`, `copy_worksheet`, `move_sheet` | `addSheet(named:at:)`, `removeSheet(named:)`, `duplicateSheet(named:as:)`, `moveSheet(named:to:)` |
 | (no equivalent — reference types have no write-back to forget) | `wb.editSheet(named: "Sales") { sheet in … }` — scoped editing: applied when the closure returns, discarded whole when it throws, `SheetError.sheetNotFound` when the name is absent |
 | `ws.title = 'New'` | `wb.sheets[0].name = "New"` (formulas referring to the sheet follow) |
-| `ws['A1'].value`, `ws['A1'] = 42`, `ws.cell(row=1, column=2)` | `sheet["A1"]`, `sheet["A1"] = 42`, `sheet[0, 1]` |
+| `ws['A1'].value`, `ws['A1'] = 42`, `ws.cell(row=1, column=2)` | `sheet["A1"]`, `sheet["A1"] = 42`, `sheet[1, 2]` |
 | `cell.font = Font(bold=True)` | `sheet.setStyle("A1") { $0.font.bold = true }` or `sheet[cell: "A1"].font.bold = true` |
 | `wb.add_named_style(NamedStyle(...))`, `cell.style = 'Title'` | `wb.addNamedStyle(NamedStyle(...))`, `sheet[cell: "A1"].style = style.applied` (`CellStyle.namedStyle` is the link) |
 | `ws.iter_rows(values_only=True)`, `ws.values` | `sheet.rows(in: "A2:D100")`, `sheet.values(in:)` |
@@ -271,7 +272,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `ArrayFormula(ref, text)` | `sheet.table.arrayFormulas[anchor] = CellRange("A2:A4")` |
 | `cell.value = '=SUM(A1:B2)'` | `sheet["C1"] = .formula("=SUM(A1:B2)")`; `value.formula?.rendered(as: .ods)` |
 | `wb.defined_names`, `wb.properties` | `wb.definedNames`, `wb.metadata` |
-| `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
+| `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(3)`, `CellRef.columnIndex("C")` (1 = A) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
 | `cell.comment = Comment(text, author)` | `sheet[cell: "A1"].note = CellNote(text, author:)` — written as the comments part plus its legacy VML |
 | `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]`, or `.list(choices: ["Todo", "Doing", "Done"], over:)` for the choices themselves (nil when they cannot be an inline list) — read and written both ways; a rule with an attribute outside the schema keeps the file's own block (`sheet.hasUnmodelledValidations`). `hideDropDown` is named for what the inverted `showDropDown` attribute means |

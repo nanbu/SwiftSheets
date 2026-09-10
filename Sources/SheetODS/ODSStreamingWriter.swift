@@ -69,7 +69,7 @@ package final class ODSStreamingWriter: StreamingRowSink {
                     xml += empties == 1 ? "<table:table-cell/>" : "<table:table-cell table:number-columns-repeated=\"\(empties)\"/>"
                     empties = 0
                 }
-                xml += ODSWriter.cellXML(cell, at: CellRef(row: current.count, column: c), merge: nil, matrix: nil, validation: nil,
+                xml += ODSWriter.cellXML(cell, at: CellRef(row: current.count + 1, column: c + 1), merge: nil, matrix: nil, validation: nil,
                                          sheet: current.name, styles: styles, sink: sink)
             }
         } else {

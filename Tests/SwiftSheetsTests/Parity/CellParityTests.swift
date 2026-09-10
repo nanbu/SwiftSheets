@@ -10,9 +10,9 @@ import Testing
 
     // openpyxl: cell/tests/test_cell.py::test_ctor
     @Test func ctor() {
-        // PORT-NOTE: position lives on `CellRef` now; the old `cell.column == 1 && cell.row == 1` is the 0-based ref of A1.
-        let cell = dummyCell(), ref = CellRef(row: 0, column: 0)
-        #expect(cell.openpyxlDataType == "n" && ref.column == 0 && ref.row == 0 && ref.a1 == "A1" && cell.value == nil && cell.note == nil)
+        // PORT-NOTE: position lives on `CellRef` now; the old `cell.column == 2 && cell.row == 2` is the 0-based ref of A1.
+        let cell = dummyCell(), ref = CellRef(row: 1, column: 1)
+        #expect(cell.openpyxlDataType == "n" && ref.column == 1 && ref.row == 1 && ref.a1 == "A1" && cell.value == nil && cell.note == nil)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_null
@@ -154,8 +154,8 @@ import Testing
         var wb = Workbook()
         let comm = CellNote("text", author: "author")
         wb.sheets[0][cell: "A1"].note = comm
-        wb.sheets[0][cell: CellRef(row: 1, column: 0)].note = comm
-        let c2 = wb.sheets[0][cell: CellRef(row: 1, column: 0)]
+        wb.sheets[0][cell: CellRef(row: 2, column: 1)].note = comm
+        let c2 = wb.sheets[0][cell: CellRef(row: 2, column: 1)]
         #expect(c2.note == comm && wb.sheets[0][cell: "A1"].note == comm)   // value type: each cell owns its own copy
     }
 
@@ -169,7 +169,7 @@ import Testing
 
     // openpyxl: cell/tests/test_cell.py::test_cell_offset
     @Test func cellOffset() {
-        #expect(CellRef(row: 0, column: 0).offset(rows: 2, columns: 1).a1 == "B3")
+        #expect(CellRef(row: 1, column: 1).offset(rows: 2, columns: 1).a1 == "B3")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_font
@@ -292,7 +292,7 @@ import Testing
         if let value { ws["A1"] = value }
         // PORT-NOTE: assigning nil through the subscript drops a default-styled cell, so an empty `<c r="A1"/>` can only
         // come from a cell placed directly in `cells` — the state the reader leaves for every `<c>` it saw.
-        else { ws.cells[CellRef(row: 0, column: 0)] = Cell() }
+        else { ws.cells[CellRef(row: 1, column: 1)] = Cell() }
         #expect(writeCell(ws, "A1") == expected)
     }
 

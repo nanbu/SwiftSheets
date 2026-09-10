@@ -20,7 +20,7 @@ import SwiftSheets
         var wb = Workbook()
         var sheet = wb.sheets[0]
         sheet["A1"] = "月"; sheet["B1"] = "売上"
-        for i in 0..<3 { sheet[i + 1, 0] = CellValue.text("m\(i)"); sheet[i + 1, 1] = CellValue.integer(i * 100) }
+        for i in 0..<3 { sheet[i + 2, 1] = CellValue.text("m\(i)"); sheet[i + 2, 2] = CellValue.integer(i * 100) }
         var chart = Chart(.column, title: "月次売上")
         chart.addSeries(values: "B2:B4", categories: "A2:A4", name: "売上")
         sheet.addChart(chart, over: "D2:K16")

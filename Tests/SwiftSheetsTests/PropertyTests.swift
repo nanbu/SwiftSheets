@@ -17,8 +17,8 @@ import Testing
     @Test(arguments: seeds) func a1AndIntegerCoordinatesAreABijection(_ seed: UInt64) {
         var rng = SeededGenerator(seed: seed)
         for _ in 0..<2_000 {
-            let ref = CellRef(row: Int.random(in: 0...CellRef.maxRow, using: &rng),
-                              column: Int.random(in: 0...CellRef.maxColumn, using: &rng))
+            let ref = CellRef(row: Int.random(in: 1...CellRef.maxRow, using: &rng),
+                              column: Int.random(in: 1...CellRef.maxColumn, using: &rng))
             #expect(CellRef(ref.a1) == ref, "\(ref.row),\(ref.column) → \(ref.a1)")
             #expect(CellRef(ref.absoluteA1) == ref, "\(ref.absoluteA1)")
             #expect(CellRef(ref.a1.lowercased()) == ref, "\(ref.a1.lowercased())")
@@ -32,7 +32,7 @@ import Testing
     /// enough to prove rather than sample.
     @Test func columnNamesAreBijectiveOverTheWholeRange() {
         var seen = Set<String>()
-        for col in 0...CellRef.maxParsedCol {
+        for col in 1...CellRef.maxParsedCol {
             let name = CellRef.columnName(col)
             #expect(seen.insert(name).inserted, "\(name) names two columns")
             #expect(CellRef.columnIndex(name) == col, "\(name)")
@@ -50,17 +50,17 @@ import Testing
         var rng = SeededGenerator(seed: seed)
         var sheet = Sheet(name: "RLE")
         var expected: [CellRef: CellValue] = [:]
-        var row = 0
+        var row = 1
         for _ in 0..<40 {
             row += Int.random(in: 0...3, using: &rng)          // sometimes skip whole rows
-            var col = 0
-            while col < 30 {
+            var col = 1
+            while col <= 30 {
                 let run = Int.random(in: 1...6, using: &rng)
                 if Bool.random(using: &rng) {                   // a run of the same value…
                     let value: CellValue = Bool.random(using: &rng)
                         ? .integer(Int.random(in: -50...50, using: &rng))
                         : .text("v\(Int.random(in: 0...4, using: &rng))")
-                    for i in 0..<run where col + i < 30 {
+                    for i in 0..<run where col + i <= 30 {
                         let ref = CellRef(row: row, column: col + i)
                         sheet[ref.row, ref.column] = value
                         expected[ref] = value
@@ -76,8 +76,8 @@ import Testing
 
         var found: [CellRef: CellValue] = [:]
         let table = read.sheets[0].tables[0]
-        for r in 0...(table.extent?.maxRow ?? 0) {
-            for c in 0...(table.extent?.maxColumn ?? 0) {
+        for r in 1...(table.extent?.maxRow ?? 1) {
+            for c in 1...(table.extent?.maxColumn ?? 1) {
                 if let v = table[r, c] { found[CellRef(row: r, column: c)] = v }
             }
         }

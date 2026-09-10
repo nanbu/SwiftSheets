@@ -10,9 +10,9 @@ public indirect enum FormulaExpr: Hashable, Sendable {
     case error(String)
     /// A cell, optionally on another sheet. `absRow` / `absCol` are the `$` markers.
     case ref(CellRef, sheet: String? = nil, absRow: Bool = false, absCol: Bool = false)
-    /// A whole column (only meaningful as an endpoint of `range`).
+    /// A whole column (only meaningful as an endpoint of `range`), by its number — 1 = A, as everywhere in the model.
     case column(Int, sheet: String? = nil, abs: Bool = false)
-    /// A whole row (only meaningful as an endpoint of `range`).
+    /// A whole row (only meaningful as an endpoint of `range`), by the number the sheet shows.
     case row(Int, sheet: String? = nil, abs: Bool = false)
     /// A defined name, or a structured / external reference kept as text.
     case name(String, sheet: String? = nil)

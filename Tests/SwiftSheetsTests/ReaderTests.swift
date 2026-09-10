@@ -34,9 +34,9 @@ func fixture(_ name: String) throws -> Data {
         #expect(ws.merges.map(\.a1) == ["A3:C3"])
         #expect(ws.freezePanes == CellRef("B2"))
         #expect(ws.columnDimension("A").width == 20 && ws.columnDimension("C").hidden)
-        #expect(ws.rowDimension(1).height == 30)
-        #expect(ws.rowDimension(3).hidden && ws.rowDimension(3).outlineLevel == 1)
-        #expect(ws.rowDimension(4).collapsed && ws.rowDimension(4).outlineLevel == 1)
+        #expect(ws.rowDimension(2).height == 30)
+        #expect(ws.rowDimension(4).hidden && ws.rowDimension(4).outlineLevel == 1)
+        #expect(ws.rowDimension(5).collapsed && ws.rowDimension(5).outlineLevel == 1)
         #expect(ws[cell: "A6"].hyperlink?.target == "https://example.com/")
         #expect(ws.properties.summaryBelow == false)
         #expect(ws.autoFilter?.a1 == "A1:H1")
@@ -64,7 +64,7 @@ func fixture(_ name: String) throws -> Data {
         #expect(ws["B2"] == .number(2.0))                                     // "2.0" keeps float-ness like openpyxl
         #expect(ws["C2"] == .bool(true))
         #expect(ws["D2"] == .error("#DIV/0!"))
-        #expect(ws.rowDimension(1).hidden && ws.rowDimension(1).outlineLevel == 1)
+        #expect(ws.rowDimension(2).hidden && ws.rowDimension(2).outlineLevel == 1)
         #expect(ws["B3"] == .time(TimeOfDay(hour: 12, minute: 0)))            // serial 0.5 with a date format
     }
 
@@ -78,9 +78,9 @@ func fixture(_ name: String) throws -> Data {
 
 @Suite struct UtilityTests {
     @Test func references() {
-        #expect(CellRef("AB12") == CellRef(row: 11, column: 27))
+        #expect(CellRef("AB12") == CellRef(row: 12, column: 28))
         #expect(CellRef("$A$1")?.a1 == "A1")
-        #expect(CellRef.columnName(702) == "AAA" && CellRef.columnIndex("AAA") == 702)
+        #expect(CellRef.columnName(703) == "AAA" && CellRef.columnIndex("AAA") == 703)
         #expect(CellRange("C3:A1") == nil)   // openpyxl raises for a reversed range
         #expect(CellRange("A1:C3")?.a1 == "A1:C3")
         #expect(CellRef("1A") == nil)

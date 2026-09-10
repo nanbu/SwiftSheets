@@ -38,14 +38,14 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test(arguments: rowCases)
     func rowDimension(_ dim: RowDimension, _ attrs: String) {
         var ws = Workbook().sheets[0]
-        ws.rowDimensions[0] = dim
+        ws.rowDimensions[1] = dim
         #expect(sheetXML(ws).contains("<row r=\"1\"\(attrs)>"))
     }
 
     // openpyxl: worksheet/tests/test_dimensions.py::test_row_auto_assign
     @Test func rowAutoAssign() {
         let ws = Workbook().sheets[0]
-        #expect(ws.rowDimension(0) == RowDimension())   // reading a missing row yields the defaults
+        #expect(ws.rowDimension(1) == RowDimension())   // reading a missing row yields the defaults
     }
 
     // openpyxl: worksheet/tests/test_dimensions.py::TestRowDimension::test_copy
@@ -59,7 +59,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test(arguments: colCases)
     func colDimensions(_ dim: ColumnDimension, _ xml: String) {
         var ws = Workbook().sheets[0]
-        ws.columnDimensions[0] = dim
+        ws.columnDimensions[1] = dim
         #expect(sheetXML(ws).contains(xml))
     }
 
@@ -138,15 +138,15 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     // openpyxl: worksheet/tests/test_dimensions.py::test_group_rows_simple
     @Test func groupRowsSimple() {
         var ws = Workbook().sheets[0]
-        ws.groupRows(0...4, outlineLevel: 1)
-        #expect(ws.rowDimensions.count == 5 && ws.rowDimension(0).outlineLevel == 1)
+        ws.groupRows(1...5, outlineLevel: 1)
+        #expect(ws.rowDimensions.count == 5 && ws.rowDimension(1).outlineLevel == 1)
     }
 
     // openpyxl: worksheet/tests/test_dimensions.py::test_group_rows_collapse
     @Test func groupRowsCollapse() {
         var ws = Workbook().sheets[0]
-        ws.groupRows(0...9, outlineLevel: 1, hidden: true)
-        #expect(ws.rowDimension(5).hidden)
+        ws.groupRows(1...10, outlineLevel: 1, hidden: true)
+        #expect(ws.rowDimension(6).hidden)
     }
 
     // openpyxl: worksheet/tests/test_dimensions.py::test_no_rows
@@ -418,13 +418,13 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test func colRangeFromString() {
         var ws = Workbook().sheets[0]
         ws.setPrintTitleColumns("$B:$E")
-        #expect(ws.printTitleColumns == 1...4)
+        #expect(ws.printTitleColumns == 2...5)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestColRange::test_str
     @Test func colRangeStr() {
         var ws = Workbook().sheets[0]
-        ws.printTitleColumns = 0...3
+        ws.printTitleColumns = 1...4
         #expect(ws.printTitles == "'Sheet1'!$A:$D")
     }
 
@@ -432,20 +432,20 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test(arguments: ["$B:$E", "B:E"]) func colRangeEq(_ expected: String) {
         var ws = Workbook().sheets[0]
         ws.setPrintTitleColumns(expected)
-        #expect(ws.printTitleColumns == 1...4)
+        #expect(ws.printTitleColumns == 2...5)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestRowRange::test_from_string
     @Test func rowRangeFromString() {
         var ws = Workbook().sheets[0]
         ws.setPrintTitleRows("$2:$6")
-        #expect(ws.printTitleRows == 1...5)
+        #expect(ws.printTitleRows == 2...6)
     }
 
     // openpyxl: worksheet/tests/test_print_settings.py::TestRowRange::test_str
     @Test func rowRangeStr() {
         var ws = Workbook().sheets[0]
-        ws.printTitleRows = 0...3
+        ws.printTitleRows = 1...4
         #expect(ws.printTitles == "'Sheet1'!$1:$4")
     }
 
@@ -453,7 +453,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test(arguments: ["$2:$7", "2:7"]) func rowRangeEq(_ expected: String) {
         var ws = Workbook().sheets[0]
         ws.setPrintTitleRows(expected)
-        #expect(ws.printTitleRows == 1...6)
+        #expect(ws.printTitleRows == 2...7)
     }
 
     static let titleCases: [(String, String)] = [
@@ -564,9 +564,9 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     // openpyxl: worksheet/tests/test_worksheet_copy.py::test_copy_row_dimensions
     @Test func copyRowDimensions() {
         var wb = Workbook()
-        wb.sheets[0].setRowDimension(3) { $0.height = 25 }
+        wb.sheets[0].setRowDimension(4) { $0.height = 25 }
         let j = wb.duplicateSheet(named: "Sheet1")!
-        #expect(wb.sheets[j].rowDimension(3).height == 25)
+        #expect(wb.sheets[j].rowDimension(4).height == 25)
     }
 
     // openpyxl: worksheet/tests/test_worksheet_copy.py::test_copy_col_dimensions
@@ -607,8 +607,8 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
         let ws1 = wb.sheets["original_sheet"]!
         let ws2 = wb.sheets[wb.duplicateSheet(named: "original_sheet")!]
         // PORT-NOTE: `column("A")` now yields values, so the cells of column A are fetched by reference to compare their parts.
-        for r in 0..<ws1.rowCount {
-            let ref = CellRef(row: r, column: 0)
+        for r in 1...Swift.max(1, ws1.rowCount) {
+            let ref = CellRef(row: r, column: 1)
             let c1 = ws1.cell(at: ref), c2 = ws2.cell(at: ref)
             #expect(c1?.value == c2?.value && c1?.openpyxlDataType == c2?.openpyxlDataType && c1?.note == c2?.note && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
         }

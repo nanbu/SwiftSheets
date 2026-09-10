@@ -15,8 +15,8 @@ enum ODSReader {
     /// The default lives on `ReadOptions.cellLimit`; a caller with a genuinely huge sheet (or a tight memory
     /// budget) chooses their own.
     static var maxCells: Int { ReadOptions().cellLimit }
-    static let maxColumns = CellRef.maxColumn + 1
-    static let maxRows = CellRef.maxRow + 1
+    static let maxColumns = CellRef.maxColumn
+    static let maxRows = CellRef.maxRow
 
     static func read(_ data: Data, options: ReadOptions) throws -> (Workbook, [ConversionWarning]) {
         let zip = try ZipArchive(data: data, limits: options.limits)
@@ -96,7 +96,7 @@ enum ODSReader {
                 let hMode = Int(items["HorizontalSplitMode"] ?? "0") ?? 0, vMode = Int(items["VerticalSplitMode"] ?? "0") ?? 0
                 let cols = hMode == 2 ? Int(items["HorizontalSplitPosition"] ?? "0") ?? 0 : 0
                 let rows = vMode == 2 ? Int(items["VerticalSplitPosition"] ?? "0") ?? 0 : 0
-                if rows > 0 || cols > 0 { wb.sheets[i].freezePanes = CellRef(row: rows, column: cols) }
+                if rows > 0 || cols > 0 { wb.sheets[i].freezePanes = CellRef(row: rows + 1, column: cols + 1) }   // the split counts frozen rows / columns
             }
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
@@ -216,8 +216,8 @@ final class ContentParser: SAXHandler {
     // table state
     private var sheet: Sheet?
     private var inTable = false
-    private var columnCursor = 0
-    private var rowCursor = 0
+    private var columnCursor = 1
+    private var rowCursor = 1
     private var groupDepth = 0
     private var columnDefaults: [(start: Int, end: Int, name: String)] = []
 
@@ -235,7 +235,7 @@ final class ContentParser: SAXHandler {
     private var rowMerges: [(column: Int, columns: Int, rows: Int)] = []
     private var rowMatrices: [(column: Int, columns: Int, rows: Int)] = []
     private var rowHasValidation = false
-    private var cellCursor = 0
+    private var cellCursor = 1
 
     // cell state
     private var inCell = false
@@ -354,7 +354,7 @@ final class ContentParser: SAXHandler {
                     .map { var r = $0; r.sheet = nil; return r }
             }
             sheet = s
-            columnCursor = 0; rowCursor = 0; groupDepth = 0; columnDefaults = []
+            columnCursor = 1; rowCursor = 1; groupDepth = 0; columnDefaults = []
             cfRules = []; cfRanges = MultiCellRange(); cfPriority = 0
             validationCells = [:]; styleMapCells = [:]; styleMapColumns = []; sheetHasCalcextFormats = false
         case "table-column":
@@ -364,18 +364,18 @@ final class ContentParser: SAXHandler {
             let width = catalog.columnWidthCharacters(styleName)
             let hidden = ODSAttr.get(a, "table:visibility") == "collapse"
             let defaultCell = ODSAttr.get(a, "table:default-cell-style-name")
-            if let d = defaultCell, d != "Default", columnCursor < ODSReader.maxColumns {
-                columnDefaults.append((columnCursor, Swift.min(columnCursor + n, ODSReader.maxColumns) - 1, d))
+            if let d = defaultCell, d != "Default", columnCursor <= ODSReader.maxColumns {
+                columnDefaults.append((columnCursor, Swift.min(columnCursor + n - 1, ODSReader.maxColumns), d))
             }
-            if catalog.hasBreakBefore(styleName, row: false), n < ODSReader.paddingRepeat, columnCursor < ODSReader.maxColumns {
+            if catalog.hasBreakBefore(styleName, row: false), n < ODSReader.paddingRepeat, columnCursor <= ODSReader.maxColumns {
                 sheet?.columnBreaks.append(columnCursor)
             }
-            if let d = defaultCell, !catalog.conditionalMaps(d).isEmpty, n < ODSReader.paddingRepeat, columnCursor < ODSReader.maxColumns {
-                styleMapColumns.append((d, columnCursor, Swift.min(columnCursor + n, ODSReader.maxColumns) - 1))
+            if let d = defaultCell, !catalog.conditionalMaps(d).isEmpty, n < ODSReader.paddingRepeat, columnCursor <= ODSReader.maxColumns {
+                styleMapColumns.append((d, columnCursor, Swift.min(columnCursor + n - 1, ODSReader.maxColumns)))
             }
             if n < ODSReader.paddingRepeat, width != nil || hidden || (defaultCell != nil && defaultCell != "Default") {
                 let style = defaultCell.flatMap { $0 == "Default" ? nil : catalog.cellStyle(named: $0) }
-                for c in columnCursor..<Swift.min(columnCursor + n, ODSReader.maxColumns) {
+                for c in columnCursor...Swift.min(columnCursor + n - 1, ODSReader.maxColumns) where c >= columnCursor {
                     sheet?.columnDimensions[c] = ColumnDimension(width: width, hidden: hidden, style: style == .default ? nil : style)
                 }
             }
@@ -386,9 +386,9 @@ final class ContentParser: SAXHandler {
             rowRepeat = Swift.max(1, ODSAttr.int(a, "table:number-rows-repeated") ?? 1)
             rowStyle = ODSAttr.get(a, "table:style-name")
             rowHidden = ODSAttr.get(a, "table:visibility") == "collapse"
-            rowCells = []; rowMerges = []; rowMatrices = []; rowHasContent = false; cellCursor = 0
+            rowCells = []; rowMerges = []; rowMatrices = []; rowHasContent = false; cellCursor = 1
             rowValidations = []; rowHasValidation = false; rowStyleMaps = []; rowHasStyleMap = false; rowDetective = []
-            if catalog.hasBreakBefore(rowStyle, row: true), rowCursor < ODSReader.maxRows { sheet?.rowBreaks.append(rowCursor) }
+            if catalog.hasBreakBefore(rowStyle, row: true), rowCursor <= ODSReader.maxRows { sheet?.rowBreaks.append(rowCursor) }
         case "table-cell", "covered-table-cell":
             guard inRow else { return }
             inCell = true
@@ -535,18 +535,18 @@ final class ContentParser: SAXHandler {
             guard dbInFilter, let field = ODSAttr.int(a, "table:field-number") else { return }
             let op = ODSAttr.get(a, "table:operator") ?? "="
             let value = ODSAttr.get(a, "table:value") ?? ""
-            if let i = dbFilters.firstIndex(where: { $0.column == field }) {
+            if let i = dbFilters.firstIndex(where: { $0.columnOffset == field }) {
                 dbFilters[i].conditions.append(FilterCondition(ContentParser.comparison(op), value))
                 dbFilters[i].matchesAllConditions = !dbOr
             } else {
-                var column = FilterColumn(column: field)
+                var column = FilterColumn(columnOffset: field)
                 if let c = ContentParser.top10(op, value) { column.rank = c }
                 else { column.conditions = [FilterCondition(ContentParser.comparison(op), value)] }
                 dbFilters.append(column)
             }
             filterSetTarget = field
         case "filter-set-item":
-            guard let field = filterSetTarget, let i = dbFilters.firstIndex(where: { $0.column == field }) else { return }
+            guard let field = filterSetTarget, let i = dbFilters.firstIndex(where: { $0.columnOffset == field }) else { return }
             let v = ODSAttr.get(a, "table:value") ?? ""
             dbFilters[i].conditions = []
             dbFilters[i].matchesAllConditions = false
@@ -688,7 +688,7 @@ final class ContentParser: SAXHandler {
         for (name, runs) in styleMapCells { byStyle[name] = ContentParser.ranges(of: runs) }
         for column in styleMapColumns {
             var ranges = byStyle[column.style] ?? MultiCellRange()
-            ranges.add(CellRange(minRow: 0, minColumn: column.from, maxRow: lastRow, maxColumn: column.to))
+            ranges.add(CellRange(minRow: 1, minColumn: column.from, maxRow: lastRow, maxColumn: column.to))
             byStyle[column.style] = ranges
         }
         var priority = 0
@@ -719,7 +719,7 @@ final class ContentParser: SAXHandler {
         let a = cellAttrs
         let n = Swift.max(1, intAttr(a, "table:number-columns-repeated") ?? 1)
         defer { cellCursor += n }
-        guard !cellCovered, cellCursor < ODSReader.maxColumns else { return }
+        guard !cellCovered, cellCursor <= ODSReader.maxColumns else { return }
 
         var cell = Cell()
         let styleName = attr(a, "table:style-name")
@@ -755,13 +755,13 @@ final class ContentParser: SAXHandler {
         let matrixRows = intAttr(a, "table:number-matrix-rows-spanned") ?? 0
         if matrixCols > 0, matrixRows > 0 { rowMatrices.append((cellCursor, matrixCols, matrixRows)) }
         if let rule = attr(a, "table:content-validation-name") {
-            rowValidations.append((rule, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
+            rowValidations.append((rule, cellCursor, Swift.min(cellCursor + n - 1, ODSReader.maxColumns)))
             rowHasValidation = true
         }
         if let d = detective, !d.isEmpty { rowDetective.append((cellCursor, d)) }
         detective = nil
         if let styleName, styleName != "Default", !catalog.conditionalMaps(styleName).isEmpty {
-            rowStyleMaps.append((styleName, cellCursor, Swift.min(cellCursor + n, ODSReader.maxColumns) - 1))
+            rowStyleMaps.append((styleName, cellCursor, Swift.min(cellCursor + n - 1, ODSReader.maxColumns)))
             rowHasStyleMap = true
         }
 
@@ -769,7 +769,7 @@ final class ContentParser: SAXHandler {
             || rowDetective.contains { $0.column == cellCursor }
         guard material || (cell.style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
-        let count = Swift.min(n, ODSReader.maxColumns - cellCursor)
+        let count = Swift.min(n, ODSReader.maxColumns - cellCursor + 1)
         for i in 0..<count { rowCells.append((cellCursor + i, cell)) }
     }
 
@@ -883,14 +883,14 @@ final class ContentParser: SAXHandler {
     // MARK: - Rows
 
     private func finishRow() {
-        guard sheet != nil, rowCursor < ODSReader.maxRows else { rowCursor += rowRepeat; return }
+        guard sheet != nil, rowCursor <= ODSReader.maxRows else { rowCursor += rowRepeat; return }
         var s = sheet!
         sheet = nil   // keep the table's storage uniquely referenced while it grows (no copy-on-write per row)
         defer { sheet = s }
         let height = catalog.rowHeightPoints(rowStyle)
         let hasDimension = height != nil || rowHidden || groupDepth > 0
         var expand: Int
-        if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor) }
+        if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor + 1) }
         else if (!rowCells.isEmpty || hasDimension || !rowMerges.isEmpty || rowHasValidation || rowHasStyleMap) && rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
         else { expand = 0 }
         // a repeated row of repeated cells multiplies: clip it to what the document may still spend

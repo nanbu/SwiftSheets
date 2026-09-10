@@ -72,8 +72,8 @@ import SwiftSheets
         var wb = Workbook()
         let img = try Self.image("tiny.png")
         wb.sheets[0].addImage(img, at: "B2", sizing: .resizeCellToFit)
-        #expect(wb.sheets[0].columnDimensions[1]?.width == CellPixels.columnWidth(forPixels: 6))
-        #expect(wb.sheets[0].rowDimensions[1]?.height == CellPixels.rowHeight(forPixels: 4))
+        #expect(wb.sheets[0].columnDimensions[2]?.width == CellPixels.columnWidth(forPixels: 6))
+        #expect(wb.sheets[0].rowDimensions[2]?.height == CellPixels.rowHeight(forPixels: 4))
     }
 
     /// The heart of the phase: a sheet that already carries a drawing (a chart) keeps every byte of what was

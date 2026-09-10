@@ -34,7 +34,7 @@ import Testing
         // it binds tighter than arithmetic and looser than the range operator
         #expect(FormulaExpr.parse("A1:B5 B1:D5*2") == .binary(.multiply, cross, .number(2)))
         // and follows edits like any other reference
-        #expect(cross.shiftingReferences(axis: .rows, at: 0, delta: 2, onSheet: { _ in true }).rendered(as: .xlsx) == "A3:B7 B3:D7")
+        #expect(cross.shiftingReferences(axis: .rows, at: 1, delta: 2, onSheet: { _ in true }).rendered(as: .xlsx) == "A3:B7 B3:D7")
     }
 
     /// Names take part in an intersection in Excel (`MyName Other`), but OpenFormula's `!` is also how a
@@ -123,17 +123,17 @@ import Testing
 
     @Test func insertingRowsShiftsReferencesBelow() {
         let ast = FormulaExpr.parse("SUM(A1:A5)+B3+$B$1+Other!B3")
-        let shifted = ast.shiftingReferences(axis: .rows, at: 2, delta: 2) { $0 == nil }
+        let shifted = ast.shiftingReferences(axis: .rows, at: 3, delta: 2) { $0 == nil }
         #expect(shifted.rendered(as: .xlsx) == "SUM(A1:A7)+B5+$B$1+Other!B3")
     }
 
     @Test func deletingRowsShrinksRangesAndInvalidatesCells() {
         let ast = FormulaExpr.parse("SUM(A1:A5)+B3+B6")
-        let shifted = ast.shiftingReferences(axis: .rows, at: 2, delta: -1) { $0 == nil }
+        let shifted = ast.shiftingReferences(axis: .rows, at: 3, delta: -1) { $0 == nil }
         #expect(shifted.rendered(as: .xlsx) == "SUM(A1:A4)+#REF!+B5")
-        let gone = FormulaExpr.parse("SUM(A2:A3)").shiftingReferences(axis: .rows, at: 1, delta: -2) { $0 == nil }
+        let gone = FormulaExpr.parse("SUM(A2:A3)").shiftingReferences(axis: .rows, at: 2, delta: -2) { $0 == nil }
         #expect(gone.rendered(as: .xlsx) == "SUM(#REF!)")
-        let cols = FormulaExpr.parse("SUM(B1:D1)+C:C").shiftingReferences(axis: .columns, at: 2, delta: -1) { $0 == nil }
+        let cols = FormulaExpr.parse("SUM(B1:D1)+C:C").shiftingReferences(axis: .columns, at: 3, delta: -1) { $0 == nil }
         #expect(cols.rendered(as: .xlsx) == "SUM(B1:C1)+#REF!")
     }
 
@@ -144,11 +144,11 @@ import Testing
         wb.sheets[0]["A2"] = 2
         wb.sheets[0]["B1"] = .formula("=SUM(A1:A2)+Other!A1")
         wb.sheets[1]["A1"] = .formula("=Sheet1!A2*2")
-        wb.sheets[0].insertRows(at: 1, count: 1)   // only this sheet's own references move
+        wb.sheets[0].insertRows(at: 2, count: 1)   // only this sheet's own references move
         #expect(wb.sheets[0]["B1"]?.formula?.text == "=SUM(A1:A3)+Other!A1")
         #expect(wb.sheets[0]["A3"] == .integer(2))
         #expect(wb.sheets[1]["A1"]?.formula?.text == "=Sheet1!A2*2")
-        wb.insertRows(inSheet: "Sheet1", at: 0, count: 1)   // workbook-wide
+        wb.insertRows(inSheet: "Sheet1", at: 1, count: 1)   // workbook-wide
         #expect(wb.sheets[0]["B2"]?.formula?.text == "=SUM(A2:A4)+Other!A1")
         #expect(wb.sheets[1]["A1"]?.formula?.text == "=Sheet1!A3*2")
         wb.sheets[0].name = "Main"

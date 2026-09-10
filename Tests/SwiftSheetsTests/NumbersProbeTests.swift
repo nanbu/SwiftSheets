@@ -46,7 +46,7 @@ import SwiftSheets
 
         var sized = Workbook()
         sized.sheets[0]["A1"] = "sized"
-        sized.sheets[0].setWidth(30, ofColumn: "A"); sized.sheets[0].setHeight(40, ofRow: 0)
+        sized.sheets[0].setWidth(30, ofColumn: "A"); sized.sheets[0].setHeight(40, ofRow: 1)
         out.append(("07-sizes", sized))
 
         var merged = Workbook()
@@ -84,7 +84,7 @@ import SwiftSheets
 
         var conditional = Workbook()
         var c = conditional.sheets[0]
-        for r in 0..<5 { c[CellRef(row: r, column: 0)] = .integer(r * 7) }
+        for r in 1...5 { c[CellRef(row: r, column: 1)] = .integer(r * 7) }
         c.addConditionalFormatting(.cellIs(.greaterThan, "11", paint: .highlight(fill: Color(hex: "FFC7CE")), priority: 1), over: "A1:A5")
         conditional.sheets[0] = c
         out.append(("12-conditional-format", conditional))
@@ -115,7 +115,7 @@ import SwiftSheets
 
         var big = Workbook()
         var b = big.sheets[0]
-        for r in 0..<300 { b[CellRef(row: r, column: 0)] = .integer(r) }
+        for r in 1...300 { b[CellRef(row: r, column: 1)] = .integer(r) }
         big.sheets[0] = b
         out.append(("16-two-tiles", big))
 

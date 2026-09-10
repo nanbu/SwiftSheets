@@ -30,8 +30,8 @@ struct NumbersFormulaDecoder {
               let rowNode = nodes[0].message("AST_row"), let colNode = nodes[0].message("AST_column") else { return nil }
         let r = (rowNode.bool("absolute") ?? false) ? (rowNode.int("row") ?? 0) : row + (rowNode.int("row") ?? 0)
         let c = (colNode.bool("absolute") ?? false) ? (colNode.int("column") ?? 0) : column + (colNode.int("column") ?? 0)
-        guard r >= 0, c >= 0, r <= CellRef.maxRow, c <= CellRef.maxColumn else { return nil }
-        return CellRef(row: r, column: c)
+        guard r >= 0, c >= 0, r < CellRef.maxRow, c < CellRef.maxColumn else { return nil }
+        return CellRef(row: r + 1, column: c + 1)   // the file counts from 0, the model from 1 (B.61)
     }
 
     mutating func text(for formula: ProtoMessage, row: Int, column: Int) -> String? {
@@ -139,10 +139,11 @@ struct NumbersFormulaDecoder {
             let rowsOpen = r0 == 0x7FFF_FFFF, colsOpen = c0 == 0x7FFF
             let ar0 = sticky?.bool("begin_row_is_absolute") ?? false, ar1 = sticky?.bool("end_row_is_absolute") ?? false
             let ac0 = sticky?.bool("begin_column_is_absolute") ?? false, ac1 = sticky?.bool("end_column_is_absolute") ?? false
-            if rowsOpen { return prefix + (ac0 ? "$" : "") + CellRef.columnName(c0) + ":" + (ac1 ? "$" : "") + CellRef.columnName(c1) }
+            // the file counts from 0; A1 text (and the model) from 1
+            if rowsOpen { return prefix + (ac0 ? "$" : "") + CellRef.columnName(c0 + 1) + ":" + (ac1 ? "$" : "") + CellRef.columnName(c1 + 1) }
             if colsOpen { return prefix + (ar0 ? "$" : "") + String(r0 + 1) + ":" + (ar1 ? "$" : "") + String(r1 + 1) }
-            let a = (ac0 ? "$" : "") + CellRef.columnName(c0) + (ar0 ? "$" : "") + String(r0 + 1)
-            let b = (ac1 ? "$" : "") + CellRef.columnName(c1) + (ar1 ? "$" : "") + String(r1 + 1)
+            let a = (ac0 ? "$" : "") + CellRef.columnName(c0 + 1) + (ar0 ? "$" : "") + String(r0 + 1)
+            let b = (ac1 ? "$" : "") + CellRef.columnName(c1 + 1) + (ar1 ? "$" : "") + String(r1 + 1)
             return prefix + (a == b && !(ac0 != ac1 || ar0 != ar1) ? a : a + ":" + b)
         }
         let rowNode = node.message("AST_row"), colNode = node.message("AST_column")
@@ -150,8 +151,8 @@ struct NumbersFormulaDecoder {
         let r = rowNode.map { absRow ? ($0.int("row") ?? 0) : row + ($0.int("row") ?? 0) }
         let c = colNode.map { absCol ? ($0.int("column") ?? 0) : column + ($0.int("column") ?? 0) }
         if let r, colNode == nil { return prefix + (absRow ? "$" : "") + String(r + 1) + ":" + (absRow ? "$" : "") + String(r + 1) }
-        if let c, rowNode == nil { return prefix + (absCol ? "$" : "") + CellRef.columnName(c) + ":" + (absCol ? "$" : "") + CellRef.columnName(c) }
-        return prefix + (absCol ? "$" : "") + CellRef.columnName(c ?? 0) + (absRow ? "$" : "") + String((r ?? 0) + 1)
+        if let c, rowNode == nil { return prefix + (absCol ? "$" : "") + CellRef.columnName(c + 1) + ":" + (absCol ? "$" : "") + CellRef.columnName(c + 1) }
+        return prefix + (absCol ? "$" : "") + CellRef.columnName((c ?? 0) + 1) + (absRow ? "$" : "") + String((r ?? 0) + 1)
     }
 }
 
@@ -322,16 +323,17 @@ struct NumbersFormulaEncoder {
         return .other(extra)
     }
 
+    /// `index` and `host` are screen numbers; the file stores an absolute coordinate from 0 and a relative one as a difference.
     private func rowCoordinate(_ index: Int, absolute: Bool, host: Int) -> ProtoMessage {
         var m = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTRowCoordinateArchive")
-        m.set("row", int: absolute ? index : index - host)
+        m.set("row", int: absolute ? index - 1 : index - host)
         m.set("absolute", bool: absolute)
         return m
     }
 
     private func columnCoordinate(_ index: Int, absolute: Bool, host: Int) -> ProtoMessage {
         var m = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive.ASTColumnCoordinateArchive")
-        m.set("column", int: absolute ? index : index - host)
+        m.set("column", int: absolute ? index - 1 : index - host)
         m.set("absolute", bool: absolute)
         return m
     }

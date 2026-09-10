@@ -903,7 +903,7 @@ pre .vr { color: var(--code-var); }
     <tr><td>数値</td><td><code>Decimal</code></td><td>Numbers は decimal128 で格納する。<code>Double</code> 経由は往復で精度を失う</td></tr>
     <tr><td>日付</td><td><code>Date</code>（+ 表示書式は CellStyle）</td><td>XLSX のシリアル値（1900系・1904系）、ODS の ISO 8601、Numbers のエポックを出口変換に押し込む</td></tr>
     <tr><td>数式</td><td>正規形 AST（第5章）</td><td>方言（区切り文字・参照記法）は表現であって意味ではない</td></tr>
-    <tr><td>座標</td><td>0-based の <code>CellRef(row:column:)</code>（Rev 4.49 まで <code>col:</code>）</td><td>A1 記法との相互変換はユーティリティに隔離。bijective base-26 を単体テストで固める</td></tr>
+    <tr><td>座標</td><td>画面の番号（1 始まり）の <code>CellRef(row:column:)</code>（Rev 4.50・B.61。それまでは 0 始まり、Rev 4.49 まで <code>col:</code>）</td><td>A1 記法との相互変換はユーティリティに隔離。bijective base-26 を単体テストで固める</td></tr>
   </table></div>
 
   <div class="callout callout-pitfall">
@@ -1043,7 +1043,7 @@ pre .vr { color: var(--code-var); }
   <div class="compare"><table>
     <tr><th>項目</th><th>XLSX</th><th>ODS (OpenFormula)</th><th>正規形（AST）での扱い</th></tr>
     <tr><td>引数区切り</td><td><code>,</code></td><td><code>;</code></td><td>ASTでは配列。出口で選択</td></tr>
-    <tr><td>セル参照</td><td><code>A1</code> / <code>Sheet2!A1</code></td><td><code>[.A1]</code> / <code>[Sheet2.A1]</code></td><td>0-based CellRef + シート名</td></tr>
+    <tr><td>セル参照</td><td><code>A1</code> / <code>Sheet2!A1</code></td><td><code>[.A1]</code> / <code>[Sheet2.A1]</code></td><td>CellRef（画面の番号）＋シート名</td></tr>
     <tr><td>単項マイナス</td><td colspan="2"><code>-2^2 = 4</code>（<code>-</code> が <code>^</code> より高優先）</td><td>パーサの優先順位表で共通化</td></tr>
     <tr><td>数式接頭辞</td><td><code>=</code>（XML内では無し）</td><td><code>of:=</code></td><td>ASTに含めない。出口で付与</td></tr>
     <tr><td>関数名</td><td colspan="2">大部分は共通。固有関数は変換不能</td><td>正規名（英大文字）で保持。変換不能は <code>ConversionWarning.dropped</code></td></tr>
@@ -1493,7 +1493,7 @@ pre .vr { color: var(--code-var); }
     <li><strong>値型と明示的保存</strong> — <code>Workbook</code> は struct。編集は値の変更、永続化は <code>write(to:)</code> のみ。暗黙の副作用を持たない</li>
     <li><strong>失敗は throws、損失は warnings</strong> — 読めない・書けないは例外、書けたが劣化したは <code>WriteResult.warnings</code>。黙って落ちる経路を作らない</li>
     <li><strong>型付きの値</strong> — openpyxl の「なんでも <code>cell.value</code>」に対し、取得は <code>CellValue</code> enum、代入はリテラル変換（<code>Int</code> / <code>String</code> / <code>Date</code> / <code>Bool</code> / <code>Formula</code>）で受ける</li>
-    <li><strong>座標は二本立て</strong> — A1 文字列（1始まり）と <code>[row, col]</code>（0始まり）の両方を提供。混同事故を防ぐため整数版に 1 始まりは存在しない</li>
+    <li><strong>座標は画面の番号</strong> — A1 文字列も整数の <code>[row, column]</code> も 1 始まりで同じ位置を指す（Rev 4.50・B.61。それまでは整数だけ 0 始まりで、次の文はその時代の判断）。旧: A1 文字列（1始まり）と <code>[row, col]</code>（0始まり）の両方を提供。混同事故を防ぐため整数版に 1 始まりは存在しない</li>
   </ul>
 
   <h3>14.2 ワークブック — 生成・読み込み・保存</h3>
@@ -1549,7 +1549,7 @@ print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>ws['A1'].value</code></td><td><code>sheet["A1"]</code></td><td>取得。<code>CellValue?</code>（空セルは nil）</td></tr>
     <tr><td><code>ws['A1'] = 42</code></td><td><code>sheet["A1"] = 42</code></td><td>代入。<code>Int</code> / <code>Double</code> / <code>Decimal</code> / <code>String</code> / <code>Date</code> / <code>Bool</code> / <code>Formula</code> / <code>nil</code> をリテラル変換で受理</td></tr>
-    <tr><td><code>ws.cell(row=1, column=2)</code></td><td><code>sheet[0, 1]</code></td><td><strong>0 始まり</strong>の整数添字。A1 は 1 始まり — 二重系統を混ぜない</td></tr>
+    <tr><td><code>ws.cell(row=1, column=2)</code></td><td><code>sheet[1, 2]</code></td><td>openpyxl と同じ<strong>画面の番号</strong>（Rev 4.50・B.61）。Swift のコレクションの位置だけが 0 始まり</td></tr>
     <tr><td><code>ws['A1':'C3']</code></td><td><code>sheet.range("A1:C3")</code></td><td>範囲ビュー（遅延・コピーなし）</td></tr>
     <tr><td><code>ws.iter_rows(values_only=True)</code></td><td><code>for row in sheet.rows(in: "A2:D100")</code></td><td>行単位走査。<code>row</code> は <code>[CellValue?]</code></td></tr>
     <tr><td><code>ws.iter_cols(...)</code></td><td><code>sheet.columns(in:)</code></td><td>列単位走査</td></tr>
@@ -1575,7 +1575,7 @@ sheet[<span class="st">"C1"</span>] = <span class="ty">Date</span>()
   <h3>14.5 行・列・構造操作</h3>
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
-    <tr><td><code>ws.insert_rows(2, amount=3)</code></td><td><code>sheet.insertRows(at: 1, count: 3)</code></td><td>行挿入（0始まり）。<strong>数式内参照を AST 経由で自動シフト</strong>（openpyxl は数式を追随させない — 本ライブラリの差別化点）</td></tr>
+    <tr><td><code>ws.insert_rows(2, amount=3)</code></td><td><code>sheet.insertRows(at: 2, count: 3)</code></td><td>行挿入（画面の行番号の前に。Rev 4.50）。<strong>数式内参照を AST 経由で自動シフト</strong>（openpyxl は数式を追随させない — 本ライブラリの差別化点）</td></tr>
     <tr><td><code>ws.delete_rows(2)</code></td><td><code>sheet.deleteRows(at: 1, count: 1)</code></td><td>行削除。参照切れは <code>#REF!</code> エラー値へ置換</td></tr>
     <tr><td><code>ws.insert_cols / delete_cols</code></td><td><code>sheet.insertColumns / deleteColumns</code></td><td>列版。挙動は行と対称</td></tr>
     <tr><td><code>ws.merge_cells('A1:C1')</code></td><td><code>sheet.merge("A1:C1")</code></td><td>セル結合</td></tr>
@@ -1647,7 +1647,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
   <h3>14.10 ユーティリティ</h3>
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
-    <tr><td><code>get_column_letter(3)</code> → <code>'C'</code></td><td><code>ColumnName(2)</code> → <code>"C"</code></td><td>0 始まり。bijective base-26</td></tr>
+    <tr><td><code>get_column_letter(3)</code> → <code>'C'</code></td><td><code>CellRef.columnName(3)</code> → <code>"C"</code></td><td>1 = A（Rev 4.50）。bijective base-26</td></tr>
     <tr><td><code>column_index_from_string('C')</code></td><td><code>ColumnIndex("C")</code> → <code>2</code></td><td>逆変換</td></tr>
     <tr><td><code>coordinate_from_string('B3')</code></td><td><code>CellRef("B3")</code></td><td>失敗可能イニシャライザ</td></tr>
     <tr><td>—</td><td><code>CellRange("A1:C3").contains(CellRef("B2"))</code></td><td>範囲演算</td></tr>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.50 Draft</td><td>2026-09-10</td><td><strong>セル座標の整数を 1 始まりに</strong>。<code>CellRef(row: 1, column: 1)</code> が A1。座標（<code>CellRef</code>・<code>CellRange</code>・添字・行列の寸法・挿入削除・グループ・印刷タイトル・逐次読みの行番号・列名の関数）は画面の番号、Swift のコレクションの位置（シート・ピボットの欄・配列）は 0 始まりのまま。<code>rowNumber</code> は不要になり消える。<code>FilterColumn.column</code> は <code>columnOffset</code>、<code>RangeView</code> の相対添字は <code>[rowOffset:columnOffset:]</code>（B.61）。</td></tr>
     <tr><td>4.49 Draft</td><td>2026-09-10</td><td>略語を語に。<code>col</code> → <code>column</code>・<code>cols</code> → <code>columns</code>・<code>minCol</code>/<code>maxCol</code> → <code>minColumn</code>/<code>maxColumn</code>（<code>CellRef</code>・<code>CellRange</code>・<code>RangeBounds</code>・<code>offset</code>・<code>shift</code>・<code>moveRange</code>・<code>size</code>・<code>RangeView</code> の添字）、<code>SheetView.sqref</code> → <code>selectedRanges</code>。座標系・範囲端・既定値・保存形式は変えない（B.60）。</td></tr>
     <tr><td>4.48 Draft</td><td>2026-09-10</td><td><code>Sheet.tabColor</code> を <code>String?</code> から <code>Color?</code> へ。<code>SheetProperties.tabColor</code> と同じ値の表玄関にし、テーマ色・インデックス色が RGB 以外だからと nil に化けることをやめる（B.59）。</td></tr>
     <tr><td>4.47 Draft</td><td>2026-09-10</td><td>便利 API の整理。<code>dataType</code>（openpyxl の 1 文字）を廃止、<code>pythonString</code> を <code>stringValue</code> に統合（表現は変えない）、グローバル関数 <code>Formula(_:)</code> を <code>CellValue.formula(_:dialect:)</code> へ。A1 文字列の双子プロパティ（<code>freezePanesA1</code>・<code>autoFilterA1</code>・<code>dimensions</code>）は残す（B.58）。</td></tr>
@@ -1980,7 +1981,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td><code>Sheet.tables</code>・<code>Table.columnWidths</code></td><td>同じ構造。<code>Table</code> は <code>rowDimensions</code> / <code>columnDimensions</code>（高さ・幅・非表示・アウトライン・列既定スタイル）と <code>merges</code> を持つ。<code>Sheet</code> はセル API を既定テーブルへ転送する</td><td>§14.3 の「XLSX / ODS だけなら Table を意識しない」を API で保証する</td></tr>
     <tr><td>シート名の検証</td><td><code>Workbook.sheets</code>（<code>Sheets</code> コレクション）に収めた時点で検証・重複回避（不正名は旧名維持、重複は数字サフィックス）。改名時は全シートの数式内参照を AST 経由で追随</td><td>値型ではシート単体が兄弟を知らないため</td></tr>
     <tr><td><code>Workbook()</code> は "Sheet1"</td><td>同じ（openpyxl の "Sheet" から変更）</td><td>本文どおり</td></tr>
-    <tr><td><code>ColumnName(2)</code> / <code>ColumnIndex("C")</code></td><td><code>CellRef.columnName(2)</code> / <code>CellRef.columnIndex("C")</code></td><td>大文字の関数名は Swift では型に見える。意味は同じ（0 始まり）</td></tr>
+    <tr><td><code>ColumnName(2)</code> / <code>ColumnIndex("C")</code></td><td><code>CellRef.columnName(3)</code> / <code>CellRef.columnIndex("C")</code></td><td>大文字の関数名は Swift では型に見える。番号は 1 = A（Rev 4.50 まで 0 始まり）</td></tr>
     <tr><td><code>Formula("=…")</code>（型）</td><td><code>CellValue.formula(_:dialect:)</code>（Rev 4.47 まではグローバル関数 <code>Formula(_:)</code>）——<code>sheet["C1"] = .formula("=SUM(A1:B2)")</code> は本文どおり書ける）。型としては <code>FormulaExpr</code></td><td>添字の代入型を <code>CellValue?</code> 一本に保つため</td></tr>
     <tr><td>—</td><td><code>Comment</code> は <code>CellNote</code>、プロパティは <code>cell.note</code>（Rev 4.45・B.56）</td><td>Excel の現行の呼び名は「メモ」。「コメント」はスレッド形式の別物に空けておく</td></tr>
     <tr><td>—</td><td><code>Workbook.epoch</code>（1900 / 1904）・<code>indexedColors</code>・<code>codeName</code> をモデルに保持</td><td>ファイル単位の意味属性であり、書き出し時に利用者が指定し得る（シリアル値そのものは持たない）</td></tr>
@@ -2245,7 +2246,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
           <code>&amp;L</code> / <code>&amp;C</code> / <code>&amp;R</code> の符号つき文字列を<strong>分解せずそのまま</strong>運ぶ
           （openpyxl は左中右に割る）。モデルが知らない符号を往復で失わないため。</li>
         <li><strong>改ページ</strong> — <code>Sheet.rowBreaks</code> / <code>columnBreaks</code>、0 始まりの索引。
-          <code>&lt;brk id&gt;</code> は仕様上 0 始まりなのでそのまま。</li>
+          <code>&lt;brk id&gt;</code> の値をファイルの綴りのまま持つ（改ページの上の行の番号。Rev 4.50・B.61）。</li>
       </ul>
       4 つとも今までは「未解釈の子要素」として断片保全されていた（同形式の書き戻しでは失われない）ので、
       今回の変更は API と<strong>変換</strong>のためのもの。読みで解釈するようになった分、断片としては捕まえなくなる
@@ -6308,6 +6309,45 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>改名は呼び出し側がコンパイルで全部見つかる（本体・テストで約 500 行）。動きは変えていないので、
   座標の検査（<code>CoordinateStringTests</code>・<code>CellParityTests</code>・<code>WorksheetParityTests</code>）と全形式の往復が
   そのまま通ることを見る。</p>
+
+  <h3>B.61 セル座標の整数は画面の番号——1 始まり（Rev 4.50）</h3>
+  <p>2026-09-10 決定（「1 始まりへ」）。世の中の API の数え方の比較は本節の「規則は一文」に要約した。
+  <code>CellRef(row: 1, column: 1)</code> が A1 になる。それまでの「整数は 0 始まり、A1 文字列だけが 1 始まり」（README・§3・第 14 章）を改める。
+  互換の別名は置かない（B.53）。</p>
+  <p><strong>規則は一文。</strong>セルの座標は画面の番号、Swift のコレクションの位置は Swift の添字。①Excel VBA・Numbers の AppleScript・
+  Google Apps Script・openpyxl・ClosedXML・EPPlus・ExcelJS——画面の表を扱う API はどれも 1 始まりで、POI・SheetJS・xlsxwriter・LibreOffice UNO・
+  Google Sheets API・numbers-parser——表を行列として扱う API は 0 始まり。言語ではなく相手で分かれる。②この library の表面は A1 と行番号でできていて、
+  0 始まりの整数を渡すために Stream は取り込みの 20 か所で <code>ws[r - 1, c - 1]</code> と換算していた。文言のために <code>rowNumber</code> を
+  別に持つ必要もあった。③だから座標は画面の番号にし、換算はコーデックの中（ファイルが 0 始まりの Numbers・図形のアンカー・VML）と、
+  配列を引く 1 点（<code>values[cell.column - 1]</code>）に集める。openpyxl が 10 年以上同じ規則（シートは 0・セルは 1）で困っていないことも根拠にした。</p>
+  <p><strong>画面の番号になるもの（1 始まり）。</strong><code>CellRef.row</code> / <code>.column</code>・<code>CellRef.maxRow</code>（1,048,576）/
+  <code>.maxColumn</code>（16,384）・<code>CellRange</code> と <code>RangeBounds</code> の 4 つの端・<code>sheet[row, column]</code> と
+  <code>Table</code> の添字・<code>rowDimensions</code> / <code>columnDimensions</code> の鍵・<code>rowDimension(_:)</code> / <code>columnDimension(_:)</code> /
+  <code>setWidth(_:ofColumn:)</code> / <code>setHeight(_:ofRow:)</code>・<code>insertRows(at:)</code> と 3 つの兄弟（<code>Sheet</code>・<code>Workbook</code> 両方。
+  <code>at: 2</code> は Excel の「2 行目に挿入」と同じ意味）・<code>groupRows</code> / <code>groupColumns</code> の範囲・<code>printTitleRows</code> /
+  <code>printTitleColumns</code>・<code>autofitColumn(_:)</code>・<code>append([Int: CellValue?])</code> の鍵・<code>Table.anchor</code>・<code>nextAppendRow</code>・
+  <code>StructuredTable.dataRows</code>・<code>StreamedRow.index</code>・<code>CellRef.columnName(_:)</code>（1 → "A"）/ <code>columnIndex(_:)</code>（"A" → 1）/
+  <code>columnNames(from:to:)</code>・<code>Table.column(_:)</code> / <code>row(_:)</code> の引数・<code>FormulaExpr.column</code> / <code>.row</code> の番号。
+  <code>rowNumber</code> は <code>row</code> そのものになったので消える。</p>
+  <p><strong>Swift の添字のまま（0 始まり）。</strong>シートの位置（<code>sheets[i]</code>・<code>removeSheet(at:)</code>・<code>editSheet(at:)</code>・
+  <code>addSheet(named:at:)</code>・<code>moveSheet</code>）・ピボットの欄番号（<code>rowFields</code>・<code>columnFields</code>・<code>PivotItem.index</code>）・
+  逐次読みの <code>table:</code> 引数・<code>RangeView.Row</code> のコレクションとしての添字・配列を返す API（<code>rows(in:)</code>・<code>columns(in:)</code>・
+  <code>values(in:)</code>・<code>Table.column(_:)</code> / <code>row(_:)</code> の戻り値・<code>StreamedRow.values(width:)</code>——添字 0 が列 A）。</p>
+  <p><strong>名前を変えた 2 つ。</strong><code>FilterColumn.column</code> は座標の名で位置の意味（ファイルの <code>colId</code>・絞り込み範囲の先頭からの
+  0 始まりの距離）だったので <code>columnOffset</code> に改め、値は変えない。<code>RangeView</code> の相対添字 <code>view[0, 0]</code> は
+  <code>view[rowOffset: 0, columnOffset: 0]</code>——範囲の左上からの距離で、これも 0 始まりのまま。</p>
+  <p><strong>ファイルの綴りのまま。</strong><code>rowBreaks</code> / <code>columnBreaks</code> は <code>&lt;brk id&gt;</code> の値を持つ（改ページの上の行の番号）。
+  Excel が書いた改ページの見本が手元に無く、「id 5 は 5 行目の下か 6 行目の下か」は<strong>未検証</strong>のため換算しない。</p>
+  <p><strong>コーデックの境界。</strong>XLSX の <code>&lt;row r&gt;</code>・<code>&lt;col min max&gt;</code>・A1 はファイルが 1 始まりなので換算が<strong>消え</strong>、
+  図形のアンカー <code>&lt;xdr:col&gt;</code> / <code>&lt;xdr:row&gt;</code> と VML の <code>&lt;x:Row&gt;</code> / <code>&lt;x:Column&gt;</code>（0 始まり）に読み書きとも
+  ±1 が<strong>付く</strong>。固定ウィンドウの <code>xSplit</code> / <code>ySplit</code> は凍結する行数・列数（＝固定セルの番号 − 1）。Numbers の IWA は
+  行・列とも 0 始まりで、セルの記録・行と列の寸法・結合範囲・数式の<strong>絶対参照</strong>に ±1 が付く——相対参照は差分なので動かない。ODS はファイルに
+  整数の索引が無く、読み手の行・列のカーソルが 1 から数え始めるだけ。CSV は <code>enumerated()</code> の位置に +1。</p>
+  <p><strong>利用側。</strong>Stream の取り込みは 20 か所の <code>- 1</code> を消す。LeftRight は逐次読みの行を配列に展開する 1 か所で
+  <code>cells[cell.ref.column - 1]</code> にする。</p>
+  <p><strong>検査。</strong>全検査（1,128 件）を新しい数え方に直して通す。openpyxl から移植した検査は openpyxl の 1 始まりの引数をそのまま渡せるようになり、
+  換算が減る。numbers-parser の照合データ（0 始まり）だけは検査側で +1 する。書く入口は行 0・列 0 で理由の文つきに止まる（B.53 の規則）。
+  換算の境界は、A1 で置いた値が A1 として読み戻ることを全形式の往復で見る（既存の往復検査がそのまま担う）。</p>
 </section>
 
 </div><!-- /.container -->

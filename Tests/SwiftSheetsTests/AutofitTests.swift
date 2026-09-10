@@ -29,35 +29,35 @@ import SwiftSheets
         sheet["B1"] = true                          // TRUE: 31 px
         sheet["C1"] = 123                           // 3 digits × 7 = 21 px
         sheet.autofitColumns()
-        #expect(sheet.columnDimensions[0]?.width == (33 + 7 - 5) / 7.0)
-        #expect(sheet.columnDimensions[1]?.width == (31 + 7 - 5) / 7.0)
-        #expect(sheet.columnDimensions[2]?.width == (21 + 7 - 5) / 7.0)
+        #expect(sheet.columnDimensions[1]?.width == (33 + 7 - 5) / 7.0)
+        #expect(sheet.columnDimensions[2]?.width == (31 + 7 - 5) / 7.0)
+        #expect(sheet.columnDimensions[3]?.width == (21 + 7 - 5) / 7.0)
     }
 
     /// A column the caller already made wider is not narrowed; a narrower one grows.
     @Test func autofitOnlyGrows() {
         var sheet = Sheet(name: "S")
         sheet["A1"] = "Hi"
-        sheet.setWidth(50, ofColumn: 0)
-        sheet.autofitColumn(0)
-        #expect(sheet.columnDimensions[0]?.width == 50, "a wide column stays wide")
-        sheet.setWidth(1, ofColumn: 0)
+        sheet.setWidth(50, ofColumn: 1)
+        sheet.autofitColumn(1)
+        #expect(sheet.columnDimensions[1]?.width == 50, "a wide column stays wide")
+        sheet.setWidth(1, ofColumn: 1)
         sheet.autofitColumn("A")
-        #expect(sheet.columnDimensions[0]?.width ?? 0 > 1, "a narrow one grows to fit")
+        #expect(sheet.columnDimensions[1]?.width ?? 0 > 1, "a narrow one grows to fit")
     }
 
     /// The cap and the filter button: a long text stops at maxWidth, a filtered column gets 16 px more.
     @Test func capAndFilterButton() {
         var sheet = Sheet(name: "S")
         sheet["A1"] = CellValue.text(String(repeating: "w", count: 300))
-        sheet.autofitColumn(0, maxWidth: 40)
-        #expect(sheet.columnDimensions[0]?.width == 40)
+        sheet.autofitColumn(1, maxWidth: 40)
+        #expect(sheet.columnDimensions[1]?.width == 40)
 
         var filtered = Sheet(name: "F")
         filtered["A1"] = "Hello"
         filtered.autoFilter = CellRange("A1:A9")
-        filtered.autofitColumn(0)
-        #expect(filtered.columnDimensions[0]?.width == (33 + 16 + 7 - 5) / 7.0)
+        filtered.autofitColumn(1)
+        #expect(filtered.columnDimensions[1]?.width == (33 + 16 + 7 - 5) / 7.0)
     }
 
     /// A formula measures by its cached value; without one it moves nothing.
@@ -66,7 +66,7 @@ import SwiftSheets
         sheet["A1"] = CellValue.formula(FormulaExpr.number(1), cached: .text("cached text"))
         sheet["B1"] = .formula("=A1*2")              // no cached value
         sheet.autofitColumns()
-        #expect(sheet.columnDimensions[0]?.width == Double(TextWidth.pixels("cached text") + 7 - 5) / 7.0)
-        #expect(sheet.columnDimensions[1]?.width == nil, "nothing measurable, nothing set")
+        #expect(sheet.columnDimensions[1]?.width == Double(TextWidth.pixels("cached text") + 7 - 5) / 7.0)
+        #expect(sheet.columnDimensions[2]?.width == nil, "nothing measurable, nothing set")
     }
 }

@@ -66,7 +66,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = "x"
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "C1", sizing: .scaled(width: 96, height: 48))
         wb.sheets[0].setWidth(6, ofColumn: "D")     // 47 px
-        wb.sheets[0].setHeight(24, ofRow: 0)        // 32 px
+        wb.sheets[0].setHeight(24, ofRow: 1)        // 32 px
         wb.sheets[0].addImage(try Self.image("tiny.jpg"), at: "D1", sizing: .fitCell)
         let content = try Self.part("content.xml", of: try wb.write(as: .ods).data)
         let frames = Self.frames(in: content)

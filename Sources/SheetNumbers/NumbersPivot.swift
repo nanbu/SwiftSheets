@@ -210,6 +210,11 @@ enum NumbersPivot {
     /// every *other* reader shows, and what the model reads back.
     struct Layout {
         var table: Table
+        /// The grid by lane — 0-based, as the writer counts its lanes; `table` is a model table and counts from 1 (B.61).
+        subscript(lane r: Int, _ c: Int) -> CellValue? {
+            get { table[r + 1, c + 1] }
+            set { table[r + 1, c + 1] = newValue }
+        }
         var headerRows = 0
         var headerColumns = 0
         /// The grid's lane UUIDs (header lanes + leaf lanes), grid order.
@@ -302,9 +307,9 @@ enum NumbersPivot {
         // heading rows, one per column field: the field’s name in the last label column, each depth-(ℓ+1)
         // ancestor’s label on the first lane of its span
         for l in columnFields.indices {
-            out.table[l, out.headerColumns - 1] = .text(source[columnFields[l]].name)
+            out[lane: l, out.headerColumns - 1] = .text(source[columnFields[l]].name)
             for (i, leaf) in columnLeaves.enumerated() where columnLeafFlags[PathUIDs.key(leaf.path)]?[l + 1] == true {
-                out.table[l, out.headerColumns + i * columnFactor] = label(Array(leaf.path.prefix(l + 1)))
+                out[lane: l, out.headerColumns + i * columnFactor] = label(Array(leaf.path.prefix(l + 1)))
             }
         }
         // the caption row, when there are row fields: the row fields’ names over their label columns, and the
@@ -312,15 +317,15 @@ enum NumbersPivot {
         // (measured: `Region,Qty（合計）,,` against `Region,Qty（合計）,Price（合計）,Qty（合計）,…`)
         if !rowFields.isEmpty {
             let cr = columnFields.count
-            for l in rowFields.indices { out.table[cr, l] = .text(source[rowFields[l]].name) }
+            for l in rowFields.indices { out[lane: cr, l] = .text(source[rowFields[l]].name) }
             if columnFields.isEmpty {
-                for d in 0..<V { out.table[cr, out.headerColumns + d] = .text(caption(d)) }
+                for d in 0..<V { out[lane: cr, out.headerColumns + d] = .text(caption(d)) }
             } else if V > 1 {
                 for i in columnLeaves.indices {
-                    for d in 0..<V { out.table[cr, out.headerColumns + i * V + d] = .text(caption(d)) }
+                    for d in 0..<V { out[lane: cr, out.headerColumns + i * V + d] = .text(caption(d)) }
                 }
             } else {
-                out.table[cr, out.headerColumns] = .text(caption(0))
+                out[lane: cr, out.headerColumns] = .text(caption(0))
             }
         }
         // body cells
@@ -335,10 +340,10 @@ enum NumbersPivot {
         if rowFields.isEmpty {
             // one body row per value (or the one row), captioned in the label column
             for r in 0..<rowFactor {
-                out.table[out.headerRows + r, 0] = .text(caption(valuesOnColumns ? 0 : r))
+                out[lane: out.headerRows + r, 0] = .text(caption(valuesOnColumns ? 0 : r))
                 for (i, leaf) in (columnFields.isEmpty ? [] : columnLeaves).enumerated() {
                     for d in 0..<columnFactor {
-                        out.table[out.headerRows + r, out.headerColumns + i * columnFactor + d] =
+                        out[lane: out.headerRows + r, out.headerColumns + i * columnFactor + d] =
                             bodyValue(rowRows: allRows, columnRows: leaf.rows, field: valuesOnColumns ? d : r)
                     }
                 }
@@ -346,12 +351,12 @@ enum NumbersPivot {
         } else {
             for (r, leaf) in rowLeaves.enumerated() {
                 for l in rowFields.indices where rowLeafFlags[PathUIDs.key(leaf.path)]?[l + 1] == true {
-                    out.table[out.headerRows + r, l] = label(Array(leaf.path.prefix(l + 1)))
+                    out[lane: out.headerRows + r, l] = label(Array(leaf.path.prefix(l + 1)))
                 }
                 let columnSets: [[Int]] = columnFields.isEmpty ? [allRows] : columnLeaves.map(\.rows)
                 for (i, set) in columnSets.enumerated() {
                     for d in 0..<V {
-                        out.table[out.headerRows + r, out.headerColumns + i * V + d] =
+                        out[lane: out.headerRows + r, out.headerColumns + i * V + d] =
                             bodyValue(rowRows: leaf.rows, columnRows: set, field: d)
                     }
                 }

@@ -118,11 +118,11 @@ import SwiftSheets
     @Test func valuesAndComparisonsRoundTrip() throws {
         var wb = Workbook()
         var sheet = wb.sheets[0]
-        for r in 0..<5 { sheet[r, 0] = .text("r\(r)"); sheet[r, 1] = .integer(r) }
+        for r in 0..<5 { sheet[r + 1, 1] = .text("r\(r)"); sheet[r + 1, 2] = .integer(r) }
         sheet.autoFilter = CellRange("A1:B5")
         sheet.filterColumns = [
-            FilterColumn(column: 0, values: ["r1", "r3"], includesBlanks: true),
-            FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "1"), FilterCondition(.lessThanOrEqual, "4")],
+            FilterColumn(columnOffset: 0, values: ["r1", "r3"], includesBlanks: true),
+            FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "1"), FilterCondition(.lessThanOrEqual, "4")],
                          matchesAllConditions: true, buttonHidden: true),
         ]
         sheet.sortState = SortState(range: CellRange("A2:B5")!, conditions: [SortCondition(range: CellRange("B2:B5")!, descending: true)])
@@ -157,12 +157,12 @@ import SwiftSheets
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:F9")
         wb.sheets[0].filterColumns = [
-            FilterColumn(column: 0, colorFilter: ColorFilter(differentialStyleID: 0)),
-            FilterColumn(column: 1, iconFilter: IconFilter(iconSet: "3TrafficLights1", iconID: 2)),
-            FilterColumn(column: 2, rank: RankFilter(count: 5, top: false, percent: true, boundary: 3)),
-            FilterColumn(column: 3, dynamicFilter: DynamicFilter(kind: "aboveAverage", value: 2.5)),
-            FilterColumn(column: 4, dateGroups: [DateGroup(grouping: .month, year: 2026, month: 3)], calendarType: "japan"),
-            FilterColumn(column: 5, values: ["x"], buttonShown: false),
+            FilterColumn(columnOffset: 0, colorFilter: ColorFilter(differentialStyleID: 0)),
+            FilterColumn(columnOffset: 1, iconFilter: IconFilter(iconSet: "3TrafficLights1", iconID: 2)),
+            FilterColumn(columnOffset: 2, rank: RankFilter(count: 5, top: false, percent: true, boundary: 3)),
+            FilterColumn(columnOffset: 3, dynamicFilter: DynamicFilter(kind: "aboveAverage", value: 2.5)),
+            FilterColumn(columnOffset: 4, dateGroups: [DateGroup(grouping: .month, year: 2026, month: 3)], calendarType: "japan"),
+            FilterColumn(columnOffset: 5, values: ["x"], buttonShown: false),
         ]
         let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: data)
@@ -182,7 +182,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:A5")
-        wb.sheets[0].filterColumns = [FilterColumn(column: 0, values: ["x"], rank: RankFilter(count: 3))]
+        wb.sheets[0].filterColumns = [FilterColumn(columnOffset: 0, values: ["x"], rank: RankFilter(count: 3))]
         let result = try wb.write(as: .xlsx)
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("one way") })
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: result.data)
@@ -215,8 +215,8 @@ import SwiftSheets
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:B5")
         wb.sheets[0].filterColumns = [
-            FilterColumn(column: 0, values: ["1"]),
-            FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "2")]),
+            FilterColumn(columnOffset: 0, values: ["1"]),
+            FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "2")]),
         ]
         let result = try wb.write(as: .ods)
         #expect(!result.warnings.contains { $0.message.contains("auto-filter") })
@@ -230,7 +230,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:A5")
-        var column = FilterColumn(column: 0)
+        var column = FilterColumn(columnOffset: 0)
         column.colorFilter = ColorFilter(differentialStyleID: 0)
         wb.sheets[0].filterColumns = [column]
         let result = try wb.write(as: .ods)

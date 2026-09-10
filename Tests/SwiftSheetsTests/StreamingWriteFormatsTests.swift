@@ -51,10 +51,10 @@ import SwiftSheets
         #expect(wb.sheets.map(\.name) == ["First", "Second"])
         for r in stride(from: 0, to: Self.rows, by: 89) + [Self.rows - 1] {
             for (c, v) in Self.expected(r, sheet: 1).enumerated() {
-                #expect(wb.sheets[0][r, c] == v, Comment(rawValue: "\(format) First r\(r) c\(c): \(String(describing: wb.sheets[0][r, c]))"))
+                #expect(wb.sheets[0][r + 1, c + 1] == v, Comment(rawValue: "\(format) First r\(r) c\(c): \(String(describing: wb.sheets[0][r + 1, c + 1]))"))
             }
             for (c, v) in Self.expected(r, sheet: 2).enumerated() {
-                #expect(wb.sheets[1][r, c] == v, Comment(rawValue: "\(format) Second r\(r) c\(c): \(String(describing: wb.sheets[1][r, c]))"))
+                #expect(wb.sheets[1][r + 1, c + 1] == v, Comment(rawValue: "\(format) Second r\(r) c\(c): \(String(describing: wb.sheets[1][r + 1, c + 1]))"))
             }
         }
         #expect(wb.sheets[1].table.rowCount == Self.rows && wb.sheets[0].table.rowCount == Self.rows)
@@ -151,8 +151,8 @@ import SwiftSheets
         try #require(FileManager.default.fileExists(atPath: converted.path), Comment(rawValue: "LibreOffice did not convert: \(log)"))
         let wb = try Workbook(contentsOf: converted)
         #expect(wb.sheets.map(\.name) == ["First", "Second"])
-        #expect(wb.sheets[1][699, 0] == .text("r699 s2") && wb.sheets[1][699, 1] == .integer(1398))
-        #expect(wb.sheets[1][1, 2] == .number(Decimal(string: "0.375")!) && wb.sheets[0][2, 3] == .bool(true))
+        #expect(wb.sheets[1][700, 1] == .text("r699 s2") && wb.sheets[1][700, 2] == .integer(1398))
+        #expect(wb.sheets[1][2, 3] == .number(Decimal(string: "0.375")!) && wb.sheets[0][3, 4] == .bool(true))
         #expect(wb.sheets[1][cell: "C1"].numberFormat == "0.00")
     }
 
@@ -169,7 +169,7 @@ import SwiftSheets
         try w.close()
         let wb = try Workbook(contentsOf: url)
         #expect(wb.sheets[0].table.columnCount == 4)
-        #expect(wb.sheets[0][1, 3] == .integer(4) && wb.sheets[0][300, 0] == .integer(300))
+        #expect(wb.sheets[0][2, 4] == .integer(4) && wb.sheets[0][301, 1] == .integer(300))
     }
 
     /// Delimited text holds one sheet; asking for a second is refused — and the refusal ends the writer, which

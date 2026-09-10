@@ -22,7 +22,8 @@ enum DrawingParts {
                           cellSize: (width: Double, height: Double)) -> String {
         let ns = "xmlns:xdr=\"\(nsSpreadsheetDrawing)\" xmlns:a=\"\(nsDrawingMain)\""
         func at(column: Int, row: Int) -> String {
-            "<xdr:col>\(column)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+            // the drawing's anchors count from 0; `to` is exclusive, so a range's maxColumn + 1 lands on the right edge
+            "<xdr:col>\(column - 1)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row - 1)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
         let pic = """
             <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="\(shapeID)" name="Picture \(shapeID)"/>\

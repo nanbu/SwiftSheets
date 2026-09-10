@@ -451,7 +451,7 @@ final class SheetParser: SAXHandler {
     private var hyperlinkRels: [String: String] = [:]
 
     private var depth = 0
-    private var currentRow = -1, lastColumn = -1   // 0-based; a <row> without r= follows the previous one
+    private var currentRow = 0, lastColumn = 0   // screen numbers; a <row> without r= follows the previous one
     private var cellRef: CellRef?
     private var cellType = "", cellStyle = 0
     private var vText = "", fText = "", isText = ""
@@ -515,11 +515,11 @@ final class SheetParser: SAXHandler {
             d.width = Double(a["width"] ?? ""); d.hidden = XMLBool.isTrue(a["hidden"]); d.outlineLevel = Int(a["outlineLevel"] ?? "0") ?? 0
             d.collapsed = XMLBool.isTrue(a["collapsed"]); d.bestFit = XMLBool.isTrue(a["bestFit"])
             if let st = Int(a["style"] ?? ""), st > 0 { d.style = styles.style(st) }
-            for c in (mn - 1)...(Swift.min(mx, mn + 16383) - 1) { sheet.table.columnDimensions[c] = d }
+            for c in mn...Swift.min(mx, mn + 16383) { sheet.table.columnDimensions[c] = d }
         case "row":
             // `r` may be written with an exponent ("1.048573e6"); a non-integral value is invalid (openpyxl raises).
-            if let r = a["r"] { guard let n = SheetParser.rowNumber(r) else { fail(.malformedPart(path: "worksheet", detail: "invalid row number \(r)")); return }; currentRow = n - 1 } else { currentRow += 1 }
-            lastColumn = -1
+            if let r = a["r"] { guard let n = SheetParser.rowNumber(r) else { fail(.malformedPart(path: "worksheet", detail: "invalid row number \(r)")); return }; currentRow = n } else { currentRow += 1 }
+            lastColumn = 0
             sheet.table.nextAppendRow = currentRow + 1
             var d = RowDimension()
             if XMLBool.isTrue(a["customHeight"]) || a["ht"] != nil { d.height = Double(a["ht"] ?? "") }
@@ -551,7 +551,7 @@ final class SheetParser: SAXHandler {
             // unless the file uses a filter kind the model cannot say
             if depth == 2 { beginCapture(deliveringEvents: true) }
         case "filterColumn":
-            filterColumn = FilterColumn(column: Int(a["colId"] ?? "") ?? 0, buttonHidden: XMLBool.isTrue(a["hiddenButton"]),
+            filterColumn = FilterColumn(columnOffset: Int(a["colId"] ?? "") ?? 0, buttonHidden: XMLBool.isTrue(a["hiddenButton"]),
                                         buttonShown: XMLBool.isNotFalse(a["showButton"]))
         case "filters" where filterColumn != nil:
             filterColumn!.includesBlanks = XMLBool.isTrue(a["blank"])
@@ -792,7 +792,7 @@ final class SheetParser: SAXHandler {
             validation = nil
         case "filterColumn": if let c = filterColumn { sheet.filterColumns.append(c) }; filterColumn = nil
         case "sortState": inSortState = false
-        case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount }   // cells, not trailing empty rows, decide where `append` continues
+        case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount + 1 }   // cells, not trailing empty rows, decide where `append` continues
         case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
         default: break
         }
@@ -835,8 +835,8 @@ final class SheetParser: SAXHandler {
     /// "23" → 23, "1.048573e6" → 1048573; nil for non-integral values and for anything past the sheet's last row
     /// (a bare `Int(d)` on "1e300" would trap — malformed input must never take the process down, spec §12).
     static func rowNumber(_ text: String) -> Int? {
-        if let i = Int(text) { return i >= 1 && i <= CellRef.maxRow + 1 ? i : nil }
-        guard let d = Double(text), d == d.rounded(), d >= 1, d <= Double(CellRef.maxRow + 1) else { return nil }
+        if let i = Int(text) { return i >= 1 && i <= CellRef.maxRow ? i : nil }
+        guard let d = Double(text), d == d.rounded(), d >= 1, d <= Double(CellRef.maxRow) else { return nil }
         return Int(d)
     }
 
@@ -969,7 +969,7 @@ final class TablePartParser: SAXHandler {
         switch name {
         case "autoFilter": table?.autoFilter = a["ref"].flatMap(CellRange.init)
         case "filterColumn":
-            filterColumn = FilterColumn(column: Int(a["colId"] ?? "") ?? 0, buttonHidden: XMLBool.isTrue(a["hiddenButton"]),
+            filterColumn = FilterColumn(columnOffset: Int(a["colId"] ?? "") ?? 0, buttonHidden: XMLBool.isTrue(a["hiddenButton"]),
                                         buttonShown: XMLBool.isNotFalse(a["showButton"]))
         case "filters" where filterColumn != nil:
             filterColumn!.includesBlanks = XMLBool.isTrue(a["blank"]); filterColumn!.calendarType = a["calendarType"]

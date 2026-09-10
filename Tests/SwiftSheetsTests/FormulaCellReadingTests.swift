@@ -35,9 +35,9 @@ struct FormulaCellReadingTests {
         var formulas: [Int: CellValue?] = [:], values: [Int: CellValue?] = [:]
         try reader.forEachRow(inSheet: "Sheet1") { formulas[$0.index] = $0.cells.first?.value }
         try reader.forEachRow(inSheet: "Sheet1", options: StreamingReadOptions(formulaCells: .cachedValues)) { values[$0.index] = $0.cells.first?.value }
-        #expect(formulas[0]??.formula != nil && formulas[1]??.formula != nil, "\(format): the default keeps both formulas")
-        #expect(values[0] == .integer(3), "\(format): .cachedValues gives the plain value")
-        #expect(values[1] ?? nil == nil, "\(format): a formula the file never computed reads as empty")
+        #expect(formulas[1]??.formula != nil && formulas[2]??.formula != nil, "\(format): the default keeps both formulas")
+        #expect(values[1] == .integer(3), "\(format): .cachedValues gives the plain value")
+        #expect(values[2] ?? nil == nil, "\(format): a formula the file never computed reads as empty")
     }
 
     /// The default is spelled out, so that a caller who never touches the option gets formulas.

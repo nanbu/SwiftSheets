@@ -64,12 +64,12 @@ import SwiftSheets
             #expect(sheet.tables.count == es.tables.count, "\(name)/\(sheet.name): table count")
             for (table, et) in zip(sheet.tables, es.tables) {
                 #expect(table.name == et.name, "\(name): table name")
-                #expect(table.nextAppendRow == et.rows, "\(name)/\(et.name): row count")
+                #expect(table.nextAppendRow == et.rows + 1, "\(name)/\(et.name): row count")   // numbers-parser counts rows; the model numbers the next one
                 let ours = table.cells.filter { $0.value.value != nil }
                 #expect(ours.count == et.cells.count, "\(name)/\(et.name): cell count ours \(ours.count) vs \(et.cells.count)")
                 for (key, ec) in et.cells {
                     let parts = key.split(separator: ",").map { Int($0)! }
-                    let ref = CellRef(row: parts[0], column: parts[1])
+                    let ref = CellRef(row: parts[0] + 1, column: parts[1] + 1)   // numbers-parser counts from 0 (B.61)
                     guard let value = table[ref] else { Issue.record("\(name)/\(et.name) \(ref.a1): missing (expected \(String(describing: ec.v)))"); continue }
                     cellChecks += 1
                     let plain = value.cachedValue
@@ -129,7 +129,7 @@ import SwiftSheets
         let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-2.numbers"))
         let sheet = try NumbersCodec.read(data).workbook.sheets[0]
         let table = sheet.tables[0]
-        let header = table.style(at: CellRef(row: 0, column: 0))
+        let header = table.style(at: CellRef(row: 1, column: 1))
         #expect(header.font.bold, "a header row is bold")
         #expect(header.font.name == "Helvetica Neue")
         #expect(header.font.size == 10)

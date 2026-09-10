@@ -85,7 +85,7 @@ import SwiftSheets
         #expect(result.format == format)
         #expect(Self.entries(dir) == ["book.\(format.fileExtension)"], "\(format): the temporary file outlived the save")
         let workbook = try Workbook(contentsOf: url)
-        #expect(workbook.sheets[0][0, 0] == .text("r0"))
+        #expect(workbook.sheets[0][1, 1] == .text("r0"))
         #expect(workbook.sheets[0].table.rowCount == 5)
     }
 
@@ -137,7 +137,7 @@ import SwiftSheets
         #expect(result.format == .csv)
         #expect(!result.warnings.isEmpty, "the save carried no warning for a formula written as text")
         #expect(result.warnings.map(\.message) == writerSeen?.warnings.map(\.message))
-        #expect(try Workbook(contentsOf: url).sheets[0][0, 0] == .text("a"))
+        #expect(try Workbook(contentsOf: url).sheets[0][1, 1] == .text("a"))
     }
 
     // MARK: - Failures, one injection point at a time
@@ -392,7 +392,7 @@ import SwiftSheets
         #expect(Self.entries(dir).count == 2, "the two writers reserved the same name")
         _ = try first.close()
         _ = try second.close()
-        #expect(try Workbook(contentsOf: url).sheets[0][0, 0] == .text("second"))
+        #expect(try Workbook(contentsOf: url).sheets[0][1, 1] == .text("second"))
         #expect(Self.entries(dir) == ["book.csv"])
     }
 }

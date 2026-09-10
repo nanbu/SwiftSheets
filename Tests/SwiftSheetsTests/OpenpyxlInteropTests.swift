@@ -30,17 +30,17 @@ import Testing
         ws["H2"] = .error("#N/A")
         ws["A3"] = "merged"; ws.merge("A3:C3")
         ws.freezePanes(at: "B2")
-        ws.setWidth(20, ofColumn: 0); ws.setColumnDimension("C") { $0.hidden = true }
-        ws.setRowDimension(1) { $0.height = 30 }
-        ws.setRowDimension(3) { $0.hidden = true; $0.outlineLevel = 1 }
+        ws.setWidth(20, ofColumn: 1); ws.setColumnDimension("C") { $0.hidden = true }
+        ws.setRowDimension(2) { $0.height = 30 }
+        ws.setRowDimension(4) { $0.hidden = true; $0.outlineLevel = 1 }
         ws["A4"] = "hidden row"; ws["A5"] = "level 1"
         ws["A6"] = "link"; ws[cell: "A6"].hyperlink = Hyperlink(target: "https://example.com/")
         ws.properties.summaryBelow = false
         ws.autoFilter = CellRange("A1:H1")
-        ws.filterColumns = [FilterColumn(column: 0, values: ["Title"], includesBlanks: true),
-                            FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "10")])]
+        ws.filterColumns = [FilterColumn(columnOffset: 0, values: ["Title"], includesBlanks: true),
+                            FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "10")])]
         ws.sortState = SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)])
-        ws.printTitleRows = 0...0
+        ws.printTitleRows = 1...1
         ws.setPrintArea("A1:H6")
         wb.activeSheet = ws
         let hidden = wb.addSheet(named: "Hidden"); wb.sheets[hidden].state = .hidden; wb.sheets[hidden]["A1"] = "secret"
@@ -96,13 +96,13 @@ import Testing
         #expect(ws.merges.map(\.a1) == ["A3:C3"] && ws["A3"] == .text("merged"))
         #expect(ws.freezePanes?.a1 == "B2")
         #expect(ws.columnDimension("A").width == 20 && ws.columnDimension("C").hidden)
-        #expect(ws.rowDimension(1).height == 30 && ws.rowDimension(3).hidden && ws.rowDimension(3).outlineLevel == 1)
+        #expect(ws.rowDimension(2).height == 30 && ws.rowDimension(4).hidden && ws.rowDimension(4).outlineLevel == 1)
         #expect(ws[cell: "A6"].hyperlink?.target == "https://example.com/")
         #expect(ws.properties.summaryBelow == false && ws.autoFilter?.a1 == "A1:H1")
-        #expect(ws.filterColumns == [FilterColumn(column: 0, values: ["Title"], includesBlanks: true),
-                                     FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "10")])])
+        #expect(ws.filterColumns == [FilterColumn(columnOffset: 0, values: ["Title"], includesBlanks: true),
+                                     FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "10")])])
         #expect(ws.sortState == SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)]))
-        #expect(ws.printTitleRows == 0...0 && ws.printArea.map(\.a1) == ["A1:H6"])
+        #expect(ws.printTitleRows == 1...1 && ws.printArea.map(\.a1) == ["A1:H6"])
         #expect(ws[cell: "A7"].note == CellNote("確認してください\n2 行目", author: "南部"))
         #expect(ws.headerFooter.oddHeader == "&L四半期報告&C&P" && ws.headerFooter.oddFooter == "&R&F")
         #expect(ws.rowBreaks == [4] && ws.columnBreaks == [2])
@@ -148,9 +148,9 @@ import Testing
 
         var pivotSheet = Sheet(name: "Pivot")
         var other = Sheet(name: "Filtered")
-        for r in 0..<6 { other[r, 0] = .text("row\(r)"); other[r, 1] = .integer(r) }
+        for r in 0..<6 { other[r + 1, 1] = .text("row\(r)"); other[r + 1, 2] = .integer(r) }
         other.autoFilter = CellRange("A1:B6")
-        other.filterColumns = [FilterColumn(column: 1, rank: RankFilter(count: 3, top: false, percent: true))]
+        other.filterColumns = [FilterColumn(columnOffset: 1, rank: RankFilter(count: 3, top: false, percent: true))]
         wb.sheets[0] = ws
         wb.sheets.append(pivotSheet)
         wb.sheets.append(other)

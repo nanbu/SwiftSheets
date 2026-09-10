@@ -172,8 +172,8 @@ final class PivotTableParser: SAXHandler {
         depth += 1
         if depth == 1 {
             cacheId = Int(a["cacheId"] ?? "")
-            var t = PivotTable(name: a["name"] ?? "PivotTable", location: PivotLocation(ref: CellRange(CellRef(row: 0, column: 0))),
-                               fields: [], cache: PivotCache(sourceRef: CellRange(CellRef(row: 0, column: 0)), sourceSheet: "", fields: []),
+            var t = PivotTable(name: a["name"] ?? "PivotTable", location: PivotLocation(ref: CellRange(CellRef(row: 1, column: 1))),
+                               fields: [], cache: PivotCache(sourceRef: CellRange(CellRef(row: 1, column: 1)), sourceSheet: "", fields: []),
                                dataCaption: a["dataCaption"] ?? "Values",
                                showRowGrandTotals: XMLBool.isNotFalse(a["rowGrandTotals"]),
                                showColumnGrandTotals: XMLBool.isNotFalse(a["colGrandTotals"]),
@@ -241,7 +241,7 @@ final class PivotCacheParser: SAXHandler {
     var rootAttributes: [String: String] = [:]
     static let knownAttributes: Set<String> = ["refreshOnLoad", "recordCount", "refreshedBy", "r:id"]
     static let knownChildren: Set<String> = ["cacheSource", "cacheFields"]
-    var cache = PivotCache(sourceRef: CellRange(CellRef(row: 0, column: 0)), sourceSheet: "", fields: [])
+    var cache = PivotCache(sourceRef: CellRange(CellRef(row: 1, column: 1)), sourceSheet: "", fields: [])
     var recordsRelationshipId: String?
     private var depth = 0
     private var cacheField: PivotCacheField?

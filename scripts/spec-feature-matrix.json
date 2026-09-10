@@ -305,7 +305,7 @@
               "write": "full",
               "api": [
                 "sheet[\"A1\"]",
-                "sheet[0, 1]",
+                "sheet[1, 2]",
                 "CellValue"
               ],
               "warning": null,

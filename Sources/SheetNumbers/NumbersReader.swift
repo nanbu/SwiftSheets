@@ -105,7 +105,7 @@ struct NumbersReader {
             if let tid = tableModels(inSheet: sid).first, let model = doc.object(tid) {
                 let rows = model.bool("header_rows_frozen") == true ? (model.int("number_of_header_rows") ?? 0) : 0
                 let cols = model.bool("header_columns_frozen") == true ? (model.int("number_of_header_columns") ?? 0) : 0
-                if rows > 0 || cols > 0 { sheet.freezePanes = CellRef(row: rows, column: cols) }
+                if rows > 0 || cols > 0 { sheet.freezePanes = CellRef(row: rows + 1, column: cols + 1) }   // header counts → the first free cell
             }
             // A Numbers sheet is a canvas. Whatever else is standing on it cannot come into the model, and until
             // this was added it went without a word — the one thing the library promises never to do.
@@ -316,7 +316,7 @@ struct NumbersReader {
         if let info = doc.identifiers(ofType: "TST.TableInfoArchive").first(where: { doc.object($0)?.reference("tableModel") == tid }),
            let geometry = doc.object(info)?.message("super")?.message("geometry"), let pos = geometry.message("position") {
             let x = Double(pos.float("x") ?? 0), y = Double(pos.float("y") ?? 0)
-            t.anchor = CellRef(row: Swift.max(0, Int(y / NumbersReader.defaultRowHeight)), column: Swift.max(0, Int(x / NumbersReader.defaultColumnWidth)))
+            t.anchor = CellRef(row: Swift.max(0, Int(y / NumbersReader.defaultRowHeight)) + 1, column: Swift.max(0, Int(x / NumbersReader.defaultColumnWidth)) + 1)
         }
         // row heights / column widths / hidden state
         let defaultRowHeight = model.double("default_row_height") ?? NumbersReader.defaultRowHeight
@@ -327,7 +327,7 @@ struct NumbersReader {
                 var d = RowDimension()
                 if let s = h.float("size"), s != 0, Double(s) != defaultRowHeight { d.height = Double(s) }
                 if (h.int("hidingState") ?? 0) != 0 { d.hidden = true }
-                if !d.isDefault { t.rowDimensions[i] = d }
+                if !d.isDefault { t.rowDimensions[i + 1] = d }   // the file counts from 0
             }
         }
         if let cb = store.reference("columnHeaders") {
@@ -336,7 +336,7 @@ struct NumbersReader {
                 var d = ColumnDimension()
                 if let s = h.float("size"), s != 0, Double(s) != defaultColumnWidth { d.width = (Double(s) / NumbersReader.pointsPerCharacter * 100).rounded() / 100 }
                 if (h.int("hidingState") ?? 0) != 0 { d.hidden = true }
-                if !d.isDefault { t.columnDimensions[i] = d }
+                if !d.isDefault { t.columnDimensions[i + 1] = d }   // the file counts from 0
             }
         }
         // conditional formats: the table's own list, and (below) the cells that name each of its entries
@@ -372,33 +372,34 @@ struct NumbersReader {
                 continue
             }
             for rowInfo in tile.messages("rowInfos") {
-                let row = base + (rowInfo.int("tile_row_index") ?? 0)
+                let row = base + (rowInfo.int("tile_row_index") ?? 0)      // the file's numbering, from 0
                 NumbersCells.forEachRecord(in: rowInfo, columns: cols) { col, record in
+                    let ref = CellRef(row: row + 1, column: col + 1)           // the model's, from 1 (B.61)
                     let s: CellStorage
                     switch record {
                     case .success(let decoded): s = decoded
                     case .failure(let error):
-                        warnings.append(ConversionWarning(.dropped, sheet: sheetName, location: CellRef(row: row, column: col), message: "\(error)"))
+                        warnings.append(ConversionWarning(.dropped, sheet: sheetName, location: ref, message: "\(error)"))
                         return
                     }
-                    if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, column: col)) }
+                    if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(ref) }
                     var control: CellControl?
                     if let cid = s.controlID {
                         if let modelled = modelledControls[cid] { control = modelled }
-                        else { controlledCells[cid, default: []].append(CellRef(row: row, column: col)) }
+                        else { controlledCells[cid, default: []].append(ref) }
                     }
                     // a spill cell holds `337(anchor)`, which is not a formula of its own but the anchor's
                     // array formula showing one element here — read the value, remember the anchor
                     var storage = s
                     if let fid = s.formulaID, let archive = formulas[fid],
                        let anchor = NumbersFormulaDecoder.spillAnchor(archive, row: row, column: col) {
-                        spillCells[anchor, default: []].append(CellRef(row: row, column: col))
+                        spillCells[anchor, default: []].append(ref)
                         storage.formulaID = nil
                     }
                     let (value, undecoded) = NumbersCells.value(storage, row: row, column: col, strings: strings, formulas: formulas,
                                                                 richTexts: richTexts, decoder: &decoder, dataOnly: options.formulaCells == .cachedValues)
                     if undecoded {
-                        warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: CellRef(row: row, column: col), message: "formula could not be decoded; cached value kept"))
+                        warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: ref, message: "formula could not be decoded; cached value kept"))
                     }
                     let (style, styleKey) = styles.resolve(s, row: row, column: col)
                     let rich = s.richID.flatMap { richTexts[$0] }
@@ -410,7 +411,7 @@ struct NumbersReader {
                         if let first = rich?.links.first {
                             cell.hyperlink = Hyperlink(target: first)
                             if rich!.links.count > 1 {
-                                warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: CellRef(row: row, column: col),
+                                warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: ref,
                                                                   message: "the cell holds \(rich!.links.count) links; a cell carries one, so the first was kept"))
                             }
                         }
@@ -418,7 +419,7 @@ struct NumbersReader {
                             if let shared = sharedStyles[styleKey] { cell.sharedStyle = shared }
                             else { let shared = SharedStyle(style); sharedStyles[styleKey] = shared; cell.sharedStyle = shared }
                         }
-                        t.store(cell, at: CellRef(row: row, column: col))
+                        t.store(cell, at: ref)
                     }
                 }
             }
@@ -434,14 +435,14 @@ struct NumbersReader {
         }
         // the cells spilling one anchor, plus the anchor itself, are that array formula's range — the model's
         // own shape for one (the anchor keeps the formula, `arrayFormulas` the range, covered cells the values)
-        for (anchor, covered) in spillCells where anchor.row < rows && anchor.column < cols {
+        for (anchor, covered) in spillCells where anchor.row <= rows && anchor.column <= cols {
             let points = covered + [anchor]
             t.arrayFormulas[anchor] = CellRange(minRow: points.map(\.row).min()!, minColumn: points.map(\.column).min()!,
                                                 maxRow: points.map(\.row).max()!, maxColumn: points.map(\.column).max()!)
         }
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)
-        t.nextAppendRow = rows
+        t.nextAppendRow = rows + 1
         readFilter(model, into: &t, sheetName: sheetName)
         readCategories(model, table: t, sheetName: sheetName)
         readSortOrder(model, table: t, sheetName: sheetName)
@@ -486,14 +487,14 @@ struct NumbersReader {
                 for hidden in extent.messages("base_hidden_states") where hidden.bool("filtered") == true {
                     guard let hex = NumbersUUID.hex(hidden.message("row_or_column_uid")), let index = lanes[hex] else { continue }
                     if isRow {
-                        var d = t.rowDimensions[index] ?? RowDimension()
+                        var d = t.rowDimensions[index + 1] ?? RowDimension()   // the lane index counts from 0
                         d.hidden = true
-                        t.rowDimensions[index] = d
+                        t.rowDimensions[index + 1] = d
                         hiddenRows += 1
                     } else {
-                        var d = t.columnDimensions[index] ?? ColumnDimension()
+                        var d = t.columnDimensions[index + 1] ?? ColumnDimension()
                         d.hidden = true
-                        t.columnDimensions[index] = d
+                        t.columnDimensions[index + 1] = d
                     }
                 }
                 ruleCount += set?.messages("filter_rules").count ?? 0
@@ -519,7 +520,7 @@ struct NumbersReader {
         guard !rules.isEmpty else { return }
         let names = rules.map { rule -> String in
             guard let index = rule.int("index") else { return "a column" }
-            let heading = t[CellRef(row: 0, column: index)]?.stringValue
+            let heading = t[CellRef(row: 1, column: index + 1)]?.stringValue
             return heading?.isEmpty == false ? heading! : "column \(index + 1)"
         }
         warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
@@ -544,7 +545,7 @@ struct NumbersReader {
             let enabled = gb.bool("is_enabled") != false
             for column in gb.messages("group_column") {
                 guard let hex = NumbersUUID.hex(column.message("column_uid")), let index = lanes[hex] else { continue }
-                let heading = t[CellRef(row: 0, column: index)]?.stringValue
+                let heading = t[CellRef(row: 1, column: index + 1)]?.stringValue
                 let name = heading?.isEmpty == false ? heading! : "column \(index + 1)"
                 if enabled { names.append(name) } else { offNames.append(name) }
             }
@@ -587,14 +588,14 @@ struct NumbersReader {
                       let tract = node.message("AST_colon_tract"), let r = tract.messages("absolute_row").first, let c = tract.messages("absolute_column").first,
                       let r0 = r.int("range_begin"), let c0 = c.int("range_begin") else { continue }
                 let r1 = r.int("range_end") ?? r0, c1 = c.int("range_end") ?? c0
-                if r1 > r0 || c1 > c0 { out.append(CellRange(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1)) }
+                if r1 > r0 || c1 > c0 { out.append(CellRange(minRow: r0 + 1, minColumn: c0 + 1, maxRow: r1 + 1, maxColumn: c1 + 1)) }   // file → model
             }
         }
         if out.isEmpty, let mapID = store.reference("merge_region_map"), let map = doc.object(mapID) {
             for range in map.messages("cell_range") {
                 guard let origin = range.message("origin")?.int("packedData"), let size = range.message("size")?.int("packedData") else { continue }
                 let c0 = origin >> 16, r0 = origin & 0xFFFF, nc = size >> 16, nr = size & 0xFFFF
-                if nr > 1 || nc > 1 { out.append(CellRange(minRow: r0, minColumn: c0, maxRow: r0 + nr - 1, maxColumn: c0 + nc - 1)) }
+                if nr > 1 || nc > 1 { out.append(CellRange(minRow: r0 + 1, minColumn: c0 + 1, maxRow: r0 + nr, maxColumn: c0 + nc)) }   // file → model
             }
         }
         return out

@@ -7,7 +7,7 @@ import Foundation
 public struct Table: Equatable, Sendable {
     public var name: String?
     /// Where the table's A1 sits on the sheet canvas (Numbers); always A1 for XLSX / ODS.
-    public var anchor = CellRef(row: 0, column: 0)
+    public var anchor = CellRef(row: 1, column: 1)
     /// Sparse: only cells that hold a value, a style, a link or a note exist here.
     ///
     /// Assigning or mutating this map directly is allowed, but it costs the table its knowledge of the used range —
@@ -41,6 +41,8 @@ public struct Table: Equatable, Sendable {
     /// gives up on it rather than rescanning: the answer is only needed when someone asks.
     private mutating func put(_ cell: Cell?, at ref: CellRef) {
         if let cell {
+            // every write lands here — a value, a style, a note — so this is where row 0 / column 0 is refused (B.61)
+            precondition(ref.row >= 1 && ref.column >= 1, "rows and columns count from 1 (row \(ref.row), column \(ref.column))")
             storage[ref] = cell
             switch extentState {
             case .empty: extentState = .range(CellRange(ref))
@@ -81,8 +83,8 @@ public struct Table: Equatable, Sendable {
     /// than a field of `Cell`: this is rare, and a `Cell` is the type whose size the whole library budgets for
     /// (spec Appendix B.17). ODF only — Excel draws the same arrows but never saves them.
     public var detective: [CellRef: CellDetective] = [:]
-    /// The row `append` writes next (0-based). The reader sets it past the last row of the file.
-    public var nextAppendRow = 0
+    /// The number of the row `append` writes next (1 = the first row). The reader sets it past the last row of the file.
+    public var nextAppendRow = 1
 
     public init(name: String? = nil) { self.name = name }
 
@@ -98,7 +100,7 @@ public struct Table: Equatable, Sendable {
         }
     }
 
-    /// 0-based row and column.
+    /// Row and column as the sheet shows them (`table[1, 1]` is A1).
     public subscript(_ row: Int, _ column: Int) -> CellValue? {
         get { cells[CellRef(row: row, column: column)]?.value }
         set { self[CellRef(row: row, column: column)] = newValue }
@@ -107,7 +109,7 @@ public struct Table: Equatable, Sendable {
     public subscript(_ ref: CellRef) -> CellValue? {
         get { cells[ref]?.value }
         set {
-            precondition(ref.row >= 0 && ref.column >= 0, "row and column must be ≥ 0")
+            precondition(ref.row >= 1 && ref.column >= 1, "rows and columns count from 1 (row \(ref.row), column \(ref.column))")
             if newValue == nil, storage[ref] == nil { return }
             var c = storage[ref] ?? Cell()
             c.value = newValue
@@ -194,10 +196,10 @@ public struct Table: Equatable, Sendable {
         for k in storage.keys { r0 = Swift.min(r0, k.row); r1 = Swift.max(r1, k.row); c0 = Swift.min(c0, k.column); c1 = Swift.max(c1, k.column) }
         return CellRange(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1)
     }
-    /// Rows from the top through the last used row (0 when empty).
-    public var rowCount: Int { (extent?.maxRow ?? -1) + 1 }
-    /// Columns from the left through the last used column (0 when empty).
-    public var columnCount: Int { (extent?.maxColumn ?? -1) + 1 }
+    /// Rows from the top through the last used row (0 when empty) — also the number of the last used row.
+    public var rowCount: Int { extent?.maxRow ?? 0 }
+    /// Columns from the left through the last used column (0 when empty) — also the number of the last used column.
+    public var columnCount: Int { extent?.maxColumn ?? 0 }
     /// "A1:J42", or "A1:A1" for an empty table (the `<dimension>` form).
     public var dimensions: String { extent.map { $0.isSingleCell ? $0.a1 + ":" + $0.a1 : $0.a1 } ?? "A1:A1" }
 
@@ -206,7 +208,7 @@ public struct Table: Equatable, Sendable {
     private func bounds(_ range: CellRange?) -> CellRange? {
         if let range { return range }
         guard let e = extent else { return nil }
-        return CellRange(minRow: 0, minColumn: 0, maxRow: e.maxRow, maxColumn: e.maxColumn)   // from A1, like openpyxl's iter_rows
+        return CellRange(minRow: 1, minColumn: 1, maxRow: e.maxRow, maxColumn: e.maxColumn)   // from A1, like openpyxl's iter_rows
     }
 
     /// Values row by row (nil for empty cells). Without a range: A1 through the last used cell; nothing when empty.
@@ -241,15 +243,15 @@ public struct Table: Equatable, Sendable {
         range.rows.map { $0.map { self[cell: $0] } }
     }
 
-    /// One whole column of values by name ("C"), from row 0 through the last used row.
+    /// One whole column of values by name ("C"), from row 1 through the last used row (index 0 is row 1).
     public func column(_ name: String) -> [CellValue?] {
         guard let c = CellRef.columnIndex(name), rowCount > 0 else { return [] }
-        return (0..<rowCount).map { cells[CellRef(row: $0, column: c)]?.value }
+        return (1...rowCount).map { cells[CellRef(row: $0, column: c)]?.value }
     }
-    /// One whole row of values, from column 0 through the last used column.
+    /// One whole row of values, from column A through the last used column (index 0 is column A).
     public func row(_ r: Int) -> [CellValue?] {
         guard columnCount > 0 else { return [] }
-        return (0..<columnCount).map { cells[CellRef(row: r, column: $0)]?.value }
+        return (1...columnCount).map { cells[CellRef(row: r, column: $0)]?.value }
     }
 
     // MARK: - Appending
@@ -258,10 +260,10 @@ public struct Table: Equatable, Sendable {
     /// advances the row.
     public mutating func append(_ values: [CellValue?]) {
         let r = nextAppendRow
-        for (i, v) in values.enumerated() where v != nil { self[CellRef(row: r, column: i)] = v }
+        for (i, v) in values.enumerated() where v != nil { self[CellRef(row: r, column: i + 1)] = v }
         nextAppendRow = r + 1
     }
-    /// Column index → value.
+    /// Column number (1 = A) → value.
     public mutating func append(_ values: [Int: CellValue?]) {
         let r = nextAppendRow
         for (c, v) in values where v != nil { self[CellRef(row: r, column: c)] = v }
@@ -293,7 +295,7 @@ public struct Table: Equatable, Sendable {
     }
 
     private mutating func shift(axis: FormulaExpr.Axis, at index: Int, delta: Int, sheetName: String?) {
-        guard delta != 0, index >= 0 else { return }
+        guard delta != 0, index >= 1 else { return }
         let deletedEnd = index - delta   // exclusive, for deletions
         func moved(_ v: Int) -> Int? {
             if delta > 0 { return v >= index ? v + delta : v }
@@ -338,7 +340,7 @@ public struct Table: Equatable, Sendable {
             return axis == .rows ? CellRange(minRow: nlo, minColumn: m.minColumn, maxRow: nhi, maxColumn: m.maxColumn, sheet: m.sheet)
                                  : CellRange(minRow: m.minRow, minColumn: nlo, maxRow: m.maxRow, maxColumn: nhi, sheet: m.sheet)
         }
-        if axis == .rows { nextAppendRow = rowCount }
+        if axis == .rows { nextAppendRow = rowCount + 1 }
     }
 
     /// Moves the cells of a range by `rows` / `cols`, overwriting whatever is there (openpyxl `move_range`).
@@ -506,7 +508,7 @@ public struct Table: Equatable, Sendable {
     public mutating func groupRows(_ range: ClosedRange<Int>, outlineLevel: Int = 1, hidden: Bool = false) {
         for r in range { setRowDimension(r) { $0.outlineLevel = outlineLevel; $0.hidden = hidden } }
     }
-    /// Puts columns `range` (0-based) in an outline group.
+    /// Puts columns `range` (column numbers, 1 = A) in an outline group.
     public mutating func groupColumns(_ range: ClosedRange<Int>, outlineLevel: Int = 1, hidden: Bool = false) {
         for c in range { setColumnDimension(c) { $0.outlineLevel = outlineLevel; $0.hidden = hidden } }
     }

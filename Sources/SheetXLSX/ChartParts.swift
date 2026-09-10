@@ -69,7 +69,7 @@ enum ChartParts {
     static func qualify(_ ref: String, sheet: String) -> String {
         if ref.contains("!") { return ref }
         let absolute = CellRange(ref).map { range in
-            "$\(CellRef.columnName(range.minColumn))$\(range.minRow + 1):$\(CellRef.columnName(range.maxColumn))$\(range.maxRow + 1)"
+            "$\(CellRef.columnName(range.minColumn))$\(range.minRow):$\(CellRef.columnName(range.maxColumn))$\(range.maxRow)"
         } ?? ref
         let needsQuotes = sheet.contains(where: { !$0.isLetter && !$0.isNumber && $0 != "_" })
         let name = needsQuotes ? "'\(sheet.replacingOccurrences(of: "'", with: "''"))'" : sheet
@@ -80,7 +80,8 @@ enum ChartParts {
     static func anchorXML(over range: CellRange, shapeID: Int, relID: String) -> String {
         let ns = "xmlns:xdr=\"\(DrawingParts.nsSpreadsheetDrawing)\" xmlns:a=\"\(DrawingParts.nsDrawingMain)\""
         func at(column: Int, row: Int) -> String {
-            "<xdr:col>\(column)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+            // the drawing's anchors count from 0; `to` is exclusive, so a range's maxColumn + 1 lands on the right edge
+            "<xdr:col>\(column - 1)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row - 1)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
         return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
             + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"

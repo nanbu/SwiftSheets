@@ -132,15 +132,15 @@ final class ODSStreamingParser: StreamingRowParser {
     private var skipDepth = 0
     private var tableIndex = -1
     private var inTable = false
-    private var columnCursor = 0
-    private var rowCursor = 0
+    private var columnCursor = 1
+    private var rowCursor = 1
     private var columnDefaults: [(start: Int, end: Int, name: String)] = []
 
     private var inRow = false
     private var rowRepeat = 1
     private var rowCells: [(column: Int, value: CellValue?, style: CellStyle?)] = []
     private var rowHasContent = false
-    private var cellCursor = 0
+    private var cellCursor = 1
 
     private var inCell = false
     private var cellAttrs: [String: String] = [:]
@@ -167,19 +167,19 @@ final class ODSStreamingParser: StreamingRowParser {
             tableIndex += 1
             guard tableIndex == target else { skipDepth = 1; return }   // not the sheet asked for: skipped whole
             inTable = true
-            columnCursor = 0; rowCursor = 0; columnDefaults = []
+            columnCursor = 1; rowCursor = 1; columnDefaults = []
         case "table-column":
             guard inTable, !inRow else { return }
             let n = Swift.max(1, ODSAttr.int(a, "table:number-columns-repeated") ?? 1)
-            if options.includeStyles, let d = ODSAttr.get(a, "table:default-cell-style-name"), d != "Default", columnCursor < ODSReader.maxColumns {
-                columnDefaults.append((columnCursor, Swift.min(columnCursor + n, ODSReader.maxColumns) - 1, d))
+            if options.includeStyles, let d = ODSAttr.get(a, "table:default-cell-style-name"), d != "Default", columnCursor <= ODSReader.maxColumns {
+                columnDefaults.append((columnCursor, Swift.min(columnCursor + n - 1, ODSReader.maxColumns), d))
             }
             columnCursor += n
         case "table-row":
             guard inTable else { return }
             inRow = true
             rowRepeat = Swift.max(1, ODSAttr.int(a, "table:number-rows-repeated") ?? 1)
-            rowCells = []; rowHasContent = false; cellCursor = 0
+            rowCells = []; rowHasContent = false; cellCursor = 1
         case "table-cell", "covered-table-cell":
             guard inRow else { return }
             inCell = true
@@ -225,7 +225,7 @@ final class ODSStreamingParser: StreamingRowParser {
         let a = cellAttrs
         let n = Swift.max(1, ODSAttr.int(a, "table:number-columns-repeated") ?? 1)
         defer { cellCursor += n }
-        guard !cellCovered, cellCursor < ODSReader.maxColumns else { return }
+        guard !cellCovered, cellCursor <= ODSReader.maxColumns else { return }
 
         var value = cellText.value(from: a, lenient: lenient)
         if case .text? = value, cellText.hasStyledRuns { value = cellText.richText { catalog.cellStyle(named: $0).font } }
@@ -244,15 +244,15 @@ final class ODSStreamingParser: StreamingRowParser {
         let material = value != nil
         guard material || (style != nil && style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
-        let count = Swift.min(n, ODSReader.maxColumns - cellCursor)
+        let count = Swift.min(n, ODSReader.maxColumns - cellCursor + 1)
         for i in 0..<count { rowCells.append((cellCursor + i, value, style)) }
     }
 
     private func finishRow() {
         defer { rowCursor += rowRepeat }
-        guard rowCursor < ODSReader.maxRows else { return }
+        guard rowCursor <= ODSReader.maxRows else { return }
         var expand: Int
-        if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor) }
+        if rowHasContent { expand = Swift.min(rowRepeat, ODSReader.maxRows - rowCursor + 1) }
         else if options.includesEmptyRows, rowRepeat < ODSReader.paddingRepeat { expand = rowRepeat }
         else { expand = 0 }
         guard expand > 0 else { return }

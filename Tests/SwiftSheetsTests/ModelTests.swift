@@ -77,34 +77,34 @@ import Testing
         var s = Sheet(name: "S")
         s["A1"] = 1; s["A2"] = 2; s["A3"] = 3
         s.merge("B2:C2")
-        s.setHeight(30, ofRow: 1)
+        s.setHeight(30, ofRow: 2)
         s["D1"] = .formula("=SUM(A1:A3)")
-        s.insertRows(at: 1, count: 2)
+        s.insertRows(at: 2, count: 2)
         #expect(s["A1"] == .integer(1) && s["A2"] == nil && s["A4"] == .integer(2) && s["A5"] == .integer(3))
         #expect(s.merges == [CellRange("B4:C4")!])
-        #expect(s.rowDimension(3).height == 30)
+        #expect(s.rowDimension(4).height == 30)
         #expect(s["D1"]?.formula?.text == "=SUM(A1:A5)")
-        s.deleteRows(at: 0, count: 4)
+        s.deleteRows(at: 1, count: 4)
         #expect(s["A1"] == .integer(3))
         #expect(s.merges.isEmpty)
         #expect(s["D1"] == nil)
-        s.insertColumns(at: 0)
+        s.insertColumns(at: 1)
         #expect(s["B1"] == .integer(3))
-        #expect(s.nextAppendRow == 1)
+        #expect(s.nextAppendRow == 2)
     }
 
     @Test func appendContinuesBelowTheLastWrittenRow() {
         var s = Sheet(name: "S")
         s["A1"] = "header"
         s.append(["a", 1])
-        s.append([2: "c"])
+        s.append([3: "c"])
         s.append(["B": "b"])
         #expect(s["A2"] == .text("a") && s["B2"] == .integer(1) && s["C3"] == .text("c") && s["B4"] == .text("b"))
-        #expect(s.nextAppendRow == 4)
+        #expect(s.nextAppendRow == 5)
         #expect(s.rows(in: "A1:C2") == [[.text("header"), nil, nil], [.text("a"), .integer(1), nil]])
         #expect(s.columns(in: "A1:A2") == [[.text("header"), .text("a")]])
         #expect(s.column("B") == [nil, .integer(1), nil, .text("b")])
-        #expect(s.row(1) == [.text("a"), .integer(1), nil])
+        #expect(s.row(2) == [.text("a"), .integer(1), nil])
     }
 
     @Test func stylesAndDimensions() {
@@ -112,12 +112,12 @@ import Testing
         s.setStyle("A1:B1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")); $0.border.bottom = Side(style: .medium) }
         #expect(s.style("B1").font.bold && s.style("C1").font.bold == false)
         #expect(s[cell: "A1"].fill == .solid(.rgb("FFF5F5F7")))
-        s.setWidth(14, ofColumn: "C"); s.setHeight(24, ofRow: 0)
-        #expect(s.columnDimension("C").width == 14 && s.columnDimension(2).width == 14 && s.rowDimension(0).height == 24)
+        s.setWidth(14, ofColumn: "C"); s.setHeight(24, ofRow: 1)
+        #expect(s.columnDimension("C").width == 14 && s.columnDimension(3).width == 14 && s.rowDimension(1).height == 24)
         s.groupColumns("F", "H")
         #expect(s.columnGroups == ["F:H"])
         s.freezePanes(at: "B2")
-        #expect(s.freezePanes == CellRef(row: 1, column: 1) && s.freezePanesA1 == "B2")
+        #expect(s.freezePanes == CellRef(row: 2, column: 2) && s.freezePanesA1 == "B2")
         s.freezePanes(at: "A1")
         #expect(s.freezePanes == nil)
         s.autoFilterA1 = "A1:D100"

@@ -11,7 +11,7 @@ import Testing
     // openpyxl: utils/tests/test_cell.py::test_coordinates
     @Test func coordinates() {
         let r = CellRef("ZF46")
-        #expect(r?.columnName == "ZF" && r?.row == 45)
+        #expect(r?.columnName == "ZF" && r?.row == 46)
     }
 
     // openpyxl: utils/tests/test_cell.py::test_invalid_coordinate
@@ -29,12 +29,12 @@ import Testing
     @Test func columnInterval() {
         let expected = ["A", "B", "C", "D"]
         #expect(CellRef.columnNames(from: "A", to: "D") == expected)
-        #expect(CellRef.columnNames(from: 0, to: 3) == expected)
+        #expect(CellRef.columnNames(from: 1, to: 4) == expected)
     }
 
     // openpyxl: utils/tests/test_cell.py::test_column_index
-    @Test(arguments: [("j", 9), ("Jj", 269), ("JJj", 7029), ("A", 0), ("Z", 25), ("AA", 26), ("AZ", 51), ("BA", 52), ("BZ", 77), ("ZA", 676),
-                      ("ZZ", 701), ("AAA", 702), ("AAZ", 727), ("ABC", 730), ("AZA", 1352), ("ZZA", 18252), ("ZZZ", 18277)])
+    @Test(arguments: [("j", 10), ("Jj", 270), ("JJj", 7030), ("A", 1), ("Z", 26), ("AA", 27), ("AZ", 52), ("BA", 53), ("BZ", 78), ("ZA", 677),
+                      ("ZZ", 702), ("AAA", 703), ("AAZ", 728), ("ABC", 731), ("AZA", 1353), ("ZZA", 18253), ("ZZZ", 18278)])   // openpyxl's own numbers, 1 = A
     func columnIndex(_ column: String, _ idx: Int) {
         #expect(CellRef.columnIndex(column) == idx)
     }
@@ -45,12 +45,12 @@ import Testing
     }
 
     // openpyxl: utils/tests/test_cell.py::test_column_letter_boundries
-    @Test(arguments: [-1, 18728]) func columnLetterBoundaries(_ value: Int) {
+    @Test(arguments: [0, 18279]) func columnLetterBoundaries(_ value: Int) {
         #expect(CellRef.columnName(validating: value) == nil)
     }
 
     // openpyxl: utils/tests/test_cell.py::test_column_letter
-    @Test(arguments: [(18277, "ZZZ"), (7029, "JJJ"), (27, "AB"), (26, "AA"), (25, "Z")]) func columnLetter(_ value: Int, _ expected: String) {
+    @Test(arguments: [(18278, "ZZZ"), (7030, "JJJ"), (28, "AB"), (27, "AA"), (26, "Z")]) func columnLetter(_ value: Int, _ expected: String) {
         #expect(CellRef.columnName(value) == expected)
         #expect(CellRef.columnName(validating: value) == expected)
     }
@@ -58,10 +58,10 @@ import Testing
     // openpyxl: utils/tests/test_cell.py::test_coordinate_tuple
     @Test func coordinateTuple() {
         let r = CellRef("D15")!
-        #expect((r.row, r.column) == (14, 3))
+        #expect((r.row, r.column) == (15, 4))
     }
 
-    static let rangeToTupleCases: [(String, String, [Int])] = [("Sheet1!$A$1:$A$12", "Sheet1", [0, 0, 0, 11]), ("'My Sheet'!A1:E6", "My Sheet", [0, 0, 4, 5]), ("'E,F'!$A$1:$B$3", "E,F", [0, 0, 1, 2])]
+    static let rangeToTupleCases: [(String, String, [Int])] = [("Sheet1!$A$1:$A$12", "Sheet1", [1, 1, 1, 12]), ("'My Sheet'!A1:E6", "My Sheet", [1, 1, 5, 6]), ("'E,F'!$A$1:$B$3", "E,F", [1, 1, 2, 3])]
     // openpyxl: utils/tests/test_cell.py::test_range_to_tuple
     @Test(arguments: rangeToTupleCases)
     func rangeToTuple(_ rangeString: String, _ sheetname: String, _ boundaries: [Int]) {
@@ -95,9 +95,9 @@ import Testing
     }
 
     static let boundsCases: [(String, RangeBounds)] = [
-        ("C1:C4", RangeBounds(minColumn: 2, minRow: 0, maxColumn: 2, maxRow: 3)), ("C1", RangeBounds(minColumn: 2, minRow: 0, maxColumn: 2, maxRow: 0)),
-        ("D:F", RangeBounds(minColumn: 3, maxColumn: 5)), ("A", RangeBounds(minColumn: 0, maxColumn: 0)),
-        ("1:10", RangeBounds(minRow: 0, maxRow: 9)), ("1", RangeBounds(minRow: 0, maxRow: 0)),
+        ("C1:C4", RangeBounds(minColumn: 3, minRow: 1, maxColumn: 3, maxRow: 4)), ("C1", RangeBounds(minColumn: 3, minRow: 1, maxColumn: 3, maxRow: 1)),
+        ("D:F", RangeBounds(minColumn: 4, maxColumn: 6)), ("A", RangeBounds(minColumn: 1, maxColumn: 1)),
+        ("1:10", RangeBounds(minRow: 1, maxRow: 10)), ("1", RangeBounds(minRow: 1, maxRow: 1)),
     ]
     // openpyxl: utils/tests/test_cell.py::test_bounds
     @Test(arguments: boundsCases)

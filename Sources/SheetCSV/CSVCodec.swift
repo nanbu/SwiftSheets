@@ -38,11 +38,11 @@ package enum CSVCodec: SpreadsheetCodec {
         var sheet = Sheet(name: "Sheet1")
         let inference = csv.inferTypes ? TypeInference(dateFormats: csv.dateFormats) : nil
         for (r, record) in records.enumerated() {
-            for (c, field) in record.enumerated() where !field.isEmpty {
-                sheet[r, c] = inference?.value(for: field) ?? .text(field)
+            for (c, field) in record.enumerated() where !field.isEmpty {   // r, c are offsets; the sheet counts from 1
+                sheet[r + 1, c + 1] = inference?.value(for: field) ?? .text(field)
             }
         }
-        sheet.nextAppendRow = records.count
+        sheet.nextAppendRow = records.count + 1
 
         var wb = Workbook(sheets: [sheet])
         wb.sourceInfo = SourceInfo(format: .csv)
@@ -95,9 +95,9 @@ package enum CSVCodec: SpreadsheetCodec {
         var text = ""
         var fields: [(ref: CellRef, text: String)] = []   // non-empty fields, for the encoding check
         if let extent = table.extent {
-            for r in 0...extent.maxRow {
+            for r in 1...extent.maxRow {
                 var line: [String] = []
-                for c in 0...extent.maxColumn {
+                for c in 1...extent.maxColumn {
                     let ref = CellRef(row: r, column: c)
                     guard let value = table.cells[ref]?.value else { line.append(""); continue }
                     let field = renderer.render(value, at: ref, sheet: sheet.name, warnings: &warnings)

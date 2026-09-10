@@ -194,9 +194,9 @@ package struct NumbersStreamingReader: StreamingRowSource {
                     var style: CellStyle?
                     if styles != nil { style = styles!.style(s, row: row, column: column) }
                     guard value != nil || (style != nil && style != .default) else { return }
-                    cells.append(StreamedCell(ref: CellRef(row: row, column: column), value: value, style: style))
+                    cells.append(StreamedCell(ref: CellRef(row: row + 1, column: column + 1), value: value, style: style))   // file → model
                 }
-                let streamed = StreamedRow(index: row, cells: cells)
+                let streamed = StreamedRow(index: row + 1, cells: cells)
                 if options.includesEmptyRows || !streamed.isEmpty { return streamed }
             }
         }

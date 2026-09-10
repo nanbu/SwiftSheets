@@ -98,7 +98,7 @@ import Testing
     @Test func rowDimensions() {
         var ws = Workbook().sheets[0]
         ws["A10"] = "test"
-        ws.setRowDimension(9) { $0.height = 20 }; ws.setRowDimension(1) { $0.height = 30 }
+        ws.setRowDimension(10) { $0.height = 20 }; ws.setRowDimension(2) { $0.height = 30 }
         let xml = sheetXML(ws)
         #expect(xml.range(of: "<row r=\"2\"")!.lowerBound < xml.range(of: "<row r=\"10\"")!.lowerBound && xml.contains("<row r=\"2\" ht=\"30\" customHeight=\"1\"></row>"))
     }
@@ -114,7 +114,7 @@ import Testing
     @Test func writeRows() {
         var ws = Workbook().sheets[0]
         ws["F1"] = 10
-        ws.setRowDimension(0) { $0.height = 20 }; ws.setRowDimension(1) { $0.height = 30 }
+        ws.setRowDimension(1) { $0.height = 20 }; ws.setRowDimension(2) { $0.height = 30 }
         #expect(sheetXML(ws).contains("<sheetData><row r=\"1\" ht=\"20\" customHeight=\"1\"><c r=\"F1\"><v>10</v></c></row><row r=\"2\" ht=\"30\" customHeight=\"1\"></row></sheetData>"))
     }
 

@@ -84,13 +84,13 @@ import SwiftSheets
         }
         // styles on request, and only on request
         var plain: CellStyle?, styled: CellStyle?
-        try reader.forEachRow(inSheet: "Data") { if $0.index == 0 { plain = $0.cells.first?.style } }
-        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(includeStyles: true)) { if $0.index == 0 { styled = $0.cells.first?.style } }
+        try reader.forEachRow(inSheet: "Data") { if $0.index == 1 { plain = $0.cells.first?.style } }
+        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(includeStyles: true)) { if $0.index == 1 { styled = $0.cells.first?.style } }
         #expect(plain == nil && styled?.font.bold == true, "\(format): the heading is bold when styles are asked for")
         // formulas and .cachedValues
         var formula: CellValue?, cached: CellValue?
-        try reader.forEachRow(inSheet: "Data") { if $0.index == 4 { formula = $0.cells.first { $0.ref.column == 5 }?.value } }
-        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(formulaCells: .cachedValues)) { if $0.index == 4 { cached = $0.cells.first { $0.ref.column == 5 }?.value } }
+        try reader.forEachRow(inSheet: "Data") { if $0.index == 5 { formula = $0.cells.first { $0.ref.column == 6 }?.value } }
+        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(formulaCells: .cachedValues)) { if $0.index == 5 { cached = $0.cells.first { $0.ref.column == 6 }?.value } }
         #expect(formula?.formula != nil, "\(format): the formula comes as a formula")
         #expect(cached == .number(1.25), "\(format): .cachedValues yields the cached value")
         // a second table does not exist on a one-grid sheet, and the reader says so rather than walking nothing
@@ -124,7 +124,7 @@ import SwiftSheets
         #expect(reader.format == .csv && reader.sheetNames == ["Sheet1"])
         var rows: [StreamedRow] = []
         try reader.forEachRow(inSheet: "Sheet1") { rows.append($0) }
-        #expect(rows.map(\.index) == [0, 1, 3], "the empty line is skipped, and the row numbers still count it")
+        #expect(rows.map(\.index) == [1, 2, 4], "the empty line is skipped, and the row numbers still count it")
         #expect(rows[1].cells.count == 3 && rows[1].cells[1].value == nil, "an empty field is a cell holding nothing")
         #expect(rows[2].values() == [.text("4"), .text("5"), .text("6")])
         var all = 0
@@ -160,17 +160,17 @@ import SwiftSheets
         #expect(reader.sheetNames == ["First", "Second"])
         var rows: [StreamedRow] = []
         try reader.forEachRow(inSheet: "First") { rows.append($0) }
-        #expect(rows.map(\.index) == [0, 1, 2, 3, 9], "three repeats of the content row, the empty run skipped, then the row after it")
-        #expect(rows[1].cells.map(\.ref.column) == [0, 1], "the repeated value cell is two cells; the empty and the styled-empty cell are not values")
+        #expect(rows.map(\.index) == [1, 2, 3, 4, 10], "three repeats of the content row, the empty run skipped, then the row after it")
+        #expect(rows[1].cells.map(\.ref.column) == [1, 2], "the repeated value cell is two cells; the empty and the styled-empty cell are not values")
         #expect(rows[1].cells.map(\.value) == [.integer(7), .integer(7)])
         #expect(rows[4].cells.first?.value == .text("after the gap\nsecond    para"), "ODF white space collapses; text:s is literal")
         var styled: [StreamedRow] = []
         try reader.forEachRow(inSheet: "First", options: StreamingReadOptions(includeStyles: true)) { styled.append($0) }
-        #expect(styled[1].cells.map(\.ref.column) == [0, 1, 3], "with styles, the styled empty cell is delivered as a cell holding nothing")
+        #expect(styled[1].cells.map(\.ref.column) == [1, 2, 4], "with styles, the styled empty cell is delivered as a cell holding nothing")
         #expect(styled[1].cells[2].style?.font.bold == true)
         var withEmpty: [Int] = []
         try reader.forEachRow(inSheet: "First", options: StreamingReadOptions(includesEmptyRows: true)) { withEmpty.append($0.index) }
-        #expect(withEmpty == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "empty rows on request — but the trailing million is padding, not rows")
+        #expect(withEmpty == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "empty rows on request — but the trailing million is padding, not rows")
         // the whole-workbook reader agrees about what the sheet holds
         let whole = try Workbook(data: data)
         #expect(whole.sheets[0]["A10"] == .text("after the gap\nsecond    para"))
@@ -205,8 +205,8 @@ import SwiftSheets
         var first: [StreamedRow] = [], secondRows: [StreamedRow] = []
         try reader.forEachRow(inSheet: "Canvas") { first.append($0) }
         try reader.forEachRow(inSheet: "Canvas", table: 1) { secondRows.append($0) }
-        #expect(first.map(\.index) == [0, 1] && first[0].cells.first?.value == .text("first") && first[1].values(width: 2) == [nil, .integer(1)])
-        #expect(secondRows.map(\.index) == [0, 2], "the second table's rows are its own, numbered from its own top")
+        #expect(first.map(\.index) == [1, 2] && first[0].cells.first?.value == .text("first") && first[1].values(width: 2) == [nil, .integer(1)])
+        #expect(secondRows.map(\.index) == [1, 3], "the second table's rows are its own, numbered from its own top")
         #expect(secondRows[1].cells.first?.value == .number(Decimal(string: "2.5")!))
         #expect(try reader.tableNames(inSheet: "Canvas") == ["Table 1", "表2"] ||
                 reader.tableNames(inSheet: "Canvas").count == 2)

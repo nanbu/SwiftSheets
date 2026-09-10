@@ -72,9 +72,10 @@ public struct RangeView: Sendable, Sequence {
     public subscript(_ ref: CellRef) -> CellValue? { range.contains(ref) ? table[ref] : nil }
     /// The value at an absolute A1 coordinate ("B2"); nil when it falls outside the range.
     public subscript(_ a1: String) -> CellValue? { CellRef(a1).flatMap { self[$0] } }
-    /// The value at a position relative to the top-left of the range (`view[0, 0]` is its first cell).
-    public subscript(row: Int, column: Int) -> CellValue? {
-        self[CellRef(row: range.minRow + row, column: range.minColumn + column)]
+    /// The value at an offset from the top-left of the range (`view[rowOffset: 0, columnOffset: 0]` is its first
+    /// cell) — offsets, not coordinates, so they count from 0 like the view's rows do.
+    public subscript(rowOffset rowOffset: Int, columnOffset columnOffset: Int) -> CellValue? {
+        self[CellRef(row: range.minRow + rowOffset, column: range.minColumn + columnOffset)]
     }
 
     /// Rows × columns, materialised — the same array `Sheet.values(in:)` returns.

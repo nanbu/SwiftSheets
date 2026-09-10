@@ -61,11 +61,11 @@ import SwiftSheets
 
     /// Numbers records a rule on every cell it covers; the model would rather say the rectangle once.
     @Test func cellsBecomeRectangles() {
-        let column = (0..<8).map { CellRef(row: $0, column: 2) }
+        let column = (1...8).map { CellRef(row: $0, column: 3) }
         #expect("\(NumbersReader.condense(column))" == "C1:C8")
-        let block = (0..<3).flatMap { r in (0..<2).map { CellRef(row: r, column: $0) } }
+        let block = (1...3).flatMap { r in (1...2).map { CellRef(row: r, column: $0) } }
         #expect("\(NumbersReader.condense(block))" == "A1:B3")
-        let split = [CellRef(row: 0, column: 0), CellRef(row: 1, column: 0), CellRef(row: 5, column: 0)]
+        let split = [CellRef(row: 1, column: 1), CellRef(row: 2, column: 1), CellRef(row: 6, column: 1)]
         #expect(NumbersReader.condense(split).ranges.count == 2)
     }
 
@@ -74,8 +74,8 @@ import SwiftSheets
     static func workbookWithRules() -> Workbook {
         var wb = Workbook()
         var sheet = wb.sheets[0]
-        for r in 0..<5 { sheet[CellRef(row: r, column: 0)] = .integer(r * 7) }
-        for r in 0..<5 { sheet[CellRef(row: r, column: 1)] = .text(["pp", "x", "app", "y", "z"][r]) }
+        for r in 1...5 { sheet[CellRef(row: r, column: 1)] = .integer(r * 7) }
+        for r in 1...5 { sheet[CellRef(row: r, column: 2)] = .text(["pp", "x", "app", "y", "z"][r - 1]) }
         let red = DifferentialStyle.highlight(fill: Color(hex: "FFC7CE"), text: Color(hex: "9C0006"))
         sheet.addConditionalFormatting(.cellIs(.greaterThan, "11", paint: red, priority: 1), over: "A1:A5")
         sheet.addConditionalFormatting(.cellIs(between: "3", and: "9", paint: red, priority: 2), over: "A1:A5")

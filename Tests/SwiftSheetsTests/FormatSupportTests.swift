@@ -38,12 +38,12 @@ import SwiftSheets
         d["A11"] = "結合"
         d.setStyle("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "DDEBF7")); $0.alignment.horizontal = .center }
         d.setStyle("D2:D9") { $0.numberFormat = "#,##0.00" }
-        d.setWidth(18, ofColumn: 0)
-        d.setHeight(24, ofRow: 0)
-        d.groupRows(3...5, outlineLevel: 1)
+        d.setWidth(18, ofColumn: 1)
+        d.setHeight(24, ofRow: 1)
+        d.groupRows(4...6, outlineLevel: 1)
         d.freezePanesA1 = "A2"
         d.autoFilterA1 = "A1:D9"
-        d.filterColumns = [FilterColumn(column: 0, values: ["East"])]
+        d.filterColumns = [FilterColumn(columnOffset: 0, values: ["East"])]
         d.sortState = SortState(range: CellRange("A2:D9")!, conditions: [SortCondition(range: CellRange("C2:C9")!, descending: true)])
         d.addStructuredTable(named: "Sales", over: "A1:D9")
         d.dataValidations = [DataValidation.list("\"A,B\"", over: MultiCellRange("B2:B9")!, rejects: true)]
@@ -64,7 +64,7 @@ import SwiftSheets
         d.pageSetup.paperSize = 9
         d.printOptions.gridLines = true
         d.setPrintArea("A1:D9")
-        d.printTitleRows = 0...0
+        d.printTitleRows = 1...1
         d.definedNames["Local"] = "$A$1"
         d.tabColor = Color(hex: "FF0000")
         wb.sheets[0] = d
@@ -113,8 +113,8 @@ import SwiftSheets
             "書式・塗り": s.style("A1").fill.foregroundColor != nil,
             "配置": s.style("A1").alignment.horizontal == .center,
             "表示形式": s.style("D2").numberFormat == "#,##0.00",
-            "列幅": s.columnDimension(0).width != nil,
-            "行高": s.rowDimension(0).height != nil,
+            "列幅": s.columnDimension(1).width != nil,
+            "行高": s.rowDimension(1).height != nil,
             "グループ化": s.rowDimensions.values.contains { $0.outlineLevel > 0 },
             "ウィンドウ枠固定": s.freezePanes != nil,
             "ハイパーリンク": s.cell("H1")?.hyperlink != nil,

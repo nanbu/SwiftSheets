@@ -46,15 +46,15 @@ import SwiftSheets
         let t = try Self.summary(of: result.data)
         // one heading row, a label column per row field, a row per leaf — the subtotal rows live in the summary
         // model, which only Numbers draws
-        #expect(t[0, 0]?.textValue == "Region")
-        #expect(t[0, 1]?.textValue == "Product")
-        #expect(t[1, 0]?.textValue == "East")     // the group's label, on its first row only
-        #expect(t[1, 1]?.textValue == "A")
-        #expect(t[1, 2]?.intValue == 8)
-        #expect(t[2, 0] == nil)
-        #expect(t[2, 1]?.textValue == "B")
-        #expect(t[2, 2]?.intValue == 4)
-        #expect(t.nextAppendRow == 7)             // heading + six leaves
+        #expect(t[1, 1]?.textValue == "Region")
+        #expect(t[1, 2]?.textValue == "Product")
+        #expect(t[2, 1]?.textValue == "East")     // the group's label, on its first row only
+        #expect(t[2, 2]?.textValue == "A")
+        #expect(t[2, 3]?.intValue == 8)
+        #expect(t[3, 1] == nil)
+        #expect(t[3, 2]?.textValue == "B")
+        #expect(t[3, 3]?.intValue == 4)
+        #expect(t.nextAppendRow == 8)             // heading + six leaves
     }
 
     @Test func threeRowFieldsStillNest() throws {
@@ -62,11 +62,11 @@ import SwiftSheets
         _ = wb.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A1")!, summarizing: Self.source, on: "Data",
                              rows: ["Region", "Product", "Kind"], values: [("Qty", .sum)])
         let t = try Self.summary(of: try wb.write(as: .numbers).data)
-        #expect(t[0, 2]?.textValue == "Kind")
-        #expect(t[1, 0]?.textValue == "East")
-        #expect(t[1, 1]?.textValue == "A")
-        #expect(t[1, 2]?.textValue == "X")
-        #expect(t[1, 3]?.intValue == 5)
+        #expect(t[1, 3]?.textValue == "Kind")
+        #expect(t[2, 1]?.textValue == "East")
+        #expect(t[2, 2]?.textValue == "A")
+        #expect(t[2, 3]?.textValue == "X")
+        #expect(t[2, 4]?.intValue == 5)
     }
 
     @Test func twoColumnFieldsNestAcrossTheTop() throws {
@@ -74,13 +74,13 @@ import SwiftSheets
         _ = wb.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A1")!, summarizing: Self.source, on: "Data",
                              columns: ["Region", "Product"], values: [("Qty", .sum)])
         let t = try Self.summary(of: try wb.write(as: .numbers).data)
-        #expect(t[0, 0]?.textValue == "Region")
-        #expect(t[1, 0]?.textValue == "Product")
-        #expect(t[0, 1]?.textValue == "East")     // the outer label, over the first lane of its span
-        #expect(t[0, 2] == nil)
-        #expect(t[1, 1]?.textValue == "A")
-        #expect(t[1, 2]?.textValue == "B")
-        #expect(t[2, 1]?.intValue == 8)
+        #expect(t[1, 1]?.textValue == "Region")
+        #expect(t[2, 1]?.textValue == "Product")
+        #expect(t[1, 2]?.textValue == "East")     // the outer label, over the first lane of its span
+        #expect(t[1, 3] == nil)
+        #expect(t[2, 2]?.textValue == "A")
+        #expect(t[2, 3]?.textValue == "B")
+        #expect(t[3, 2]?.intValue == 8)
     }
 
     @Test func aFieldOnEachAxisAndTwoDeepRowsMix() throws {
@@ -88,12 +88,12 @@ import SwiftSheets
         _ = wb.addPivotTable(named: "Summary", to: "Pivot", at: CellRef("A1")!, summarizing: Self.source, on: "Data",
                              rows: ["Region", "Kind"], columns: ["Product"], values: [("Qty", .sum)])
         let t = try Self.summary(of: try wb.write(as: .numbers).data)
-        #expect(t[0, 1]?.textValue == "Product")  // the column field's name, in the last label column
-        #expect(t[1, 0]?.textValue == "Region")
-        #expect(t[1, 1]?.textValue == "Kind")
-        #expect(t[2, 0]?.textValue == "East")
-        #expect(t[2, 1]?.textValue == "X")
-        #expect(t[2, 2]?.intValue == 5)           // East × X × A
+        #expect(t[1, 2]?.textValue == "Product")  // the column field's name, in the last label column
+        #expect(t[2, 1]?.textValue == "Region")
+        #expect(t[2, 2]?.textValue == "Kind")
+        #expect(t[3, 1]?.textValue == "East")
+        #expect(t[3, 2]?.textValue == "X")
+        #expect(t[3, 3]?.intValue == 5)           // East × X × A
     }
 
     /// Of several summarised values, the first survives and the loss is named — the value lanes of a rebuilt
@@ -106,8 +106,8 @@ import SwiftSheets
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("summarised values dropped") },
                 Comment(rawValue: "\(result.warnings.map(\.message))"))
         let t = try Self.summary(of: result.data)
-        #expect(t[0, 1]?.textValue == "Sum / Qty")   // the field's own name, minted by addPivotTable
-        #expect(t[1, 1]?.intValue == 12)
-        #expect(t[0, 2] == nil)                   // no second value lane
+        #expect(t[1, 2]?.textValue == "Sum / Qty")   // the field's own name, minted by addPivotTable
+        #expect(t[2, 2]?.intValue == 12)
+        #expect(t[1, 3] == nil)                   // no second value lane
     }
 }

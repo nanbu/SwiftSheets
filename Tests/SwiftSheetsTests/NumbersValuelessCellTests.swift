@@ -48,7 +48,7 @@ import SwiftSheets
         var ws = wb.sheets[0]
         ws["A1"] = "task"                                  // one real value, as a real sheet has
         for row in 1...8 {
-            for col in 0..<10 {
+            for col in 1...10 {
                 ws.setStyle(at: CellRef(row: row, column: col)) { $0.fill = .solid(Color(hex: "70AD47")) }
             }
         }
@@ -60,7 +60,7 @@ import SwiftSheets
 
         var missing: [String] = []
         for row in 1...8 {
-            for col in 0..<10 {
+            for col in 1...10 {
                 let ref = CellRef(row: row, column: col)
                 if back.style(at: ref).fill.foregroundColor != Color(hex: "FF70AD47") { missing.append(ref.a1) }
             }
@@ -116,7 +116,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "task"
-        for row in 1...4 { ws.setStyle(at: CellRef(row: row, column: 2)) { $0.fill = .solid(Color(hex: "70AD47")) } }
+        for row in 1...4 { ws.setStyle(at: CellRef(row: row, column: 3)) { $0.fill = .solid(Color(hex: "70AD47")) } }
         wb.sheets[0] = ws
 
         let result = try wb.write(as: .numbers)
@@ -138,7 +138,7 @@ import SwiftSheets
         ws.name = "Gantt"
         ws["A1"] = "task"; ws["B1"] = "start"
         for (row, name) in ["設計", "実装", "検証"].enumerated() {
-            ws[cell: CellRef(row: row + 1, column: 0)].value = .text(name)
+            ws[cell: CellRef(row: row + 1, column: 1)].value = .text(name)
             for col in (2 + row)...(4 + row) {                       // the bar: colour, no value
                 ws.setStyle(at: CellRef(row: row + 1, column: col)) { $0.fill = .solid(Color(hex: "70AD47")) }
             }
@@ -157,7 +157,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         ws["A1"] = "task"
-        for row in 1...6 { ws.setStyle(at: CellRef(row: row, column: 1)) { $0.fill = .solid(Color(hex: "4472C4")) } }
+        for row in 1...6 { ws.setStyle(at: CellRef(row: row, column: 2)) { $0.fill = .solid(Color(hex: "4472C4")) } }
         wb.sheets[0] = ws
 
         let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
@@ -191,7 +191,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         for (i, size) in [10.0, 11.0, 12.0].enumerated() {
-            let ref = CellRef(row: i, column: 0)
+            let ref = CellRef(row: i + 1, column: 1)
             ws[cell: ref].value = .text("\(size)")
             ws.setStyle(at: ref) { $0.font.size = size; $0.font.bold = true }
         }
@@ -251,7 +251,7 @@ import SwiftSheets
         var wb = Workbook()
         var ws = wb.sheets[0]
         for (i, name) in ["Calibri", "Georgia"].enumerated() {
-            let ref = CellRef(row: i, column: 0)
+            let ref = CellRef(row: i + 1, column: 1)
             ws[cell: ref].value = .text(name)
             ws.setStyle(at: ref) { $0.font.name = name; $0.font.bold = true }
         }

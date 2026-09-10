@@ -72,7 +72,7 @@ enum CommentParts {
             s += "<v:fill color2=\"#ffffe1\"/><v:shadow color=\"black\" obscured=\"t\"/><v:path o:connecttype=\"none\"/>"
             s += "<v:textbox style=\"mso-direction-alt:auto\"><div style=\"text-align:left\"/></v:textbox>"
             s += "<x:ClientData ObjectType=\"Note\"><x:MoveWithCells/><x:SizeWithCells/><x:AutoFill>False</x:AutoFill>"
-            s += "<x:Row>\(entry.ref.row)</x:Row><x:Column>\(entry.ref.column)</x:Column></x:ClientData></v:shape>"
+            s += "<x:Row>\(entry.ref.row - 1)</x:Row><x:Column>\(entry.ref.column - 1)</x:Column></x:ClientData></v:shape>"   // VML counts from 0
         }
         return s + "</xml>"
     }
@@ -137,7 +137,8 @@ enum VMLShapes {
             guard let row = integer(after: "Row>", in: anchor), let col = integer(after: "Column>", in: anchor) else {
                 out.append(Note(ref: nil, width: nil, height: nil)); continue
             }
-            out.append(Note(ref: CellRef(row: row, column: col), width: pixels("width:", in: style), height: pixels("height:", in: style)))
+            // VML counts from 0
+            out.append(Note(ref: CellRef(row: row + 1, column: col + 1), width: pixels("width:", in: style), height: pixels("height:", in: style)))
         }
         return out
     }

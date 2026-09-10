@@ -68,7 +68,7 @@ import SwiftSheets
         sheet.setPrintTitleColumns("☃")
         #expect(sheet.printTitleColumns == nil)
         sheet.setPrintTitles("'Sheet1'!$1:$2,☃")
-        #expect(sheet.printTitleRows == 0...1)
+        #expect(sheet.printTitleRows == 1...2)
         wb.sheets[0] = sheet
     }
 

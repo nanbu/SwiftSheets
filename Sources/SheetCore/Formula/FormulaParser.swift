@@ -331,7 +331,7 @@ struct FormulaLexer {
             guard k < chars.count, chars[k].isNumber else { return nil }
         }
         i = j
-        return .row(n - 1, sheet: nil, abs: abs)
+        return .row(n, sheet: nil, abs: abs)
     }
 
     /// A sheet-qualified or bare reference, whole column, name or function.
@@ -386,7 +386,7 @@ struct FormulaLexer {
         let followedByIdent = j < chars.count && (FormulaLexer.isIdentChar(chars[j]) || chars[j] == "(")
         if !digits.isEmpty, !followedByIdent, let col = CellRef.columnIndex(letters), let row = Int(digits), row >= 1, col <= CellRef.maxParsedCol {
             i = j
-            return .ref(CellRef(row: row - 1, column: col), sheet: sheet, absRow: absRow, absCol: absCol)
+            return .ref(CellRef(row: row, column: col), sheet: sheet, absRow: absRow, absCol: absCol)
         }
         if digits.isEmpty, !absRow, closesRange({ if case .column = $0 { return true }; return false }), !followedByIdent, let col = CellRef.columnIndex(letters) {
             i = j
@@ -440,7 +440,7 @@ struct FormulaLexer {
             let absRow = cell.dropFirst(absCol ? 1 : 0).contains("$")
             if let r = CellRef(cell) { tokens.append(.ref(r, sheet: sheet, absRow: absRow, absCol: absCol)) }
             else if let col = CellRef.columnIndex(cell.replacingOccurrences(of: "$", with: "")) { tokens.append(.column(col, sheet: sheet, abs: absCol)) }
-            else if let row = Int(cell.replacingOccurrences(of: "$", with: "")), row >= 1 { tokens.append(.row(row - 1, sheet: sheet, abs: absCol)) }
+            else if let row = Int(cell.replacingOccurrences(of: "$", with: "")), row >= 1 { tokens.append(.row(row, sheet: sheet, abs: absCol)) }
             else { throw fail("bad ODS cell \(cell)") }
             if n == 0, parts.count == 2 { tokens.append(.colon) }
         }
@@ -499,9 +499,9 @@ struct FormulaEmitter {
         switch e {
         case .ref(let r, let s, let ar, let ac):
             let prefix = s != nil && s != omitSheet ? sheetPrefix(s!) : ""
-            return prefix + (ac ? "$" : "") + r.columnName + (ar ? "$" : "") + String(r.row + 1)
+            return prefix + (ac ? "$" : "") + r.columnName + (ar ? "$" : "") + String(r.row)
         case .column(let c, let s, let a): return (s != nil && s != omitSheet ? sheetPrefix(s!) : "") + (a ? "$" : "") + CellRef.columnName(c)
-        case .row(let r, let s, let a): return (s != nil && s != omitSheet ? sheetPrefix(s!) : "") + (a ? "$" : "") + String(r + 1)
+        case .row(let r, let s, let a): return (s != nil && s != omitSheet ? sheetPrefix(s!) : "") + (a ? "$" : "") + String(r)
         default: return emit(e)
         }
     }
@@ -514,9 +514,9 @@ struct FormulaEmitter {
             return (simple ? s : "'" + s.replacingOccurrences(of: "'", with: "''") + "'") + "."
         }
         switch e {
-        case .ref(let r, let s, let ar, let ac): return prefix(s) + (ac ? "$" : "") + r.columnName + (ar ? "$" : "") + String(r.row + 1)
+        case .ref(let r, let s, let ar, let ac): return prefix(s) + (ac ? "$" : "") + r.columnName + (ar ? "$" : "") + String(r.row)
         case .column(let c, let s, let a): return prefix(s) + (a ? "$" : "") + CellRef.columnName(c)
-        case .row(let r, let s, let a): return prefix(s) + (a ? "$" : "") + String(r + 1)
+        case .row(let r, let s, let a): return prefix(s) + (a ? "$" : "") + String(r)
         default: return emit(e)
         }
     }

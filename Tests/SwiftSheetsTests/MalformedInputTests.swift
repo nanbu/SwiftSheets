@@ -147,9 +147,9 @@ import SwiftSheets
         #expect(RangeBounds(String(repeating: "9", count: 40)) == nil)
         #expect(CellRange("A1:" + String(repeating: "A", count: 40) + "9") == nil)
         // the legal extremes still parse, and one past the last row does not
-        #expect(CellRef("XFD1048576") == CellRef(row: 1_048_575, column: 16_383))
+        #expect(CellRef("XFD1048576") == CellRef(row: 1_048_576, column: 16_384))
         #expect(CellRef("A1048577") == nil)
-        #expect(CellRef.columnIndex("XFD") == 16_383)
+        #expect(CellRef.columnIndex("XFD") == 16_384)
     }
 
     @Test func anImpossibleCellReferenceInAFileDoesNotTakeTheProcessDown() throws {

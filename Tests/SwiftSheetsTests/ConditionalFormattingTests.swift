@@ -18,7 +18,7 @@ import SwiftSheets
     @Test func theEverydayRulesRoundTrip() throws {
         var wb = Workbook()
         var ws = wb.sheets[0]
-        for r in 0..<10 { ws[r, 0] = .integer(r * 7) }
+        for r in 0..<10 { ws[r + 1, 1] = .integer(r * 7) }
         let red = DifferentialStyle.highlight(fill: Color(hex: "FFC7CE"), text: Color(hex: "9C0006"))
         ws.addConditionalFormatting(.cellIs(.greaterThan, "40", paint: red), over: "A1:A10")
         ws.addConditionalFormatting(.cellIs(between: "10", and: "20", paint: red), over: "A1:A10")
@@ -230,7 +230,7 @@ import SwiftSheets
     @Test func everyRuleKindSurvivesODS() throws {
         var wb = Workbook()
         var ws = wb.sheets[0]
-        for r in 0..<9 { ws[r, 0] = .integer(r) }
+        for r in 0..<9 { ws[r + 1, 1] = .integer(r) }
         let paint = DifferentialStyle.highlight(fill: Color(hex: "C6EFCE"))
         ws.addConditionalFormatting(.cellIs(between: "1", and: "4", paint: paint, priority: 1), over: "A1:A9")
         ws.addConditionalFormatting(.expression("$A1>3", paint: paint, priority: 2), over: "A1:A9")

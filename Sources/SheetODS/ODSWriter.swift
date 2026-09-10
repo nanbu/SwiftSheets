@@ -491,7 +491,7 @@ enum ODSWriter {
         s += "<config:config-item-map-named config:name=\"Tables\">"
         for sheet in wb.sheets {
             let f = sheet.freezePanes
-            let cols = f?.column ?? 0, rows = f?.row ?? 0
+            let cols = f.map { $0.column - 1 } ?? 0, rows = f.map { $0.row - 1 } ?? 0   // the split counts the frozen columns / rows
             s += "<config:config-item-map-entry config:name=\"\(XML.esc(sheet.name))\">"
             s += item("CursorPositionX", "int", "0") + item("CursorPositionY", "int", "0")
             s += item("HorizontalSplitMode", "short", cols > 0 ? "2" : "0") + item("VerticalSplitMode", "short", rows > 0 ? "2" : "0")
@@ -516,7 +516,7 @@ enum ODSWriter {
         var s = ""
         let both = sheet.printTitleRows != nil && sheet.printTitleColumns != nil
         if let rows = sheet.printTitleRows {
-            let address = "\(prefix).$\(rows.lowerBound + 1):.$\(rows.upperBound + 1)"
+            let address = "\(prefix).$\(rows.lowerBound):.$\(rows.upperBound)"
             s += "<table:named-range table:name=\"_xlnm.Print_Titles\" table:base-cell-address=\"\(XML.esc(prefix)).$A$1\" table:cell-range-address=\"\(XML.esc(address))\" table:range-usable-as=\"repeat-row\"/>"
         }
         if let cols = sheet.printTitleColumns {
@@ -571,7 +571,7 @@ enum ODSWriter {
     /// groups; the columns are always combined with "and", as Excel does.
     static func filterXML(_ sheet: Sheet, sink: ODSWarningSink) -> String {
         var groups: [String] = []
-        for column in sheet.filterColumns.sorted(by: { $0.column < $1.column }) {
+        for column in sheet.filterColumns.sorted(by: { $0.columnOffset < $1.columnOffset }) {
             var conditions: [String] = []
             var joinWithAnd = true
             if !column.values.isEmpty || column.includesBlanks {
@@ -579,18 +579,18 @@ enum ODSWriter {
                 var items = column.values.map { "<table:filter-set-item table:value=\"\(XML.esc($0))\"/>" }.joined()
                 if column.includesBlanks { items += "<table:filter-set-item table:value=\"\"/>" }
                 let first = column.values.first ?? ""
-                conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"=\" table:value=\"\(XML.esc(first))\">\(items)</table:filter-condition>")
+                conditions.append("<table:filter-condition table:field-number=\"\(column.columnOffset)\" table:operator=\"=\" table:value=\"\(XML.esc(first))\">\(items)</table:filter-condition>")
             } else if !column.conditions.isEmpty {
                 joinWithAnd = column.matchesAllConditions
                 for c in column.conditions {
-                    conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"\(XML.esc(filterOperator(c.comparison)))\" table:value=\"\(XML.esc(c.value))\"/>")
+                    conditions.append("<table:filter-condition table:field-number=\"\(column.columnOffset)\" table:operator=\"\(XML.esc(filterOperator(c.comparison)))\" table:value=\"\(XML.esc(c.value))\"/>")
                 }
             } else if let top = column.rank {
                 let op = top.top ? (top.percent ? "top percent" : "top values") : (top.percent ? "bottom percent" : "bottom values")
-                conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"\(op)\" table:value=\"\(XML.num(top.count))\"/>")
+                conditions.append("<table:filter-condition table:field-number=\"\(column.columnOffset)\" table:operator=\"\(op)\" table:value=\"\(XML.num(top.count))\"/>")
             } else if column.dynamicFilter != nil || column.colorFilter != nil || column.iconFilter != nil || !column.dateGroups.isEmpty {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name,
-                         "the filter on column \(CellRef.columnName(column.column)) is dropped: ODF has no colour, icon, dynamic or date-group filter")
+                         "the filter on column \(CellRef.columnName(column.columnOffset)) is dropped: ODF has no colour, icon, dynamic or date-group filter")
                 continue
             }
             guard !conditions.isEmpty else { continue }
@@ -662,7 +662,7 @@ enum ODSWriter {
         var covered = Set<CellRef>()
         var coveredRows = Set<Int>()
         var wideMerges: [CellRange] = []
-        var mergeMaxCol = -1, mergeMaxRow = -1
+        var mergeMaxCol = 0, mergeMaxRow = 0
         for m in t.merges {
             anchors[m.topLeft] = m
             anchorRows.insert(m.minRow)
@@ -676,7 +676,7 @@ enum ODSWriter {
         }
         // a picture's frame lives in its anchor cell, so that cell — and its row — are written even when empty
         for ref in frames.keys { anchorRows.insert(ref.row) }
-        let frameMaxCol = frames.keys.map(\.column).max() ?? -1, frameMaxRow = frames.keys.map(\.row).max() ?? -1
+        let frameMaxCol = frames.keys.map(\.column).max() ?? 0, frameMaxRow = frames.keys.map(\.row).max() ?? 0
         func isCovered(_ ref: CellRef) -> Bool {
             covered.contains(ref) || wideMerges.contains { $0.contains(ref) && $0.topLeft != ref }
         }
@@ -685,7 +685,7 @@ enum ODSWriter {
         }
         // a validation is written on the cells it covers, so its rectangle has to be materialised — but only while
         // it is a rectangle and not a description of the whole sheet
-        var validationMaxCol = -1, validationMaxRow = -1
+        var validationMaxCol = 0, validationMaxRow = 0
         for (ranges, _) in validations {
             for r in ranges.sorted where r.size.rows * r.size.columns <= Table.maxMaterialisedMergeCells {
                 validationMaxCol = Swift.max(validationMaxCol, r.maxColumn); validationMaxRow = Swift.max(validationMaxRow, r.maxRow)
@@ -694,10 +694,10 @@ enum ODSWriter {
         func validationName(_ ref: CellRef) -> String? { validations.first { $0.ranges.contains(ref) }?.name }
 
         // a manual break past the last cell still has to be written, so the grid reaches it
-        let ncols = Swift.max(1, t.columnCount, (t.columnDimensions.keys.max() ?? -1) + 1, mergeMaxCol + 1, validationMaxCol + 1,
-                              (sheet.columnBreaks.max() ?? -1) + 1, frameMaxCol + 1)
-        let nrows = Swift.max(1, t.rowCount, (t.rowDimensions.keys.max() ?? -1) + 1, mergeMaxRow + 1, validationMaxRow + 1,
-                              (sheet.rowBreaks.max() ?? -1) + 1, frameMaxRow + 1)
+        let ncols = Swift.max(1, t.columnCount, t.columnDimensions.keys.max() ?? 0, mergeMaxCol, validationMaxCol,
+                              sheet.columnBreaks.max() ?? 0, frameMaxCol)
+        let nrows = Swift.max(1, t.rowCount, t.rowDimensions.keys.max() ?? 0, mergeMaxRow, validationMaxRow,
+                              sheet.rowBreaks.max() ?? 0, frameMaxRow)
         var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage))\""
         if sheet.protection.enabled { s += " table:protected=\"true\"" }
         if !sheet.printArea.isEmpty {
@@ -714,7 +714,7 @@ enum ODSWriter {
         struct ColumnSpec: Equatable { var style: String?; var hidden: Bool; var defaultCell: String? }
         let columnBreaks = Set(sheet.columnBreaks)
         var runs: [(ColumnSpec, Int)] = []
-        for c in 0..<ncols {
+        for c in 1...ncols {
             let d = t.columnDimensions[c]
             let spec = ColumnSpec(style: styles.column(width: d?.width, breakBefore: columnBreaks.contains(c)),
                                   hidden: d?.hidden ?? false, defaultCell: d?.style.flatMap { styles.cell($0) })
@@ -745,7 +745,7 @@ enum ODSWriter {
             while openGroups > level { s += "</table:table-row-group>"; openGroups -= 1 }
             while openGroups < level { s += "<table:table-row-group>"; openGroups += 1 }
         }
-        for r in 0..<nrows {
+        for r in 1...nrows {
             let hasCells = rowsWithCells.contains(r)
             let dim = t.rowDimensions[r]
             let breaks = rowBreaks.contains(r)
@@ -759,12 +759,12 @@ enum ODSWriter {
             if let n = styles.row(height: dim?.height, breakBefore: breaks) { s += " table:style-name=\"\(n)\"" }
             if dim?.hidden == true { s += " table:visibility=\"collapse\"" }
             s += ">"
-            var c = 0
-            while c < ncols {
+            var c = 1
+            while c <= ncols {
                 let ref = CellRef(row: r, column: c)
                 if isCovered(ref) {
                     var n = 1
-                    while c + n < ncols, isCovered(CellRef(row: r, column: c + n)), t.cells[CellRef(row: r, column: c + n)] == nil { n += 1 }
+                    while c + n <= ncols, isCovered(CellRef(row: r, column: c + n)), t.cells[CellRef(row: r, column: c + n)] == nil { n += 1 }
                     s += "<table:covered-table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n
                 } else if let cell = t.cells[ref] ?? (anchors[ref] != nil || frames[ref] != nil ? Cell() : nil) {
@@ -776,7 +776,7 @@ enum ODSWriter {
                 } else {
                     let rule = validationName(ref)
                     var n = 1
-                    while c + n < ncols, t.cells[CellRef(row: r, column: c + n)] == nil, anchors[CellRef(row: r, column: c + n)] == nil,
+                    while c + n <= ncols, t.cells[CellRef(row: r, column: c + n)] == nil, anchors[CellRef(row: r, column: c + n)] == nil,
                           frames[CellRef(row: r, column: c + n)] == nil,
                           !isCovered(CellRef(row: r, column: c + n)), validationName(CellRef(row: r, column: c + n)) == rule { n += 1 }
                     s += "<table:table-cell"

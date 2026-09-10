@@ -39,7 +39,7 @@ import SwiftSheets
     @Test func writingKeepsValuesAndNamesTheLostRange() throws {
         var wb = Workbook()
         var s = wb.sheets[0]
-        for r in 0..<3 { s[CellRef(row: r, column: 0)] = .integer(r + 1) }
+        for r in 1...3 { s[CellRef(row: r, column: 1)] = .integer(r + 1) }
         s[cell: "B1"].value = .formula(FormulaExpr.parse("A1:A3*2"), cached: .integer(2))
         s["B2"] = 4
         s["B3"] = 6

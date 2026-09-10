@@ -17,7 +17,7 @@ import Testing
     /// The references `ws.rows()` / `ws.columns()` iterate with no bounds: A1 through the extent (cells no longer know
     /// their position, so coordinate checks go through the range).
     static func defaultRange(_ ws: Sheet) -> CellRange? {
-        ws.extent.map { CellRange(minRow: 0, minColumn: 0, maxRow: $0.maxRow, maxColumn: $0.maxColumn) }
+        ws.extent.map { CellRange(minRow: 1, minColumn: 1, maxRow: $0.maxRow, maxColumn: $0.maxColumn) }
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_new_worksheet
@@ -32,13 +32,13 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_get_cell
     @Test func getCell() {
         let ws = Self.freshSheet()
-        let ref = CellRef(row: 0, column: 0)
+        let ref = CellRef(row: 1, column: 1)
         #expect(ws[cell: ref] == Cell() && ref.a1 == "A1")
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_invalid_cell
     @Test func invalidCell() {
-        #expect(CellRef("A0") == nil && CellRef(row: -1, column: -1).a1 == "0")   // row / column before A1 are not addressable
+        #expect(CellRef("A0") == nil && CellRef(row: 0, column: 0).a1 == "0")   // row / column before A1 are not addressable
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_worksheet_dimension
@@ -62,7 +62,7 @@ import Testing
     @Test func iterRows() {
         let ws = Self.freshSheet()
         let expected = [["A1", "B1", "C1"], ["A2", "B2", "C2"], ["A3", "B3", "C3"], ["A4", "B4", "C4"]]
-        let range = CellRange(minRow: 0, minColumn: 0, maxRow: 3, maxColumn: 2)
+        let range = CellRange(minRow: 1, minColumn: 1, maxRow: 4, maxColumn: 3)
         #expect(range.rows.map { $0.map(\.a1) } == expected)
         #expect(ws.rows(in: range).map(\.count) == [3, 3, 3, 3])
     }
@@ -70,7 +70,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_cell_alternate_coordinates
     @Test func cellAlternateCoordinates() {
         let ws = Self.freshSheet()
-        let ref = CellRef(row: 7, column: 3)
+        let ref = CellRef(row: 8, column: 4)
         #expect(ws[cell: ref] == Cell() && ref.a1 == "D8")
     }
 
@@ -107,7 +107,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_append_dict_index
     @Test func appendDictIndex() {
         var ws = Self.freshSheet()
-        ws.append([0: "This is A1", 2: "This is C1"])
+        ws.append([1: "This is A1", 3: "This is C1"])
         #expect(ws["A1"] == .text("This is A1") && ws["C1"] == .text("This is C1"))
     }
 
@@ -179,7 +179,7 @@ import Testing
     @Test func byCol() {
         let ws = Self.freshSheet()
         let c = ws["A1"]
-        let cols = ws.columns(in: CellRange(minRow: 0, minColumn: 0, maxRow: 0, maxColumn: 0))
+        let cols = ws.columns(in: CellRange(minRow: 1, minColumn: 1, maxRow: 1, maxColumn: 1))
         #expect(cols.count == 1 && cols[0].count == 1 && cols[0][0] == c)
     }
 
@@ -246,9 +246,9 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_get_single__column
     @Test func getSingleColumn() {
         var ws = Self.freshSheet()
-        let c1 = ws[0, 2]
-        ws[1, 2] = 5
-        let c2 = ws[1, 2]
+        let c1 = ws[1, 3]
+        ws[2, 3] = 5
+        let c2 = ws[2, 3]
         let col = ws.column("C")
         #expect(col.count == 2 && col[0] == c1 && col[1] == c2)
     }
@@ -256,10 +256,10 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_get_row
     @Test func getRow() {
         var ws = Self.freshSheet()
-        let a2 = ws[1, 0], b2 = ws[1, 1]
-        ws[1, 2] = 5
-        let c2 = ws[1, 2]
-        let row = ws.row(1)
+        let a2 = ws[2, 1], b2 = ws[2, 2]
+        ws[2, 3] = 5
+        let c2 = ws[2, 3]
+        let row = ws.row(2)
         #expect(row.count == 3 && row[0] == a2 && row[1] == b2 && row[2] == c2)
     }
 
@@ -296,27 +296,27 @@ import Testing
         #expect(ws.cell("D4") != nil)
         ws.merge("A1:D4")
         #expect(ws.merges.map(\.a1) == ["A1:D4"])
-        #expect(ws[3, 3] == nil && ws.isMerged("D4") && ws.cell("A1")?.value == .integer(1))
+        #expect(ws[4, 4] == nil && ws.isMerged("D4") && ws.cell("A1")?.value == .integer(1))
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_merge_coordinate
     @Test func mergeCoordinate() {
         var ws = Self.freshSheet()
-        ws.merge(CellRange(minRow: 0, minColumn: 0, maxRow: 3, maxColumn: 3))
+        ws.merge(CellRange(minRow: 1, minColumn: 1, maxRow: 4, maxColumn: 4))
         #expect(ws.merges.map(\.a1) == ["A1:D4"])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_merge_more_columns_than_rows
     @Test func mergeMoreColumnsThanRows() {
         var ws = Self.freshSheet()
-        ws.merge(CellRange(minRow: 0, minColumn: 0, maxRow: 1, maxColumn: 3))
+        ws.merge(CellRange(minRow: 1, minColumn: 1, maxRow: 2, maxColumn: 4))
         #expect(ws.merges.map(\.a1) == ["A1:D2"])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_merge_more_rows_than_columns
     @Test func mergeMoreRowsThanColumns() {
         var ws = Self.freshSheet()
-        ws.merge(CellRange(minRow: 0, minColumn: 0, maxRow: 3, maxColumn: 1))
+        ws.merge(CellRange(minRow: 1, minColumn: 1, maxRow: 4, maxColumn: 2))
         #expect(ws.merges.map(\.a1) == ["A1:B4"])
     }
 
@@ -332,7 +332,7 @@ import Testing
     @Test func unmergeCoordinate() {
         var ws = Self.freshSheet()
         ws.merge("A1:D4")
-        let removed = ws.unmerge(CellRange(minRow: 0, minColumn: 0, maxRow: 3, maxColumn: 3))
+        let removed = ws.unmerge(CellRange(minRow: 1, minColumn: 1, maxRow: 4, maxColumn: 4))
         #expect(removed && ws.merges.isEmpty && ws.cell("D4") == nil)
     }
 
@@ -413,7 +413,7 @@ import Testing
         // PORT-NOTE: `extent` is nil for an empty sheet (the old `minColumn` answered 1 = column A); the A1 default
         // origin that `dimensions` reports is the equivalent.
         let ws = Self.freshSheet()
-        #expect(ws.extent == nil && CellRange(ws.dimensions)?.minColumn == 0)
+        #expect(ws.extent == nil && CellRange(ws.dimensions)?.minColumn == 1)
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_max_column
@@ -427,7 +427,7 @@ import Testing
     @Test func minRow() {
         // PORT-NOTE: as `minColumn` — nil extent on an empty sheet; the A1 origin of `dimensions` stands for the old 1.
         let ws = Self.freshSheet()
-        #expect(ws.extent == nil && CellRange(ws.dimensions)?.minRow == 0)
+        #expect(ws.extent == nil && CellRange(ws.dimensions)?.minRow == 1)
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_max_row
@@ -441,67 +441,67 @@ import Testing
     @Test func moveRowDown() {
         var ws = Self.dummyWorksheet()
         #expect(ws.rowCount == 6)
-        ws.insertRows(at: 4, count: 1)
-        #expect(ws.rowCount == 7 && ws.row(4) == [CellValue?](repeating: nil, count: 8))
+        ws.insertRows(at: 5, count: 1)
+        #expect(ws.rowCount == 7 && ws.row(5) == [CellValue?](repeating: nil, count: 8))
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_move_col_right
     @Test func moveColRight() {
         var ws = Self.dummyWorksheet()
         #expect(ws.columnCount == 8)
-        ws.insertColumns(at: 2, count: 2)
+        ws.insertColumns(at: 3, count: 2)
         #expect(ws.columnCount == 10 && ws.column("D") == [CellValue?](repeating: nil, count: 6))
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_move_row_up
     @Test func moveRowUp() {
         var ws = Self.dummyWorksheet()
-        ws.deleteRows(at: 2, count: 1)
+        ws.deleteRows(at: 3, count: 1)
         #expect(ws.rowCount == 5 && ws.column("A") == ["A1", "A2", "A4", "A5", "A6"])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_insert_rows
     @Test func insertRows() {
         var ws = Self.dummyWorksheet()
-        ws.insertRows(at: 1, count: 2)
-        #expect(ws.rowCount == 8 && ws.nextAppendRow == 8 && ws.row(1) == [CellValue?](repeating: nil, count: 8))
+        ws.insertRows(at: 2, count: 2)
+        #expect(ws.rowCount == 8 && ws.nextAppendRow == 9 && ws.row(2) == [CellValue?](repeating: nil, count: 8))
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_insert_cols
     @Test func insertCols() {
         var ws = Self.dummyWorksheet()
-        ws.insertColumns(at: 2)
+        ws.insertColumns(at: 3)
         #expect(ws.columnCount == 9 && ws.column("G") == ["F1", "F2", "F3", "F4", "F5", "F6"])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_delete_rows
     @Test func deleteRows() {
         var ws = Self.dummyWorksheet()
-        ws.deleteRows(at: 1, count: 3)
-        #expect(ws.rowCount == 3 && ws.nextAppendRow == 3 && ws.column("B") == ["B1", "B5", "B6"])
+        ws.deleteRows(at: 2, count: 3)
+        #expect(ws.rowCount == 3 && ws.nextAppendRow == 4 && ws.column("B") == ["B1", "B5", "B6"])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_deleta_all_rows
     @Test func deleteAllRows() {
         // PORT-NOTE: the old `maxRow` answered 1 for an empty sheet; `rowCount` answers 0 (same sheet state, the
-        // documented empty value). `currentRow == 0` maps to `nextAppendRow == 0` unchanged.
+        // documented empty value). `currentRow == 0` maps to `nextAppendRow == 1` unchanged.
         var ws = Self.dummyWorksheet()
-        ws.deleteRows(at: 0, count: 6)
-        #expect(ws.rowCount == 0 && ws.nextAppendRow == 0)
+        ws.deleteRows(at: 1, count: 6)
+        #expect(ws.rowCount == 0 && ws.nextAppendRow == 1)
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_delete_cols
     @Test func deleteCols() {
         var ws = Self.dummyWorksheet()
-        ws.deleteColumns(at: 4, count: 2)
-        #expect(ws.columnCount == 6 && ws.row(2) == ["A3", "B3", "C3", "D3", "G3", "H3"])
+        ws.deleteColumns(at: 5, count: 2)
+        #expect(ws.columnCount == 6 && ws.row(3) == ["A3", "B3", "C3", "D3", "G3", "H3"])
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_delete_missing_cols
     @Test func deleteMissingCols() {
         var ws = Self.dummyWorksheet()
         ws.removeCell("H2")
-        ws.deleteColumns(at: 6)
+        ws.deleteColumns(at: 7)
         #expect(ws["G2"] == nil)
     }
 
@@ -509,7 +509,7 @@ import Testing
     @Test func deleteMissingRows() {
         var ws = Self.dummyWorksheet()
         ws.removeCell("B4")
-        ws.deleteRows(at: 2)
+        ws.deleteRows(at: 3)
         #expect(ws["B3"] == nil)
     }
 
@@ -523,24 +523,24 @@ import Testing
         // `remainder` rows are exactly the emptied tail (row before it, when inside the deleted zone, holds the moved
         // last row).
         var ws = Self.freshSheet()
-        for r in 1...maxVal { ws[r - 1, 0] = .integer(r) }
-        ws.deleteRows(at: idx - 1, count: offset)
-        #expect(remainder.allSatisfy { ws[$0 - 1, 0] == nil })
+        for r in 1...maxVal { ws[r, 1] = .integer(r) }
+        ws.deleteRows(at: idx, count: offset)                       // openpyxl's 1-based idx is the model's own now
+        #expect(remainder.allSatisfy { ws[$0, 1] == nil })
         #expect(ws.rowCount == remainder.first! - 1)
-        if remainder.first! - 1 >= idx { #expect(ws[remainder.first! - 2, 0] == .integer(maxVal)) }
+        if remainder.first! - 1 >= idx { #expect(ws[remainder.first! - 1, 1] == .integer(maxVal)) }
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_delete_last_col
     @Test func deleteLastCol() {
         var ws = Self.dummyWorksheet()
-        ws.deleteColumns(at: 7)
+        ws.deleteColumns(at: 8)
         #expect(ws.columnCount == 7 && ws["H8"] == nil)
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_delete_last_row
     @Test func deleteLastRow() {
         var ws = Self.dummyWorksheet()
-        ws.deleteRows(at: 5)
+        ws.deleteRows(at: 6)
         #expect(ws.rowCount == 5 && ws["A6"] == nil)
     }
 
@@ -549,7 +549,7 @@ import Testing
         // PORT-NOTE: `moveCell` no longer exists; `moveRange` of a single-cell range is the equivalent, and the
         // coordinate check reads the rebased range it returns (cells do not know their position).
         var ws = Self.dummyWorksheet()
-        let moved = ws.moveRange(CellRange(CellRef(row: 0, column: 0)), rows: 3, columns: 6)
+        let moved = ws.moveRange(CellRange(CellRef(row: 1, column: 1)), rows: 3, columns: 6)
         #expect(ws["G4"] == .text("A1") && moved?.a1 == "G4" && ws["A1"] == nil)
     }
 
@@ -558,7 +558,7 @@ import Testing
         // PORT-NOTE: `moveCell` → `moveRange` of a single-cell range (see `moveCell`).
         var ws = Self.dummyWorksheet()
         ws["G4"] = "=SUM(G1:G3)"
-        ws.moveRange(CellRange(CellRef(row: 3, column: 6)), rows: 1, columns: 2)
+        ws.moveRange(CellRange(CellRef(row: 4, column: 7)), rows: 1, columns: 2)
         #expect(ws["I5"] == .formula("=SUM(G1:G3)"))   // translate=False only: formulas are never rewritten
     }
 
@@ -615,14 +615,14 @@ import Testing
 @Suite struct CellRangeParityTests {
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_ctor
     @Test func ctor() {
-        let cr = CellRange(minRow: 0, minColumn: 0, maxRow: 6, maxColumn: 4)
-        #expect(cr.minColumn == 0 && cr.minRow == 0 && cr.maxColumn == 4 && cr.maxRow == 6 && cr.a1 == "A1:E7")
+        let cr = CellRange(minRow: 1, minColumn: 1, maxRow: 7, maxColumn: 5)
+        #expect(cr.minColumn == 1 && cr.minRow == 1 && cr.maxColumn == 5 && cr.maxRow == 7 && cr.a1 == "A1:E7")
     }
 
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_dict
     @Test func dict() {
         let cr = CellRange("Sheet1!A1:E7")!
-        #expect(cr.a1 == "A1:E7" && cr.minColumn == 0 && cr.minRow == 0 && cr.maxColumn == 4 && cr.maxRow == 6)
+        #expect(cr.a1 == "A1:E7" && cr.minColumn == 1 && cr.minRow == 1 && cr.maxColumn == 5 && cr.maxRow == 7)
     }
 
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_max_row_too_small
@@ -657,7 +657,7 @@ import Testing
     @Test func copy() {
         let cr1 = CellRange("Sheet1!$A$1:B4")!
         var cr2 = cr1; cr2.maxRow = 8
-        #expect(cr1.maxRow == 3)   // value semantics: a copy is independent
+        #expect(cr1.maxRow == 4)   // value semantics: a copy is independent
     }
 
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_shift
@@ -673,7 +673,7 @@ import Testing
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_union
     @Test func union() {
         let u = CellRange("A1:D4")!.union(CellRange("E5:K10")!)
-        #expect(u?.a1 == "A1:K10" && u?.minColumn == 0 && u?.maxColumn == 10 && u?.maxRow == 9)
+        #expect(u?.a1 == "A1:K10" && u?.minColumn == 1 && u?.maxColumn == 11 && u?.maxRow == 10)
     }
 
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_no_union

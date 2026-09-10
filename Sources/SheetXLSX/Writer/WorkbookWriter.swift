@@ -660,12 +660,12 @@ enum WorkbookWriter {
     /// exactly one way (the schema's own `xsd:choice`), so only the first kind it sets is written.
     static func filterChildrenXML(_ ws: Sheet, sheetName: String? = nil, sink: WarningSink? = nil) -> String {
         var s = ""
-        for column in ws.filterColumns.sorted(by: { $0.column < $1.column }) {
+        for column in ws.filterColumns.sorted(by: { $0.columnOffset < $1.columnOffset }) {
             if column.criterionCount > 1 {
                 sink?.add(.degraded, subject: .formatting, sheet: sheetName,
-                          "auto-filter column \(column.column) sets \(column.criterionCount) kinds of filter; a column filters one way, so only the first was written")
+                          "auto-filter column \(column.columnOffset) sets \(column.criterionCount) kinds of filter; a column filters one way, so only the first was written")
             }
-            s += "<filterColumn colId=\"\(column.column)\"\(column.buttonHidden ? " hiddenButton=\"1\"" : "")\(column.buttonShown ? "" : " showButton=\"0\"")"
+            s += "<filterColumn colId=\"\(column.columnOffset)\"\(column.buttonHidden ? " hiddenButton=\"1\"" : "")\(column.buttonShown ? "" : " showButton=\"0\"")"
             let hasValues = !column.values.isEmpty || column.includesBlanks || !column.dateGroups.isEmpty
             guard hasValues || !column.conditions.isEmpty || column.rank != nil || column.dynamicFilter != nil
                     || column.colorFilter != nil || column.iconFilter != nil else { s += "/>"; continue }
@@ -898,12 +898,12 @@ enum WorkbookWriter {
         s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
         if let f = ws.freezePanes {
             // Excel omits a zero split and makes the single remaining pane active
-            let active = f.column > 0 ? (f.row > 0 ? "bottomRight" : "topRight") : "bottomLeft"
+            let active = f.column > 1 ? (f.row > 1 ? "bottomRight" : "topRight") : "bottomLeft"
             s += "<pane"
-            if f.column > 0 { s += " xSplit=\"\(f.column)\"" }
-            if f.row > 0 { s += " ySplit=\"\(f.row)\"" }
+            if f.column > 1 { s += " xSplit=\"\(f.column - 1)\"" }   // the split counts the frozen columns / rows
+            if f.row > 1 { s += " ySplit=\"\(f.row - 1)\"" }
             s += " topLeftCell=\"\(f.a1)\" activePane=\"\(active)\" state=\"frozen\"/>"
-            if f.column > 0 && f.row > 0 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
+            if f.column > 1 && f.row > 1 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
             s += "<selection pane=\"\(active)\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
         } else {
             s += "<selection activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
@@ -915,7 +915,7 @@ enum WorkbookWriter {
         if !cols.isEmpty {
             s = "<cols>"
             for (c, d) in cols {
-                s += "<col min=\"\(c + 1)\" max=\"\(c + 1)\""
+                s += "<col min=\"\(c)\" max=\"\(c)\""
                 if let w = d.width { s += " width=\"\(XML.num(w))\" customWidth=\"1\"" }
                 s += "\(XML.attr("hidden", d.hidden))\(XML.attr("bestFit", d.bestFit))"
                 if d.outlineLevel > 0 { s += " outlineLevel=\"\(d.outlineLevel)\"" }
@@ -937,7 +937,7 @@ enum WorkbookWriter {
         for ref in table.cells.keys { byRow[ref.row, default: []].append(ref) }
         let rowNumbers = Set(byRow.keys).union(table.rowDimensions.filter { !$0.value.isDefault }.keys).sorted()
         for r in rowNumbers {
-            s += "<row r=\"\(r + 1)\""
+            s += "<row r=\"\(r)\""
             if let d = table.rowDimensions[r] {
                 if let h = d.height { s += " ht=\"\(XML.num(h))\" customHeight=\"1\"" }
                 s += XML.attr("hidden", d.hidden)
@@ -1194,7 +1194,7 @@ enum WorkbookWriter {
             generated.append(("headerFooter", s + "</headerFooter>"))
         }
         for (element, breaks) in [("rowBreaks", ws.rowBreaks), ("colBreaks", ws.columnBreaks)] where !breaks.isEmpty {
-            let max = element == "rowBreaks" ? CellRef.maxColumn : CellRef.maxRow
+            let max = element == "rowBreaks" ? CellRef.maxColumn - 1 : CellRef.maxRow - 1   // the file's own 0-based ceiling
             generated.append((element, "<\(element) count=\"\(breaks.count)\" manualBreakCount=\"\(breaks.count)\">"
                 + breaks.sorted().map { "<brk id=\"\($0)\" max=\"\(max)\" man=\"1\"/>" }.joined() + "</\(element)>"))
         }

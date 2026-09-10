@@ -17,18 +17,20 @@ public struct StreamedCell: Sendable {
 /// in when a dense array is what you want. The same shape from every format: an XLSX `<row>`, an ODS
 /// `<table:table-row>` (one delivery per repetition), a row of a Numbers tile.
 public struct StreamedRow: Sendable {
-    /// 0-based, as everywhere else in the model. For a Numbers table, the table's own row number.
+    /// The row number as the sheet shows it (1 = the first row), as everywhere else in the model. For a Numbers
+    /// table, the table's own row number.
     public let index: Int
     public let cells: [StreamedCell]
 
     public init(index: Int, cells: [StreamedCell]) { self.index = index; self.cells = cells }
 
-    /// A dense array from column 0 to `width - 1` (or to the row's own last cell when `width` is nil).
+    /// A dense array over columns A through `width` (or through the row's own last cell when `width` is nil). It is
+    /// an array, so index 0 is column A: `values[cell.ref.column - 1]`.
     public func values(width: Int? = nil) -> [CellValue?] {
-        let last = width.map { $0 - 1 } ?? (cells.last?.ref.column ?? -1)
-        guard last >= 0 else { return [] }
-        var out = [CellValue?](repeating: nil, count: last + 1)
-        for c in cells where c.ref.column <= last { out[c.ref.column] = c.value }
+        let last = width ?? (cells.last?.ref.column ?? 0)
+        guard last >= 1 else { return [] }
+        var out = [CellValue?](repeating: nil, count: last)
+        for c in cells where c.ref.column <= last { out[c.ref.column - 1] = c.value }
         return out
     }
     public var isEmpty: Bool { cells.allSatisfy { $0.value == nil } }

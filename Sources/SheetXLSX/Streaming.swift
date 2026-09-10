@@ -161,7 +161,7 @@ final class StreamingSheetParser: StreamingRowParser {
     func rebind(_ body: @escaping (StreamedRow) throws -> Void) { self.body = body }
 
     private var inSheetData = false
-    private var currentRow = -1, lastColumn = -1
+    private var currentRow = 0, lastColumn = 0
     private var cells: [StreamedCell] = []
     private var cellRef: CellRef?
     private var cellType = "", cellStyle = 0
@@ -181,8 +181,8 @@ final class StreamingSheetParser: StreamingRowParser {
         guard inSheetData else { return }        // merges, filters, drawings: not this reader's business
         switch name {
         case "row":
-            if let r = a["r"], let n = SheetParser.rowNumber(r) { currentRow = n - 1 } else { currentRow += 1 }
-            lastColumn = -1
+            if let r = a["r"], let n = SheetParser.rowNumber(r) { currentRow = n } else { currentRow += 1 }
+            lastColumn = 0
             cells = []
         case "c":
             if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
@@ -336,7 +336,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
         var xml = "<row r=\"\(row)\">"
         for (column, cell) in cells.enumerated() {
             guard cell.value != nil || cell.style != .default else { continue }
-            let ref = CellRef(row: row - 1, column: column).a1
+            let ref = CellRef(row: row, column: column + 1).a1
             let index = styles.index(for: cell)
             let style = index != 0 ? " s=\"\(index)\"" : ""
             switch cell.value {
