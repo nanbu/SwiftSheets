@@ -6317,7 +6317,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>規則は一文。</strong>セルの座標は画面の番号、Swift のコレクションの位置は Swift の添字。①Excel VBA・Numbers の AppleScript・
   Google Apps Script・openpyxl・ClosedXML・EPPlus・ExcelJS——画面の表を扱う API はどれも 1 始まりで、POI・SheetJS・xlsxwriter・LibreOffice UNO・
   Google Sheets API・numbers-parser——表を行列として扱う API は 0 始まり。言語ではなく相手で分かれる。②この library の表面は A1 と行番号でできていて、
-  0 始まりの整数を渡すために Stream は取り込みの 20 か所で <code>ws[r - 1, c - 1]</code> と換算していた。文言のために <code>rowNumber</code> を
+  0 始まりの整数を渡すために Stream は取り込みの 15 行で <code>ws[r - 1, c - 1]</code> と換算していた。文言のために <code>rowNumber</code> を
   別に持つ必要もあった。③だから座標は画面の番号にし、換算はコーデックの中（ファイルが 0 始まりの Numbers・図形のアンカー・VML）と、
   配列を引く 1 点（<code>values[cell.column - 1]</code>）に集める。openpyxl が 10 年以上同じ規則（シートは 0・セルは 1）で困っていないことも根拠にした。</p>
   <p><strong>画面の番号になるもの（1 始まり）。</strong><code>CellRef.row</code> / <code>.column</code>・<code>CellRef.maxRow</code>（1,048,576）/
@@ -6342,9 +6342,14 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   図形のアンカー <code>&lt;xdr:col&gt;</code> / <code>&lt;xdr:row&gt;</code> と VML の <code>&lt;x:Row&gt;</code> / <code>&lt;x:Column&gt;</code>（0 始まり）に読み書きとも
   ±1 が<strong>付く</strong>。固定ウィンドウの <code>xSplit</code> / <code>ySplit</code> は凍結する行数・列数（＝固定セルの番号 − 1）。Numbers の IWA は
   行・列とも 0 始まりで、セルの記録・行と列の寸法・結合範囲・数式の<strong>絶対参照</strong>に ±1 が付く——相対参照は差分なので動かない。ODS はファイルに
-  整数の索引が無く、読み手の行・列のカーソルが 1 から数え始めるだけ。CSV は <code>enumerated()</code> の位置に +1。</p>
-  <p><strong>利用側。</strong>Stream の取り込みは 20 か所の <code>- 1</code> を消す。LeftRight は逐次読みの行を配列に展開する 1 か所で
-  <code>cells[cell.ref.column - 1]</code> にする。</p>
+  整数の索引が無く、読み手の行・列のカーソルが 1 から数え始めるだけ（カーソルが最終列 16,384 を越えてからの列の宣言は、幅や非表示を持っていても捨てる——
+  逆向きの範囲を作って落ちない）。CSV は <code>enumerated()</code> の位置に +1。</p>
+  <p><strong>利用側。</strong>Stream は 17 行（取り込み 15・書き出し 2）——<code>ws[r - 1, c - 1]</code> の <code>- 1</code> を消し、
+  <code>CellRef(row: 0, …)</code> の 2 行を 1 にする。LeftRight は 5 行——逐次読みの行を配列に展開する <code>cells[cell.ref.column]</code> を
+  <code>[cell.ref.column - 1]</code> にする 2 か所と、その写しの計測スクリプト 2 か所、行 0 に書く検査 1 か所。
+  この移行は<strong>コンパイラが教えてくれない</strong>: 名前の変更（<code>col</code> → <code>column</code>）はビルドが止まるが、
+  <code>ws[r - 1, c - 1]</code> はそのまま通って 1 つ上の行を読み、<code>cells[cell.ref.column]</code> は最後の列で実行時に落ちる。
+  だから名前の移行と同じコミットで、換算を 1 行ずつ読んで消す。</p>
   <p><strong>検査。</strong>全検査（1,128 件）を新しい数え方に直して通す。openpyxl から移植した検査は openpyxl の 1 始まりの引数をそのまま渡せるようになり、
   換算が減る。numbers-parser の照合データ（0 始まり）だけは検査側で +1 する。書く入口は行 0・列 0 で理由の文つきに止まる（B.53 の規則）。
   換算の境界は、A1 で置いた値が A1 として読み戻ることを全形式の往復で見る（既存の往復検査がそのまま担う）。</p>

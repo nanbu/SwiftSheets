@@ -26,6 +26,11 @@ replacement; no file output changes.
   `rowNumber` is gone — it is `row`. `FilterColumn.column` is renamed `columnOffset` (an offset, unchanged in value);
   `RangeView`'s relative subscript is `view[rowOffset:columnOffset:]`. `rowBreaks` / `columnBreaks` keep the file's
   own `<brk id>` values.
+  **The compiler will not find this migration for you**: `ws[r - 1, c - 1]` still compiles and reads the row
+  above, and `array[cell.column]` still compiles and traps on the last column. Read every `- 1` and `+ 1` around
+  a `CellRef` and remove it; a write to row 0 or column 0 now stops with a message.
+- **Fixed:** an ODS file declaring more `<table:table-column>` elements than a sheet has columns, with a width or
+  hidden flag on the ones past the end, trapped while reading. They are ignored now, as the spec promises.
 - **How a formula cell is read is an enum, not a Bool** (B.54). `ReadOptions(dataOnly: true)` →
   `ReadOptions(formulaCells: .cachedValues)`; the same on `StreamingReadOptions` and `Workbook`. The default is
   `.formulas`. Under `.cachedValues` a formula the file never computed reads as an empty cell — the readers already
