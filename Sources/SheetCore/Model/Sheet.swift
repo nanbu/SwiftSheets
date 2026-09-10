@@ -98,10 +98,12 @@ public struct Sheet: Equatable, Sendable {
         get { state != .visible }
         set { state = newValue ? .hidden : .visible }
     }
-    /// Tab colour as "RRGGBB" / "AARRGGBB".
-    public var tabColor: String? {
-        get { if case .rgb(let v)? = properties.tabColor { return v }; return nil }
-        set { properties.tabColor = newValue.map { Color(hex: $0) } }
+    /// The colour of the sheet's tab — the same `Color` every other colour in the model uses, so a theme or indexed
+    /// colour read from a file is seen here too (spec Appendix B.59). `Color(hex: "1072BA")` for an RGB one. The
+    /// value lives in `properties.tabColor`; this is that value's front door.
+    public var tabColor: Color? {
+        get { properties.tabColor }
+        set { properties.tabColor = newValue }
     }
 
     // MARK: - Default table

@@ -1532,7 +1532,7 @@ print(wb.sheets.map(\.name))          <span class="cm">// ["集計", "明細", "
     <tr><td>（概念なし — 参照型に書き戻しは無い）</td><td><code>wb.editSheet(named: "X") { sheet in … }</code></td><td><strong>まとめて編集</strong>。クロージャが返った時点で反映、途中で throw すれば全部破棄。無い名前は <code>SheetError.sheetNotFound</code>（Rev 4.0・B.30）</td></tr>
     <tr><td><code>ws.title = 'New'</code></td><td><code>wb.sheets[0].name = "New"</code></td><td>改名。数式内シート参照も AST 経由で追随</td></tr>
     <tr><td><code>ws.sheet_state = 'hidden'</code></td><td><code>sheet.isHidden = true</code></td><td>非表示化</td></tr>
-    <tr><td><code>ws.sheet_properties.tabColor</code></td><td><code>sheet.tabColor = "1072BA"</code></td><td>タブ色（RGB hex）</td></tr>
+    <tr><td><code>ws.sheet_properties.tabColor</code></td><td><code>sheet.tabColor = Color(hex: "1072BA")</code></td><td>タブ色。他の色と同じ <code>Color</code>（Rev 4.48・B.59）</td></tr>
     <tr><td>（概念なし）</td><td><code>sheet.tables</code></td><td><strong>Numbers 対応の要</strong>。キャンバス上の全テーブル（第3章）</td></tr>
     <tr><td>（暗黙に1グリッド）</td><td><code>sheet.table</code></td><td>既定テーブル。XLSX/ODS 由来なら常にこれ1つ。無ければ生成</td></tr>
   </table></div>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.48 Draft</td><td>2026-09-10</td><td><code>Sheet.tabColor</code> を <code>String?</code> から <code>Color?</code> へ。<code>SheetProperties.tabColor</code> と同じ値の表玄関にし、テーマ色・インデックス色が RGB 以外だからと nil に化けることをやめる（B.59）。</td></tr>
     <tr><td>4.47 Draft</td><td>2026-09-10</td><td>便利 API の整理。<code>dataType</code>（openpyxl の 1 文字）を廃止、<code>pythonString</code> を <code>stringValue</code> に統合（表現は変えない）、グローバル関数 <code>Formula(_:)</code> を <code>CellValue.formula(_:dialect:)</code> へ。A1 文字列の双子プロパティ（<code>freezePanesA1</code>・<code>autoFilterA1</code>・<code>dimensions</code>）は残す（B.58）。</td></tr>
     <tr><td>4.46 Draft</td><td>2026-09-10</td><td><code>NumberFormat</code> の定数を openpyxl の <code>FORMAT_*</code> の写し（<code>dateXLSX14</code>・<code>dateTime1</code>〜<code>8</code>・<code>number00</code> …34 個）から、意味を名乗る 18 個へ。ロケールで表示が変わる組み込み書式は名前を持たず <code>builtinCode(_:)</code> で引く。値の文字列は 1 つも変えない（B.57）。</td></tr>
     <tr><td>4.45 Draft</td><td>2026-09-10</td><td>編集モデルの型名 3 件。<code>ExcelTable</code> → <code>StructuredTable</code>（<code>structuredTables</code>・<code>addStructuredTable</code>・<code>StructuredTableColumn</code> も）、<code>Cell.comment</code> → <code>Cell.note</code>（型 <code>CellNote</code> はそのまま）、<code>Top10Filter</code> → <code>RankFilter</code>（<code>FilterColumn.rank</code>）。互換の別名は残さない（B.56）。</td></tr>
@@ -6256,6 +6257,21 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>廃止と改名はコンパイルで全部見つかる。<code>stringValue</code> の出力が変わっていないことは、
   CSV と ODS の既存の往復検査と openpyxl 照合（<code>CellParityTests</code> のリッチテキスト 2 件）が見る。<code>.formula("=…")</code>
   は README・仕様・特性表の用例と、既存の数式検査（27 行）が新しい綴りで通ることを見る。</p>
+
+  <h3>B.59 タブの色は他の色と同じ <code>Color</code>（Rev 4.48）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 10）。<code>Sheet.tabColor</code> は <code>String?</code>（"RRGGBB" / "AARRGGBB"）で、
+  同じ値を <code>SheetProperties.tabColor: Color?</code> も持っていた。①openpyxl は <code>ws.sheet_properties.tabColor = "1072BA"</code>
+  と文字列で受ける。②それを写した <code>String?</code> の入口は、ファイルから読んだタブ色が <code>.theme(4)</code> や
+  <code>.indexed(12)</code>（Excel は両方書く）のとき <strong>nil を返していた</strong>——色が付いているのに「無い」と答える。書く側も
+  RGB しか書けない。③だから型を <code>Color?</code> にし、<code>properties.tabColor</code> の表玄関にする。フォントや塗りの色と同じ型なので、
+  <code>Color(hex: "1072BA")</code>・<code>.theme(4, tint: 0.4)</code>・<code>.indexed(12)</code> がそのまま入る。</p>
+  <p><strong>移行。</strong><code>sheet.tabColor = "1072BA"</code> → <code>sheet.tabColor = Color(hex: "1072BA")</code>。読む側で
+  16 進を取り出していたコードは <code>if case .rgb(let hex) = sheet.tabColor</code>。ODS と Numbers の書き手は「タブ色があるか」しか
+  見ておらず（どちらの形式もタブ色を持たないので落として言う）、動きは変わらない。XLSX の読み書きは元から
+  <code>properties.tabColor</code> を通っており、これも変わらない。</p>
+  <p><strong>検査。</strong>既存の <code>ModelTests</code>・<code>FormatSupportTests</code>（タブ色の往復）と、
+  <code>WorksheetPartsParityTests</code>（<code>&lt;tabColor rgb&gt;</code> の読み書き）が新しい型で通ること。テーマ色のタブが
+  <code>Sheet.tabColor</code> からも見えることを 1 件足す。</p>
 </section>
 
 </div><!-- /.container -->

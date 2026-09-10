@@ -122,7 +122,7 @@ import Testing
         #expect(s.freezePanes == nil)
         s.autoFilterA1 = "A1:D100"
         #expect(s.autoFilter == CellRange("A1:D100"))
-        s.tabColor = "1072BA"
+        s.tabColor = Color(hex: "1072BA")
         #expect(s.properties.tabColor == .rgb("FF1072BA"))
         s.isHidden = true
         #expect(s.state == .hidden)
@@ -135,6 +135,17 @@ import Testing
         s.tables[t]["A1"] = "second"
         #expect(s.tables.count == 2 && s.tables[1].name == "Second" && s.tables[1].anchor.a1 == "D10")
         #expect(s["A1"] == .text("default table") && s.tables[1]["A1"] == .text("second"))
+    }
+
+    /// A tab colour that is not RGB is still a tab colour (spec Appendix B.59).
+    @Test func aThemeTabColourIsSeenFromTheSheet() {
+        var s = Sheet(name: "S")
+        s.properties.tabColor = .theme(4, tint: 0.4)
+        #expect(s.tabColor == .theme(4, tint: 0.4))
+        s.tabColor = .indexed(12)
+        #expect(s.properties.tabColor == .indexed(12))
+        s.tabColor = nil
+        #expect(s.properties.tabColor == nil)
     }
 
     @Test func preservationSummary() {

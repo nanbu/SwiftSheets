@@ -66,7 +66,7 @@ import SwiftSheets
         d.setPrintArea("A1:D9")
         d.printTitleRows = 0...0
         d.definedNames["Local"] = "$A$1"
-        d.tabColor = "FF0000"
+        d.tabColor = Color(hex: "FF0000")
         wb.sheets[0] = d
 
         // what only OpenDocument has (spec Appendix B.17)
