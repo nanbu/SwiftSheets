@@ -129,7 +129,7 @@ import SwiftSheets
         let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-2.numbers"))
         let sheet = try NumbersCodec.read(data).workbook.sheets[0]
         let table = sheet.tables[0]
-        let header = table.style(at: CellRef(row: 1, column: 1))
+        let header = table.style(CellRef(row: 1, column: 1))
         #expect(header.font.bold, "a header row is bold")
         #expect(header.font.name == "Helvetica Neue")
         #expect(header.font.size == 10)

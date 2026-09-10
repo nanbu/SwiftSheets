@@ -609,7 +609,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
         // PORT-NOTE: `column("A")` now yields values, so the cells of column A are fetched by reference to compare their parts.
         for r in 1...Swift.max(1, ws1.rowCount) {
             let ref = CellRef(row: r, column: 1)
-            let c1 = ws1.cell(at: ref), c2 = ws2.cell(at: ref)
+            let c1 = ws1.cell(ref), c2 = ws2.cell(ref)
             #expect(c1?.value == c2?.value && c1?.openpyxlDataType == c2?.openpyxlDataType && c1?.note == c2?.note && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
         }
         #expect(ws1.cells.count == ws2.cells.count)

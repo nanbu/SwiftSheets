@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.52 Draft</td><td>2026-09-11</td><td>A1 文字列の双子のラベルを揃える。型つきの <code>cell(at:)</code>・<code>removeCell(at:)</code>・<code>style(at:)</code>・<code>setStyle(at:_:)</code> の <code>at:</code> を外し、文字列の相棒（<code>cell("B2")</code>）と同じくラベル無しにする（<code>Sheet</code>・<code>Table</code> の 8 宣言・B.62）。</td></tr>
     <tr><td>4.51 Draft</td><td>2026-09-11</td><td>B.60 の実装漏れを修正。<code>SheetView.sqref</code> → <code>selectedRanges</code> は移行表と改訂履歴にあったがコードは旧名のままだった（検査も旧名を期待していて緑）。CHANGELOG の「旧 → 新」をコードと突き合わせる契約検査を足した。</td></tr>
     <tr><td>4.50 Draft</td><td>2026-09-10</td><td><strong>セル座標の整数を 1 始まりに</strong>。<code>CellRef(row: 1, column: 1)</code> が A1。座標（<code>CellRef</code>・<code>CellRange</code>・添字・行列の寸法・挿入削除・グループ・印刷タイトル・逐次読みの行番号・列名の関数）は画面の番号、Swift のコレクションの位置（シート・ピボットの欄・配列）は 0 始まりのまま。<code>rowNumber</code> は不要になり消える。<code>FilterColumn.column</code> は <code>columnOffset</code>、<code>RangeView</code> の相対添字は <code>[rowOffset:columnOffset:]</code>（B.61）。</td></tr>
     <tr><td>4.49 Draft</td><td>2026-09-10</td><td>略語を語に。<code>col</code> → <code>column</code>・<code>cols</code> → <code>columns</code>・<code>minCol</code>/<code>maxCol</code> → <code>minColumn</code>/<code>maxColumn</code>（<code>CellRef</code>・<code>CellRange</code>・<code>RangeBounds</code>・<code>offset</code>・<code>shift</code>・<code>moveRange</code>・<code>size</code>・<code>RangeView</code> の添字）、<code>SheetView.sqref</code> → <code>selectedRanges</code>。座標系・範囲端・既定値・保存形式は変えない（B.60）。</td></tr>
@@ -6054,7 +6055,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>setRowDimension(_:_:)</code>・<code>setColumnDimension(_:_:)</code>・<code>setColumnDimension(_ name:_:)</code>・
   <code>setWidth(_:ofColumn:)</code>・<code>setHeight(_:ofRow:)</code>。<code>style</code>だけが揃っていない。
   改名するのは<code>Sheet</code>と<code>Table</code>の3宣言ずつ、
-  <code>setStyle(at:_:)</code>・<code>setStyle(_ a1:_:)</code>・<code>setStyle(_ range:_:)</code>。
+  <code>setStyle(at:_:)</code>・<code>setStyle(_ a1:_:)</code>・<code>setStyle(_ range:_:)</code>（Rev 4.52 で <code>at:</code> は外れ、3 つともラベル無し——B.62）。
   取得用の4宣言（<code>style(at:)</code>・<code>style(_:)</code>）は名前も動きも変えない。旧名は互換として残さない——
   1.0で両方が固定されてしまうため。roadmapにあった<code>updateStyle</code>は採らない: <code>set…</code>・<code>edit…</code>に
   次ぐ3つ目の動詞になる。1セルだけなら<code>sheet[cell: "A1"].style</code>への直接代入がこれまでどおり使え、
@@ -6354,6 +6355,31 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>全検査（1,128 件）を新しい数え方に直して通す。openpyxl から移植した検査は openpyxl の 1 始まりの引数をそのまま渡せるようになり、
   換算が減る。numbers-parser の照合データ（0 始まり）だけは検査側で +1 する。書く入口は行 0・列 0 で理由の文つきに止まる（B.53 の規則）。
   換算の境界は、A1 で置いた値が A1 として読み戻ることを全形式の往復で見る（既存の往復検査がそのまま担う）。</p>
+
+  <h3>B.62 A1 文字列の双子はラベルも双子——<code>cell(ref)</code> と <code>cell("B2")</code>（Rev 4.52）</h3>
+  <p>2026-09-11 決定。1.0 前の一貫性の見直し（群 1）。<code>Sheet</code> と <code>Table</code> の 4 対——<code>cell</code>・<code>removeCell</code>・<code>style</code>・
+  <code>setStyle</code>——で、型つきの側だけが <code>at:</code> を持ち、A1 文字列の側はラベル無しだった。同じ役割の引数に対ごとに違う規則があった。
+  <code>sheet.cell("B2")</code> の書き方は残すので、型つきの側の <code>at:</code> を外して両方をラベル無しにする。互換の別名は残さない（B.53）。</p>
+  <p><strong>なぜ。</strong>①<code>merge(_:)</code>・<code>isMerged(_:)</code>・<code>range(_:)</code>・<code>moveRange(_:)</code>・<code>contains(_:)</code> は
+  型つきも文字列もラベル無しで、library の双子の大半はこの形。②<code>addImage(_:at:)</code> と <code>subscript(cell:)</code> は両側とも同じラベルで、これも「対の両側は同じ」。
+  ③<code>at:</code> が片側にだけ付いていたのは <code>cell</code>・<code>removeCell</code>・<code>style</code>・<code>setStyle</code> の 4 対だけで、この 4 対が規則の例外だった。
+  Swift API Design Guidelines は、引数が型で区別できる同じ操作のオーバーロードにラベルを要求しない。</p>
+  <p><strong>移行表。</strong></p>
+  <table>
+    <thead><tr><th>Rev 4.51 まで</th><th>Rev 4.52 から</th></tr></thead>
+    <tbody>
+      <tr><td><code>sheet.cell(at: ref)</code></td><td><code>sheet.cell(ref)</code></td></tr>
+      <tr><td><code>sheet.removeCell(at: ref)</code></td><td><code>sheet.removeCell(ref)</code></td></tr>
+      <tr><td><code>sheet.style(at: ref)</code></td><td><code>sheet.style(ref)</code></td></tr>
+      <tr><td><code>sheet.setStyle(at: ref) { … }</code></td><td><code>sheet.setStyle(ref) { … }</code></td></tr>
+    </tbody>
+  </table>
+  <p><strong>影響。</strong>曖昧さは出ない——<code>CellRef</code> は文字列リテラルから作れないので、<code>cell("B2")</code> は
+  文字列の側、<code>cell(ref)</code> は型つきの側に一意に解決する。<code>setStyle</code> は <code>CellRef</code>・<code>String</code>・<code>CellRange</code> の
+  3 つのラベル無しオーバーロードになり、これも型で分かれる。B.53 で決めた「読めない A1 文字列は変える入口で止まる」は動きなので変わらない。
+  変わるのは <code>at:</code> を書いていた呼び出しだけで、コンパイルが全部教える。Stream は <code>cell(at:)</code> が 6 か所、LeftRight は 0。</p>
+  <p><strong>変えないもの。</strong><code>addImage(_:at:)</code>（第 1 引数が画像なので位置のラベルが要る）、<code>subscript(cell:)</code>、
+  <code>conditionalFormattingRules(at:)</code>（文字列の相棒が無い単独の宣言）、<code>RangeView.Row.cell(_:)</code>（もともとラベル無し）。</p>
 </section>
 
 </div><!-- /.container -->

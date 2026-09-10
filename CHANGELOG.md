@@ -9,6 +9,13 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Changed
+
+- **The A1-string twins have twin labels** (B.62). `cell(at:)`, `removeCell(at:)`, `style(at:)` and `setStyle(at:_:)`
+  on `Sheet` and `Table` lose the `at:` — `sheet.cell(ref)` beside `sheet.cell("B2")`, the way `merge(_:)`, `range(_:)`
+  and `isMerged(_:)` already were. `addImage(_:at:)` and `subscript(cell:)`, whose two sides already shared a label,
+  are unchanged.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

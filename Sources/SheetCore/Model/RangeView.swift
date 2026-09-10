@@ -44,7 +44,7 @@ public struct RangeView: Sendable, Sequence {
         /// Where the i-th position of the row actually is.
         public func ref(_ i: Int) -> CellRef { CellRef(row: row, column: firstColumn + i) }
         /// The whole cell (style, link and note included), or nil when the sheet has none there.
-        public func cell(_ i: Int) -> Cell? { table.cell(at: ref(i)) }
+        public func cell(_ i: Int) -> Cell? { table.cell(ref(i)) }
     }
 
     public struct Iterator: IteratorProtocol {
@@ -82,7 +82,7 @@ public struct RangeView: Sendable, Sequence {
     public var values: [[CellValue?]] { map(Array.init) }
     /// The cells that actually exist inside the range, in row-major order.
     public var existingCells: [(ref: CellRef, cell: Cell)] {
-        table.existingRefs(in: range).sorted().map { ($0, table.cell(at: $0)!) }
+        table.existingRefs(in: range).sorted().map { ($0, table.cell($0)!) }
     }
     /// How many rows the view has.
     public var count: Int { range.size.rows }

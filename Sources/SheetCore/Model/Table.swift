@@ -129,11 +129,11 @@ public struct Table: Equatable, Sendable {
     }
 
     /// The cell if it exists, without creating it.
-    public func cell(at ref: CellRef) -> Cell? { cells[ref] }
+    public func cell(_ ref: CellRef) -> Cell? { cells[ref] }
     public func cell(_ a1: String) -> Cell? { CellRef(a1).flatMap { cells[$0] } }
 
     /// Removes a cell entirely.
-    public mutating func removeCell(at ref: CellRef) { put(nil, at: ref) }
+    public mutating func removeCell(_ ref: CellRef) { put(nil, at: ref) }
     public mutating func removeCell(_ a1: String) {
         guard let r = CellRef(a1) else { preconditionFailure("invalid cell reference \(a1)") }
         put(nil, at: r)
@@ -141,13 +141,13 @@ public struct Table: Equatable, Sendable {
 
     // MARK: - Styles
 
-    public func style(at ref: CellRef) -> CellStyle { cells[ref]?.style ?? .default }
-    public func style(_ a1: String) -> CellStyle { CellRef(a1).map(style(at:)) ?? .default }
+    public func style(_ ref: CellRef) -> CellStyle { cells[ref]?.style ?? .default }
+    public func style(_ a1: String) -> CellStyle { CellRef(a1).map(style(_:)) ?? .default }
 
     /// Edits the style of one cell in place (the cell is created if needed). Named `setStyle` rather than `style`
     /// so that taking a style and changing one are different words, as they are for a row's or a column's
     /// dimension (spec Appendix B.53).
-    public mutating func setStyle(at ref: CellRef, _ update: (inout CellStyle) -> Void) {
+    public mutating func setStyle(_ ref: CellRef, _ update: (inout CellStyle) -> Void) {
         var c = storage[ref] ?? Cell()
         update(&c.style)
         put(c.isBlank ? nil : c, at: ref)

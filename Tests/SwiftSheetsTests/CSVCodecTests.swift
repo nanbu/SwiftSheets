@@ -349,8 +349,8 @@ import SheetCore
 
     @Test func styledCellsWarnExactlyOnce() throws {
         var sheet = Sheet(name: "S")
-        sheet[1, 1] = .text("a"); sheet.setStyle(at: CellRef(row: 1, column: 1)) { $0.font.bold = true }
-        sheet[1, 2] = .text("b"); sheet.setStyle(at: CellRef(row: 1, column: 2)) { $0.numberFormat = "0.00" }
+        sheet[1, 1] = .text("a"); sheet.setStyle(CellRef(row: 1, column: 1)) { $0.font.bold = true }
+        sheet[1, 2] = .text("b"); sheet.setStyle(CellRef(row: 1, column: 2)) { $0.numberFormat = "0.00" }
         sheet[2, 1] = .integer(1)
         let result = try CSVCodec.write(Workbook(sheets: [sheet]))
         #expect(result.warnings.count == 1)
