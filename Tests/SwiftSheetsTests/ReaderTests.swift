@@ -24,7 +24,7 @@ func fixture(_ name: String) throws -> Data {
         #expect(ws["E1"] == .date(CivilDateTime(date: CivilDate(year: 2026, month: 9, day: 1)!)))
         #expect(ws[cell: "E1"].numberFormat == "yyyy/m/d" && ws[cell: "E1"].isDate)
         #expect(ws["F1"]?.dateValue?.time == TimeOfDay(hour: 13, minute: 30))
-        #expect(ws["G1"] == Formula("=B1*2"))
+        #expect(ws["G1"] == .formula("=B1*2"))
         #expect(ws["H1"] == .number(0.25) && ws[cell: "H1"].numberFormat == "0%")
         #expect(ws["A2"] == .text("  padded  "))
         #expect(ws[cell: "B2"].alignment.wrapText && ws[cell: "B2"].alignment.horizontal == .center && ws[cell: "B2"].alignment.vertical == .top)

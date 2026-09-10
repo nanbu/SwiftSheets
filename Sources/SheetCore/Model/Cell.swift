@@ -100,7 +100,7 @@ public struct Cell: Hashable, Sendable {
     /// Assigning a date / time / duration sets a matching number format unless the cell already has a date format
     /// (openpyxl `_bind_value`): date → "yyyy-mm-dd", datetime → "yyyy-mm-dd h:mm:ss", time → "h:mm:ss", duration → "[hh]:mm:ss".
     private mutating func applyDateFormat() {
-        guard let v = storedValue, v.dataType == "d", !NumberFormat.isDateFormat(style.numberFormat) else { return }
+        guard let v = storedValue, v.isDated, !NumberFormat.isDateFormat(style.numberFormat) else { return }
         switch v {
         case .date(let dt): style.numberFormat = dt.isMidnight ? NumberFormat.isoDate : NumberFormat.isoDateTime
         case .time: style.numberFormat = NumberFormat.time24Seconds
@@ -108,9 +108,6 @@ public struct Cell: Hashable, Sendable {
         default: break
         }
     }
-
-    /// openpyxl's `data_type`: "n" for numbers and empty cells, "s", "b", "d", "f", "e".
-    public var dataType: Character { storedValue?.dataType ?? "n" }
 
     // Style conveniences (openpyxl: cell.font = Font(...))
     public var font: Font { get { style.font } set { style.font = newValue } }

@@ -883,7 +883,7 @@ enum ODSWriter {
             let abs = Swift.abs(total)
             let h = Int(abs / 3600), m = Int(abs) / 60 % 60, sec = abs - Double(h * 3600 + m * 60)
             let iso = (negative ? "-" : "") + isoDuration(hours: h, minutes: m, seconds: sec)
-            return (" office:value-type=\"time\" office:time-value=\"\(iso)\"", ["<text:p>\(XML.esc(v.pythonString))</text:p>"])
+            return (" office:value-type=\"time\" office:time-value=\"\(iso)\"", ["<text:p>\(XML.esc(v.stringValue))</text:p>"])
         case .error(let e): return (" office:value-type=\"string\"", ["<text:p>\(XML.esc(e))</text:p>"])
         case .formula(_, let cached): return cached.map { valueXML($0, percent: percent) } ?? ("", [])
         }

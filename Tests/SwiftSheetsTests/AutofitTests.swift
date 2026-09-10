@@ -64,7 +64,7 @@ import SwiftSheets
     @Test func formulasMeasureTheirCachedValue() {
         var sheet = Sheet(name: "S")
         sheet["A1"] = CellValue.formula(FormulaExpr.number(1), cached: .text("cached text"))
-        sheet["B1"] = Formula("=A1*2")              // no cached value
+        sheet["B1"] = .formula("=A1*2")              // no cached value
         sheet.autofitColumns()
         #expect(sheet.columnDimensions[0]?.width == Double(TextWidth.pixels("cached text") + 7 - 5) / 7.0)
         #expect(sheet.columnDimensions[1]?.width == nil, "nothing measurable, nothing set")

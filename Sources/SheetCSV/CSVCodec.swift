@@ -84,7 +84,7 @@ package enum CSVCodec: SpreadsheetCodec {
             var plain = c.style; plain.numberFormat = CellStyle.default.numberFormat
             if plain != .default { return true }
             if c.style.numberFormat == CellStyle.default.numberFormat { return false }
-            return !(c.value?.dataType == "d" && NumberFormat.isDateFormat(c.style.numberFormat))
+            return !(c.value?.isDated == true && NumberFormat.isDateFormat(c.style.numberFormat))
         }
         if table.cells.values.contains(where: { hasFormatting($0) || $0.value?.formula != nil }) {
             warnings.append(ConversionWarning(.degraded, subject: .formatting, message: "formatting and formula structure are not kept in CSV"))
@@ -407,12 +407,12 @@ package enum CSVCodec: SpreadsheetCodec {
                 if let dateFormatter { return dateFormatter.string(from: Self.date(of: dt)) }
                 return dt.isMidnight ? dt.date.description : dt.iso8601
             case .time(let t): return t.iso8601
-            case .duration: return value.pythonString
+            case .duration: return value.stringValue
             case .error(let e): return e
             case .formula(_, let cached):
                 if let cached { return render(cached, at: ref, sheet: sheet, warnings: &warnings) }
                 warnings.append(ConversionWarning(.degraded, sheet: sheet, location: ref, message: "formula without a cached value written as text"))
-                return value.pythonString
+                return value.stringValue
             }
         }
 

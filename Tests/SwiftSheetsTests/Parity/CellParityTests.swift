@@ -12,52 +12,52 @@ import Testing
     @Test func ctor() {
         // PORT-NOTE: position lives on `CellRef` now; the old `cell.column == 1 && cell.row == 1` is the 0-based ref of A1.
         let cell = dummyCell(), ref = CellRef(row: 0, col: 0)
-        #expect(cell.dataType == "n" && ref.col == 0 && ref.row == 0 && ref.a1 == "A1" && cell.value == nil && cell.note == nil)
+        #expect(cell.openpyxlDataType == "n" && ref.col == 0 && ref.row == 0 && ref.a1 == "A1" && cell.value == nil && cell.note == nil)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_null
-    @Test(arguments: [CellValue.integer(1), .date(CivilDateTime(date: CivilDate(year: 2026, month: 1, day: 1)!)), .text("x"), .bool(true), Formula("=1"), .error("#N/A")])
+    @Test(arguments: [CellValue.integer(1), .date(CivilDateTime(date: CivilDate(year: 2026, month: 1, day: 1)!)), .text("x"), .bool(true), .formula("=1"), .error("#N/A")])
     func null(_ value: CellValue) {
         var cell = dummyCell()
         cell.value = value
-        #expect(cell.dataType == value.dataType)
+        #expect(cell.openpyxlDataType == value.openpyxlDataType)
         cell.value = nil
-        #expect(cell.dataType == "n")
+        #expect(cell.openpyxlDataType == "n")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_string
     @Test(arguments: ["hello", ".", "0800"]) func string(_ value: String) {
         var cell = dummyCell()
         cell.value = CellValue(inferring: value)
-        #expect(cell.dataType == "s" && cell.value == .text(value))
+        #expect(cell.openpyxlDataType == "s" && cell.value == .text(value))
     }
 
     // openpyxl: cell/tests/test_cell.py::test_formula
     @Test(arguments: ["=42", "=if(A1<4;-1;1)"]) func formula(_ value: String) {
         var cell = dummyCell()
         cell.value = CellValue(inferring: value)
-        #expect(cell.dataType == "f")
+        #expect(cell.openpyxlDataType == "f")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_not_formula
     @Test func notFormula() {
         var cell = dummyCell()
         cell.value = CellValue(inferring: "=")
-        #expect(cell.dataType == "s" && cell.value == .text("="))
+        #expect(cell.openpyxlDataType == "s" && cell.value == .text("="))
     }
 
     // openpyxl: cell/tests/test_cell.py::test_boolean
     @Test(arguments: [true, false]) func boolean(_ value: Bool) {
         var cell = dummyCell()
         cell.value = .bool(value)
-        #expect(cell.dataType == "b")
+        #expect(cell.openpyxlDataType == "b")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_error_codes
     @Test(arguments: ["#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A"]) func errorCodes(_ errorString: String) {
         var cell = dummyCell()
         cell.value = CellValue(inferring: errorString)
-        #expect(cell.dataType == "e" && cell.value == .error(errorString))
+        #expect(cell.openpyxlDataType == "e" && cell.value == .error(errorString))
     }
 
     static let insertDateCases: [(CellValue, String)] = [
@@ -70,7 +70,7 @@ import Testing
     func insertDate(_ value: CellValue, _ numberFormat: String) {
         var cell = dummyCell()
         cell.value = value
-        #expect(cell.dataType == "d" && cell.isDate && cell.numberFormat == numberFormat)
+        #expect(cell.openpyxlDataType == "d" && cell.isDate && cell.numberFormat == numberFormat)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_time_format_datetime_subclass
@@ -128,7 +128,7 @@ import Testing
     @Test func timedelta() {
         var cell = dummyCell()
         cell.value = .duration(.seconds(86400 + 3 * 3600))
-        #expect(ExcelDate.toSerial(cell.value!) == 1.125 && cell.dataType == "d" && cell.isDate && cell.numberFormat == "[hh]:mm:ss")
+        #expect(ExcelDate.toSerial(cell.value!) == 1.125 && cell.openpyxlDataType == "d" && cell.isDate && cell.numberFormat == "[hh]:mm:ss")
     }
 
     // openpyxl: cell/tests/test_cell.py::<module>::test_repr
@@ -234,7 +234,7 @@ import Testing
     @Test func mergedDataType() {
         var ws = Workbook().sheets[0]
         ws.merge("A1:C3")
-        #expect(ws[cell: "B2"].dataType == "n")
+        #expect(ws[cell: "B2"].openpyxlDataType == "n")
     }
 
     // openpyxl: cell/tests/test_cell.py::TestMergedCell::test_comment
@@ -279,7 +279,7 @@ import Testing
         (.integer(1234567890), "<c r=\"A1\"><v>1234567890</v></c>"),
         // PORT-NOTE: openpyxl writes formula text verbatim; the new library parses formulas to an AST and canonicalizes
         // function names on emit, so `=sum(1+1)` is written as `SUM(1+1)` (same formula, upper-case name).
-        (Formula("=sum(1+1)"), "<c r=\"A1\"><f>SUM(1+1)</f></c>"),
+        (.formula("=sum(1+1)"), "<c r=\"A1\"><f>SUM(1+1)</f></c>"),
         (.bool(true), "<c r=\"A1\" t=\"b\"><v>1</v></c>"),
         (.text("Hello"), "<c r=\"A1\" t=\"s\"><v>0</v></c>"),   // SwiftSheets always uses the shared string table
         (.text(""), "<c r=\"A1\" t=\"s\"><v>0</v></c>"),
@@ -330,7 +330,7 @@ import Testing
     }
 
     static let attributeCases: [(CellValue, String, String)] = [
-        (.text("test"), "<v>0</v>", " t=\"s\""), (Formula("=SUM(A1:A2)"), "<f>SUM(A1:A2)</f>", ""), (CellValue(CivilDate(year: 2018, month: 8, day: 25)!), "<v>43337</v>", " s=\"1\""),
+        (.text("test"), "<v>0</v>", " t=\"s\""), (.formula("=SUM(A1:A2)"), "<f>SUM(A1:A2)</f>", ""), (CellValue(CivilDate(year: 2018, month: 8, day: 25)!), "<v>43337</v>", " s=\"1\""),
     ]
     // openpyxl: cell/tests/test_writer.py::test_attributes
     @Test(arguments: attributeCases)
@@ -375,7 +375,7 @@ import Testing
 
     // openpyxl: cell/tests/test_rich_text.py::TestTextBlock::test_str
     @Test func textBlockStr() {
-        #expect(CellValue.richText([TextRun("text", font: Font(bold: true))]).pythonString == "text")
+        #expect(CellValue.richText([TextRun("text", font: Font(bold: true))]).stringValue == "text")
     }
 
     // openpyxl: cell/tests/test_rich_text.py::test_rich_text_create_single
@@ -422,7 +422,7 @@ import Testing
 
     // openpyxl: cell/tests/test_rich_text.py::TestCellRichText::test_str
     @Test func richTextStr() {
-        #expect(CellValue.richText([TextRun("a"), TextRun("b", font: Font(bold: true)), TextRun("c")]).pythonString == "abc")
+        #expect(CellValue.richText([TextRun("a"), TextRun("b", font: Font(bold: true)), TextRun("c")]).stringValue == "abc")
     }
 
     // openpyxl: cell/tests/test_rich_text.py::TestCellRichText::test_to_tree

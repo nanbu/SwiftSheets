@@ -24,11 +24,11 @@ import SwiftSheets
             d.append([CellValue.text(["East", "West", "North"][i % 3]), .text(i.isMultiple(of: 2) ? "A" : "B"),
                       .integer(i + 1), .number(Decimal(i) + Decimal(string: "0.5")!)])
         }
-        d["F1"] = Formula("=SUM(C2:C9)")
+        d["F1"] = .formula("=SUM(C2:C9)")
         // a quote function: only Numbers can recompute one, so only Numbers keeps the formula (Appendix B.27)
         d["F2"] = .formula(FormulaExpr.parse("STOCK(\"AAPL\",0)"), cached: .number(313.45))
         d.table.arrayFormulas[CellRef("G1")!] = CellRange("G1:G8")!
-        d["G1"] = Formula("=C2:C9*2")
+        d["G1"] = .formula("=C2:C9*2")
         d["H1"] = "リンク"
         d[cell: "H1"].hyperlink = Hyperlink(target: "https://example.com/")
         d["H2"] = "メモつき"

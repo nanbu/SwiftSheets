@@ -292,7 +292,7 @@
     },
     "TestTextBlock::test_str": {
      "status": "adapted",
-     "reason": "pythonString で検証"
+     "reason": "stringValue で検証"
     },
     "TestCellRichText::test_rich_text_create_single": {
      "status": "ported"

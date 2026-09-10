@@ -28,8 +28,6 @@ public indirect enum CellValue: Hashable, Sendable {
     public var textValue: String? {
         switch self { case .text(let s): s; case .richText(let r): r.map(\.text).joined(); default: nil }
     }
-    /// Any value as display text (numbers, dates and booleans are stringified; formulas render in XLSX dialect).
-    public var stringValue: String { pythonString }
     /// The numeric value of an `integer` / `number` cell (or of a formula's cached number).
     public var numberValue: Decimal? {
         switch self { case .integer(let i): Decimal(i); case .number(let d): d; case .formula(_, let c): c?.numberValue; default: nil }
@@ -62,21 +60,15 @@ public indirect enum CellValue: Hashable, Sendable {
     public var cachedValue: CellValue? { if case .formula(_, let c) = self { return c }; return self }
 
     public var isNumeric: Bool { if case .integer = self { return true }; if case .number = self { return true }; return false }
-
-    /// openpyxl's `cell.data_type` letter: n (numeric / empty), s (string), b, d (date-like), f (formula), e (error).
-    public var dataType: Character {
-        switch self {
-        case .integer, .number: return "n"
-        case .text, .richText: return "s"
-        case .bool: return "b"
-        case .date, .time, .duration: return "d"
-        case .formula: return "f"
-        case .error: return "e"
-        }
+    /// A date, a time or a duration — the values that get a date-like number format when they have none.
+    package var isDated: Bool {
+        switch self { case .date, .time, .duration: true; default: false }
     }
 
-    /// Python-style `str(value)` — what openpyxl-based code sees when it stringifies a cell.
-    public var pythonString: String {
+    /// Any value as plain text, the way Python's `str()` would spell it (which is what openpyxl-based tooling
+    /// compares against): `True` / `False`, a whole `Decimal` as `1.0`, a duration as `1 day, 1:00:00`, a formula
+    /// in XLSX dialect with its `=`. A number format is not applied — this is the value, not its display.
+    public var stringValue: String {
         switch self {
         case .integer(let i): return String(i)
         case .number(let dec):
@@ -157,6 +149,10 @@ extension CellValue {
     }
 }
 
-/// `sheet["C1"] = Formula("=SUM(A1:B2)")` — a formula value from its text (parsed on the spot, `.unparsed` when the
-/// parser cannot read it).
-public func Formula(_ text: String, dialect: SheetFormat = .xlsx) -> CellValue { CellValue(formula: text, dialect: dialect) }
+extension CellValue {
+    /// `sheet["C1"] = .formula("=SUM(A1:B2)")` — a formula value from its text, parsed on the spot (`.unparsed` when
+    /// the parser cannot read it), with no cached value. The case `formula(_:cached:)` takes the parsed form.
+    public static func formula(_ text: String, dialect: SheetFormat = .xlsx) -> CellValue {
+        CellValue(formula: text, dialect: dialect)
+    }
+}

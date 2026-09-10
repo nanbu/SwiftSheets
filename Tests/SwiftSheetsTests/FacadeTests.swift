@@ -69,7 +69,7 @@ import SwiftSheets
         wb.sheets[0].name = "集計"
         wb.sheets[0].append(["部門", "金額"])
         wb.sheets[0].append(["営業", 1_250_000])
-        wb.sheets[0]["C2"] = Formula("=B2*2")
+        wb.sheets[0]["C2"] = .formula("=B2*2")
         wb.addSheet(named: "明細")
         let xlsx = Self.tmp.appendingPathComponent("book.xlsx")
         let written = try wb.write(to: xlsx)    // format from the extension

@@ -135,7 +135,7 @@ import SwiftSheets
         #expect(wb.sheetNames == ["Sheet1", "Data"])   // still in its place, not appended again
 
         // renaming through the same path still rewrites the formulas that name it
-        wb.sheets[0]["A1"] = Formula("=Data!A1")
+        wb.sheets[0]["A1"] = .formula("=Data!A1")
         wb.sheets["Data"]?.name = "Master"
         #expect(wb.sheetNames == ["Sheet1", "Master"])
         #expect(wb.sheets[0]["A1"]?.formula?.rendered(as: .xlsx) == "Master!A1")
@@ -155,7 +155,7 @@ import SwiftSheets
         var wb = Workbook()
         let count = try wb.editSheet(named: "Sheet1") { sheet in
             sheet["B4"] = 1_380_000
-            sheet["B5"] = Formula("=B4/B3")
+            sheet["B5"] = .formula("=B4/B3")
             sheet.setStyle("A1") { $0.font.bold = true }
             return sheet.cells.count
         }
@@ -205,7 +205,7 @@ import SwiftSheets
     @Test func editSheetRenameFollowsTheUsualRules() throws {
         var wb = Workbook()
         wb.addSheet(named: "Report")
-        wb.sheets[1]["A1"] = Formula("=Sheet1!B2")
+        wb.sheets[1]["A1"] = .formula("=Sheet1!B2")
         try wb.editSheet(named: "Sheet1") { $0.name = "Data" }
         #expect(wb.sheetNames == ["Data", "Report"])
         #expect(wb.sheets[1]["A1"]?.formula?.text == "=Data!B2")

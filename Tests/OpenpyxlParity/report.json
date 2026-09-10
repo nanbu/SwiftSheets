@@ -2146,7 +2146,7 @@
    "key": "TestTextBlock::test_str",
    "params": 1,
    "status": "adapted",
-   "reason": "pythonString で検証",
+   "reason": "stringValue で検証",
    "api": "—",
    "swift": [
     "CellParityTests.swift"

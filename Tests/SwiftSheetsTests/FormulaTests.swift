@@ -142,8 +142,8 @@ import Testing
         wb.addSheet(named: "Other")
         wb.sheets[0]["A1"] = 1
         wb.sheets[0]["A2"] = 2
-        wb.sheets[0]["B1"] = Formula("=SUM(A1:A2)+Other!A1")
-        wb.sheets[1]["A1"] = Formula("=Sheet1!A2*2")
+        wb.sheets[0]["B1"] = .formula("=SUM(A1:A2)+Other!A1")
+        wb.sheets[1]["A1"] = .formula("=Sheet1!A2*2")
         wb.sheets[0].insertRows(at: 1, count: 1)   // only this sheet's own references move
         #expect(wb.sheets[0]["B1"]?.formula?.text == "=SUM(A1:A3)+Other!A1")
         #expect(wb.sheets[0]["A3"] == .integer(2))
@@ -160,12 +160,12 @@ import Testing
     @Test func formulaValuesInCells() {
         var s = Sheet(name: "S")
         s["A1"] = "=SUM(B1:B2)"          // string literal inference, like openpyxl
-        s["A2"] = Formula("=A1*2")
+        s["A2"] = .formula("=A1*2")
         s["A3"] = CellValue(formula: "1+1", cached: .integer(2))
         #expect(s["A1"]?.formula?.text == "=SUM(B1:B2)")
-        #expect(s["A2"]?.dataType == "f")
+        #expect(s["A2"]?.openpyxlDataType == "f")
         #expect(s["A3"]?.cachedValue == .integer(2))
         #expect(s["A3"]?.intValue == 2)
-        #expect(s["A1"]?.pythonString == "=SUM(B1:B2)")
+        #expect(s["A1"]?.stringValue == "=SUM(B1:B2)")
     }
 }

@@ -62,7 +62,7 @@ import SheetEncrypt
         wb.sheets[0]["A1"] = "秘密"
         wb.sheets[0]["B2"] = 3.25
         wb.addSheet(named: "Two")
-        wb.sheets[1]["C3"] = Formula("=1+2")
+        wb.sheets[1]["C3"] = .formula("=1+2")
         let protected = try wb.write(as: .xlsx, password: "パスワード").data
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedOOXML))
         #expect(SheetFormat.detect(from: protected) == nil)

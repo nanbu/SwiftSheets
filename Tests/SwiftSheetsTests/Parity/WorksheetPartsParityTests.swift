@@ -610,7 +610,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
         for r in 0..<ws1.rowCount {
             let ref = CellRef(row: r, col: 0)
             let c1 = ws1.cell(at: ref), c2 = ws2.cell(at: ref)
-            #expect(c1?.value == c2?.value && c1?.dataType == c2?.dataType && c1?.note == c2?.note && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
+            #expect(c1?.value == c2?.value && c1?.openpyxlDataType == c2?.openpyxlDataType && c1?.note == c2?.note && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
         }
         #expect(ws1.cells.count == ws2.cells.count)
     }

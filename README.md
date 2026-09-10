@@ -25,7 +25,7 @@ import SwiftSheets
 var wb = try Workbook(contentsOf: URL(filePath: "monthly-report.xlsx"))   // format detected from the bytes, not the extension
 try wb.editSheet(named: "Summary") { sheet in // sheets are value types; this edits one in place — nothing to put back
     sheet["B4"] = 1_380_000                   // Int / Double / Decimal / String / Bool / CivilDate literals and values
-    sheet["B5"] = Formula("=B4/B3")           // parsed into an AST; follows row inserts and sheet renames
+    sheet["B5"] = .formula("=B4/B3")          // parsed into an AST; follows row inserts and sheet renames
     sheet.setStyle("A1:D1") { $0.font.bold = true; $0.fill = .solid(Color(hex: "F5F5F7")) }
 }                                             // a closure that throws leaves the workbook untouched; a missing name is loud
 var sheet = wb.sheets["Summary"]!             // the classic way still works…
@@ -269,7 +269,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `auto_filter.add_filter_column(...)`, `auto_filter.sortState` | `sheet.filterColumns`, `sheet.sortState` — value lists, comparisons, colour, icon, dynamic, top 10 and whole-month filters. Only the `<extLst>` extensions are kept as source XML (`sheet.hasUnmodelledFilters`) |
 | `ws.oddHeader.left.text`, `ws.row_breaks`, `ws.col_breaks` | `sheet.headerFooter` (Excel's `&L`/`&C`/`&R` string, undecomposed), `sheet.rowBreaks`, `sheet.columnBreaks` |
 | `ArrayFormula(ref, text)` | `sheet.table.arrayFormulas[anchor] = CellRange("A2:A4")` |
-| `cell.value = '=SUM(A1:B2)'` | `sheet["C1"] = Formula("=SUM(A1:B2)")`; `value.formula?.rendered(as: .ods)` |
+| `cell.value = '=SUM(A1:B2)'` | `sheet["C1"] = .formula("=SUM(A1:B2)")`; `value.formula?.rendered(as: .ods)` |
 | `wb.defined_names`, `wb.properties` | `wb.definedNames`, `wb.metadata` |
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(2)`, `CellRef.columnIndex("C")` (0-based) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |

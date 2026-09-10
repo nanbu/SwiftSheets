@@ -23,7 +23,7 @@ import SwiftSheets
         s.append(["営業", 1_250_000, 0.125, CellValue(CivilDate(year: 2026, month: 9, day: 1)!), true, CellValue(Duration.seconds(3661))])
         s.append(["開発", -3.5, CellValue(Decimal(string: "12345678901234567890.5")!), CellValue(CivilDateTime(date: CivilDate(year: 2026, month: 9, day: 1)!, time: TimeOfDay(hour: 13, minute: 30))), false, nil])
         s["A5"] = "merged"; s.merge("A5:C6")
-        s["G1"] = Formula("=SUM(B2:B3)"); s[cell: "G1"].value = .formula(FormulaExpr.parse("SUM(B2:B3)"), cached: .number(Decimal(string: "1249996.5")!))
+        s["G1"] = .formula("=SUM(B2:B3)"); s[cell: "G1"].value = .formula(FormulaExpr.parse("SUM(B2:B3)"), cached: .number(Decimal(string: "1249996.5")!))
         s["H1"] = "quote \"q\" & <tag>\nline2"
         s.setWidth(30, ofColumn: "A"); s.setHeight(40, ofRow: 0)
         s.freezePanes = CellRef(row: 1, col: 0)

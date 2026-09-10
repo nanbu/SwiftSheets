@@ -1612,7 +1612,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
   <h3>14.7 数式</h3>
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
-    <tr><td><code>cell.value = '=SUM(A1:B2)'</code></td><td><code>sheet["C1"] = Formula("=SUM(A1:B2)")</code></td><td>代入時に AST 化。解析不能なら <code>.unparsed</code> 退避（第5章）</td></tr>
+    <tr><td><code>cell.value = '=SUM(A1:B2)'</code></td><td><code>sheet["C1"] = .formula("=SUM(A1:B2)")</code></td><td>代入時に AST 化。解析不能なら <code>.unparsed</code> 退避（第5章）</td></tr>
     <tr><td><code>load_workbook(data_only=True)</code></td><td><code>ReadOptions(formulaCells: .cachedValues)</code></td><td>計算済みの値で読む（B.54）</td></tr>
     <tr><td>（文字列のみ）</td><td><code>case .formula(let ast, let cached)</code></td><td>AST とキャッシュ値の両方に常時アクセス可能</td></tr>
     <tr><td>—</td><td><code>formula.rendered(as: .ods)</code></td><td>方言レンダリング（<code>of:=SUM([.A1:.B2];[.C3])</code>）</td></tr>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.47 Draft</td><td>2026-09-10</td><td>便利 API の整理。<code>dataType</code>（openpyxl の 1 文字）を廃止、<code>pythonString</code> を <code>stringValue</code> に統合（表現は変えない）、グローバル関数 <code>Formula(_:)</code> を <code>CellValue.formula(_:dialect:)</code> へ。A1 文字列の双子プロパティ（<code>freezePanesA1</code>・<code>autoFilterA1</code>・<code>dimensions</code>）は残す（B.58）。</td></tr>
     <tr><td>4.46 Draft</td><td>2026-09-10</td><td><code>NumberFormat</code> の定数を openpyxl の <code>FORMAT_*</code> の写し（<code>dateXLSX14</code>・<code>dateTime1</code>〜<code>8</code>・<code>number00</code> …34 個）から、意味を名乗る 18 個へ。ロケールで表示が変わる組み込み書式は名前を持たず <code>builtinCode(_:)</code> で引く。値の文字列は 1 つも変えない（B.57）。</td></tr>
     <tr><td>4.45 Draft</td><td>2026-09-10</td><td>編集モデルの型名 3 件。<code>ExcelTable</code> → <code>StructuredTable</code>（<code>structuredTables</code>・<code>addStructuredTable</code>・<code>StructuredTableColumn</code> も）、<code>Cell.comment</code> → <code>Cell.note</code>（型 <code>CellNote</code> はそのまま）、<code>Top10Filter</code> → <code>RankFilter</code>（<code>FilterColumn.rank</code>）。互換の別名は残さない（B.56）。</td></tr>
     <tr><td>4.44 Draft</td><td>2026-09-10</td><td>入力規則の候補リストを文字列の配列から作れる <code>DataValidation.list(choices:over:)</code>（失敗可能）と、読む側の <code>listChoices</code> を追加。インライン一覧の綴り（<code>"a,b,c"</code>）の知識を 3 つのコーデックからモデル 1 か所へ寄せる（B.55）。</td></tr>
@@ -1978,7 +1979,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>シート名の検証</td><td><code>Workbook.sheets</code>（<code>Sheets</code> コレクション）に収めた時点で検証・重複回避（不正名は旧名維持、重複は数字サフィックス）。改名時は全シートの数式内参照を AST 経由で追随</td><td>値型ではシート単体が兄弟を知らないため</td></tr>
     <tr><td><code>Workbook()</code> は "Sheet1"</td><td>同じ（openpyxl の "Sheet" から変更）</td><td>本文どおり</td></tr>
     <tr><td><code>ColumnName(2)</code> / <code>ColumnIndex("C")</code></td><td><code>CellRef.columnName(2)</code> / <code>CellRef.columnIndex("C")</code></td><td>大文字の関数名は Swift では型に見える。意味は同じ（0 始まり）</td></tr>
-    <tr><td><code>Formula("=…")</code>（型）</td><td><code>Formula(_:)</code> は <code>CellValue</code> を返す関数（<code>sheet["C1"] = Formula("=SUM(A1:B2)")</code> は本文どおり書ける）。型としては <code>FormulaExpr</code></td><td>添字の代入型を <code>CellValue?</code> 一本に保つため</td></tr>
+    <tr><td><code>Formula("=…")</code>（型）</td><td><code>CellValue.formula(_:dialect:)</code>（Rev 4.47 まではグローバル関数 <code>Formula(_:)</code>）——<code>sheet["C1"] = .formula("=SUM(A1:B2)")</code> は本文どおり書ける）。型としては <code>FormulaExpr</code></td><td>添字の代入型を <code>CellValue?</code> 一本に保つため</td></tr>
     <tr><td>—</td><td><code>Comment</code> は <code>CellNote</code>、プロパティは <code>cell.note</code>（Rev 4.45・B.56）</td><td>Excel の現行の呼び名は「メモ」。「コメント」はスレッド形式の別物に空けておく</td></tr>
     <tr><td>—</td><td><code>Workbook.epoch</code>（1900 / 1904）・<code>indexedColors</code>・<code>codeName</code> をモデルに保持</td><td>ファイル単位の意味属性であり、書き出し時に利用者が指定し得る（シリアル値そのものは持たない）</td></tr>
   </table></div>
@@ -6223,6 +6224,38 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>18 個がそれぞれ名乗るコードであること、組み込みでもある 14 個が仕様の番号に解決すること、
   既定の書式が名前つきの定数であること（<code>NumberFormatVocabularyTests</code>）。openpyxl 由来の判定検査
   （<code>kind(of:)</code>）は定数ではなく文字列を並べて同じ 22 件を見続ける。</p>
+
+  <h3>B.58 便利 API の整理——同じ物の別名は 1 つに、Python の癖は消す（Rev 4.47）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 9）。「同値の別名を消す」と「表現形式を変える」を分け、今回は前者だけを行う。</p>
+  <p><strong>1. <code>CellValue.dataType</code>・<code>Cell.dataType</code> を廃止。</strong>①openpyxl は
+  <code>cell.data_type</code> に <code>"n"</code>・<code>"s"</code>・<code>"b"</code>・<code>"d"</code>・<code>"f"</code>・<code>"e"</code> の 1 文字を返す。
+  ②Swift でこれを写すと、利用者は 6 文字の対応表を覚えて <code>== "d"</code> と比べることになる。③Swift には
+  <code>switch value { case .date, .time, .duration: … }</code> があり、型で分けられる。openpyxl から移植した検査
+  （<code>// openpyxl:</code> の印つき 25 行）は、この 1 文字を検査側の補助（<code>openpyxlDataType</code>・
+  <code>Tests/…/Parity/OpenpyxlLetters.swift</code>）で持ち続ける——照合の台帳と <code>check.py</code> はそのまま通る。
+  本体内で <code>dataType == "d"</code> と書いていた 2 か所（日付の既定書式・CSV の書式判定）は <code>package</code> の
+  <code>isDated</code> に置き換えた。</p>
+  <p><strong>2. <code>pythonString</code> を <code>stringValue</code> に統合。</strong>2 つは同じ関数だった
+  （<code>stringValue { pythonString }</code>）。残すのは中立の名 <code>stringValue</code> で、<strong>出力は 1 文字も変えない</strong>：
+  <code>True</code> / <code>False</code>、整数値の <code>Decimal</code> は <code>1.0</code>、経過時間は <code>1 day, 1:00:00</code>、
+  数式は <code>=</code> つきの XLSX 方言。これが Python の <code>str()</code> の綴りであることは説明文に残す——CSV と ODS の書き手が
+  この文字列をファイルに書いており、openpyxl との照合検査がその綴りを期待しているため。表現を Swift らしく
+  （<code>true</code>・<code>1</code>）改めるかは<strong>別の判断</strong>で、改めるなら CSV / ODS の出力も動く。Stream は
+  <code>pythonString</code> を 21 か所で使っており、移行は機械的な改名（<code>sed</code>）で済む。</p>
+  <p><strong>3. グローバル関数 <code>Formula(_:dialect:)</code> を <code>CellValue.formula(_:dialect:)</code> へ。</strong>
+  ①大文字で始まる関数は型に見える（<code>Formula("=A1")</code> は初期化子の顔をしている）。②<code>CellValue</code> には
+  既に列挙の選択肢 <code>formula(_ expr: FormulaExpr, cached:)</code> があり、文字列版を静的関数として同じ名で並べられることを
+  コンパイルで確かめた（引数の型で選ばれ、<code>cached:</code> の有無で曖昧にならない）。③だから
+  <code>sheet["C1"] = .formula("=SUM(A1:B2)")</code>。方言つきは <code>.formula("=…", dialect: .ods)</code>。
+  グローバルの名前空間から library の識別子が 1 つ減る。</p>
+  <p><strong>残すもの。</strong>A1 文字列の双子プロパティ <code>Sheet.freezePanesA1</code>・<code>autoFilterA1</code>
+  （型つきの <code>freezePanes: CellRef?</code>・<code>autoFilter: CellRange?</code> と対）と <code>Table.dimensions</code>
+  （<code>extent: CellRange?</code> と対）は残す。B.53 で「読めない文字列は止まる」契約を結び直したばかりで、文字列で
+  受け取る入口は初心者の最初の一歩（<code>freezePanesA1 = "B2"</code>）として価値がある。同じ理由で
+  <code>CellValue(inferring:)</code>（<code>"=A1"</code> を数式に、<code>"#N/A"</code> をエラーに読む推論）も残す。</p>
+  <p><strong>検査。</strong>廃止と改名はコンパイルで全部見つかる。<code>stringValue</code> の出力が変わっていないことは、
+  CSV と ODS の既存の往復検査と openpyxl 照合（<code>CellParityTests</code> のリッチテキスト 2 件）が見る。<code>.formula("=…")</code>
+  は README・仕様・特性表の用例と、既存の数式検査（27 行）が新しい綴りで通ることを見る。</p>
 </section>
 
 </div><!-- /.container -->

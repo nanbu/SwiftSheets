@@ -78,7 +78,7 @@ import Testing
         s["A1"] = 1; s["A2"] = 2; s["A3"] = 3
         s.merge("B2:C2")
         s.setHeight(30, ofRow: 1)
-        s["D1"] = Formula("=SUM(A1:A3)")
+        s["D1"] = .formula("=SUM(A1:A3)")
         s.insertRows(at: 1, count: 2)
         #expect(s["A1"] == .integer(1) && s["A2"] == nil && s["A4"] == .integer(2) && s["A5"] == .integer(3))
         #expect(s.merges == [CellRange("B4:C4")!])

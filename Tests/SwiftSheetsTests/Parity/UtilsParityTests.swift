@@ -130,7 +130,7 @@ import Testing
     @Test(arguments: [("2011-06-30", "date"), ("12:19", "time"), ("12:19:01", "time"), ("12:19:01.123", "time"), ("12:19:01.2", "time")])
     func isoRegex(_ value: String, _ group: String) {
         let parsed = ExcelDate.fromISO8601(value)
-        #expect(parsed?.dataType == "d")
+        #expect(parsed?.openpyxlDataType == "d")
         if group == "date" { #expect(parsed?.dateValue != nil) } else { if case .time? = parsed {} else { Issue.record("expected a time for \(value)") } }
     }
 

@@ -84,7 +84,7 @@ import Testing
         #expect(ws["B1"] == .integer(42) && ws["C1"] == .number(3.5) && ws["D1"] == .bool(true))
         #expect(ws["E1"] == CellValue(CivilDate(year: 2026, month: 9, day: 1)!) && ws[cell: "E1"].numberFormat == "yyyy/m/d")
         #expect(ws["F1"]?.dateValue?.time == TimeOfDay(hour: 13, minute: 30))
-        #expect(ws["G1"] == .formula(FormulaExpr.parse("=B1*2"), cached: .integer(84)) || ws["G1"] == Formula("=B1*2"))
+        #expect(ws["G1"] == .formula(FormulaExpr.parse("=B1*2"), cached: .integer(84)) || ws["G1"] == .formula("=B1*2"))
         #expect(ws["H1"] == .number(0.25) && ws[cell: "H1"].numberFormat == "0%")
         #expect(ws["A2"] == .text("  padded  "))
         #expect(ws["B2"] == .text("multi\nline") && ws[cell: "B2"].alignment.wrapText && ws[cell: "B2"].alignment.horizontal == .center && ws[cell: "B2"].alignment.vertical == .top)

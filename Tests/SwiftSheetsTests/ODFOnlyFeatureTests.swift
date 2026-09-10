@@ -26,7 +26,7 @@ import SwiftSheets
         d.append([CellValue.text("Region"), .text("Sales")])
         d.append([CellValue.text("East"), .integer(100)])
         d.append([CellValue.text("West"), .integer(200)])
-        d["D1"] = Formula("=SUM(B2:B3)")
+        d["D1"] = .formula("=SUM(B2:B3)")
         d["E1"] = .number(Decimal(string: "1234.5")!)
         d.setStyle("E1") { $0.numberFormat = "[$¥-411]#,##0.00" }
         d.table.detective[CellRef("D1")!] = CellDetective(

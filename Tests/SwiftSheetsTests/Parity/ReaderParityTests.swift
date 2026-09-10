@@ -57,7 +57,7 @@ private enum ReaderParity {
     func numberConversion(_ value: String, _ expected: Double) throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\"><v>\(value)</v></c></row></sheetData>")
         #expect(ws["A1"]?.doubleValue == expected)
-        #expect((ws["A1"]?.dataType == "n"))
+        #expect((ws["A1"]?.openpyxlDataType == "n"))
     }
 
     static let dimensionCases: [(String, CellRange?)] = [("dimension.xml", CellRange(minRow: 0, minCol: 3, maxRow: 29, maxCol: 26)), ("no_dimension.xml", nil), ("invalid_dimension.xml", nil)]
@@ -120,37 +120,37 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_formula
     @Test func formula() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" t=\"str\"><f>IF(TRUE, \"y\", \"n\")</f><v>y</v></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "f" && ws["A1"] == .formula(FormulaExpr.parse("=IF(TRUE, \"y\", \"n\")"), cached: .text("y")))
+        #expect(ws[cell: "A1"].openpyxlDataType == "f" && ws["A1"] == .formula(FormulaExpr.parse("=IF(TRUE, \"y\", \"n\")"), cached: .text("y")))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_formula_data_only
     @Test func formulaDataOnly() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\"><f>1+2</f><v>3</v></c></row></sheetData>", dataOnly: true)
-        #expect(ws[cell: "A1"].dataType == "n" && ws["A1"] == .integer(3))
+        #expect(ws[cell: "A1"].openpyxlDataType == "n" && ws["A1"] == .integer(3))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_string_formula_data_only
     @Test func stringFormulaDataOnly() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" t=\"str\"><f>IF(TRUE, \"y\", \"n\")</f><v>y</v></c></row></sheetData>", dataOnly: true)
-        #expect(ws[cell: "A1"].dataType == "s" && ws["A1"] == .text("y"))
+        #expect(ws[cell: "A1"].openpyxlDataType == "s" && ws["A1"] == .text("y"))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_number
     @Test func number() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "n" && ws["A1"] == .integer(1))
+        #expect(ws[cell: "A1"].openpyxlDataType == "n" && ws["A1"] == .integer(1))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_datetime
     @Test func datetime() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" t=\"d\"><v>2011-12-25T14:23:55</v></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "d" && ws["A1"] == .date(CivilDateTime(date: CivilDate(year: 2011, month: 12, day: 25)!, time: TimeOfDay(hour: 14, minute: 23, second: 55))))
+        #expect(ws[cell: "A1"].openpyxlDataType == "d" && ws["A1"] == .date(CivilDateTime(date: CivilDate(year: 2011, month: 12, day: 25)!, time: TimeOfDay(hour: 14, minute: 23, second: 55))))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_timedelta
     @Test func timedelta() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" t=\"n\" s=\"30\"><v>1.25</v></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "d" && ws["A1"] == .duration(.seconds(86400 + 6 * 3600)))
+        #expect(ws[cell: "A1"].openpyxlDataType == "d" && ws["A1"] == .duration(.seconds(86400 + 6 * 3600)))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_mac_date
@@ -168,19 +168,19 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_string
     @Test func string() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "s" && ws["A1"] == .text("a"))
+        #expect(ws[cell: "A1"].openpyxlDataType == "s" && ws["A1"] == .text("a"))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_boolean
     @Test func boolean() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" t=\"b\"><v>1</v></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "b" && ws["A1"] == .bool(true))
+        #expect(ws[cell: "A1"].openpyxlDataType == "b" && ws["A1"] == .bool(true))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_inline_string
     @Test func inlineString() throws {
         let ws = try sheet("<sheetData><row r=\"1\"><c r=\"A1\" s=\"0\" t=\"inlineStr\"><is><t>ID</t></is></c></row></sheetData>")
-        #expect(ws[cell: "A1"].dataType == "s" && ws["A1"] == .text("ID"))
+        #expect(ws[cell: "A1"].openpyxlDataType == "s" && ws["A1"] == .text("ID"))
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_inline_richtext
@@ -587,7 +587,7 @@ private enum ReaderParity {
         // coordinate check is on the CellRef used to reach the cell (its A1 text round-trips).
         let ref = CellRef(coord)!
         let cell = try sample().sheets["Sheet2 - Numbers"]![cell: ref]
-        #expect(ref.a1 == coord && cell.dataType == "b" && cell.value == .bool(expected))
+        #expect(ref.a1 == coord && cell.openpyxlDataType == "b" && cell.value == .bool(expected))
     }
 
     static let formulaCases: [(Bool, CellValue)] = [(true, .integer(5)), (false, .formula(FormulaExpr.parse("='Sheet2 - Numbers'!D5"), cached: .integer(5)))]

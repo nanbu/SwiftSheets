@@ -559,7 +559,7 @@ import Testing
         var ws = Self.dummyWorksheet()
         ws["G4"] = "=SUM(G1:G3)"
         ws.moveRange(CellRange(CellRef(row: 3, col: 6)), rows: 1, cols: 2)
-        #expect(ws["I5"] == Formula("=SUM(G1:G3)"))   // translate=False only: formulas are never rewritten
+        #expect(ws["I5"] == .formula("=SUM(G1:G3)"))   // translate=False only: formulas are never rewritten
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_move_nothing

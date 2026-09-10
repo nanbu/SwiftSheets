@@ -546,7 +546,7 @@
               "read": "full",
               "write": "full",
               "api": [
-                "Formula(\"=SUM(A1:B2)\")",
+                ".formula(\"=SUM(A1:B2)\")",
                 "FormulaExpr",
                 "value.formula"
               ],
@@ -1530,7 +1530,7 @@
               "read": "full",
               "write": "full",
               "api": [
-                "Formula(\"=SUM(A1:B2)\")",
+                ".formula(\"=SUM(A1:B2)\")",
                 "value.formula?.rendered(as: .ods)",
                 "FormulaExpr"
               ],
@@ -2517,7 +2517,7 @@
               "read": "full",
               "write": "full",
               "api": [
-                "Formula(\"=SUM(A1:B2)\")",
+                ".formula(\"=SUM(A1:B2)\")",
                 "FormulaExpr"
               ],
               "warning": null,
