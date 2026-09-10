@@ -81,7 +81,8 @@ enum WorkbookWriter {
         styles.registerNamedStyles(wb.namedStyles)
         styles.applyDifferentialStyles(sameFamily ? wb.differentialStyles : [])
         if sameFamily { styles.fragments = preserved.styleFragments }
-        let strings = SharedStringTable(seed: carriesUnreadSheets ? preserved.sharedStrings ?? [] : [])
+        let strings = SharedStringTable(seed: carriesUnreadSheets ? preserved.sharedStrings ?? [] : [],
+                                        phonetics: carriesUnreadSheets ? preserved.sharedStringPhonetics ?? [] : [])
 
         // opaque parts that travel along (VBA only into .xlsm)
         var opaque: [String: OpaquePart] = sameFamily ? preserved.parts : [:]
@@ -557,7 +558,7 @@ enum WorkbookWriter {
             archive.add(records, bytes)
         }
         if needsGeneratedTheme { archive.add(Theme.partPath, Data((XMLWriter.header + Theme.xml).utf8)) }
-        if hasStrings { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml()).utf8)) }
+        if hasStrings { archive.add("xl/sharedStrings.xml", Data((XMLWriter.header + strings.xml(styles: styles)).utf8)) }
         archive.add("xl/styles.xml", Data((XMLWriter.header + styles.xml()).utf8))
         for name in opaque.keys.sorted() { archive.add(name, part: opaque[name]!) }
 
@@ -624,7 +625,7 @@ enum WorkbookWriter {
     }
 
     /// Serial / text of any value for `<v>`, with the `t` attribute it needs.
-    static func valueXML(_ v: CellValue, epoch: DateEpoch, strings: SharedStringTable, inline: Bool) -> (t: String, body: String) {
+    static func valueXML(_ v: CellValue, epoch: DateEpoch, strings: SharedStringTable, inline: Bool, phonetic: PhoneticText? = nil) -> (t: String, body: String) {
         switch v {
         case .integer(let i): return ("", "<v>\(i)</v>")
         case .number(let d): return ("", "<v>\(XMLWriter.num(d))</v>")
@@ -635,10 +636,10 @@ enum WorkbookWriter {
         case .error(let e): return (" t=\"e\"", "<v>\(XML.esc(e))</v>")
         case .text(let s):
             if inline { return (" t=\"str\"", "<v>\(XML.esc(s))</v>") }
-            return (" t=\"s\"", "<v>\(strings.index(for: .text(s)))</v>")
+            return (" t=\"s\"", "<v>\(strings.index(for: .text(s), phonetic: phonetic))</v>")
         case .richText(let runs):
             if inline { return (" t=\"str\"", "<v>\(XML.esc(runs.map(\.text).joined()))</v>") }
-            return (" t=\"s\"", "<v>\(strings.index(for: .richText(runs)))</v>")
+            return (" t=\"s\"", "<v>\(strings.index(for: .richText(runs), phonetic: phonetic))</v>")
         case .formula: return ("", "")
         }
     }
@@ -988,7 +989,7 @@ enum WorkbookWriter {
                     let array = table.arrayFormulas[ref].map { " t=\"array\" ref=\"\($0.address)\"" } ?? ""
                     s += "<c r=\"\(a1)\"\(st)\(t)><f\(array)>\(XML.esc(f.rendered(as: .xlsx)))</f>\(cv)</c>"
                 case let v?:
-                    let (t, body) = valueXML(v, epoch: epoch, strings: strings, inline: false)
+                    let (t, body) = valueXML(v, epoch: epoch, strings: strings, inline: false, phonetic: c.phonetic)
                     s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"
                 }
             }
@@ -1219,31 +1220,37 @@ enum WorkbookWriter {
 
 /// The shared string table (deduped), written as sharedStrings.xml with rich runs where present.
 final class SharedStringTable {
-    private var items: [CellValue] = []
-    private var index: [CellValue: Int] = [:]
+    /// One entry: the text and its phonetic guide. The same text with and without a guide is two entries, as in
+    /// Excel's own table (B.69).
+    struct Entry: Hashable { let value: CellValue; let phonetic: PhoneticText? }
+    private var items: [Entry] = []
+    private var index: [Entry: Int] = [:]
     var isEmpty: Bool { items.isEmpty }
 
     /// Starts from a source table, entry by entry in its order (duplicates included), so that a sheet carried as
     /// bytes finds its strings where it left them; new strings are appended after.
-    init(seed: [CellValue] = []) {
-        for value in seed {
-            items.append(value)
-            if index[value] == nil { index[value] = items.count - 1 }
+    init(seed: [CellValue] = [], phonetics: [PhoneticText?] = []) {
+        for (i, value) in seed.enumerated() {
+            let entry = Entry(value: value, phonetic: phonetics.indices.contains(i) ? phonetics[i] : nil)
+            items.append(entry)
+            if index[entry] == nil { index[entry] = items.count - 1 }
         }
     }
 
-    func index(for value: CellValue) -> Int {
-        if let i = index[value] { return i }
-        items.append(value)
-        index[value] = items.count - 1
+    func index(for value: CellValue, phonetic: PhoneticText? = nil) -> Int {
+        let entry = Entry(value: value, phonetic: phonetic)
+        if let i = index[entry] { return i }
+        items.append(entry)
+        index[entry] = items.count - 1
         return items.count - 1
     }
 
-    func xml() -> String {
+    /// `styles` registers the font of a phonetic guide; the table is written before styles.xml, so the font lands.
+    func xml(styles: StyleRegistry) -> String {
         var s = "<sst xmlns=\"\(XMLWriter.nsMain)\" count=\"\(items.count)\" uniqueCount=\"\(items.count)\">"
-        for v in items {
-            switch v {
-            case .text(let str): s += "<si><t\(preserve(str))>\(XML.esc(str))</t></si>"
+        for entry in items {
+            switch entry.value {
+            case .text(let str): s += "<si><t\(preserve(str))>\(XML.esc(str))</t>" + phoneticXML(entry.phonetic, styles: styles) + "</si>"
             case .richText(let runs):
                 s += "<si>"
                 for r in runs {
@@ -1251,11 +1258,27 @@ final class SharedStringTable {
                     if let f = r.font { s += StyleRegistry.fontXML(f, tag: "rPr", nameTag: "rFont") }
                     s += "<t\(preserve(r.text))>\(XML.esc(r.text))</t></r>"
                 }
-                s += "</si>"
+                s += phoneticXML(entry.phonetic, styles: styles) + "</si>"
             default: s += "<si><t></t></si>"
             }
         }
         return s + "</sst>"
+    }
+
+    /// `<rPh sb eb><t>reading</t></rPh>…<phoneticPr fontId type alignment/>` — the schema's order, after the runs.
+    static func phoneticXML(_ phonetic: PhoneticText?, styles: StyleRegistry) -> String {
+        guard let p = phonetic else { return "" }
+        var s = ""
+        for run in p.runs {
+            s += "<rPh sb=\"\(max(run.start, 0))\" eb=\"\(max(run.end, run.start, 0))\"><t\(preserveText(run.text))>\(XML.esc(run.text))</t></rPh>"
+        }
+        let fontID = p.font.map { styles.fontID($0) } ?? 0   // nil is the workbook's default font, index 0
+        s += "<phoneticPr fontId=\"\(fontID)\" type=\"\(p.kind.rawValue)\" alignment=\"\(p.alignment.rawValue)\"/>"
+        return s
+    }
+    private func phoneticXML(_ phonetic: PhoneticText?, styles: StyleRegistry) -> String { Self.phoneticXML(phonetic, styles: styles) }
+    private static func preserveText(_ t: String) -> String {
+        (t.hasPrefix(" ") || t.hasSuffix(" ") || t.hasPrefix("　") || t.hasSuffix("　") || t.contains("\n") || t.contains("\t")) ? " xml:space=\"preserve\"" : ""
     }
 
     private func preserve(_ t: String) -> String {

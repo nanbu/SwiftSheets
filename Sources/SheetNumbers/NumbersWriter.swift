@@ -141,6 +141,13 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
         }
+        for sheet in workbook.sheets {
+            let phonetics = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.phonetic != nil }.count }
+            if phonetics > 0 {
+                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name,
+                                                  message: "\(phonetics) phonetic guide(s) (furigana) dropped: Numbers has no phonetic guide on a cell — the text is kept (write .xlsx to keep the readings)"))
+            }
+        }
         if !workbook.definedNames.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .formulas, message: "\(workbook.definedNames.count) defined name(s) dropped: Numbers has no defined names"))
         }

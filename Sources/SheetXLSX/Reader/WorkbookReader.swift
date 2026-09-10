@@ -119,7 +119,8 @@ enum WorkbookReader {
         // (spec Appendix B.41): the caches are filled up front so that the parsers only ever read them, and the
         // sheets are read side by side when the workbook is worth it, or when the caller says so
         styles.prefill()
-        let context = SheetReadContext(zip: zip, sst: sst.strings, styles: styles, epoch: wb.epoch, options: options,
+        let phonetics = sst.resolvedPhonetics(fonts: styles.fonts)
+        let context = SheetReadContext(zip: zip, sst: sst.strings, phonetics: phonetics, styles: styles, epoch: wb.epoch, options: options,
                                        contentTypes: ct.overrides, rels: rels, base: base, pivotCaches: pivotCaches, workbookPath: workbookPath)
         let infos = wbParser.sheets
         let parsedBytes = infos.enumerated().compactMap { index, info -> Int? in   // what the grids to be parsed expand to
@@ -155,7 +156,10 @@ enum WorkbookReader {
         guard !sheets.isEmpty else { throw SheetError.invalidWorkbook("workbook has no sheets") }
         // an unread sheet's cells index the shared strings and the cell formats by position: keep both tables
         // whole so a write-back leaves those positions where they were
-        if sheets.contains(where: { $0.preserved.isUnread }) { wb.preserved.sharedStrings = sst.strings }
+        if sheets.contains(where: { $0.preserved.isUnread }) {
+            wb.preserved.sharedStrings = sst.strings
+            wb.preserved.sharedStringPhonetics = phonetics
+        }
         wb.sheets = Sheets(sheets)
         // names the file gave that Sheets de-duplicated are an upstream defect; keep the file's order regardless
         wb.activeIndex = Swift.min(wbParser.activeTab, sheets.count - 1)
@@ -278,6 +282,7 @@ enum WorkbookReader {
 final class SheetReadContext: @unchecked Sendable {
     let zip: ZipArchive
     let sst: [CellValue]
+    let phonetics: [PhoneticText?]
     let styles: StylesParser
     let epoch: DateEpoch
     let options: ReadOptions
@@ -286,9 +291,9 @@ final class SheetReadContext: @unchecked Sendable {
     let base: String
     let pivotCaches: [Int: PivotCache]
     let workbookPath: String
-    init(zip: ZipArchive, sst: [CellValue], styles: StylesParser, epoch: DateEpoch, options: ReadOptions, contentTypes: [String: String],
+    init(zip: ZipArchive, sst: [CellValue], phonetics: [PhoneticText?] = [], styles: StylesParser, epoch: DateEpoch, options: ReadOptions, contentTypes: [String: String],
          rels: [Relationship], base: String, pivotCaches: [Int: PivotCache], workbookPath: String) {
-        self.zip = zip; self.sst = sst; self.styles = styles; self.epoch = epoch; self.options = options
+        self.zip = zip; self.sst = sst; self.phonetics = phonetics; self.styles = styles; self.epoch = epoch; self.options = options
         self.contentTypes = contentTypes; self.rels = rels; self.base = base; self.pivotCaches = pivotCaches; self.workbookPath = workbookPath
     }
 
@@ -360,7 +365,7 @@ final class SheetReadContext: @unchecked Sendable {
             return
         }
 
-        let p = SheetParser(name: info.name, sst: sst, styles: styles, epoch: epoch, dataOnly: options.formulaCells == .cachedValues, rels: sheetRels)
+        let p = SheetParser(name: info.name, sst: sst, phonetics: phonetics, styles: styles, epoch: epoch, dataOnly: options.formulaCells == .cachedValues, rels: sheetRels)
         try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
         var sheet = p.sheet
         sheet.state = info.state

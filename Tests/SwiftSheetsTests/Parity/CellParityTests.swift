@@ -344,7 +344,7 @@ import Testing
     @Test func whitespace() {
         let table = SharedStringTable()
         _ = table.index(for: .text("  whitespace   "))
-        #expect(table.xml().contains("<si><t xml:space=\"preserve\">  whitespace   </t></si>"))
+        #expect(table.xml(styles: StyleRegistry()).contains("<si><t xml:space=\"preserve\">  whitespace   </t></si>"))
     }
 
     // openpyxl: cell/tests/test_writer.py::test_rich_text
@@ -352,7 +352,7 @@ import Testing
         let table = SharedStringTable()
         let red = Font(color: .rgb("00FF0000"))
         _ = table.index(for: .richText([TextRun("red", font: red), TextRun(" is used, you can expect "), TextRun("danger", font: red)]))
-        #expect(table.xml().contains("<si><r><rPr><color rgb=\"00FF0000\"/></rPr><t>red</t></r><r><t xml:space=\"preserve\"> is used, you can expect </t></r><r><rPr><color rgb=\"00FF0000\"/></rPr><t>danger</t></r></si>"))
+        #expect(table.xml(styles: StyleRegistry()).contains("<si><r><rPr><color rgb=\"00FF0000\"/></rPr><t>red</t></r><r><t xml:space=\"preserve\"> is used, you can expect </t></r><r><rPr><color rgb=\"00FF0000\"/></rPr><t>danger</t></r></si>"))
     }
 }
 
@@ -428,6 +428,6 @@ import Testing
     // openpyxl: cell/tests/test_rich_text.py::TestCellRichText::test_to_tree
     @Test func richTextToTree() {
         let t = SharedStringTable(); _ = t.index(for: .richText([TextRun("a"), TextRun("b", font: Font(bold: true)), TextRun("c")]))
-        #expect(t.xml().contains("<si><r><t>a</t></r><r><rPr><b val=\"1\"/></rPr><t>b</t></r><r><t>c</t></r></si>"))
+        #expect(t.xml(styles: StyleRegistry()).contains("<si><r><t>a</t></r><r><rPr><b val=\"1\"/></rPr><t>b</t></r><r><t>c</t></r></si>"))
     }
 }

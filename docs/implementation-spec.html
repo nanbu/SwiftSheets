@@ -1916,7 +1916,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
     <tr><td>4.59 Draft</td><td>2026-09-11</td><td>「A1」を名前から外す。<code>freezePanesA1</code>・<code>autoFilterA1</code> を削除（型つきの <code>freezePanes = CellRef("B2")</code>・<code>autoFilter = CellRange("A1:D9")</code> で書く）。A1 記法を作る getter を address 系に: <code>CellRef.a1</code> / <code>CellRange.a1</code> → <code>address</code>、<code>absoluteA1</code> → <code>absoluteAddress</code>、<code>qualifiedA1</code> → <code>qualifiedAddress</code>、<code>Sheet.dimensions</code> / <code>Table.dimensions</code> → <code>extentAddress</code>。ISO 8601 の初期化子を <code>iso8601:</code> に統一（<code>CivilDate</code>・<code>TimeOfDay</code>・<code>CivilDateTime</code> の <code>iso:</code> を改名）（B.68）。</td></tr>
     <tr><td>4.58 Draft</td><td>2026-09-11</td><td>B.62 の一部を戻す。<code>style(at:)</code>・<code>setStyle(at:_:)</code> の型つきの側は <code>at:</code> を残す（メソッド名がセルを言わないため）。<code>cell(_:)</code>・<code>removeCell(_:)</code> はラベル無しのまま。</td></tr>
-    <tr><td>4.58 Draft</td><td>2026-09-11</td><td>増える一覧を構造体に。<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code> を、静的メンバーを持つ <code>RawRepresentable</code> の構造体へ（呼び方は不変・switch には default が要る）。<code>DateEpoch(origin:)</code> で ODF の任意の日付原点をそのまま持ち、Excel・Numbers へは 1900 系に据え直して言う。描けない種類のグラフは書き手が名指しで落とす（B.68）。</td></tr>
+    <tr><td>4.59 Draft</td><td>2026-09-11</td><td>増える一覧を構造体に。<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code> を、静的メンバーを持つ <code>RawRepresentable</code> の構造体へ（呼び方は不変・switch には default が要る）。<code>DateEpoch(origin:)</code> で ODF の任意の日付原点をそのまま持ち、Excel・Numbers へは 1900 系に据え直して言う。描けない種類のグラフは書き手が名指しで落とす（B.68）。</td></tr>
     <tr><td>4.57 Draft</td><td>2026-09-11</td><td>内部の道具を公開面から外す。<code>CRC32</code>・<code>ZipInspection</code>・<code>TextEncodingSniffer</code>・<code>OOXMLEscape</code>・<code>Units</code>・<code>CellPixels</code>・<code>TextWidth</code>・<code>LegacyPasswordHash</code>・<code>ModernPasswordHash</code>・<code>Table.cleanMergedRange</code>・<code>WriteResult.suggest</code>・<code>Workbook.noteUnmodelledODFFeatures</code>・<code>UnopenableInput.probe(in:)</code> を package に。略語の残り 3 件（<code>baseColWidth</code>・<code>defaultColWidth</code>・<code>firstDataCol</code>）を語に（B.67）。</td></tr>
     <tr><td>4.56 Draft</td><td>2026-09-11</td><td>Swift の型で言えるものを型で言う。<code>hashValue: String?</code>（保護 3 型・<code>Hashable</code> の要件と同名）→ <code>saltedHash</code>。<code>validationError() -> String?</code>（2 型）→ <code>validate() throws</code>。<code>ExcelDate</code> の from/to 関数を <code>CellValue(serial:epoch:)</code>・<code>serial(epoch:)</code>・<code>CellValue(iso8601:)</code>・<code>iso8601</code>・<code>CivilDateTime.serial</code>・<code>CivilDate.serial</code>・<code>Duration(serialDays:)</code>・<code>serialDays</code> へ。仕様で閉じた列挙 5 つ（<code>Font.verticalAlignment</code>（旧 <code>vertAlign</code>）・<code>Font.scheme</code>・<code>ConditionalFormattingRule.timePeriod</code>・<code>StructuredTableColumn.totalsRowFunction</code>・<code>DynamicFilter.kind</code>）を String から enum に（B.66）。</td></tr>
     <tr><td>4.55 Draft</td><td>2026-09-11</td><td>同じ物の別名を 1 つに。<code>values(in:)</code>（= <code>rows(in:)</code>）と <code>Sheets.names</code>（= <code>Workbook.sheetNames</code>）を削除。<code>freezePanes(at:)</code> を削除し <code>freezePanesA1</code> の setter に一本化（"A1" も解除）。印刷の文字列の双子を settable な <code>printTitlesFormula</code>・<code>printAreaFormula</code>（どちらも <code>String?</code>）にし、<code>setPrintArea</code>・<code>setPrintTitles</code>・<code>setPrintTitleRows</code>・<code>setPrintTitleColumns</code> を削除（B.65）。</td></tr>
@@ -6582,7 +6582,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
 </section>
 
 <section>
-  <h3>B.68 増える一覧は構造体で持つ——<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code>（Rev 4.58）</h3>
+  <h3>B.68 増える一覧は構造体で持つ——<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code>（Rev 4.59）</h3>
   <p>2026-09-11 決定。1.0 の約束の草案（2026-09-05 の見直し計画）では、公開の列挙型に選択肢を足すのは破壊的変更
   である——利用側が全部の場合を書き分けた <code>switch</code> は、選択肢が 1 つ増えると通らなくなる。ライブラリ進化（<code>-enable-library-evolution</code>）は
   使わず、<code>@unknown default</code> を求める文書も置いていないので、この判断は妥当。ところが 3 つの型は、これから入る機能が確実に選択肢を足す:</p>
@@ -6613,6 +6613,32 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong><code>ReservedEnumTests</code> 4 件: 呼び方と 2 つの原点の通し番号が不変・自前の原点に幻の日が無い・ODS が任意の原点を往復し
   XLSX が据え直して言う・描けない種類が名指しで落ちる。<strong>利用側。</strong>Stream は <code>DateEpoch</code> を引数と <code>==</code> で 6 か所、switch は無く直す行は 0。
   LeftRight は 3 型とも使っていない。</p>
+</section>
+
+<section>
+  <h3>B.69 ふりがなを運ぶ——<code>Cell.phonetic</code>（Rev 4.60）</h3>
+  <p>2026-09-11 決定。B.19 以来「openpyxl に揃えて <code>&lt;rPh&gt;</code> を読み飛ばす」としてきたふりがな（Excel の「ふりがなの表示」）を運ぶ。
+  仕様の機能対応表で唯一「落ちるのに警告が出ない」行だった。openpyxl から意図して離れる最初の点で、理由は利用者が日本語の表を扱うこと——
+  読みを失った表を保存し直すと、Excel の「ふりがな」で並べ替えていた列の順が変わる。</p>
+  <p><strong>形。</strong><code>PhoneticText</code> は <code>runs: [Run]</code>（読みの文字列と、元の文字列の中の区間 <code>start..&lt;end</code>。単位は
+  Excel の <code>sb</code> / <code>eb</code> と同じ UTF-16 コード単位）・<code>kind</code>（<code>phoneticPr@type</code>: halfwidthKatakana / fullwidthKatakana / hiragana /
+  noConversion——スキーマが 4 値で固定しているので列挙のまま）・<code>alignment</code>（<code>phoneticPr@alignment</code>: noControl / left / center / distributed・同じく 4 値）・
+  <code>font: Font?</code>（<code>phoneticPr@fontId</code> の書体。nil は既定の書体）。<code>PhoneticText("カンジ", over: "漢字")</code> が文字列全体に 1 つの読みを置く近道。
+  セルの側は <code>Cell.phonetic</code> で、ハイパーリンク・メモ・操作子と同じ <code>CellExtras</code> に載る（読みは値に付く説明で、値の一部ではない——
+  <code>CellValue</code> に case を足さない）。等価と hash に含める。</p>
+  <p><strong>読み。</strong><code>SharedStringsParser</code> が <code>&lt;si&gt;</code> ごとに <code>&lt;rPh&gt;</code> と <code>&lt;phoneticPr&gt;</code> を集め、
+  <code>fontId</code> はスタイル表を読み終えてから <code>Font</code> に解決する（共有文字列表はスタイル表より先に読むため）。シートの読み手は共有文字列の索引と
+  並行に <code>phonetics[i]</code> を引いてセルに載せ、inline 文字列（<code>t="inlineStr"</code>）の中の同じ要素も同じ集め方で読む。逐次読み（<code>StreamingReader</code>）は
+  値と書式だけの約束どおり読み飛ばしたまま。</p>
+  <p><strong>書き。</strong>共有文字列表の項目を「文字列＋ふりがな」の組にする——同じ文字で読みの有無や読みが違えば別の項目（Excel 自身の表もそう）。
+  <code>&lt;t&gt;</code>（または <code>&lt;r&gt;</code> の列）の後に <code>&lt;rPh sb eb&gt;&lt;t&gt;読み&lt;/t&gt;&lt;/rPh&gt;</code> を並べ、最後に
+  <code>&lt;phoneticPr fontId type alignment/&gt;</code>——スキーマの順。書体は <code>StyleRegistry.fontID</code> で登録する（共有文字列表は styles.xml より先に
+  書くが、登録は同じレジストリなので後から書く styles.xml に載る）。未読のシートをバイトのまま運ぶときの種（<code>preserved.sharedStrings</code>）にも読みを添えて、
+  索引がずれないようにする。</p>
+  <p><strong>他形式。</strong>ODF にも Numbers にもセルの読みを置く場所が無い（ODF の <code>text:ruby</code> は文書本文の要素で、表のセルには使われない）。
+  ODS と Numbers の書き手は「N phonetic guide(s) (furigana) dropped: … the text is kept (write .xlsx to keep the readings)」と <code>dropped</code> で言い、文字は残す。</p>
+  <p><strong>検査。</strong><code>FuriganaTests</code> 4 件: 表の XML（区間・種類・配置・書体の登録・同じ文字が別項目）・往復（全体の読み・複数区間・書式付き文字の横）・
+  inline 文字列の読み・ODS と Numbers の警告。Excel 自身が書いたふりがな付きのファイルは手元に無い——実機の確認は <code>MAINTENANCE.md</code> の手動一覧に足した。</p>
 </section>
 
 </div><!-- /.container -->

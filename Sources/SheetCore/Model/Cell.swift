@@ -14,8 +14,44 @@ package final class CellExtras: Sendable {
     package let hyperlink: Hyperlink?
     package let note: CellNote?
     package let control: CellControl?
-    package init(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil) {
-        self.hyperlink = hyperlink; self.note = note; self.control = control
+    package let phonetic: PhoneticText?
+    package init(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil, phonetic: PhoneticText? = nil) {
+        self.hyperlink = hyperlink; self.note = note; self.control = control; self.phonetic = phonetic
+    }
+}
+
+/// The phonetic guide (furigana) Excel shows above a cell's text — the readings of the kanji, run by run (spec
+/// Appendix B.69). Kept on the cell beside its value: the readings describe the text, and travel with it through
+/// the shared-string table. Only Excel's file format carries it; the other writers report it as dropped.
+public struct PhoneticText: Hashable, Sendable {
+    /// One reading and the span of the base text it belongs to, in UTF-16 code units (Excel's `sb` / `eb`).
+    public struct Run: Hashable, Sendable {
+        public var text: String
+        /// The first UTF-16 code unit of the base text the reading covers.
+        public var start: Int
+        /// One past the last UTF-16 code unit the reading covers.
+        public var end: Int
+        public init(_ text: String, start: Int, end: Int) { self.text = text; self.start = start; self.end = end }
+    }
+    /// How Excel converts the reading it shows (`phoneticPr@type`) — four values fixed by the schema.
+    public enum Kind: String, Hashable, Sendable, CaseIterable {
+        case halfwidthKatakana, fullwidthKatakana, hiragana, noConversion
+    }
+    /// Where the reading sits over its span (`phoneticPr@alignment`) — four values fixed by the schema.
+    public enum Alignment: String, Hashable, Sendable, CaseIterable {
+        case noControl, left, center, distributed
+    }
+    public var runs: [Run]
+    public var kind: Kind
+    public var alignment: Alignment
+    /// The font the readings are drawn in; nil for the workbook's default font.
+    public var font: Font?
+    public init(runs: [Run], kind: Kind = .fullwidthKatakana, alignment: Alignment = .left, font: Font? = nil) {
+        self.runs = runs; self.kind = kind; self.alignment = alignment; self.font = font
+    }
+    /// A reading over the whole of `text`.
+    public init(_ reading: String, over text: String, kind: Kind = .fullwidthKatakana, alignment: Alignment = .left, font: Font? = nil) {
+        self.init(runs: [Run(reading, start: 0, end: text.utf16.count)], kind: kind, alignment: alignment, font: font)
     }
 }
 
@@ -65,19 +101,26 @@ public struct Cell: Hashable, Sendable {
     /// and the others report it.
     public var control: CellControl? {
         get { extras?.control }
-        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: newValue) }
+        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: newValue, phonetic: extras?.phonetic) }
     }
 
-    private mutating func setExtras(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil) {
-        extras = hyperlink == nil && note == nil && control == nil
-            ? nil : CellExtras(hyperlink: hyperlink, note: note, control: control)
+    /// The phonetic guide (furigana) over the cell's text (spec Appendix B.69). Excel's file format carries it;
+    /// ODS and Numbers writers report it as dropped.
+    public var phonetic: PhoneticText? {
+        get { extras?.phonetic }
+        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: extras?.control, phonetic: newValue) }
+    }
+
+    private mutating func setExtras(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil, phonetic: PhoneticText? = nil) {
+        extras = hyperlink == nil && note == nil && control == nil && phonetic == nil
+            ? nil : CellExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic)
     }
 
     public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, note: CellNote? = nil,
-                control: CellControl? = nil) {
+                control: CellControl? = nil, phonetic: PhoneticText? = nil) {
         storedValue = value
         self.style = style
-        setExtras(hyperlink: hyperlink, note: note, control: control)
+        setExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic)
         applyDateFormat()
         if let h = hyperlink, storedValue == nil { storedValue = .text(h.target) }
     }
@@ -85,7 +128,7 @@ public struct Cell: Hashable, Sendable {
     public static func == (a: Cell, b: Cell) -> Bool {
         a.storedValue == b.storedValue
             && a.extras?.hyperlink == b.extras?.hyperlink && a.extras?.note == b.extras?.note
-            && a.extras?.control == b.extras?.control
+            && a.extras?.control == b.extras?.control && a.extras?.phonetic == b.extras?.phonetic
             && (a.styleRef === b.styleRef || a.style == b.style)
     }
 
@@ -95,6 +138,7 @@ public struct Cell: Hashable, Sendable {
         hasher.combine(extras?.hyperlink)
         hasher.combine(extras?.note)
         hasher.combine(extras?.control)
+        hasher.combine(extras?.phonetic)
     }
 
     /// Assigning a date / time / duration sets a matching number format unless the cell already has a date format

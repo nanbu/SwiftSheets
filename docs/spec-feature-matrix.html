@@ -108,7 +108,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。形式ごとの対応表（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。</p>
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
-<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○46 △10 ▣17 ×2 ／ 書き ○48 △9 ▣16 ×1<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○47 △10 ▣17 ×1 ／ 書き ○49 △9 ▣16 ×1<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○37 △11 ▣1 ×4 ／ 書き ○34 △9 ▣0 ×14<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △9 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
@@ -189,8 +189,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>件数</h2>
 <div class="tablewrap"><table>
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">46</td><td class="m">10</td><td class="m">17</td><td class="m">2</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">48</td><td class="m">9</td><td class="m">16</td><td class="m">1</td><td class="m">4</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">47</td><td class="m">10</td><td class="m">17</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
+<tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">49</td><td class="m">9</td><td class="m">16</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">37</td><td class="m">11</td><td class="m">1</td><td class="m">4</td><td class="m">6</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">34</td><td class="m">9</td><td class="m">0</td><td class="m">14</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
@@ -225,7 +225,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>セルの値（数値・文字・真偽・エラー・インライン文字列）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;c t=&quot;n|s|str|b|e|inlineStr|d&quot;&gt;</code></td><td><code>sheet[&quot;A1&quot;]</code> <code>sheet[1, 2]</code> <code>CellValue</code></td><td>整数と実数は openpyxl と同じ分け方（.integer / .number(Decimal)）。日付は CivilDate で、時間帯を持たない。 <span class="chip">実測</span></td></tr>
 <tr><td>共有文字列</td><td class="m y">○</td><td class="m y">○</td><td><code>xl/sharedStrings.xml</code></td><td>—</td><td>書き出しでは自動で共有化する。利用者が意識する API はない。 <span class="chip">コード確認</span></td></tr>
 <tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;is&gt;/&lt;r&gt;/&lt;rPr&gt;</code></td><td><code>CellValue.richText</code> <code>TextRun</code></td><td><span class="chip">実測</span></td></tr>
-<tr><td>ふりがな（ルビ）</td><td class="m n">×</td><td class="m">—</td><td><code>&lt;rPh&gt;, &lt;phoneticPr&gt;</code></td><td>—</td><td><strong>言うこと</strong>: なし（openpyxl に揃えた意図的な差） 読み飛ばす。openpyxl 準拠を優先した既知の非対応で、ここだけは警告が出ない。 <span class="chip">コード確認</span></td></tr>
+<tr><td>ふりがな（ルビ）</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;rPh&gt;, &lt;phoneticPr&gt;</code></td><td><code>sheet[cell: &quot;A1&quot;].phonetic</code> <code>PhoneticText</code></td><td><strong>言うこと</strong>: ODS・Numbers へ書くと「N phonetic guide(s) (furigana) dropped: … the text is kept」 共有文字列の &lt;rPh&gt;（読みと UTF-16 の区間）と &lt;phoneticPr&gt;（書体・変換の種類・配置）を Cell.phonetic に読み書きする。同じ文字で読みの有無が違えば別の項目。openpyxl は読み飛ばすが、こちらは運ぶ（B.69）。 <span class="chip">実測</span></td></tr>
 <tr><td>行の高さ・非表示・アウトライン段</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;row ht customHeight hidden outlineLevel collapsed&gt;</code></td><td><code>sheet.rowDimension(_:)</code> <code>setHeight(_:ofRow:)</code> <code>RowDimension</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>列の幅・非表示・アウトライン段・自動幅</td><td class="m y">○</td><td class="m y">○</td><td><code>&lt;cols&gt;/&lt;col width bestFit hidden outlineLevel&gt;</code></td><td><code>setWidth(_:ofColumn:)</code> <code>columnDimension(_:)</code> <code>autofitColumns(maxWidth:)</code></td><td>autofitColumns は XlsxWriter の幅表に倣う。東アジアの文字は 2 倍幅で測る（付録 B.33）。 <span class="chip">実測</span></td></tr>
 <tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m y">○</td><td><code>row@outlineLevel, &lt;outlinePr summaryBelow summaryRight&gt;</code></td><td><code>groupRows(_:outlineLevel:hidden:)</code> <code>groupColumns(_:_:outlineLevel:)</code> <code>sheet.properties</code></td><td><span class="chip">実測</span></td></tr>

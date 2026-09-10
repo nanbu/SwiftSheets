@@ -46,6 +46,8 @@ package struct PreservationStore: Sendable, Hashable {
     /// unread sheet's cells name their text by index into it, so the writer starts the table with these entries
     /// in their order and appends after them (spec Appendix B.39.10).
     package var sharedStrings: [CellValue]?
+    /// The phonetic guides of `sharedStrings`, entry by entry (nil where a string has none).
+    package var sharedStringPhonetics: [PhoneticText?]?
 
     package init() {}
 

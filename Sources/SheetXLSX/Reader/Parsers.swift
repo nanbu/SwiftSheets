@@ -93,11 +93,49 @@ final class WorkbookXMLParser: SAXHandler {
     func captured(_ fragment: XMLFragment) { depth -= 1; fragments.append(fragment) }
 }
 
-/// sharedStrings.xml → values. Plain `<t>` → .text; `<r>` runs → .richText; `<rPh>` (furigana) is skipped.
+/// The `<rPh>` runs and `<phoneticPr>` of one string, as the shared-string and inline-string parsers collect them;
+/// `phoneticPr@fontId` is resolved against the style table once that has been read (spec Appendix B.69).
+struct PhoneticCollector {
+    var runs: [PhoneticText.Run] = []
+    var kind = PhoneticText.Kind.fullwidthKatakana
+    var alignment = PhoneticText.Alignment.left
+    var fontID: Int?
+    private(set) var hasProperties = false
+    var runStart = 0, runEnd = 0, runText = ""
+    var inRPh = false
+
+    mutating func reset() { self = PhoneticCollector() }
+    mutating func begin(_ name: String, _ a: [String: String]) -> Bool {
+        switch name {
+        case "rPh": inRPh = true; runText = ""; runStart = Int(a["sb"] ?? "") ?? 0; runEnd = Int(a["eb"] ?? "") ?? runStart; return true
+        case "phoneticPr":
+            hasProperties = true
+            fontID = Int(a["fontId"] ?? "")
+            if let k = a["type"].flatMap(PhoneticText.Kind.init(rawValue:)) { kind = k }
+            if let al = a["alignment"].flatMap(PhoneticText.Alignment.init(rawValue:)) { alignment = al }
+            return true
+        default: return false
+        }
+    }
+    mutating func endRPh() { runs.append(PhoneticText.Run(runText, start: runStart, end: runEnd)); inRPh = false }
+    var isEmpty: Bool { runs.isEmpty && !hasProperties }
+    /// Nil when the string carries no phonetic guide at all.
+    func phonetic(fonts: [Font]) -> PhoneticText? {
+        guard !isEmpty else { return nil }
+        // font 0 is the workbook's default font, which the model spells nil (and the writer writes back as 0)
+        let font = fontID.flatMap { $0 == 0 ? nil : (fonts.indices.contains($0) ? fonts[$0] : nil) }
+        return PhoneticText(runs: runs, kind: kind, alignment: alignment, font: font)
+    }
+}
+
+/// sharedStrings.xml → values. Plain `<t>` → .text; `<r>` runs → .richText; `<rPh>` / `<phoneticPr>` (furigana)
+/// → `phonetics`, entry by entry (spec Appendix B.69).
 final class SharedStringsParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
     var strings: [CellValue] = []
+    /// The phonetic guide of each entry of `strings`, nil where there is none; resolved by `resolvedPhonetics(fonts:)`.
+    private var collectors: [PhoneticCollector?] = []
     private var runs: [TextRun] = []
     private var plain = ""
     private var current = ""
@@ -105,12 +143,13 @@ final class SharedStringsParser: SAXHandler {
     private var skipDepth = 0
     private var runFont: Font?
     private var fontParser = FontAttributes()
+    private var phonetic = PhoneticCollector()
 
     func start(_ name: String, _ a: [String: String]) {
         if skipDepth > 0 { skipDepth += 1; return }
+        if inSI, phonetic.begin(name, a) { return }
         switch name {
-        case "si": inSI = true; runs = []; plain = ""; hasRuns = false
-        case "rPh": skipDepth = 1
+        case "si": inSI = true; runs = []; plain = ""; hasRuns = false; phonetic.reset()
         case "r": inR = true; current = ""; runFont = nil; hasRuns = true
         case "rPr": inRPr = true; fontParser = FontAttributes()
         case "t" where inSI: inT = true
@@ -119,20 +158,25 @@ final class SharedStringsParser: SAXHandler {
         }
     }
     func text(_ s: String) {
-        if inT, skipDepth == 0 { if inR { current += s } else { plain += s } }
+        guard inT, skipDepth == 0 else { return }
+        if phonetic.inRPh { phonetic.runText += s } else if inR { current += s } else { plain += s }
     }
     func end(_ name: String) {
         if skipDepth > 0 { skipDepth -= 1; return }
         switch name {
         case "t": inT = false
+        case "rPh": phonetic.endRPh()
         case "rPr": inRPr = false; runFont = fontParser.font
         case "r": runs.append(TextRun(current, font: runFont)); inR = false
         case "si":
             strings.append(hasRuns ? (runs.contains { $0.font != nil } ? .richText(runs) : .text(runs.map(\.text).joined())) : .text(plain))
+            collectors.append(phonetic.isEmpty ? nil : phonetic)
             inSI = false
         default: break
         }
     }
+    /// The phonetic guides, `phoneticPr@fontId` resolved against the workbook's font table.
+    func resolvedPhonetics(fonts: [Font]) -> [PhoneticText?] { collectors.map { $0?.phonetic(fonts: fonts) } }
 }
 
 /// Accumulates `<font>` / `<rPr>` children into a Font.
@@ -445,6 +489,9 @@ final class SheetParser: SAXHandler {
     static let knownChildren: Set<String> = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "sheetProtection", "protectedRanges", "scenarios", "autoFilter", "mergeCells", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks"]
     var sheet: Sheet
     private let sst: [CellValue]
+    private let phonetics: [PhoneticText?]
+    private var isPhonetic = PhoneticCollector()
+    private var pendingPhonetic: PhoneticText?
     private let styles: StylesParser
     private let epoch: DateEpoch
     private let dataOnly: Bool
@@ -482,8 +529,8 @@ final class SheetParser: SAXHandler {
     private var validationFormulaText = ""
     private var unmodelledValidation = false
 
-    init(name: String, sst: [CellValue], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
-        self.sheet = Sheet(name: name); self.sst = sst; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
+    init(name: String, sst: [CellValue], phonetics: [PhoneticText?] = [], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
+        self.sheet = Sheet(name: name); self.sst = sst; self.phonetics = phonetics; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
         for r in rels where r.type.hasSuffix("/hyperlink") { hyperlinkRels[r.id] = r.target }
     }
 
@@ -538,7 +585,8 @@ final class SheetParser: SAXHandler {
             sheet.table.store(cell, at: cellRef!)   // every <c> exists, even without a value
         case "v": inV = true
         case "f": inF = true; formulaType = a["t"]; formulaRef = a["ref"]; sharedFormulaIndex = a["si"]
-        case "is": inIS = true; isRuns = []; isHasRuns = false
+        case "is": inIS = true; isRuns = []; isHasRuns = false; isPhonetic.reset()
+        case "rPh" where inIS, "phoneticPr" where inIS: _ = isPhonetic.begin(name, a)
         case "r" where inIS: inR = true; isHasRuns = true; runText = ""; runFont = nil
         case "rPr" where inIS: inRPr = true; runFont = FontAttributes()
         case "t" where inIS: inT = true
@@ -732,7 +780,8 @@ final class SheetParser: SAXHandler {
     }
 
     func text(_ s: String) {
-        if inV { vText += s } else if inF { fText += s } else if inT, skipDepth == 0 { if inR { runText += s } else { isText += s } }
+        if inV { vText += s } else if inF { fText += s }
+        else if inT, skipDepth == 0 { if isPhonetic.inRPh { isPhonetic.runText += s } else if inR { runText += s } else { isText += s } }
         else if cfFormula { cfFormulaText += s }
         else if validationFormula != nil { validationFormulaText += s }
         else if headerFooterPart != nil { headerFooterText += s }
@@ -745,13 +794,16 @@ final class SheetParser: SAXHandler {
         case "v": inV = false
         case "f": inF = false
         case "t": inT = false
+        case "rPh" where inIS: isPhonetic.endRPh()
         case "rPr" where inIS: inRPr = false
         case "r" where inIS: isRuns.append(TextRun(runText, font: runFont?.font)); inR = false
         case "is": inIS = false
         case "c":
             guard let ref = cellRef else { return }
             var cell = sheet.table[cell: ref]
+            pendingPhonetic = nil
             cell.value = value(at: ref)
+            if let pendingPhonetic { cell.phonetic = pendingPhonetic }
             sheet.table.store(cell, at: ref)
             cellRef = nil
         case "oddHeader", "oddFooter", "evenHeader", "evenFooter", "firstHeader", "firstFooter":
@@ -870,8 +922,10 @@ final class SheetParser: SAXHandler {
         switch cellType {
         case "s":
             guard let i = Int(vText.trimmingCharacters(in: .whitespaces)), sst.indices.contains(i) else { return nil }
+            if phonetics.indices.contains(i) { pendingPhonetic = phonetics[i] }
             return sst[i]
         case "inlineStr":
+            pendingPhonetic = isPhonetic.phonetic(fonts: styles.fonts)
             if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .text(isRuns.map(\.text).joined()) }
             return .text(isText)
         case "str": return .text(vText)

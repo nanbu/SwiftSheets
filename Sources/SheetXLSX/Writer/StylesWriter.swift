@@ -75,7 +75,7 @@ final class StyleRegistry {
         }
     }
 
-    private func fontID(_ f: Font) -> Int {
+    func fontID(_ f: Font) -> Int {
         if let i = fontIndex[f] { return i }
         fonts.append(f); fontIndex[f] = fonts.count - 1
         if !fontXML.isEmpty { fontXML.append(StyleRegistry.fontXML(f)) }

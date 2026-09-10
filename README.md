@@ -242,8 +242,9 @@ Swift collections (`workbook.sheets[0]`, the arrays `rows(in:)` returns) count f
 
 ## openpyxl ↔ SwiftSheets
 
-openpyxl is the behavioural reference: the same file read by both yields the same values and types, `<rPh>` furigana
-is ignored, rich text is exposed as runs, 1900 / 1904 epochs and the phantom 1900-02-29 behave the same. The API is
+openpyxl is the behavioural reference: the same file read by both yields the same values and types, rich text is
+exposed as runs, 1900 / 1904 epochs and the phantom 1900-02-29 behave the same (one deliberate step past it: `<rPh>`
+furigana, which openpyxl skips, is read and written as `Cell.phonetic`). The API is
 Swift's: value types, `throws` for failure, warnings for degradation, typed values.
 
 | openpyxl | SwiftSheets |

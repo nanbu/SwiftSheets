@@ -54,8 +54,8 @@ formats:
       public: true
       note: "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
     totals:
-      read: {full: 46, partial: 10, preserved: 17, none: 2, na: 3, unverified: 0}
-      write: {full: 48, partial: 9, preserved: 16, none: 1, na: 4, unverified: 0}
+      read: {full: 47, partial: 10, preserved: 17, none: 1, na: 3, unverified: 0}
+      write: {full: 49, partial: 9, preserved: 16, none: 1, na: 3, unverified: 0}
       rows: 78
     areas:
       - id: "package"
@@ -276,12 +276,14 @@ formats:
           - id: "xlsx.ws.furigana"
             name: "ふりがな（ルビ）"
             spec_anchor: "<rPh>, <phoneticPr>"
-            read: "none"
-            write: "na"
-            api: []
-            warning: "なし（openpyxl に揃えた意図的な差）"
-            evidence: "code"
-            note: "読み飛ばす。openpyxl 準拠を優先した既知の非対応で、ここだけは警告が出ない。"
+            read: "full"
+            write: "full"
+            api:
+              - "sheet[cell: \"A1\"].phonetic"
+              - "PhoneticText"
+            warning: "ODS・Numbers へ書くと「N phonetic guide(s) (furigana) dropped: … the text is kept」"
+            evidence: "measured"
+            note: "共有文字列の <rPh>（読みと UTF-16 の区間）と <phoneticPr>（書体・変換の種類・配置）を Cell.phonetic に読み書きする。同じ文字で読みの有無が違えば別の項目。openpyxl は読み飛ばすが、こちらは運ぶ（B.69）。"
           - id: "xlsx.ws.rows"
             name: "行の高さ・非表示・アウトライン段"
             spec_anchor: "<row ht customHeight hidden outlineLevel collapsed>"

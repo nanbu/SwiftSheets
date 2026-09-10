@@ -347,6 +347,10 @@ enum ODSWriter {
             if controls > 0 {
                 sink.add(.dropped, subject: .other, sheet: sheet.name, "\(controls) cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has no cell controls — the value is kept (write .numbers to keep the control)")
             }
+            let phonetics = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.phonetic != nil }.count }
+            if phonetics > 0 {
+                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "\(phonetics) phonetic guide(s) (furigana) dropped: ODF has no phonetic guide on a cell — the text is kept (write .xlsx to keep the readings)")
+            }
         }
 
         for what in wb.unmodelledODFFeatures.descriptions {

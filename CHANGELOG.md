@@ -9,6 +9,15 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Added
+
+- **Furigana travels** (B.69). `Cell.phonetic: PhoneticText?` holds the phonetic guide Excel shows above a cell's
+  text — the readings run by run with their UTF-16 spans, the conversion kind, the alignment and the font. The XLSX
+  reader takes `<rPh>` / `<phoneticPr>` from shared and inline strings (openpyxl skips them; this is the one
+  deliberate step past its behaviour), the writer puts them back in the shared-string table, where the same text
+  with and without readings is two entries as in Excel's own files. The ODS and Numbers writers report the guides
+  as dropped and keep the text.
+
 ### Changed
 
 - **Three lists that will grow are structs, not enums** (B.68). `Chart.Kind`, `SheetImage.Format` and `DateEpoch` are
