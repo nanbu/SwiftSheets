@@ -229,7 +229,7 @@ final class ODSStreamingParser: StreamingRowParser {
 
         var value = cellText.value(from: a, lenient: lenient)
         if case .text? = value, cellText.hasStyledRuns { value = cellText.richText { catalog.cellStyle(named: $0).font } }
-        if let formula = ODSAttr.get(a, "table:formula", lenient: lenient), !options.dataOnly {
+        if let formula = ODSAttr.get(a, "table:formula", lenient: lenient), options.formulaCells == .formulas {
             value = .formula(FormulaExpr.parse(formula, dialect: .ods), cached: value)
         }
         var style: CellStyle?

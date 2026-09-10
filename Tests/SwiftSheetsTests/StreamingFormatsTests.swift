@@ -87,12 +87,12 @@ import SwiftSheets
         try reader.forEachRow(inSheet: "Data") { if $0.index == 0 { plain = $0.cells.first?.style } }
         try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(includeStyles: true)) { if $0.index == 0 { styled = $0.cells.first?.style } }
         #expect(plain == nil && styled?.font.bold == true, "\(format): the heading is bold when styles are asked for")
-        // formulas and dataOnly
+        // formulas and .cachedValues
         var formula: CellValue?, cached: CellValue?
         try reader.forEachRow(inSheet: "Data") { if $0.index == 4 { formula = $0.cells.first { $0.ref.col == 5 }?.value } }
-        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(dataOnly: true)) { if $0.index == 4 { cached = $0.cells.first { $0.ref.col == 5 }?.value } }
+        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(formulaCells: .cachedValues)) { if $0.index == 4 { cached = $0.cells.first { $0.ref.col == 5 }?.value } }
         #expect(formula?.formula != nil, "\(format): the formula comes as a formula")
-        #expect(cached == .number(1.25), "\(format): dataOnly yields the cached value")
+        #expect(cached == .number(1.25), "\(format): .cachedValues yields the cached value")
         // a second table does not exist on a one-grid sheet, and the reader says so rather than walking nothing
         #expect(throws: SheetError.self) { try reader.forEachRow(inSheet: "Data", table: 1) { _ in } }
         #expect(throws: SheetError.self) { try reader.forEachRow(inSheet: "Nope") { _ in } }

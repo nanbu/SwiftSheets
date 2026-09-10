@@ -157,7 +157,7 @@ package struct NumbersStreamingReader: StreamingRowSource {
             cols = model.int("number_of_columns") ?? 0
             strings = NumbersCells.dataList(store.reference("stringTable"), doc: index) { $0.string("string") }
             // the formula list is only needed to spell formulas out; the cached values are in the cells themselves
-            formulas = options.dataOnly ? [:] : NumbersCells.dataList(store.reference("formula_table"), doc: index) { $0.message("formula") }
+            formulas = options.formulaCells == .cachedValues ? [:] : NumbersCells.dataList(store.reference("formula_table"), doc: index) { $0.message("formula") }
             let resolver = NumbersStyleResolver(doc: index, model: model, store: store)
             richTexts = NumbersCells.richTexts(store: store, doc: index, styles: resolver)
             styles = options.includeStyles ? resolver : nil
@@ -190,7 +190,7 @@ package struct NumbersStreamingReader: StreamingRowSource {
                         storage.formulaID = nil
                     }
                     let (value, _) = NumbersCells.value(storage, row: row, col: col, strings: strings, formulas: formulas,
-                                                        richTexts: richTexts, decoder: &decoder, dataOnly: options.dataOnly)
+                                                        richTexts: richTexts, decoder: &decoder, dataOnly: options.formulaCells == .cachedValues)
                     var style: CellStyle?
                     if styles != nil { style = styles!.style(s, row: row, col: col) }
                     guard value != nil || (style != nil && style != .default) else { return }

@@ -39,12 +39,13 @@ public struct StreamingReadOptions: Sendable, Hashable {
     /// Resolve each cell's formatting as well as its value. Off by default: it is the expensive half, and a
     /// row-by-row pass is usually after the numbers.
     public var includeStyles = false
-    /// Formula cells yield their cached values rather than the formula (openpyxl's `data_only`).
-    public var dataOnly = false
+    /// What a formula cell arrives as — the formula with its computed value beside it, or that value alone. The same
+    /// choice, with the same answers, as `ReadOptions.formulaCells` (spec Appendix B.54).
+    public var formulaCells = FormulaCellReading.formulas
     /// Rows with no cell that holds anything are handed over anyway. Off by default, as openpyxl's reader is.
     public var includesEmptyRows = false
-    public init(includeStyles: Bool = false, dataOnly: Bool = false, includesEmptyRows: Bool = false) {
-        self.includeStyles = includeStyles; self.dataOnly = dataOnly; self.includesEmptyRows = includesEmptyRows
+    public init(includeStyles: Bool = false, formulaCells: FormulaCellReading = .formulas, includesEmptyRows: Bool = false) {
+        self.includeStyles = includeStyles; self.formulaCells = formulaCells; self.includesEmptyRows = includesEmptyRows
     }
 }
 

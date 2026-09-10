@@ -31,7 +31,7 @@ enum WorkbookReader {
         let zip = try ZipArchive(data: data, limits: options.limits)
         var consumed = Set<String>()
         var wb = Workbook(sheets: [])
-        wb.dataOnly = options.dataOnly
+        wb.formulaCells = options.formulaCells
 
         // [Content_Types].xml
         let ct = ContentTypesParser()
@@ -360,7 +360,7 @@ final class SheetReadContext: @unchecked Sendable {
             return
         }
 
-        let p = SheetParser(name: info.name, sst: sst, styles: styles, epoch: epoch, dataOnly: options.dataOnly, rels: sheetRels)
+        let p = SheetParser(name: info.name, sst: sst, styles: styles, epoch: epoch, dataOnly: options.formulaCells == .cachedValues, rels: sheetRels)
         try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
         var sheet = p.sheet
         sheet.state = info.state

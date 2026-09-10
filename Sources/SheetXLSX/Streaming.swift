@@ -241,7 +241,7 @@ final class StreamingSheetParser: StreamingRowParser {
 
     private func cellValue() -> CellValue? {
         let cached = cachedValue()
-        if options.dataOnly { return cached }
+        if options.formulaCells == .cachedValues { return cached }
         if !fText.isEmpty { return .formula(FormulaExpr.parse(fText, dialect: .xlsx), cached: cached) }
         return cached
     }

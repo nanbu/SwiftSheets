@@ -509,7 +509,7 @@ private enum ReaderParity {
         #expect(wb.sheets["Sheet2 - Numbers"]!.dimensions == "D1:AA30")
     }
 
-    func sample() throws -> Workbook { try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(dataOnly: true)).workbook }
+    func sample() throws -> Workbook { try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(formulaCells: .cachedValues)).workbook }
 
     // openpyxl: tests/test_iter.py::test_get_missing_cell
     @Test func getMissingCell() throws {
@@ -594,8 +594,8 @@ private enum ReaderParity {
     // openpyxl: tests/test_iter.py::test_read_single_cell_formula
     @Test(arguments: formulaCases)
     func readSingleCellFormula(_ dataOnly: Bool, _ expected: CellValue) throws {
-        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(dataOnly: dataOnly)).workbook
-        #expect(wb.dataOnly == dataOnly && wb.sheets["Sheet3 - Formulas"]!["D2"] == expected)
+        let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(formulaCells: dataOnly ? .cachedValues : .formulas)).workbook
+        #expect((wb.formulaCells == .cachedValues) == dataOnly && wb.sheets["Sheet3 - Formulas"]!["D2"] == expected)
     }
 
     // openpyxl: tests/test_iter.py::test_read_style_iter

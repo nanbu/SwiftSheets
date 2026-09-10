@@ -176,9 +176,9 @@ import SwiftSheets
 
     @Test func dataOnlyReadingYieldsCachedValues() throws {
         let data = try ODSCodec.write(sampleWorkbook()).data
-        let wb = try ODSCodec.read(data, options: ReadOptions(dataOnly: true)).workbook
+        let wb = try ODSCodec.read(data, options: ReadOptions(formulaCells: .cachedValues)).workbook
         #expect(wb.sheets[0]["J1"] == .number(Decimal(string: "45.14159")!))
-        #expect(wb.dataOnly)
+        #expect(wb.formulaCells == .cachedValues)
     }
 
     // MARK: - 3. RLE

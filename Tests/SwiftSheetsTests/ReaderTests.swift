@@ -43,7 +43,7 @@ func fixture(_ name: String) throws -> Data {
     }
 
     @Test func dataOnlyReturnsCachedValues() throws {
-        let wb = try XLSXCodec.read(try fixture("rph"), options: ReadOptions(dataOnly: true)).workbook
+        let wb = try XLSXCodec.read(try fixture("rph"), options: ReadOptions(formulaCells: .cachedValues)).workbook
         #expect(wb.activeSheet["D1"] == .text("要件定義"))
         let full = try XLSXCodec.read(try fixture("rph")).workbook
         #expect(full.activeSheet["D1"] == .formula(FormulaExpr.parse("=A1"), cached: .text("要件定義")))

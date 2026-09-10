@@ -90,8 +90,9 @@ public struct ReadResult: Sendable {
 
 /// Options for reading any format.
 public struct ReadOptions: Sendable, Hashable {
-    /// Formula cells yield their cached values (openpyxl `data_only=True`).
-    public var dataOnly = false
+    /// What a formula cell arrives as: the formula with its last computed value beside it, or that value alone
+    /// (spec Appendix B.54).
+    public var formulaCells = FormulaCellReading.formulas
     /// Keep parts the codec does not interpret (charts, VBA, …) for a lossless write-back (spec §6). Off saves memory
     /// when only values are needed.
     public var preserveUnknownParts = true
@@ -127,13 +128,25 @@ public struct ReadOptions: Sendable, Hashable {
     /// Numbers document is read from an index.
     public var concurrency: Int?
 
-    public init(dataOnly: Bool = false, preserveUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
+    public init(formulaCells: FormulaCellReading = .formulas, preserveUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
                 filename: String? = nil, cellLimit: Int = Int.max, limits: ZipLimits = ZipLimits(),
                 sheets: SheetSelection? = nil, concurrency: Int? = nil) {
-        self.dataOnly = dataOnly; self.preserveUnknownParts = preserveUnknownParts; self.csv = csv
+        self.formulaCells = formulaCells; self.preserveUnknownParts = preserveUnknownParts; self.csv = csv
         self.filename = filename; self.cellLimit = cellLimit; self.limits = limits; self.sheets = sheets
         self.concurrency = concurrency
     }
+}
+
+/// What a read makes of a formula cell (spec Appendix B.54). The same choice serves the whole-workbook readers and the
+/// row-by-row ones, in every format that carries formulas.
+public enum FormulaCellReading: String, Sendable, Hashable, CaseIterable {
+    /// The formula, parsed, with the value the producing application last computed beside it —
+    /// `CellValue.formula(_:cached:)`. The default.
+    case formulas
+    /// Only that last computed value, as a plain value (`.number`, `.text`, …), so a cell reads the same whether it was
+    /// typed or calculated. A formula cell whose file carries no computed value reads as **empty** (nil) — the library
+    /// does not calculate.
+    case cachedValues
 }
 
 /// The sheets a read should take in, by name or by position in the file's order.

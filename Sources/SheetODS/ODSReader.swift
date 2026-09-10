@@ -32,7 +32,7 @@ enum ODSReader {
         let catalog = ODSStyleCatalog()
         if zip.contains("styles.xml") { try StylesPartParser(catalog: catalog).run(try zip.read("styles.xml"), part: "styles.xml") }
 
-        let content = ContentParser(catalog: catalog, dataOnly: options.dataOnly, cellLimit: options.cellLimit)
+        let content = ContentParser(catalog: catalog, dataOnly: options.formulaCells == .cachedValues, cellLimit: options.cellLimit)
         content.selection = options.sheets
         try content.run(stream: try zip.stream("content.xml"), part: "content.xml")   // a piece at a time
         guard !content.sheets.isEmpty else { throw SheetError.invalidWorkbook("the spreadsheet has no tables") }
@@ -73,7 +73,7 @@ enum ODSReader {
         wb.consolidation = content.consolidation
         wb.protection.lockStructure = content.structureProtected
         wb.noteUnmodelledODFFeatures(content.unmodelledODF)
-        wb.dataOnly = options.dataOnly
+        wb.formulaCells = options.formulaCells
         wb.definedNames = content.definedNames
         wb.preserved.sourceFormat = .ods
         var source = SourceInfo(format: .ods)

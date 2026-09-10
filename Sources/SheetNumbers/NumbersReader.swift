@@ -23,7 +23,7 @@ struct NumbersReader {
             throw SheetError.malformedPart(path: "Index/Document.iwa", detail: "object 1 is not a TN.DocumentArchive")
         }
         var wb = Workbook(sheets: [])
-        wb.dataOnly = options.dataOnly
+        wb.formulaCells = options.formulaCells
         wb.sourceInfo = sourceInfo()
         wb.preserved.sourceFormat = .numbers
         if let engine = doc.identifiers(ofType: "TSCE.CalculationEngineArchive").first, doc.object(engine)?.bool("base_date_1904") == true { wb.epoch = .mac1904 }
@@ -344,7 +344,7 @@ struct NumbersReader {
         var conditionalCells: [Int: [CellRef]] = [:]
 
         // cell formatting: the style / format lists of this table, plus the defaults its header and footer regions
-        // use. `dataOnly` is about formulas, not formatting (the XLSX and ODS readers keep styles either way).
+        // use. `formulaCells` is about formulas, not formatting (the XLSX and ODS readers keep styles either way).
         var styles = NumbersStyleResolver(doc: doc, model: model, store: store)
 
         // lookup tables
@@ -396,7 +396,7 @@ struct NumbersReader {
                         storage.formulaID = nil
                     }
                     let (value, undecoded) = NumbersCells.value(storage, row: row, col: col, strings: strings, formulas: formulas,
-                                                                richTexts: richTexts, decoder: &decoder, dataOnly: options.dataOnly)
+                                                                richTexts: richTexts, decoder: &decoder, dataOnly: options.formulaCells == .cachedValues)
                     if undecoded {
                         warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: CellRef(row: row, col: col), message: "formula could not be decoded; cached value kept"))
                     }

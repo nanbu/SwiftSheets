@@ -1503,7 +1503,7 @@ pre .vr { color: var(--code-var); }
     <tr><td>（概念なし）</td><td><code>try SheetFormat.detect(contentsOf: url)</code> / <code>probe(contentsOf:)</code></td><td>ファイル全体を読まずに形式を判定する。<code>probe</code> は開けない理由（暗号化・旧 .xls）と不明も 1 回で返す（Rev 4.14・B.39.4）</td></tr>
     <tr><td>（概念なし）</td><td><code>try Workbook.inspect(contentsOf: url)</code></td><td>読む前に問い合わせる: シート・申告セル数・展開後のバイト数・生成元（Rev 4.13・B.39.3）。<code>cellLimit</code> を決める材料</td></tr>
     <tr><td>（概念なし）</td><td><code>ReadOptions(concurrency:)</code></td><td>XLSX / XLSM のシートを同時に読む枚数（Rev 4.23・B.41）。nil = 自動（2 枚以上・申告 4 MiB 以上でコア数まで）、1 = 1 枚ずつ、n = 最大 n 枚。同時に読む枚数がメモリの増分の上限</td></tr>
-    <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(dataOnly: true))</code></td><td>数式セルをキャッシュ値として取得</td></tr>
+    <tr><td><code>load_workbook(data_only=True)</code></td><td><code>try Workbook(contentsOf: url, options: .init(formulaCells: .cachedValues))</code></td><td>数式セルを計算済みの値として取得（B.54）</td></tr>
     <tr><td><code>load_workbook(read_only=True)</code></td><td><code>try StreamingReader(contentsOf: url)</code></td><td>ブックを作らずに 1 行ずつ読む。形式は内容から判別し、XLSX / XLSM・ODS・Numbers・CSV のどれでも同じ呼び方（Rev 4.22・B.40）。<code>forEachRow(inSheet:)</code> か <code>for try await row in rows(inSheet:)</code>。Numbers の 2 枚目以降の表は <code>table:</code> で</td></tr>
     <tr><td><code>load_workbook(keep_vba=True)</code></td><td>（指定不要 — 既定で保持）</td><td>VBA は常に PreservationStore で無劣化保持（第7章）</td></tr>
     <tr><td><code>Workbook()</code></td><td><code>Workbook()</code></td><td>新規作成。空シート "Sheet1" を1枚持つ</td></tr>
@@ -1613,7 +1613,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
   <div class="compare pbauto"><table>
     <tr><th>openpyxl</th><th>SwiftSheets</th><th>説明</th></tr>
     <tr><td><code>cell.value = '=SUM(A1:B2)'</code></td><td><code>sheet["C1"] = Formula("=SUM(A1:B2)")</code></td><td>代入時に AST 化。解析不能なら <code>.unparsed</code> 退避（第5章）</td></tr>
-    <tr><td><code>load_workbook(data_only=True)</code></td><td><code>ReadOptions(dataOnly: true)</code></td><td>キャッシュ値で読む</td></tr>
+    <tr><td><code>load_workbook(data_only=True)</code></td><td><code>ReadOptions(formulaCells: .cachedValues)</code></td><td>計算済みの値で読む（B.54）</td></tr>
     <tr><td>（文字列のみ）</td><td><code>case .formula(let ast, let cached)</code></td><td>AST とキャッシュ値の両方に常時アクセス可能</td></tr>
     <tr><td>—</td><td><code>formula.rendered(as: .ods)</code></td><td>方言レンダリング（<code>of:=SUM([.A1:.B2];[.C3])</code>）</td></tr>
     <tr><td><code>openpyxl.formula.translate.Translator</code></td><td>（自動）</td><td>行列挿入・シート改名時の参照追随は本体が行う（14.5）</td></tr>
@@ -1762,11 +1762,11 @@ wb.sheets[<span class="nm">0</span>] = sheet
 print(result.warnings.count, <span class="st">"件の変換警告"</span>)</code></pre>
 
   <h3>15.5 複数ブックを横断して値だけ高速に集計する</h3>
-  <p><code>dataOnly</code> で数式をキャッシュ値として読み、書式を触らず値集計に徹するパターン。</p>
+  <p><code>formulaCells: .cachedValues</code> で数式を計算済みの値として読み、書式を触らず値集計に徹するパターン。</p>
   <pre><code><span class="kw">var</span> total = <span class="ty">Decimal</span>.zero
 
 <span class="kw">for</span> url <span class="kw">in</span> reportURLs {   <span class="cm">// xlsx / ods / numbers 混在でよい — 判別は自動</span>
-    <span class="kw">let</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: url, options: .init(dataOnly: <span class="kw">true</span>))
+    <span class="kw">let</span> wb = <span class="kw">try</span> <span class="ty">Workbook</span>(contentsOf: url, options: .init(formulaCells: .cachedValues))
     <span class="kw">guard let</span> sheet = wb.sheets[<span class="st">"集計"</span>] <span class="kw">else</span> { <span class="kw">continue</span> }
 
     <span class="kw">for</span> row <span class="kw">in</span> sheet.rows(in: <span class="st">"B2:B100"</span>) {
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.43 Draft</td><td>2026-09-10</td><td>数式セルの読み方を <code>dataOnly: Bool</code> から <code>formulaCells: FormulaCellReading</code>（<code>.formulas</code> / <code>.cachedValues</code>）へ。通常読み・逐次読み・<code>Workbook</code> の 3 か所を同じ列挙にそろえ、計算済みの値が無い数式セルは空と定める（B.54）。</td></tr>
     <tr><td>4.42 Draft</td><td>2026-09-10</td><td>書式を変える6宣言をsetStyleへ改名し、読めないA1文字列の扱いを「書く入口は止まる／読む入口は既定値」に揃える（B.53）。</td></tr>
     <tr><td>4.41 Draft</td><td>2026-09-10</td><td>SheetErrorを分類する。unopenable(UnopenableInput)・noCodec(for:)・unsupportedEncryption(detail:)を追加し、read/inspectの判定をSheetFormat.probeへそろえる（B.52）。</td></tr>
     <tr><td>4.40 Draft</td><td>2026-09-09</td><td>逐次書き込みを一時ファイル経由にし、正常終了したときだけ保存先へ反映する。close()がStreamingWriteResultを返し、cancel()とCodecSet.withStreamingWriterを追加（B.51）。</td></tr>
@@ -5523,7 +5524,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   </p>
   <p>
     <strong>変わらない約束</strong>: 警告の順序はシート順。最初の失敗はシート順。<code>ReadOptions.sheets</code> と両立
-    （外した枚は解析せず、申告の合計にも入れない）。<code>dataOnly</code>・<code>preserveUnknownParts</code> は各シートの入れ物へ
+    （外した枚は解析せず、申告の合計にも入れない）。<code>formulaCells</code>・<code>preserveUnknownParts</code> は各シートの入れ物へ
     そのまま渡る。書き側の並列は共有文字列表と書式表の番号が先着順で決まるため、この設計の外（B.39 のまま）。
   </p>
   <p>
@@ -6104,6 +6105,34 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   残っていることを通常の検査で確かめる。読む入口が既定値を返し続けることも、代表的な入口で見る。
   <code>exitTest</code>がこの環境で使えない場合は、止まることの検査を落とし、その理由をここに追記する——
   「検査できないので書かない」を黙って行わない。</p>
+
+  <h3>B.54 数式セルの読み方は 1 つの選択・2 つの答え（Rev 4.43）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 6）。<code>ReadOptions.dataOnly: Bool</code>・
+  <code>StreamingReadOptions.dataOnly: Bool</code>・<code>Workbook.dataOnly: Bool</code> の 3 つを、1 つの列挙
+  <code>FormulaCellReading</code> を持つ <code>formulaCells</code> に置き換える。互換の別名は残さない（B.53 と同じ理由——
+  1.0 で両方が固定される）。</p>
+  <p><strong>なぜ Bool をやめるか。</strong><code>dataOnly</code> は openpyxl の <code>data_only</code> をそのまま写した名で、
+  「何のデータか」「true で何が消えるのか」を名前が言わない。①openpyxl はこう書く: <code>load_workbook(path, data_only=True)</code>。
+  ②Swift でそれを真似ると <code>ReadOptions(dataOnly: true)</code> になり、呼び出し側は「値だけ？書式も落ちる？」を説明文で
+  確かめるしかない（実際、Numbers の読み手には「dataOnly は書式の話ではない」と断り書きが要った）。③だから選択肢そのものに
+  名前を付ける: <code>ReadOptions(formulaCells: .cachedValues)</code>。</p>
+  <p><strong>2 つの答え。</strong><code>.formulas</code>（既定）は数式を構文木にし、生成元アプリが最後に計算した値を横に
+  添えて渡す（<code>CellValue.formula(_:cached:)</code>）。<code>.cachedValues</code> はその計算済みの値だけを普通の値
+  （<code>.number</code>・<code>.text</code> …）として渡し、打ち込んだセルと計算したセルの区別を消す。</p>
+  <p><strong>計算済みの値が無い数式セル。</strong><code>.cachedValues</code> で読んだとき、ファイルが計算結果を持たない数式セルは
+  <strong>空（nil）</strong>である。数式の文字列を値として返すことはしないし、この library は計算もしない。これは 3 つの読み手が
+  既にしていた動き（XLSX は <code>&lt;v&gt;</code> の無い <code>&lt;c&gt;</code> をそのまま nil に、ODS は
+  <code>office:value</code> の無い <code>table:formula</code> を値なしに、Numbers は数式表を引かない）を規則として書き留めた
+  もので、動きは変えていない。</p>
+  <p><strong>3 か所を同じ列挙に。</strong>通常読み（<code>ReadOptions</code>）・逐次読み（<code>StreamingReadOptions</code>）・
+  読んだ後の <code>Workbook.formulaCells</code>（どちらで読んだかの記録）は同じ型を持つ。形式別の解析器が内部で持つ
+  <code>Bool</code>（<code>SheetParser</code>・<code>ContentParser</code>・<code>NumbersCells</code>）は公開面ではないので
+  そのまま。</p>
+  <p><strong>検査。</strong>XLSX と ODS それぞれについて、通常読みと逐次読みの両方で「<code>.formulas</code> は数式と計算済みの値の
+  両方を渡す」「<code>.cachedValues</code> は値だけを渡す」「計算されていない数式は空になる」を見る
+  （<code>FormulaCellReadingTests</code>）。Numbers は「計算結果を持たない数式セル」を書き手から作れないため、この 1 点は
+  Numbers では検査していない——読み手のコードが数式表を引かないことを根拠にする。既定が <code>.formulas</code> であることは
+  3 か所とも直接見る。</p>
 </section>
 
 </div><!-- /.container -->

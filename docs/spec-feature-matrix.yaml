@@ -470,10 +470,10 @@ formats:
             write: "full"
             api:
               - ".formula(_, cached:)"
-              - "ReadOptions(dataOnly: true)"
+              - "ReadOptions(formulaCells: .cachedValues)"
             warning: null
             evidence: "code"
-            note: "dataOnly で値だけを読む道もある。"
+            note: "formulaCells: .cachedValues で値だけを読む道もある。"
           - id: "xlsx.formula.nesting"
             name: "数式の入れ子（64 段まで）"
             spec_anchor: "Excel 自身の上限"

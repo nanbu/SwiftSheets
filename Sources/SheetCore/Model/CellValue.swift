@@ -13,7 +13,7 @@ public indirect enum CellValue: Hashable, Sendable {
     case time(TimeOfDay)
     /// Elapsed time (openpyxl `timedelta`): what a cell with an `[h]:mm:ss`-style format holds.
     case duration(Duration)
-    /// A parsed formula plus the last value the producing application computed (what `dataOnly` readers return).
+    /// A parsed formula plus the last value the producing application computed (what a `.cachedValues` read returns on its own).
     case formula(FormulaExpr, cached: CellValue?)
     /// "#N/A", "#REF!" and friends.
     case error(String)

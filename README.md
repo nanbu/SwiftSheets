@@ -247,7 +247,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 
 | openpyxl | SwiftSheets |
 |---|---|
-| `load_workbook(path)` / `data_only=True` | `Workbook(contentsOf:)` / `ReadOptions(dataOnly: true)`; `Workbook.read(contentsOf:)` for the warnings too |
+| `load_workbook(path)` / `data_only=True` | `Workbook(contentsOf:)` / `ReadOptions(formulaCells: .cachedValues)`; `Workbook.read(contentsOf:)` for the warnings too |
 | (no equivalent) | `Workbook.inspect(contentsOf:)` — the sheets, how many cells each declares, what the package expands to and who wrote it, before any cell is read; `InspectOptions(countCells: true)` counts what is really there. How to choose a `ReadOptions.cellLimit` for a file you do not trust |
 | `keep_vba=True` | not needed — VBA is always preserved |
 | `Workbook()`, `wb.save(path)` | `Workbook()`, `wb.write(to:)` → `WriteResult` (inspect its warnings) |

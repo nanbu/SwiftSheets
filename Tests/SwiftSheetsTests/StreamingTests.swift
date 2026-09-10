@@ -90,7 +90,7 @@ import SwiftSheets
         #expect(count == 5)
     }
 
-    /// Formulas, cached values and `dataOnly` behave as they do everywhere else.
+    /// Formulas, cached values and `.cachedValues` behave as they do everywhere else.
     @Test func formulasAndDataOnly() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = .formula(FormulaExpr.parse("=1+2"), cached: .integer(3))
@@ -100,7 +100,7 @@ import SwiftSheets
         try reader.forEachRow(inSheet: "Sheet1") { withFormula = $0.cells.first?.value }
         #expect(withFormula?.formula?.text == "=1+2")
         var cached: CellValue?
-        try reader.forEachRow(inSheet: "Sheet1", options: StreamingReadOptions(dataOnly: true)) { cached = $0.cells.first?.value }
+        try reader.forEachRow(inSheet: "Sheet1", options: StreamingReadOptions(formulaCells: .cachedValues)) { cached = $0.cells.first?.value }
         #expect(cached == .integer(3))
     }
 

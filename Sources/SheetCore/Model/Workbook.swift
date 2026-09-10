@@ -153,8 +153,8 @@ public struct Workbook: Equatable, Sendable {
     /// something addresses one by index (`ColorFilter.differentialStyleID`, `ExcelTable.styleInfo`). Reading fills
     /// it in; writing keeps every entry where it is and appends whatever the rules need.
     public var differentialStyles: [DifferentialStyle] = []
-    /// True when loaded with `ReadOptions.dataOnly`: formula cells hold cached values.
-    public var dataOnly = false
+    /// How the formula cells were read (`ReadOptions.formulaCells`): after a `.cachedValues` read they hold plain values.
+    public var formulaCells = FormulaCellReading.formulas
     /// Uninterpreted parts of the source file (charts, VBA, …), re-packed on a same-format write (spec §6).
     package var preserved = PreservationStore()
     /// A snapshot of the source format, opaque part count and VBA presence, without expanding any parts.
