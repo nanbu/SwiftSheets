@@ -24,7 +24,7 @@ case .unread, .nonGrid: fatalError("new sheets are grids")
 var rule = ConditionalFormattingRule.contains("word", paint: DifferentialStyle())
 rule.anchorTextFormula(at: "B2")
 precondition(rule.formulas.first?.contains("B2") == true)
-precondition(ExcelTable.sanitizedName("two words") == "two_words")
+precondition(StructuredTable.sanitizedName("two words") == "two_words")
 _ = CalculationSettings.asAssumedOutsideODF
 workbook.sheets[0].table.cleanMergedRange(CellRange("A1:B2")!)
 print("public preservation API OK")
