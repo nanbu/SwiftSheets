@@ -187,7 +187,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test func mergedCellRangeCtor() {
         var ws = Workbook().sheets[0]
         ws.merge("A1:E4")
-        #expect(ws.mergedRange(containing: CellRef("C2")!)?.topLeft.a1 == "A1")
+        #expect(ws.mergedRange(containing: CellRef("C2")!)?.topLeft.address == "A1")
     }
 
     // openpyxl: worksheet/tests/test_merge.py::test_get_borders
@@ -372,7 +372,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
           <selection pane="bottomRight" activeCell="E22" sqref="E22"/>
         </sheetView></sheetViews>
         """)
-        #expect(ws.view.tabSelected && ws.view.zoomScale == 200 && ws.freezePanes?.a1 == "F20" && ws.view.activeCell == "E22")
+        #expect(ws.view.tabSelected && ws.view.zoomScale == 200 && ws.freezePanes?.address == "F20" && ws.view.activeCell == "E22")
     }
 
     // openpyxl: worksheet/tests/test_views.py::test_serialise

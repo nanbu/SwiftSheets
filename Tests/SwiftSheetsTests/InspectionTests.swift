@@ -24,7 +24,7 @@ import SwiftSheets
         let summary = try Workbook.inspect(data)
         #expect(summary.format == .xlsx)
         #expect(summary.sheets.map(\.name) == ["Sheet1", "S1"])
-        #expect(summary.sheets[0].declaredRange?.a1 == "A1:C100")
+        #expect(summary.sheets[0].declaredRange?.address == "A1:C100")
         #expect(summary.sheets[0].declaredCellCount == 300)
         #expect(summary.declaredCellCount == 600)
         #expect(summary.sheets[0].countedCellCount == nil, "not counted unless asked")

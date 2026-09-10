@@ -12,7 +12,7 @@ import Testing
     @Test func ctor() {
         // PORT-NOTE: position lives on `CellRef` now; the old `cell.column == 2 && cell.row == 2` is the 0-based ref of A1.
         let cell = dummyCell(), ref = CellRef(row: 1, column: 1)
-        #expect(cell.openpyxlDataType == "n" && ref.column == 1 && ref.row == 1 && ref.a1 == "A1" && cell.value == nil && cell.note == nil)
+        #expect(cell.openpyxlDataType == "n" && ref.column == 1 && ref.row == 1 && ref.address == "A1" && cell.value == nil && cell.note == nil)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_null
@@ -137,7 +137,7 @@ import Testing
         // (renamed through the workbook, as before) and the cell's `CellRef`.
         var wb = Workbook(); wb.sheets[0].name = "Dummy Worksheet"
         let ref = CellRef("A1")!
-        #expect("<Cell '\(wb.sheets[0].name)'.\(ref.a1)>" == "<Cell 'Dummy Worksheet'.A1>")
+        #expect("<Cell '\(wb.sheets[0].name)'.\(ref.address)>" == "<Cell 'Dummy Worksheet'.A1>")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_comment_assignment
@@ -169,7 +169,7 @@ import Testing
 
     // openpyxl: cell/tests/test_cell.py::test_cell_offset
     @Test func cellOffset() {
-        #expect(CellRef(row: 1, column: 1).shifted(rows: 2, columns: 1).a1 == "B3")
+        #expect(CellRef(row: 1, column: 1).shifted(rows: 2, columns: 1).address == "B3")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_font
@@ -250,7 +250,7 @@ import Testing
         // PORT-NOTE: `cell.coordinate` no longer exists (cells carry no position); the A1 text comes from `CellRef`.
         var ws = Workbook().sheets[0]
         ws.merge("A1:C3")
-        #expect(CellRef("A1")!.a1 == "A1" && ws.isMerged("A1"))
+        #expect(CellRef("A1")!.address == "A1" && ws.isMerged("A1"))
     }
 
     // openpyxl: cell/tests/test_cell.py::TestMergedCell::test_hyperlink

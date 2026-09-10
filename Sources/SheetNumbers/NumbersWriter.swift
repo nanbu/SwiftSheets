@@ -584,7 +584,7 @@ struct NumbersWriter {
                                      sheetName: String, at y: Double) throws -> (width: Double, height: Double) {
         guard let columns = NumbersPivot.source(of: pivot, in: workbook) else {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheetName,
-                                              message: "pivot table \(pivot.name) is dropped: its source range \(pivot.cache.sourceRef.a1) on \(pivot.cache.sourceSheet) is not in this workbook to summarise"))
+                                              message: "pivot table \(pivot.name) is dropped: its source range \(pivot.cache.sourceRef.address) on \(pivot.cache.sourceSheet) is not in this workbook to summarise"))
             try discard(tableInfo: summaryInfo, fromSheet: sid); try discard(tableInfo: sourceInfo, fromSheet: sid)
             return (0, 0)
         }

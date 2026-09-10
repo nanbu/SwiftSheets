@@ -19,7 +19,7 @@ public struct CivilDate: Hashable, Comparable, Sendable, CustomStringConvertible
     }
 
     /// Strict `YYYY-MM-DD`.
-    public init?(iso: String) {
+    public init?(iso8601 iso: String) {
         let p = iso.split(separator: "-", omittingEmptySubsequences: false)
         guard p.count == 3, p[0].count == 4, p[1].count == 2, p[2].count == 2,
               let y = Int(p[0]), let m = Int(p[1]), let d = Int(p[2]) else { return nil }
@@ -99,7 +99,7 @@ public struct TimeOfDay: Hashable, Sendable, CustomStringConvertible, Codable {
         hour = ms / 3_600_000; minute = ms / 60_000 % 60; second = ms / 1000 % 60; nanosecond = ms % 1000 * 1_000_000
     }
     /// Parses "12:19", "12:19:01", "12:19:01.123" (ISO 8601 times, ≤ 3 fractional digits as openpyxl accepts).
-    public init?(iso: String) {
+    public init?(iso8601 iso: String) {
         let p = iso.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
         guard (2...3).contains(p.count), p[0].count == 2, p[1].count == 2, let h = Int(p[0]), let m = Int(p[1]) else { return nil }
         var sec = 0, nanos = 0
@@ -129,11 +129,11 @@ public struct CivilDateTime: Hashable, Sendable, CustomStringConvertible, Codabl
     /// "2013-07-15T06:52:33" (milliseconds appended when present) — openpyxl `to_ISO8601`.
     public var iso8601: String { "\(date)T\(time.iso8601)" }
     /// Parses "2011-06-30T13:35:26Z", "2013-03-04T12:19:01.00Z", "2020-12-03T12:19:01.3" (openpyxl `from_ISO8601`).
-    public init?(iso: String) {
+    public init?(iso8601 iso: String) {
         var s = iso
         if s.hasSuffix("Z") { s.removeLast() }
         guard let t = s.firstIndex(of: "T") else { return nil }
-        guard let d = CivilDate(iso: String(s[..<t])), let tm = TimeOfDay(iso: String(s[s.index(after: t)...])) else { return nil }
+        guard let d = CivilDate(iso8601: String(s[..<t])), let tm = TimeOfDay(iso8601: String(s[s.index(after: t)...])) else { return nil }
         self.init(date: d, time: tm)
     }
 }
@@ -182,9 +182,9 @@ extension CellValue {
     public init?(iso8601 text: String) {
         let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !s.isEmpty else { return nil }
-        if let dt = CivilDateTime(iso: s) { self = .date(dt); return }
-        if let d = CivilDate(iso: s.hasSuffix("Z") ? String(s.dropLast()) : s) { self = .date(CivilDateTime(date: d)); return }
-        if let t = TimeOfDay(iso: s.hasSuffix("Z") ? String(s.dropLast()) : s) { self = .time(t); return }
+        if let dt = CivilDateTime(iso8601: s) { self = .date(dt); return }
+        if let d = CivilDate(iso8601: s.hasSuffix("Z") ? String(s.dropLast()) : s) { self = .date(CivilDateTime(date: d)); return }
+        if let t = TimeOfDay(iso8601: s.hasSuffix("Z") ? String(s.dropLast()) : s) { self = .time(t); return }
         if s.hasPrefix("PT") {
             var total = 0.0, number = "", matched = false
             for ch in s.dropFirst(2) {

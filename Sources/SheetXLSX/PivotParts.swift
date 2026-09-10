@@ -47,7 +47,7 @@ enum PivotParts {
 
         var generated: [(String, String)] = []
         let l = p.location
-        var loc = "<location ref=\"\(l.ref.a1)\" firstHeaderRow=\"\(l.firstHeaderRow)\" firstDataRow=\"\(l.firstDataRow)\" firstDataCol=\"\(l.firstDataColumn)\""
+        var loc = "<location ref=\"\(l.ref.address)\" firstHeaderRow=\"\(l.firstHeaderRow)\" firstDataRow=\"\(l.firstDataRow)\" firstDataCol=\"\(l.firstDataColumn)\""
         loc += XML.attr("rowPageCount", l.rowPageCount) + XML.attr("colPageCount", l.columnPageCount) + "/>"
         generated.append(("location", loc))
 
@@ -122,7 +122,7 @@ enum PivotParts {
         var generated: [(String, String)] = []
         var src = "<cacheSource type=\"worksheet\"><worksheetSource"
         if let name = c.sourceName { src += " name=\"\(XML.esc(name))\"" }
-        else { src += " ref=\"\(c.sourceRef.a1)\"" }
+        else { src += " ref=\"\(c.sourceRef.address)\"" }
         src += " sheet=\"\(XML.esc(c.sourceSheet))\"/></cacheSource>"
         generated.append(("cacheSource", src))
 

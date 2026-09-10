@@ -25,7 +25,7 @@ import Testing
         ws["G2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws[cell: "G2"].numberFormat = "h:mm"
         ws["H2"] = .error("#N/A")
         ws.merge("A3:C3"); ws["A3"] = "merged"
-        ws.freezePanesA1 = "B2"
+        ws.freezePanes = CellRef("B2")
         ws.setWidth(20, ofColumn: 1); ws.setColumnDimension("C") { $0.hidden = true }
         ws.setRowDimension(2) { $0.height = 30 }
         ws.setRowDimension(4) { $0.hidden = true; $0.outlineLevel = 1 }
@@ -57,12 +57,12 @@ import Testing
         #expect(r["F2"] == .richText([TextRun("設計 "), TextRun("レビュー", font: Font(bold: true))]))
         #expect(r["G2"] == .time(TimeOfDay(hour: 9, minute: 30)))
         #expect(r["H2"] == .error("#N/A"))
-        #expect(r.merges.map(\.a1) == ["A3:C3"])
+        #expect(r.merges.map(\.address) == ["A3:C3"])
         #expect(r.freezePanes == CellRef("B2"))
         #expect(r.columnDimension("A").width == 20 && r.columnDimension("C").hidden)
         #expect(r.rowDimension(2).height == 30 && r.rowDimension(4).hidden && r.rowDimension(5).collapsed)
         #expect(r[cell: "A6"].hyperlink?.target == "https://example.com/")
-        #expect(r.properties.summaryBelow == false && r.autoFilter?.a1 == "A1:H1")
+        #expect(r.properties.summaryBelow == false && r.autoFilter?.address == "A1:H1")
     }
 
     @Test func readModifySave() throws {

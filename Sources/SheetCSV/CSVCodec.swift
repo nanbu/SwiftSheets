@@ -338,8 +338,8 @@ package enum CSVCodec: SpreadsheetCodec {
             for f in formatters {
                 if let date = f.date(from: s), let civil = civilDateTime(from: date) { return .date(civil) }
             }
-            if let d = CivilDate(iso: s) { return .date(CivilDateTime(date: d)) }
-            if let dt = CivilDateTime(iso: s) { return .date(dt) }
+            if let d = CivilDate(iso8601: s) { return .date(CivilDateTime(date: d)) }
+            if let dt = CivilDateTime(iso8601: s) { return .date(dt) }
             return .text(s)
         }
 
@@ -447,7 +447,7 @@ package enum CSVCodec: SpreadsheetCodec {
         } else {
             let offenders = fields.filter { $0.text.data(using: encoding) == nil }
             guard options.lossy else {
-                let place = offenders.first.map { $0.ref.a1 } ?? "?"
+                let place = offenders.first.map { $0.ref.address } ?? "?"
                 throw SheetError.unsupportedFeature("text at \(place) cannot be represented in \(name)")
             }
             for o in offenders {

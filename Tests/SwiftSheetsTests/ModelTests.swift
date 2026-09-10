@@ -116,11 +116,11 @@ import Testing
         #expect(s.columnDimension("C").width == 14 && s.columnDimension(3).width == 14 && s.rowDimension(1).height == 24)
         s.groupColumns("F", "H")
         #expect(s.columnGroups == ["F:H"])
-        s.freezePanesA1 = "B2"
-        #expect(s.freezePanes == CellRef(row: 2, column: 2) && s.freezePanesA1 == "B2")
-        s.freezePanesA1 = "A1"
+        s.freezePanes = CellRef("B2")
+        #expect(s.freezePanes == CellRef(row: 2, column: 2) && s.freezePanes?.address == "B2")
+        s.freezePanes = nil
         #expect(s.freezePanes == nil)
-        s.autoFilterA1 = "A1:D100"
+        s.autoFilter = CellRange("A1:D100")
         #expect(s.autoFilter == CellRange("A1:D100"))
         s.tabColor = Color(hex: "1072BA")
         #expect(s.properties.tabColor == .rgb("FF1072BA"))
@@ -133,7 +133,7 @@ import Testing
         s["A1"] = "default table"
         let t = s.addTable(named: "Second", anchor: CellRef("D10")!)
         s.tables[t]["A1"] = "second"
-        #expect(s.tables.count == 2 && s.tables[1].name == "Second" && s.tables[1].anchor.a1 == "D10")
+        #expect(s.tables.count == 2 && s.tables[1].name == "Second" && s.tables[1].anchor.address == "D10")
         #expect(s["A1"] == .text("default table") && s.tables[1]["A1"] == .text("second"))
     }
 

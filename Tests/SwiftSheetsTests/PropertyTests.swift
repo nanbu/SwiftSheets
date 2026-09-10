@@ -19,9 +19,9 @@ import Testing
         for _ in 0..<2_000 {
             let ref = CellRef(row: Int.random(in: 1...CellRef.maxRow, using: &rng),
                               column: Int.random(in: 1...CellRef.maxColumn, using: &rng))
-            #expect(CellRef(ref.a1) == ref, "\(ref.row),\(ref.column) → \(ref.a1)")
-            #expect(CellRef(ref.absoluteA1) == ref, "\(ref.absoluteA1)")
-            #expect(CellRef(ref.a1.lowercased()) == ref, "\(ref.a1.lowercased())")
+            #expect(CellRef(ref.address) == ref, "\(ref.row),\(ref.column) → \(ref.address)")
+            #expect(CellRef(ref.absoluteAddress) == ref, "\(ref.absoluteAddress)")
+            #expect(CellRef(ref.address.lowercased()) == ref, "\(ref.address.lowercased())")
             #expect(CellRef.columnIndex(ref.columnName) == ref.column, "\(ref.columnName)")
             // and the other way round: the name is the *only* spelling of that column
             #expect(CellRef.columnName(ref.column) == ref.columnName)

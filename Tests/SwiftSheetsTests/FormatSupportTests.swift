@@ -41,8 +41,8 @@ import SwiftSheets
         d.setWidth(18, ofColumn: 1)
         d.setHeight(24, ofRow: 1)
         d.groupRows(4...6, outlineLevel: 1)
-        d.freezePanesA1 = "A2"
-        d.autoFilterA1 = "A1:D9"
+        d.freezePanes = CellRef("A2")
+        d.autoFilter = CellRange("A1:D9")
         d.filterColumns = [FilterColumn(columnOffset: 0, values: ["East"])]
         d.sortState = SortState(range: CellRange("A2:D9")!, conditions: [SortCondition(range: CellRange("C2:C9")!, descending: true)])
         d.addStructuredTable(named: "Sales", over: "A1:D9")

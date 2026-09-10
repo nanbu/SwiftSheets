@@ -173,7 +173,7 @@ public struct Sheet: Equatable, Sendable {
     public mutating func addConditionalFormatting(_ rule: ConditionalFormattingRule, over ranges: MultiCellRange) {
         var r = rule
         // a text rule's formula reads the range's own first cell, not A1
-        if let anchor = ranges.sorted.first?.topLeft { r.anchorTextFormula(at: anchor.a1) }
+        if let anchor = ranges.sorted.first?.topLeft { r.anchorTextFormula(at: anchor.address) }
         if r.priority == 1 { r.priority = (conditionalFormatting.flatMap(\.rules).map(\.priority).max() ?? 0) + 1 }
         if let i = conditionalFormatting.firstIndex(where: { $0.ranges == ranges }) { conditionalFormatting[i].rules.append(r) }
         else { conditionalFormatting.append(ConditionalFormatting(ranges: ranges, rules: [r])) }
@@ -258,7 +258,7 @@ public struct Sheet: Equatable, Sendable {
     public var extent: CellRange? { table.extent }
     public var rowCount: Int { table.rowCount }
     public var columnCount: Int { table.columnCount }
-    public var dimensions: String { table.dimensions }
+    public var extentAddress: String { table.extentAddress }
 
     public func rows(in range: CellRange? = nil) -> [[CellValue?]] { table.rows(in: range) }
     public func rows(in a1: String) -> [[CellValue?]] { table.rows(in: a1) }
@@ -359,26 +359,6 @@ public struct Sheet: Equatable, Sendable {
 
     // MARK: - Panes / printing
 
-    /// The freeze cell as A1 text; assign "B2" or nil. Nil and "A1" clear (A1 is the corner — nothing frozen); a string
-    /// that will not parse is a programming error rather than a second way to clear (Appendix B.53).
-    public var freezePanesA1: String? {
-        get { freezePanes?.a1 }
-        set {
-            guard let newValue, newValue != "A1" else { freezePanes = nil; return }
-            guard let r = CellRef(newValue) else { preconditionFailure("invalid cell reference \(newValue)") }
-            freezePanes = r
-        }
-    }
-    /// The auto-filter range as A1 text; assign "A1:D100" or nil. Nil clears; an unparsable string stops.
-    public var autoFilterA1: String? {
-        get { autoFilter?.a1 }
-        set {
-            guard let newValue else { autoFilter = nil; return }
-            guard let r = CellRange(newValue) else { preconditionFailure("invalid range \(newValue)") }
-            autoFilter = r
-        }
-    }
-
     /// The `_xlnm.Print_Titles` formula, e.g. `'Sheet'!$1:$2,'Sheet'!$C:$D` — the A1-string twin of `printTitleRows`
     /// and `printTitleColumns`. Nil when neither is set; assigning nil clears both.
     ///
@@ -413,7 +393,7 @@ public struct Sheet: Equatable, Sendable {
     /// Excel leaves behind when the sheet it pointed at is deleted — has to open, so a part that will not parse is
     /// dropped.
     public var printAreaFormula: String? {
-        get { printArea.isEmpty ? nil : printArea.map { "\(CellRef.quoteSheetName(name))!\($0.absoluteA1)" }.joined(separator: ",") }
+        get { printArea.isEmpty ? nil : printArea.map { "\(CellRef.quoteSheetName(name))!\($0.absoluteAddress)" }.joined(separator: ",") }
         set {
             guard let newValue, !newValue.isEmpty else { printArea = []; return }
             printArea = newValue.split(separator: ",").compactMap { part in

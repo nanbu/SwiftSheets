@@ -64,7 +64,7 @@ public struct RangeView: Sendable, Sequence {
 
     /// The row at an absolute row index. Reading outside the range is a programming error.
     public func row(at index: Int) -> Row {
-        precondition(range.minRow...range.maxRow ~= index, "row \(index) is outside \(range.a1)")
+        precondition(range.minRow...range.maxRow ~= index, "row \(index) is outside \(range.address)")
         return Row(table: table, row: index, firstColumn: range.minColumn, width: range.size.columns)
     }
 

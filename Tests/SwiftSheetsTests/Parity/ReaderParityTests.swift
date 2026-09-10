@@ -203,7 +203,7 @@ private enum ReaderParity {
           <selection pane="topRight" activeCell="F1" sqref="F1"/><selection pane="bottomLeft" activeCell="A20" sqref="A20"/><selection pane="bottomRight" activeCell="E22" sqref="E22"/>
         </sheetView></sheetViews>
         """)
-        #expect(ws.view.zoomScale == 200 && ws.view.activeCell == "E22" && ws.freezePanes?.a1 == "F20")
+        #expect(ws.view.zoomScale == 200 && ws.view.activeCell == "E22" && ws.freezePanes?.address == "F20")
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_cell_without_coordinates
@@ -247,7 +247,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_merge_cells
     @Test func mergeCells() throws {
         let ws = try sheet("<mergeCells><mergeCell ref=\"C2:F2\"/><mergeCell ref=\"B19:C20\"/><mergeCell ref=\"E19:G19\"/></mergeCells>")
-        #expect(ws.merges.map(\.a1) == ["C2:F2", "B19:C20", "E19:G19"])
+        #expect(ws.merges.map(\.address) == ["C2:F2", "B19:C20", "E19:G19"])
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_sheet_properties
@@ -265,7 +265,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_auto_filter
     @Test func autoFilter() throws {
         let ws = try sheet("<autoFilter ref=\"A1:AK3237\"><sortState ref=\"A2:AM3269\"><sortCondition ref=\"B1:B3269\"/></sortState></autoFilter>")
-        #expect(ws.autoFilter?.a1 == "A1:AK3237")
+        #expect(ws.autoFilter?.address == "A1:AK3237")
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_cell
@@ -277,7 +277,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_merged
     @Test func merged() throws {
         let ws = try sheet(try ReaderParity.fixtureText("worksheet/complex-styles-worksheet.xml"), sst: Array(repeating: .text("a"), count: 30))
-        #expect(ws.merges.map(\.a1) == ["G18:H18", "G23:H24", "A18:B18"])
+        #expect(ws.merges.map(\.address) == ["G18:H18", "G23:H24", "A18:B18"])
     }
 
     static let normalizeCases: [(String, String?)] = [("H18", "G18"), ("G18", "G18"), ("I18", nil), ("H23", "G23")]
@@ -285,7 +285,7 @@ private enum ReaderParity {
     @Test(arguments: normalizeCases)
     func normalizeMergedCellLink(_ input: String, _ expected: String?) throws {
         let ws = try sheet(try ReaderParity.fixtureText("worksheet/complex-styles-worksheet.xml"), sst: Array(repeating: .text("a"), count: 30))
-        #expect(ws.mergedRange(containing: CellRef(input)!)?.topLeft.a1 == expected)
+        #expect(ws.mergedRange(containing: CellRef(input)!)?.topLeft.address == expected)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::TestWorksheetReader::test_external_hyperlinks
@@ -304,7 +304,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_merged_hyperlinks
     @Test func mergedHyperlinks() throws {
         let ws = try sheet(try ReaderParity.fixtureText("worksheet/complex-styles-worksheet.xml"), sst: Array(repeating: .text("a"), count: 30))
-        #expect(ws.merges.map(\.a1) == ["G18:H18", "G23:H24", "A18:B18"])
+        #expect(ws.merges.map(\.address) == ["G18:H18", "G23:H24", "A18:B18"])
         #expect(ws[cell: "A18"].hyperlink?.display == "http://test.com" && ws[cell: "B18"].hyperlink == nil)
         // Link referencing H24 lands on G23, the top-left cell of the merged range
         #expect(ws[cell: "G23"].hyperlink?.tooltip == "openpyxl" && ws[cell: "H24"].hyperlink == nil)
@@ -506,7 +506,7 @@ private enum ReaderParity {
     // openpyxl: tests/test_iter.py::test_calculate_dimension
     @Test func calculateDimension() throws {
         let wb = try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx")).workbook
-        #expect(wb.sheets["Sheet2 - Numbers"]!.dimensions == "D1:AA30")
+        #expect(wb.sheets["Sheet2 - Numbers"]!.extentAddress == "D1:AA30")
     }
 
     func sample() throws -> Workbook { try XLSXCodec.read(try ReaderParity.fixture("genuine/sample.xlsx"), options: ReadOptions(formulaCells: .cachedValues)).workbook }
@@ -523,7 +523,7 @@ private enum ReaderParity {
         // nearest equivalent is equality of the whole Cell reached through both paths; coordinates come from the
         // range's refs because cells no longer know their position.
         #expect(ws.cells(in: CellRange(minRow: 1, minColumn: 1, maxRow: 1, maxColumn: 1))[0][0] == ws[cell: "A1"])
-        #expect(CellRange(minRow: 1, minColumn: 1, maxRow: 30, maxColumn: 4).rows.map { $0.map(\.a1) } == CellRange("A1:D30")!.rows.map { $0.map(\.a1) })
+        #expect(CellRange(minRow: 1, minColumn: 1, maxRow: 30, maxColumn: 4).rows.map { $0.map(\.address) } == CellRange("A1:D30")!.rows.map { $0.map(\.address) })
         #expect(ws.cells(in: CellRange(minRow: 1, minColumn: 1, maxRow: 30, maxColumn: 4)) == ws.cells(in: CellRange("A1:D30")!))
     }
 
@@ -587,7 +587,7 @@ private enum ReaderParity {
         // coordinate check is on the CellRef used to reach the cell (its A1 text round-trips).
         let ref = CellRef(coord)!
         let cell = try sample().sheets["Sheet2 - Numbers"]![cell: ref]
-        #expect(ref.a1 == coord && cell.openpyxlDataType == "b" && cell.value == .bool(expected))
+        #expect(ref.address == coord && cell.openpyxlDataType == "b" && cell.value == .bool(expected))
     }
 
     static let formulaCases: [(Bool, CellValue)] = [(true, .integer(5)), (false, .formula(FormulaExpr.parse("='Sheet2 - Numbers'!D5"), cached: .integer(5)))]

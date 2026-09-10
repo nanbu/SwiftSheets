@@ -12,7 +12,7 @@ enum ODSFeatures {
     /// `Sheet.A1:Sheet.D9` — the form ODF uses for a range in an attribute, and the one our reader parses back.
     static func address(_ range: CellRange, sheet: String) -> String {
         let prefix = String(ODSWriter.odsSheetPrefix(sheet).dropFirst())
-        return "\(prefix).\(range.topLeft.a1):\(prefix).\(range.bottomRight.a1)"
+        return "\(prefix).\(range.topLeft.address):\(prefix).\(range.bottomRight.address)"
     }
     /// The same for a range that already names its sheet.
     static func address(_ range: CellRange) -> String? {
@@ -21,7 +21,7 @@ enum ODSFeatures {
         return address(r, sheet: sheet)
     }
     static func address(_ ref: CellRef, sheet: String) -> String {
-        "\(String(ODSWriter.odsSheetPrefix(sheet).dropFirst())).\(ref.a1)"
+        "\(String(ODSWriter.odsSheetPrefix(sheet).dropFirst())).\(ref.address)"
     }
     /// Parses one back into a sheet-qualified range.
     static func range(_ text: String) -> CellRange? { CellRange(ContentParser.excelAddress(text)) }

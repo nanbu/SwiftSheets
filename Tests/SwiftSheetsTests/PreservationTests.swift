@@ -36,9 +36,9 @@ import SwiftSheets
 
         let again = try XLSXCodec.read(result.data).workbook
         #expect(again.sheets[0]["B2"] == .integer(30))
-        for (ref, cell) in wb.sheets[0].cells where ref.a1 != "B2" {
-            #expect(again.sheets[0].cells[ref]?.value == cell.value, "\(ref.a1)")
-            #expect(again.sheets[0].cells[ref]?.style == cell.style, "\(ref.a1) style")
+        for (ref, cell) in wb.sheets[0].cells where ref.address != "B2" {
+            #expect(again.sheets[0].cells[ref]?.value == cell.value, "\(ref.address)")
+            #expect(again.sheets[0].cells[ref]?.style == cell.style, "\(ref.address) style")
         }
         #expect(again.sheets[1]["A1"] == .text("second sheet"))
         #expect(again.definedNames == wb.definedNames)

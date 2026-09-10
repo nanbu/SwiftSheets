@@ -112,7 +112,7 @@ import SwiftSheets
         #expect(view[rowOffset: 2, columnOffset: 2] == .text("row 4"))
         #expect(view[CellRef("A1")!] == nil)        // outside the range
         #expect(view.values == sheet.rows(in: "A3:C5"))
-        #expect(view.existingCells.map(\.ref.a1) == ["A3", "C3", "A4", "C4", "A5", "C5"])
+        #expect(view.existingCells.map(\.ref.address) == ["A3", "C3", "A4", "C4", "A5", "C5"])
 
         var seen: [CellValue?] = []
         for row in view { seen.append(row[0]) }

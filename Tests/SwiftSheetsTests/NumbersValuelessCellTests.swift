@@ -62,7 +62,7 @@ import SwiftSheets
         for row in 1...8 {
             for col in 1...10 {
                 let ref = CellRef(row: row, column: col)
-                if back.style(at: ref).fill.foregroundColor != Color(hex: "FF70AD47") { missing.append(ref.a1) }
+                if back.style(at: ref).fill.foregroundColor != Color(hex: "FF70AD47") { missing.append(ref.address) }
             }
         }
         #expect(missing.isEmpty, Comment(rawValue: "\(missing.count) of 80 painted cells came back unpainted: \(missing.prefix(8))"))
@@ -107,7 +107,7 @@ import SwiftSheets
 
         let result = try wb.write(as: .numbers)
         let back = try NumbersCodec.read(result.data).workbook.sheets[0]
-        #expect(back.cells.count == 2, Comment(rawValue: "untouched cells gained records: \(back.cells.keys.map(\.a1).sorted())"))
+        #expect(back.cells.count == 2, Comment(rawValue: "untouched cells gained records: \(back.cells.keys.map(\.address).sorted())"))
     }
 
     /// Nothing is dropped, so nothing is reported. The library's promise runs both ways — a document that lost

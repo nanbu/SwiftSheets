@@ -500,7 +500,7 @@ final class ContentParser: SAXHandler {
             let style = catalog.differentialStyle(named: a["calcext:apply-style-name"])
             sheetHasCalcextFormats = true
             // spelled out rather than chained: one expression here is more than some toolchains will type-check
-            var anchor = cfRanges.sorted.first?.topLeft.a1 ?? "A1"
+            var anchor = cfRanges.sorted.first?.topLeft.address ?? "A1"
             if let address = a["calcext:base-cell-address"],
                let cell = ContentParser.internalTarget(address).split(separator: "!").last {
                 anchor = String(cell)
@@ -694,7 +694,7 @@ final class ContentParser: SAXHandler {
         var priority = 0
         for name in byStyle.keys.sorted() {
             guard let ranges = byStyle[name], !ranges.isEmpty else { continue }
-            let anchor = ranges.sorted.first?.topLeft.a1 ?? "A1"
+            let anchor = ranges.sorted.first?.topLeft.address ?? "A1"
             var rules: [ConditionalFormattingRule] = []
             for map in catalog.conditionalMaps(name) {
                 priority += 1
@@ -822,10 +822,10 @@ final class ContentParser: SAXHandler {
     /// "2026-09-01" / "2026-09-01T13:30:00" / "2026-09-01T13:30:00.123456789".
     static func date(_ v: String) -> CellValue? {
         let s = v.trimmingCharacters(in: .whitespaces)
-        if let d = CivilDate(iso: s) { return .date(CivilDateTime(date: d)) }
+        if let d = CivilDate(iso8601: s) { return .date(CivilDateTime(date: d)) }
         var t = s
         if let dot = t.firstIndex(of: "."), t.distance(from: dot, to: t.endIndex) > 4 { t = String(t[..<t.index(dot, offsetBy: 4)]) }   // ≤ 3 fraction digits
-        if let dt = CivilDateTime(iso: t) { return .date(dt) }
+        if let dt = CivilDateTime(iso8601: t) { return .date(dt) }
         return nil
     }
 

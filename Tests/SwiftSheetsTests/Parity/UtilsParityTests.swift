@@ -84,13 +84,13 @@ import Testing
 
     // openpyxl: utils/tests/test_cell.py::test_rows_from_range
     @Test func rowsFromRange() {
-        let rows = CellRange("A1:D4")!.rows.map { $0.map(\.a1) }
+        let rows = CellRange("A1:D4")!.rows.map { $0.map(\.address) }
         #expect(rows == [["A1", "B1", "C1", "D1"], ["A2", "B2", "C2", "D2"], ["A3", "B3", "C3", "D3"], ["A4", "B4", "C4", "D4"]])
     }
 
     // openpyxl: utils/tests/test_cell.py::test_cols_from_range
     @Test func colsFromRange() {
-        let cols = CellRange("A1:D4")!.columns.map { $0.map(\.a1) }
+        let cols = CellRange("A1:D4")!.columns.map { $0.map(\.address) }
         #expect(cols == [["A1", "A2", "A3", "A4"], ["B1", "B2", "B3", "B4"], ["C1", "C2", "C3", "C4"], ["D1", "D2", "D3", "D4"]])
     }
 

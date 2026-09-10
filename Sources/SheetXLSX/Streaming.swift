@@ -336,7 +336,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
         var xml = "<row r=\"\(row)\">"
         for (column, cell) in cells.enumerated() {
             guard cell.value != nil || cell.style != .default else { continue }
-            let ref = CellRef(row: row, column: column + 1).a1
+            let ref = CellRef(row: row, column: column + 1).address
             let index = styles.index(for: cell)
             let style = index != 0 ? " s=\"\(index)\"" : ""
             switch cell.value {

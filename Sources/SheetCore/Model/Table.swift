@@ -201,7 +201,7 @@ public struct Table: Equatable, Sendable {
     /// Columns from the left through the last used column (0 when empty) — also the number of the last used column.
     public var columnCount: Int { extent?.maxColumn ?? 0 }
     /// "A1:J42", or "A1:A1" for an empty table (the `<dimension>` form).
-    public var dimensions: String { extent.map { $0.isSingleCell ? $0.a1 + ":" + $0.a1 : $0.a1 } ?? "A1:A1" }
+    public var extentAddress: String { extent.map { $0.isSingleCell ? $0.address + ":" + $0.address : $0.address } ?? "A1:A1" }
 
     // MARK: - Iteration
 
@@ -469,7 +469,7 @@ public struct Table: Equatable, Sendable {
     }
     @discardableResult
     public mutating func unmerge(_ range: CellRange) -> Bool {
-        guard let i = merges.firstIndex(where: { $0.a1 == range.a1 }) else { return false }
+        guard let i = merges.firstIndex(where: { $0.address == range.address }) else { return false }
         merges.remove(at: i)
         for ref in existingRefs(in: range) where ref != range.topLeft { put(nil, at: ref) }   // openpyxl drops the MergedCell placeholders
         return true

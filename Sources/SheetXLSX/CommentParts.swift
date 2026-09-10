@@ -52,7 +52,7 @@ enum CommentParts {
         s += "</authors><commentList>"
         for (ref, note) in notes {
             let author = authors.firstIndex(of: note.author) ?? 0
-            s += "<comment ref=\"\(ref.a1)\" authorId=\"\(author)\" shapeId=\"0\"><text><t xml:space=\"preserve\">\(XML.esc(note.text))</t></text></comment>"
+            s += "<comment ref=\"\(ref.address)\" authorId=\"\(author)\" shapeId=\"0\"><text><t xml:space=\"preserve\">\(XML.esc(note.text))</t></text></comment>"
         }
         return s + "</commentList></comments>"
     }

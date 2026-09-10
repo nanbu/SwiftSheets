@@ -55,8 +55,8 @@ enum ODSCondition {
         case .containsErrors: return "is-error"
         case .notContainsErrors: return "is-no-error"
         // ODF has no blank condition; LibreOffice writes the formula it would evaluate, and reads it back as such.
-        case .containsBlanks: return "formula-is(LEN(TRIM([.\(anchor.a1)]))=0)"
-        case .notContainsBlanks: return "formula-is(LEN(TRIM([.\(anchor.a1)]))>0)"
+        case .containsBlanks: return "formula-is(LEN(TRIM([.\(anchor.address)]))=0)"
+        case .notContainsBlanks: return "formula-is(LEN(TRIM([.\(anchor.address)]))>0)"
         case .colorScale, .dataBar, .iconSet, .timePeriod: return nil
         }
     }
@@ -231,7 +231,7 @@ enum ODSConditionalFormatWriter {
     /// `Sheet.A1:Sheet.C9 Sheet.E1:Sheet.E9` — every rectangle of the rule's `sqref`.
     static func address(_ ranges: MultiCellRange, sheet: String) -> String {
         let prefix = String(ODSWriter.odsSheetPrefix(sheet).dropFirst())
-        return ranges.sorted.map { "\(prefix).\($0.topLeft.a1):\(prefix).\($0.bottomRight.a1)" }.joined(separator: " ")
+        return ranges.sorted.map { "\(prefix).\($0.topLeft.address):\(prefix).\($0.bottomRight.address)" }.joined(separator: " ")
     }
 
     static func xml(_ sheet: Sheet, styles: ODSConditionalStyleRegistry, sink: ODSWarningSink) -> String {
@@ -245,7 +245,7 @@ enum ODSConditionalFormatWriter {
         for block in blocks {
             let target = address(block.ranges, sheet: sheet.name)
             let anchor = block.ranges.sorted.first?.topLeft ?? CellRef(row: 1, column: 1)
-            let base = "\(String(ODSWriter.odsSheetPrefix(sheet.name).dropFirst())).\(anchor.a1)"
+            let base = "\(String(ODSWriter.odsSheetPrefix(sheet.name).dropFirst())).\(anchor.address)"
             var conditions = ""
             var standalone = ""
             for rule in block.rules.sorted(by: { $0.priority < $1.priority }) {

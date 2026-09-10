@@ -429,7 +429,7 @@ struct NumbersReader {
         validationsByTable[tid] = rules
         if let first = unreadableControls.first {
             let n = unreadableControls.count
-            let subject = n == 1 ? "the cell at \(first.a1) carries" : "\(n) cells starting at \(first.a1) carry"
+            let subject = n == 1 ? "the cell at \(first.address) carries" : "\(n) cells starting at \(first.address) carry"
             warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheetName, location: first,
                                               message: "\(subject) a Numbers control the model has no word for (a stock quote, or a menu an inline list cannot spell); the value is kept, the control is not"))
         }

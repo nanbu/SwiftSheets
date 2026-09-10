@@ -29,7 +29,7 @@ import Testing
         ws["G2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws[cell: "G2"].numberFormat = "h:mm"
         ws["H2"] = .error("#N/A")
         ws["A3"] = "merged"; ws.merge("A3:C3")
-        ws.freezePanesA1 = "B2"
+        ws.freezePanes = CellRef("B2")
         ws.setWidth(20, ofColumn: 1); ws.setColumnDimension("C") { $0.hidden = true }
         ws.setRowDimension(2) { $0.height = 30 }
         ws.setRowDimension(4) { $0.hidden = true; $0.outlineLevel = 1 }
@@ -93,16 +93,16 @@ import Testing
         #expect(ws["E2"] == .text("<A&B> \"q\" 日本語"))
         #expect(ws["F2"] == .richText([TextRun("設計 "), TextRun("レビュー", font: Font(bold: true))]) || ws["F2"]?.textValue == "設計 レビュー")
         #expect(ws["G2"] == .time(TimeOfDay(hour: 9, minute: 30)) && ws["H2"] == .error("#N/A"))
-        #expect(ws.merges.map(\.a1) == ["A3:C3"] && ws["A3"] == .text("merged"))
-        #expect(ws.freezePanes?.a1 == "B2")
+        #expect(ws.merges.map(\.address) == ["A3:C3"] && ws["A3"] == .text("merged"))
+        #expect(ws.freezePanes?.address == "B2")
         #expect(ws.columnDimension("A").width == 20 && ws.columnDimension("C").hidden)
         #expect(ws.rowDimension(2).height == 30 && ws.rowDimension(4).hidden && ws.rowDimension(4).outlineLevel == 1)
         #expect(ws[cell: "A6"].hyperlink?.target == "https://example.com/")
-        #expect(ws.properties.summaryBelow == false && ws.autoFilter?.a1 == "A1:H1")
+        #expect(ws.properties.summaryBelow == false && ws.autoFilter?.address == "A1:H1")
         #expect(ws.filterColumns == [FilterColumn(columnOffset: 0, values: ["Title"], includesBlanks: true),
                                      FilterColumn(columnOffset: 1, conditions: [FilterCondition(.greaterThan, "10")])])
         #expect(ws.sortState == SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)]))
-        #expect(ws.printTitleRows == 1...1 && ws.printArea.map(\.a1) == ["A1:H6"])
+        #expect(ws.printTitleRows == 1...1 && ws.printArea.map(\.address) == ["A1:H6"])
         #expect(ws[cell: "A7"].note == CellNote("確認してください\n2 行目", author: "南部"))
         #expect(ws.headerFooter.oddHeader == "&L四半期報告&C&P" && ws.headerFooter.oddFooter == "&R&F")
         #expect(ws.rowBreaks == [4] && ws.columnBreaks == [2])

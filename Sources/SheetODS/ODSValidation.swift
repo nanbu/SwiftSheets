@@ -67,7 +67,7 @@ enum ODSValidation {
                 let name = "val\(n)"
                 names[i, default: []].append((v.ranges, name))
                 let anchor = v.ranges.sorted.first?.topLeft ?? CellRef(row: 1, column: 1)
-                let base = "\(String(ODSWriter.odsSheetPrefix(sheet.name).dropFirst())).\(anchor.a1)"
+                let base = "\(String(ODSWriter.odsSheetPrefix(sheet.name).dropFirst())).\(anchor.address)"
                 out += "<table:content-validation table:name=\"\(name)\""
                 let condition = condition(v, sheet: sheet.name)
                 if !condition.isEmpty { out += " table:condition=\"\(XML.esc(condition))\"" }

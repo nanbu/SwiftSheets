@@ -5,7 +5,7 @@ import SwiftSheets
 
 /// Spec Appendix B.53. The model used to answer an unparsable A1 string five different ways: it stopped with a
 /// reason, it stopped without one, it returned a default, it did nothing, or it quietly meant something else —
-/// `freezePanesA1 = "☃"` *released* the freeze. One typo could crash a program at one entry point and silently
+/// assigning "☃" to the freeze text *released* the freeze. One typo could crash a program at one entry point and silently
 /// write nothing at another. The rule is now: **an entry point that changes something stops; one that only reads
 /// answers with a default.** Emptiness keeps its own meaning — "" and nil clear, as they always did.
 ///
@@ -46,11 +46,8 @@ import SwiftSheets
         await #expect(processExitsWith: .failure) { var wb = Workbook(); wb.sheets[0].groupColumns("A", "☃") }
     }
 
-    @Test func sheetFurnitureStops() async {
-        await #expect(processExitsWith: .failure) { var wb = Workbook(); wb.sheets[0].freezePanesA1 = "☃" }
-        await #expect(processExitsWith: .failure) { var wb = Workbook(); wb.sheets[0].freezePanesA1 = "☃" }
-        await #expect(processExitsWith: .failure) { var wb = Workbook(); wb.sheets[0].autoFilterA1 = "☃" }
-    }
+    // `freezePanes` and `autoFilter` are typed (`CellRef?` / `CellRange?`) since Rev 4.59 — a string reaches them only
+    // through `CellRef(_:)` / `CellRange(_:)`, whose nil the caller sees; there is no string entry left to stop.
 
     /// The print area and the print titles are the exception, and it is not an oversight: they take a defined-name
     /// formula exactly as a file saves it, and the XLSX reader hands them that text. `MySheet!#REF!` is what Excel
@@ -107,7 +104,7 @@ import SwiftSheets
         #expect(sheet.column("☃").isEmpty)
         #expect(sheet.isMerged("☃") == false)
         #expect(sheet.columnDimension("☃") == ColumnDimension())
-        #expect(sheet.freezePanesA1 == nil && sheet.autoFilterA1 == nil)
+        #expect(sheet.freezePanes == nil && sheet.autoFilter == nil)
     }
 
     // MARK: - Emptiness still means "clear"
@@ -115,18 +112,15 @@ import SwiftSheets
     @Test func emptyAndNilStillClear() throws {
         var wb = Workbook()
         var sheet = wb.sheets[0]
-        sheet.freezePanesA1 = "B2"
+        sheet.freezePanes = CellRef("B2")
         #expect(sheet.freezePanes != nil)
-        sheet.freezePanesA1 = nil
-        #expect(sheet.freezePanes == nil, "an empty string clears the freeze, as it always did")
-        sheet.freezePanesA1 = "B2"
-        sheet.freezePanesA1 = "A1"
-        #expect(sheet.freezePanes == nil, "A1 clears it too")
-        sheet.freezePanesA1 = "C3"
-        sheet.freezePanesA1 = nil
+        sheet.freezePanes = nil
+        #expect(sheet.freezePanes == nil, "nil clears the freeze, as it always did")
+        sheet.freezePanes = CellRef("C3")
+        sheet.freezePanes = nil
         #expect(sheet.freezePanes == nil)
-        sheet.autoFilterA1 = "A1:D10"
-        sheet.autoFilterA1 = nil
+        sheet.autoFilter = CellRange("A1:D10")
+        sheet.autoFilter = nil
         #expect(sheet.autoFilter == nil)
 
         sheet.printAreaFormula = "A1:B2"

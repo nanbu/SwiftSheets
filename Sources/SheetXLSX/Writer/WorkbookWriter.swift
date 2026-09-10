@@ -477,7 +477,7 @@ enum WorkbookWriter {
             var local = sheet.definedNames
             if let t = sheet.printTitlesFormula { local["_xlnm.Print_Titles"] = t }
             if let a = sheet.printAreaFormula { local["_xlnm.Print_Area"] = a }
-            if let af = sheet.autoFilter { local["_xlnm._FilterDatabase"] = "\(CellRef.quoteSheetName(sheet.name))!\(af.absoluteA1)" }
+            if let af = sheet.autoFilter { local["_xlnm._FilterDatabase"] = "\(CellRef.quoteSheetName(sheet.name))!\(af.absoluteAddress)" }
             for k in local.keys.sorted() {
                 names.append("<definedName name=\"\(XML.esc(k))\" localSheetId=\"\(i)\"\(k == "_xlnm._FilterDatabase" ? " hidden=\"1\"" : "")>\(XML.esc(local[k]!))</definedName>")
             }
@@ -692,9 +692,9 @@ enum WorkbookWriter {
             s += "</filterColumn>"
         }
         if let sort = ws.sortState {
-            s += "<sortState ref=\"\(sort.range.a1)\"\(sort.caseSensitive ? " caseSensitive=\"1\"" : "")\(sort.byColumn ? " columnSort=\"1\"" : "")"
+            s += "<sortState ref=\"\(sort.range.address)\"\(sort.caseSensitive ? " caseSensitive=\"1\"" : "")\(sort.byColumn ? " columnSort=\"1\"" : "")"
             s += sort.conditions.isEmpty ? "/>"
-                : ">" + sort.conditions.map { "<sortCondition\($0.descending ? " descending=\"1\"" : "") ref=\"\($0.range.a1)\"/>" }.joined() + "</sortState>"
+                : ">" + sort.conditions.map { "<sortCondition\($0.descending ? " descending=\"1\"" : "") ref=\"\($0.range.address)\"/>" }.joined() + "</sortState>"
         }
         return s
     }
@@ -733,7 +733,7 @@ enum WorkbookWriter {
     /// tableStyleInfo, extLst — with the source's own unmodelled attributes and children put back where they were.
     static func tablePartXML(_ plan: TablePlan, sheetName: String, sink: WarningSink) -> String {
         let t = plan.table
-        var s = "<table xmlns=\"\(XMLWriter.nsMain)\" id=\"\(plan.id)\" name=\"\(XML.esc(t.name))\" displayName=\"\(XML.esc(t.displayName))\" ref=\"\(t.ref.a1)\""
+        var s = "<table xmlns=\"\(XMLWriter.nsMain)\" id=\"\(plan.id)\" name=\"\(XML.esc(t.name))\" displayName=\"\(XML.esc(t.displayName))\" ref=\"\(t.ref.address)\""
         if t.headerRowCount != 1 { s += " headerRowCount=\"\(t.headerRowCount)\"" }
         if t.totalsRowCount != 0 { s += " totalsRowCount=\"\(t.totalsRowCount)\"" }
         else if !t.totalsRowShown { s += " totalsRowShown=\"0\"" }
@@ -745,7 +745,7 @@ enum WorkbookWriter {
             var view = Sheet(name: sheetName)
             view.filterColumns = t.filterColumns
             let inner = filterChildrenXML(view, sheetName: sheetName, sink: sink)
-            generated.append(("autoFilter", "<autoFilter ref=\"\(filter.a1)\"" + (inner.isEmpty ? "/>" : ">" + inner + "</autoFilter>")))
+            generated.append(("autoFilter", "<autoFilter ref=\"\(filter.address)\"" + (inner.isEmpty ? "/>" : ">" + inner + "</autoFilter>")))
         }
         var columnsXML = "<tableColumns count=\"\(t.columns.count)\">"
         for c in t.columns {
@@ -894,7 +894,7 @@ enum WorkbookWriter {
         s += "<outlinePr summaryBelow=\"\(ws.properties.summaryBelow ? 1 : 0)\" summaryRight=\"\(ws.properties.summaryRight ? 1 : 0)\"/>"
         s += "<pageSetUpPr\(ws.properties.fitsToPage.map { " fitToPage=\"\($0 ? 1 : 0)\"" } ?? "")/></sheetPr>"
         generated.append(("sheetPr", s))
-        generated.append(("dimension", "<dimension ref=\"\(table.dimensions)\"/>"))
+        generated.append(("dimension", "<dimension ref=\"\(table.extentAddress)\"/>"))
         s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showsGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
         if let f = ws.freezePanes {
             // Excel omits a zero split and makes the single remaining pane active
@@ -902,7 +902,7 @@ enum WorkbookWriter {
             s += "<pane"
             if f.column > 1 { s += " xSplit=\"\(f.column - 1)\"" }   // the split counts the frozen columns / rows
             if f.row > 1 { s += " ySplit=\"\(f.row - 1)\"" }
-            s += " topLeftCell=\"\(f.a1)\" activePane=\"\(active)\" state=\"frozen\"/>"
+            s += " topLeftCell=\"\(f.address)\" activePane=\"\(active)\" state=\"frozen\"/>"
             if f.column > 1 && f.row > 1 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
             s += "<selection pane=\"\(active)\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.selectedRanges))\"/>"
         } else {
@@ -926,7 +926,7 @@ enum WorkbookWriter {
         }
         // hyperlinks are collected before the rows are written, since the rows are written last
         var hyperlinks: [(String, Hyperlink)] = []
-        for (ref, c) in table.cells where c.hyperlink != nil { hyperlinks.append((ref.a1, c.hyperlink!)) }
+        for (ref, c) in table.cells where c.hyperlink != nil { hyperlinks.append((ref.address, c.hyperlink!)) }
         hyperlinks.sort { CellRef($0.0)! < CellRef($1.0)! }
         let sheetName = ws.name
         let rows: (PieceBuffer) throws -> Void = { out in
@@ -951,7 +951,7 @@ enum WorkbookWriter {
                 guard let c = table.cells[ref] else { continue }
                 let styleIndex = styles.index(for: c)
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
-                let a1 = ref.a1
+                let a1 = ref.address
                 switch c.value {
                 case nil: s += "<c r=\"\(a1)\"\(st)/>"
                 case .formula(let f, let cached)?:
@@ -975,7 +975,7 @@ enum WorkbookWriter {
                     if let cached { (t, cv) = valueXML(cached, epoch: epoch, strings: strings, inline: true) }
                     // an array formula fills a range from one cell; without t="array" and the range Excel reads it
                     // as an ordinary formula, which computes something else
-                    let array = table.arrayFormulas[ref].map { " t=\"array\" ref=\"\($0.a1)\"" } ?? ""
+                    let array = table.arrayFormulas[ref].map { " t=\"array\" ref=\"\($0.address)\"" } ?? ""
                     s += "<c r=\"\(a1)\"\(st)\(t)><f\(array)>\(XML.esc(f.rendered(as: .xlsx)))</f>\(cv)</c>"
                 case let v?:
                     let (t, body) = valueXML(v, epoch: epoch, strings: strings, inline: false)
@@ -1033,7 +1033,7 @@ enum WorkbookWriter {
                 x += "<scenario name=\"\(XML.esc(sc.name))\"\(XML.attr("locked", sc.locked))\(XML.attr("hidden", sc.hidden))"
                 x += " count=\"\(sc.cells.count)\"\(XML.attr("user", sc.user))\(XML.attr("comment", sc.comment))>"
                 for c in sc.cells {
-                    x += "<inputCells r=\"\(c.ref.a1)\"\(XML.attr("deleted", c.deleted))\(XML.attr("undone", c.undone))"
+                    x += "<inputCells r=\"\(c.ref.address)\"\(XML.attr("deleted", c.deleted))\(XML.attr("undone", c.undone))"
                     x += " val=\"\(XML.esc(c.value))\"\(XML.attr("numFmtId", c.numberFormatID))/>"
                 }
                 x += "</scenario>"
@@ -1045,13 +1045,13 @@ enum WorkbookWriter {
         // say (colour, icon, dynamic, top 10, date groups); otherwise it is regenerated from the model
         let hasFilterFragment = fragments.contains { $0.element == "autoFilter" }
         if let af = ws.autoFilter, !hasFilterFragment {
-            var filter = "<autoFilter ref=\"\(af.a1)\""
+            var filter = "<autoFilter ref=\"\(af.address)\""
             let inner = filterChildrenXML(ws, sheetName: ws.name, sink: sink)
             filter += inner.isEmpty ? "/>" : ">" + inner + "</autoFilter>"
             generated.append(("autoFilter", filter))
         }
         if !table.merges.isEmpty {
-            generated.append(("mergeCells", "<mergeCells count=\"\(table.merges.count)\">" + table.merges.map { "<mergeCell ref=\"\($0.a1)\"/>" }.joined() + "</mergeCells>"))
+            generated.append(("mergeCells", "<mergeCells count=\"\(table.merges.count)\">" + table.merges.map { "<mergeCell ref=\"\($0.address)\"/>" }.joined() + "</mergeCells>"))
         }
         // conditional formatting: one element per block, and priorities renumbered 1…n over the whole sheet
         // (Excel wants them distinct, and only their order carries meaning)

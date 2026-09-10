@@ -61,18 +61,18 @@ enum ODSPivot {
         let prefix = String(ODSWriter.odsSheetPrefix(sheetName).dropFirst())
         let sourcePrefix = String(ODSWriter.odsSheetPrefix(pivot.cache.sourceSheet).dropFirst())
         let ref = pivot.location.ref
-        let target = "\(prefix).\(ref.topLeft.a1):\(prefix).\(ref.bottomRight.a1)"
-        let source = "\(sourcePrefix).\(pivot.cache.sourceRef.topLeft.a1):\(sourcePrefix).\(pivot.cache.sourceRef.bottomRight.a1)"
+        let target = "\(prefix).\(ref.topLeft.address):\(prefix).\(ref.bottomRight.address)"
+        let source = "\(sourcePrefix).\(pivot.cache.sourceRef.topLeft.address):\(sourcePrefix).\(pivot.cache.sourceRef.bottomRight.address)"
 
         // the cells that carry a field's drop-down button: one per row field along the header row, one per column
         // field down the left of it — which is how LibreOffice writes them
         var buttons: [String] = []
         let headerRow = ref.minRow + pivot.location.firstHeaderRow
         for (i, _) in pivot.rowFields.enumerated() where pivot.rowFields[i] != PivotTable.valuesField {
-            buttons.append("\(prefix).\(CellRef(row: headerRow + 1, column: ref.minColumn + i).a1)")
+            buttons.append("\(prefix).\(CellRef(row: headerRow + 1, column: ref.minColumn + i).address)")
         }
         for (i, _) in pivot.columnFields.enumerated() where pivot.columnFields[i] != PivotTable.valuesField {
-            buttons.append("\(prefix).\(CellRef(row: headerRow, column: ref.minColumn + pivot.location.firstDataColumn + i - 1).a1)")
+            buttons.append("\(prefix).\(CellRef(row: headerRow, column: ref.minColumn + pivot.location.firstDataColumn + i - 1).address)")
         }
 
         var s = "<table:data-pilot-table table:name=\"\(XML.esc(pivot.name))\" table:application-data=\"\""

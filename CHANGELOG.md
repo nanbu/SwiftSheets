@@ -62,6 +62,12 @@ the five places where behaviour changed are named in their entries.
   literal. The last three abbreviations become words: `SheetFormatProperties.baseColWidth` → `baseColumnWidth`,
   `defaultColWidth` → `defaultColumnWidth`, `PivotLocation.firstDataCol` → `firstDataColumn`.
 
+- **"A1" leaves the names** (B.68). `freezePanesA1` and `autoFilterA1` are gone — assign `freezePanes = CellRef("B2")`
+  and `autoFilter = CellRange("A1:D9")`. The getters that render A1 notation are the address family: `CellRef.a1` and
+  `CellRange.a1` → `address`, `absoluteA1` → `absoluteAddress`, `qualifiedA1` → `qualifiedAddress`, `Sheet.dimensions`
+  and `Table.dimensions` → `extentAddress`. And the ISO 8601 initialisers agree: `CivilDate(iso:)`, `TimeOfDay(iso:)`
+  and `CivilDateTime(iso:)` → `(iso8601:)`, as `CellValue(iso8601:)` and the `.iso8601` getters already were.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

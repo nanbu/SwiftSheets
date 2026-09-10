@@ -251,10 +251,10 @@ import SwiftSheets
         let ws = wb.sheets[0]
         #expect(ws.cells.count == 1)
         #expect(ws["A1"] == .integer(1))
-        #expect(ws.merges.map(\.a1) == ["A1:XFD1048576"])
+        #expect(ws.merges.map(\.address) == ["A1:XFD1048576"])
         // and it comes back out unchanged
         let again = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
-        #expect(again.sheets[0].merges.map(\.a1) == ["A1:XFD1048576"])
+        #expect(again.sheets[0].merges.map(\.address) == ["A1:XFD1048576"])
         #expect(again.sheets[0].cells.count == 1)
     }
 
@@ -281,7 +281,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0] = ws
         let again = try XLSXCodec.read(try XLSXCodec.write(wb).data).workbook
-        #expect(again.sheets[0].merges.map(\.a1) == ["A1:C1"])
+        #expect(again.sheets[0].merges.map(\.address) == ["A1:C1"])
     }
 
     // MARK: - Writing

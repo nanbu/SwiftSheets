@@ -553,7 +553,7 @@ enum ODSWriter {
         var s = ""
         for (i, sheet) in wb.sheets.enumerated() {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
-            func address(_ range: CellRange) -> String { "\(prefix).\(range.topLeft.a1):\(prefix).\(range.bottomRight.a1)" }
+            func address(_ range: CellRange) -> String { "\(prefix).\(range.topLeft.address):\(prefix).\(range.bottomRight.address)" }
             for table in sheet.structuredTables {
                 s += "<table:database-range table:name=\"\(XML.esc(table.name))\" table:target-range-address=\"\(XML.esc(address(table.ref)))\""
                 s += " table:display-filter-buttons=\"\(table.autoFilter != nil)\"/>"
@@ -702,7 +702,7 @@ enum ODSWriter {
         if sheet.protection.enabled { s += " table:protected=\"true\"" }
         if !sheet.printArea.isEmpty {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
-            s += " table:print-ranges=\"\(XML.esc(sheet.printArea.map { "\(prefix).\($0.topLeft.a1):\(prefix).\($0.bottomRight.a1)" }.joined(separator: " ")))\""
+            s += " table:print-ranges=\"\(XML.esc(sheet.printArea.map { "\(prefix).\($0.topLeft.address):\(prefix).\($0.bottomRight.address)" }.joined(separator: " ")))\""
         }
         s += ">"
         if sheet.protection.enabled {

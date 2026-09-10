@@ -350,7 +350,7 @@ formats:
             api:
               - "sheet.freezePanes"
               - "freezePanes(at:)"
-              - "freezePanesA1"
+              - "freezePanes"
             warning: null
             evidence: "measured"
             note: "分割（split）は固定として扱う。"
@@ -662,7 +662,7 @@ formats:
             write: "full"
             api:
               - "sheet.autoFilter"
-              - "autoFilterA1"
+              - "autoFilter"
             warning: null
             evidence: "measured"
             note: null

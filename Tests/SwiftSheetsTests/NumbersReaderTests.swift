@@ -70,39 +70,39 @@ import SwiftSheets
                 for (key, ec) in et.cells {
                     let parts = key.split(separator: ",").map { Int($0)! }
                     let ref = CellRef(row: parts[0] + 1, column: parts[1] + 1)   // numbers-parser counts from 0 (B.61)
-                    guard let value = table[ref] else { Issue.record("\(name)/\(et.name) \(ref.a1): missing (expected \(String(describing: ec.v)))"); continue }
+                    guard let value = table[ref] else { Issue.record("\(name)/\(et.name) \(ref.address): missing (expected \(String(describing: ec.v)))"); continue }
                     cellChecks += 1
                     let plain = value.cachedValue
                     switch ec.v {
                     case .string(let s)?:
-                        if s == "#ERROR" { #expect(plain?.errorValue != nil, "\(name) \(ref.a1): error expected") }
+                        if s == "#ERROR" { #expect(plain?.errorValue != nil, "\(name) \(ref.address): error expected") }
                         else if s.count == 19, s[s.index(s.startIndex, offsetBy: 10)] == "T", plain?.dateValue != nil {
-                            #expect(plain?.dateValue?.iso8601.prefix(19) == s.prefix(19), "\(name) \(ref.a1): date")
-                        } else { #expect(plain?.textValue == s, "\(name) \(ref.a1): text \(String(describing: plain))") }
+                            #expect(plain?.dateValue?.iso8601.prefix(19) == s.prefix(19), "\(name) \(ref.address): date")
+                        } else { #expect(plain?.textValue == s, "\(name) \(ref.address): text \(String(describing: plain))") }
                     case .number(let d)?:
-                        if let dur = plain?.durationValue { #expect(abs(Double(dur.components.seconds) - d) < 1, "\(name) \(ref.a1): duration") }
-                        else { #expect(plain?.doubleValue.map { abs($0 - d) < 1e-9 } == true, "\(name) \(ref.a1): number \(String(describing: plain)) vs \(d)") }
-                    case .bool(let b)?: #expect(plain?.boolValue == b, "\(name) \(ref.a1): bool")
+                        if let dur = plain?.durationValue { #expect(abs(Double(dur.components.seconds) - d) < 1, "\(name) \(ref.address): duration") }
+                        else { #expect(plain?.doubleValue.map { abs($0 - d) < 1e-9 } == true, "\(name) \(ref.address): number \(String(describing: plain)) vs \(d)") }
+                    case .bool(let b)?: #expect(plain?.boolValue == b, "\(name) \(ref.address): bool")
                     case nil: break
                     }
                     if let f = ec.f, !f.contains("UNDEFINED!") {
                         // "UNDEFINED!" is numbers-parser's rendering of the unnamed spill function (337): our
                         // reader deliberately reads such a cell as the covered value of an array formula (B.26),
                         // so there is no reference rendering to compare against
-                        #expect(value.formula != nil, "\(name) \(ref.a1): formula expected (\(f))")
+                        #expect(value.formula != nil, "\(name) \(ref.address): formula expected (\(f))")
                         // a cross-table *range* is rendered by numbers-parser without its cell addresses
                         // (`SUM(Other::Table 1:Table 1)`), so there is nothing left to compare against
                         let degenerate = Self.normalize(f).contains("::")
                         if !f.contains("'"), !degenerate, let ours = value.formula {   // named-column references are numbers-parser's own rendering
                             formulaChecks += 1
                             // numbers-parser keeps the user's parentheses; our text comes from the tree, so compare trees
-                            #expect(FormulaExpr.parse(Self.normalize(f)) == ours, "\(name) \(ref.a1): formula \(ours.rendered(as: .xlsx)) vs \(f)")
+                            #expect(FormulaExpr.parse(Self.normalize(f)) == ours, "\(name) \(ref.address): formula \(ours.rendered(as: .xlsx)) vs \(f)")
                         }
                     } else {
-                        #expect(value.formula == nil, "\(name) \(ref.a1): unexpected formula")
+                        #expect(value.formula == nil, "\(name) \(ref.address): unexpected formula")
                     }
                 }
-                let merges = Set(table.merges.map(\.a1))
+                let merges = Set(table.merges.map(\.address))
                 #expect(merges == Set(et.merges), "\(name)/\(et.name): merges \(merges) vs \(et.merges)")
             }
         }

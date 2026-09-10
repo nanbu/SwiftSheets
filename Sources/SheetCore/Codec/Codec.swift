@@ -246,7 +246,7 @@ public struct ConversionWarning: Sendable, Hashable, CustomStringConvertible {
     }
 
     public var description: String {
-        let place = [sheet, location?.a1].compactMap { $0 }.joined(separator: "!")
+        let place = [sheet, location?.address].compactMap { $0 }.joined(separator: "!")
         return (place.isEmpty ? "" : place + ": ") + message
     }
 }

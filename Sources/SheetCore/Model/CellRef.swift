@@ -40,12 +40,12 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
     }
 
     /// "A1".
-    public var a1: String { columnName + String(row) }
-    public var description: String { a1 }
+    public var address: String { columnName + String(row) }
+    public var description: String { address }
     /// "A".
     public var columnName: String { CellRef.columnName(column) }
     /// "$A$1".
-    public var absoluteA1: String { "$" + columnName + "$" + String(row) }
+    public var absoluteAddress: String { "$" + columnName + "$" + String(row) }
 
     public static func < (a: CellRef, b: CellRef) -> Bool { a.row != b.row ? a.row < b.row : a.column < b.column }
 
@@ -214,16 +214,16 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
     }
 
     /// "A1:C3", or "A1" for a single cell.
-    public var a1: String {
+    public var address: String {
         let a = CellRef.columnName(minColumn) + String(minRow)
         if minColumn == maxColumn, minRow == maxRow { return a }
         return a + ":" + CellRef.columnName(maxColumn) + String(maxRow)
     }
-    public var description: String { a1 }
+    public var description: String { address }
     /// "'Sheet 1'!A1:B4" when a sheet is set, else the plain A1 form.
-    public var qualifiedA1: String { sheet.map { CellRef.quoteSheetName($0) + "!" + a1 } ?? a1 }
+    public var qualifiedAddress: String { sheet.map { CellRef.quoteSheetName($0) + "!" + address } ?? address }
     /// "$A$1:$C$3".
-    public var absoluteA1: String { topLeft.absoluteA1 + (isSingleCell ? "" : ":" + bottomRight.absoluteA1) }
+    public var absoluteAddress: String { topLeft.absoluteAddress + (isSingleCell ? "" : ":" + bottomRight.absoluteAddress) }
     public var isSingleCell: Bool { minColumn == maxColumn && minRow == maxRow }
     public var size: (rows: Int, columns: Int) { (maxRow - minRow + 1, maxColumn - minColumn + 1) }
     public var topLeft: CellRef { CellRef(row: minRow, column: minColumn) }
@@ -240,7 +240,7 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
         return CellRange(minRow: minRow + rows, minColumn: minColumn + columns, maxRow: maxRow + rows, maxColumn: maxColumn + columns, sheet: sheet)
     }
     public mutating func shift(rows: Int = 0, columns: Int = 0) {
-        guard let s = shifted(rows: rows, columns: columns) else { preconditionFailure("shift would move \(a1) off the sheet") }
+        guard let s = shifted(rows: rows, columns: columns) else { preconditionFailure("shift would move \(address) off the sheet") }
         self = s
     }
 
@@ -321,6 +321,6 @@ public struct MultiCellRange: Hashable, Sendable, CustomStringConvertible {
     public func contains(_ a1: String) -> Bool { CellRef(a1).map(contains) ?? false }
     public var isEmpty: Bool { ranges.isEmpty }
     /// Sorted, space-separated ("A1 B2:B5").
-    public var description: String { sorted.map(\.a1).joined(separator: " ") }
-    public var sorted: [CellRange] { ranges.sorted { ($0.topLeft, $0.a1) < ($1.topLeft, $1.a1) } }
+    public var description: String { sorted.map(\.address).joined(separator: " ") }
+    public var sorted: [CellRange] { ranges.sorted { ($0.topLeft, $0.address) < ($1.topLeft, $1.address) } }
 }

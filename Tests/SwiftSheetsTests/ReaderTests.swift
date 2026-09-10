@@ -31,7 +31,7 @@ func fixture(_ name: String) throws -> Data {
         #expect(ws[cell: "C2"].fill == .solid(.rgb("FFBFD7F5")))
         #expect(ws[cell: "D2"].border.left.style == .thin && ws[cell: "D2"].border.left.color == .rgb("FF888888") && ws[cell: "D2"].border.right.style == .medium)
         #expect(ws["E2"] == .text("<A&B> \"q\""))
-        #expect(ws.merges.map(\.a1) == ["A3:C3"])
+        #expect(ws.merges.map(\.address) == ["A3:C3"])
         #expect(ws.freezePanes == CellRef("B2"))
         #expect(ws.columnDimension("A").width == 20 && ws.columnDimension("C").hidden)
         #expect(ws.rowDimension(2).height == 30)
@@ -39,7 +39,7 @@ func fixture(_ name: String) throws -> Data {
         #expect(ws.rowDimension(5).collapsed && ws.rowDimension(5).outlineLevel == 1)
         #expect(ws[cell: "A6"].hyperlink?.target == "https://example.com/")
         #expect(ws.properties.summaryBelow == false)
-        #expect(ws.autoFilter?.a1 == "A1:H1")
+        #expect(ws.autoFilter?.address == "A1:H1")
     }
 
     @Test func dataOnlyReturnsCachedValues() throws {
@@ -79,10 +79,10 @@ func fixture(_ name: String) throws -> Data {
 @Suite struct UtilityTests {
     @Test func references() {
         #expect(CellRef("AB12") == CellRef(row: 12, column: 28))
-        #expect(CellRef("$A$1")?.a1 == "A1")
+        #expect(CellRef("$A$1")?.address == "A1")
         #expect(CellRef.columnName(703) == "AAA" && CellRef.columnIndex("AAA") == 703)
         #expect(CellRange("C3:A1") == nil)   // openpyxl raises for a reversed range
-        #expect(CellRange("A1:C3")?.a1 == "A1:C3")
+        #expect(CellRange("A1:C3")?.address == "A1:C3")
         #expect(CellRef("1A") == nil)
     }
 
@@ -94,7 +94,7 @@ func fixture(_ name: String) throws -> Data {
         #expect(CivilDate(year: 2026, month: 9, day: 1)!.serial() == 46266)
         #expect(CivilDate(year: 2026, month: 9, day: 1)!.serial(epoch: .mac1904) == 44804)
         #expect(CivilDate(year: 2026, month: 2, day: 30) == nil)
-        #expect(CivilDate(iso: "2026-09-06")?.isoWeekday == 7)
+        #expect(CivilDate(iso8601: "2026-09-06")?.isoWeekday == 7)
     }
 
     @Test func numberFormats() {

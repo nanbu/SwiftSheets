@@ -80,7 +80,7 @@ import SwiftSheets
         ws.setColumnDimension("C") { $0.hidden = true }
         ws.setHeight(30, ofRow: 2)
         ws.setRowDimension(4) { $0.hidden = true }
-        ws.freezePanesA1 = "B2"
+        ws.freezePanes = CellRef("B2")
         ws.definedNames["Local"] = "Data!$A$2"
         var hidden = Sheet(name: "Hidden")
         hidden["A1"] = .text("secret")
@@ -208,11 +208,11 @@ import SwiftSheets
         sheet["A2"] = "body"
         wb.sheets[0] = sheet
         let back = try ODSCodec.read(try ODSCodec.write(wb).data).workbook
-        #expect(back.sheets[0].merges.map(\.a1).sorted() == ["A1:C1", "E1:E3"])
+        #expect(back.sheets[0].merges.map(\.address).sorted() == ["A1:C1", "E1:E3"])
         #expect(back.sheets[0]["A2"] == .text("body"))
         // and again, so that reading does not lose the anchor the next write needs
         let twice = try ODSCodec.read(try ODSCodec.write(back).data).workbook
-        #expect(twice.sheets[0].merges.map(\.a1).sorted() == ["A1:C1", "E1:E3"])
+        #expect(twice.sheets[0].merges.map(\.address).sorted() == ["A1:C1", "E1:E3"])
     }
 
     /// `A1:XFD1048576` is a merge anyone can make in Excel. Writing it used to build one covered-cell reference per
@@ -228,7 +228,7 @@ import SwiftSheets
         #expect(Date().timeIntervalSince(start) < 5.0)
         #expect(data.count < 100_000)
         let back = try ODSCodec.read(data).workbook
-        #expect(back.sheets[0].merges.map(\.a1) == ["A1:XFD1048576"])
+        #expect(back.sheets[0].merges.map(\.address) == ["A1:XFD1048576"])
         #expect(back.sheets[0]["A1"] == .text("everything"))
     }
 
@@ -487,7 +487,7 @@ import SwiftSheets
         let (xlsx, log) = try convert(file, to: "xlsx")
         #expect(log.contains("-> "), Comment(rawValue: log))
         let back = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
-        #expect(back.sheets[0].merges.map(\.a1) == ["A1:C1"])
+        #expect(back.sheets[0].merges.map(\.address) == ["A1:C1"])
         #expect(back.sheets[0]["A2"] == .text("body"))
     }
 
@@ -580,7 +580,7 @@ import SwiftSheets
         wb.sheets[0].name = "Data"
         wb.sheets[0].append([.text("部門"), .text("金額")])
         wb.sheets[0].append([.text("営業"), .integer(100)])
-        wb.sheets[0].autoFilterA1 = "A1:B2"
+        wb.sheets[0].autoFilter = CellRange("A1:B2")
         wb.addSheet(named: "Plain")
         wb.sheets[1]["A1"] = "no filter"
         let ods = try ODSCodec.write(wb).data
