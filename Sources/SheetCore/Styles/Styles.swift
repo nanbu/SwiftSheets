@@ -113,45 +113,47 @@ public struct Protection: Hashable, Sendable {
     public init(locked: Bool = true, hidden: Bool = false) { self.locked = locked; self.hidden = hidden }
 }
 
-/// Number formats (openpyxl.styles.numbers). Builtin ids 0–49 are fixed by the spec; custom codes get 164+.
+/// Number-format codes. A cell's `numberFormat` is the code string itself, so any code Excel accepts can be written;
+/// the constants here are the handful whose meaning is worth a name (spec Appendix B.57). Builtin ids 0–49 are fixed
+/// by the spec and `builtinCode(_:)` gives their text; custom codes get ids from `firstCustomID` up.
 public enum NumberFormat {
     public static let general = "General"
+    /// Text, never interpreted.
     public static let text = "@"
+    /// `0` — a whole number.
     public static let number = "0"
-    public static let number00 = "0.00"
-    public static let numberCommaSeparated1 = "#,##0.00"
-    public static let numberCommaSeparated2 = "#,##0.00_-"
-    public static let percentage = "0%"
-    public static let percentage00 = "0.00%"
-    public static let dateYYYYMMDD2 = "yyyy-mm-dd"
-    public static let dateYYMMDD = "yy-mm-dd"
-    public static let dateDDMMYY = "dd/mm/yy"
-    public static let dateDMYSlash = "d/m/y"
-    public static let dateDMYMinus = "d-m-y"
-    public static let dateDMMinus = "d-m"
-    public static let dateMYMinus = "m-y"
-    public static let dateXLSX14 = "mm-dd-yy"
-    public static let dateXLSX15 = "d-mmm-yy"
-    public static let dateXLSX16 = "d-mmm"
-    public static let dateXLSX17 = "mmm-yy"
-    public static let dateXLSX22 = "m/d/yy h:mm"
-    public static let dateDatetime = "yyyy-mm-dd h:mm:ss"
-    public static let dateTime1 = "h:mm AM/PM"
-    public static let dateTime2 = "h:mm:ss AM/PM"
-    public static let dateTime3 = "h:mm"
-    public static let dateTime4 = "h:mm:ss"
-    public static let dateTime5 = "mm:ss"
-    public static let dateTime6 = "h:mm:ss"
-    public static let dateTime7 = "i:s.S"
-    public static let dateTime8 = "h:mm:ss@"
-    public static let dateTimedelta = "[hh]:mm:ss"
-    public static let dateYYMMDDSlash = "yy/mm/dd@"
-    public static let currencyUSDSimple = "\"$\"#,##0.00_-"
-    public static let currencyUSD = "$#,##0_-"
-    public static let currencyEURSimple = "[$EUR ]#,##0.00_-"
-    /// Kept for source compatibility; same as `dateYYYYMMDD2`.
-    public static let dateYYYYMMDD = dateYYYYMMDD2
+    /// `0.00`.
+    public static let numberTwoDecimals = "0.00"
+    /// `#,##0` — thousands separated.
+    public static let numberThousands = "#,##0"
+    /// `#,##0.00`.
+    public static let numberThousandsTwoDecimals = "#,##0.00"
+    /// `0%`.
+    public static let percent = "0%"
+    /// `0.00%`.
+    public static let percentTwoDecimals = "0.00%"
+    /// `0.00E+00`.
+    public static let scientific = "0.00E+00"
+    /// `yyyy-mm-dd` — what a date cell is given when it has no format of its own.
+    public static let isoDate = "yyyy-mm-dd"
+    /// `yyyy-mm-dd h:mm:ss` — what a date-and-time cell is given when it has no format of its own.
+    public static let isoDateTime = "yyyy-mm-dd h:mm:ss"
+    /// `h:mm`.
+    public static let time24 = "h:mm"
+    /// `h:mm:ss` — what a time cell is given when it has no format of its own.
+    public static let time24Seconds = "h:mm:ss"
+    /// `h:mm AM/PM`.
+    public static let time12 = "h:mm AM/PM"
+    /// `h:mm:ss AM/PM`.
+    public static let time12Seconds = "h:mm:ss AM/PM"
+    /// `mm:ss`.
+    public static let minutesSeconds = "mm:ss"
+    /// `[hh]:mm:ss` — hours past 24 keep counting; what a duration cell is given when it has no format of its own.
+    public static let elapsed = "[hh]:mm:ss"
 
+    /// The codes of the spec's builtin ids. Ids 14–22 and 27–36 / 50–58 are shown in the reader's own locale by Excel —
+    /// `builtinCode(14)` is "mm-dd-yy" in the file and a Japanese short date on a Japanese Excel — which is why the
+    /// writer spells the East Asian ones out (`localeDependentIDs`) and why none of them has a constant above.
     public static let builtin: [Int: String] = [
         0: "General", 1: "0", 2: "0.00", 3: "#,##0", 4: "#,##0.00", 5: "\"$\"#,##0_);(\"$\"#,##0)", 6: "\"$\"#,##0_);[Red](\"$\"#,##0)",
         7: "\"$\"#,##0.00_);(\"$\"#,##0.00)", 8: "\"$\"#,##0.00_);[Red](\"$\"#,##0.00)", 9: "0%", 10: "0.00%", 11: "0.00E+00", 12: "# ?/?", 13: "# ??/??",

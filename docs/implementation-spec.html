@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.46 Draft</td><td>2026-09-10</td><td><code>NumberFormat</code> の定数を openpyxl の <code>FORMAT_*</code> の写し（<code>dateXLSX14</code>・<code>dateTime1</code>〜<code>8</code>・<code>number00</code> …34 個）から、意味を名乗る 18 個へ。ロケールで表示が変わる組み込み書式は名前を持たず <code>builtinCode(_:)</code> で引く。値の文字列は 1 つも変えない（B.57）。</td></tr>
     <tr><td>4.45 Draft</td><td>2026-09-10</td><td>編集モデルの型名 3 件。<code>ExcelTable</code> → <code>StructuredTable</code>（<code>structuredTables</code>・<code>addStructuredTable</code>・<code>StructuredTableColumn</code> も）、<code>Cell.comment</code> → <code>Cell.note</code>（型 <code>CellNote</code> はそのまま）、<code>Top10Filter</code> → <code>RankFilter</code>（<code>FilterColumn.rank</code>）。互換の別名は残さない（B.56）。</td></tr>
     <tr><td>4.44 Draft</td><td>2026-09-10</td><td>入力規則の候補リストを文字列の配列から作れる <code>DataValidation.list(choices:over:)</code>（失敗可能）と、読む側の <code>listChoices</code> を追加。インライン一覧の綴り（<code>"a,b,c"</code>）の知識を 3 つのコーデックからモデル 1 か所へ寄せる（B.55）。</td></tr>
     <tr><td>4.43 Draft</td><td>2026-09-10</td><td>数式セルの読み方を <code>dataOnly: Bool</code> から <code>formulaCells: FormulaCellReading</code>（<code>.formulas</code> / <code>.cachedValues</code>）へ。通常読み・逐次読み・<code>Workbook</code> の 3 か所を同じ列挙にそろえ、計算済みの値が無い数式セルは空と定める（B.54）。</td></tr>
@@ -6188,6 +6189,40 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>改名は呼び出し側がコンパイルで全部見つかる（本体・テストで約 70 行）。名前が変わっただけで動きは変えて
   いないので、既存の検査（<code>StructuredTableTests</code>・<code>CommentTests</code>・<code>CellParityTests</code>・ODS の往復）
   がそのまま通ることを見る。</p>
+
+  <h3>B.57 書式定数は「意味を名乗る少数」と「任意の書式コード」（Rev 4.46）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 8）。<code>NumberFormat</code> の 34 個の定数は openpyxl の
+  <code>FORMAT_*</code> をそのまま camelCase にしたもので、<code>dateXLSX14</code>（Excel の組み込み番号 14）・
+  <code>dateTime1</code>〜<code>dateTime8</code>（番号に意味は無い）・<code>number00</code>・<code>numberCommaSeparated2</code>
+  （末尾 <code>_-</code> の openpyxl の癖）・<code>dateTime7 = "i:s.S"</code>（Excel の書式としては成立しない）を含んでいた。
+  ①openpyxl は <code>FORMAT_DATE_XLSX14</code> と書く。②それを真似ると <code>NumberFormat.dateXLSX14</code> になり、
+  利用者は Excel の内部番号表を引かないと「これが <code>mm-dd-yy</code> だ」と分からない。③だから定数は<strong>意味を名乗る
+  少数</strong>に絞り、それ以外は書式コードの文字列をそのまま <code>numberFormat</code> に書く道（これは元からある）に委ねる。</p>
+  <p><strong>残す名前（18 個）と値。</strong><code>general</code>・<code>text</code>（@）・<code>number</code>（0）・
+  <code>numberTwoDecimals</code>（0.00）・<code>numberThousands</code>（#,##0・新規）・<code>numberThousandsTwoDecimals</code>
+  （#,##0.00）・<code>percent</code>（0%）・<code>percentTwoDecimals</code>（0.00%）・<code>scientific</code>（0.00E+00・新規）・
+  <code>isoDate</code>（yyyy-mm-dd）・<code>isoDateTime</code>（yyyy-mm-dd h:mm:ss）・<code>time24</code>（h:mm）・
+  <code>time24Seconds</code>（h:mm:ss）・<code>time12</code>（h:mm AM/PM）・<code>time12Seconds</code>（h:mm:ss AM/PM）・
+  <code>minutesSeconds</code>（mm:ss）・<code>elapsed</code>（[hh]:mm:ss）。<strong>値の文字列は 1 つも変えていない</strong>——
+  <code>elapsed</code> が組み込み 46 の <code>[h]:mm:ss</code> ではなく <code>[hh]:mm:ss</code> のままなのもそのため
+  （表現を変えるかは別の判断）。同じ文字列だった <code>dateTime4</code> と <code>dateTime6</code> は 1 つになる
+  （「同じ表示に見えるだけ」ではなく同一の文字列）。</p>
+  <p><strong>消す名前と、その代わり。</strong><code>dateXLSX14</code>〜<code>17</code>・<code>22</code> は
+  <code>builtinCode(14)</code> …で引く。これらは Excel が<strong>読む側のロケール</strong>で表示を変える組み込み書式
+  （日本語の Excel では 14 が <code>yyyy/m/d</code> になる）で、名前を持たせると「この見た目になる」と誤解させる。
+  <code>dateYYMMDD</code>・<code>dateDDMMYY</code>・<code>dateDMYSlash</code>・<code>dateDMYMinus</code>・<code>dateDMMinus</code>・
+  <code>dateMYMinus</code>・<code>dateYYMMDDSlash</code>（末尾 @）・<code>dateTime7</code>・<code>dateTime8</code>（末尾 @）・
+  <code>numberCommaSeparated2</code>・<code>currencyUSD</code>・<code>currencyUSDSimple</code>・<code>currencyEURSimple</code> は、
+  地域や通貨に依存するか Excel の書式として怪しいかのどちらかで、必要なら書式コードをそのまま書く。
+  互換の別名 <code>dateYYYYMMDD</code> も消す（B.53）。</p>
+  <p><strong>変わらないもの。</strong><code>builtin</code>・<code>builtinCode(_:)</code>・<code>builtinID(_:)</code>・
+  <code>isBuiltin(_:)</code>・<code>firstCustomID</code>・<code>localeDependentIDs</code>・<code>kind(of:)</code>・
+  <code>isDateFormat</code> 系は名前も動きもそのまま。値の種類から既定の書式を与える <code>Cell</code> の規則
+  （日付 → <code>isoDate</code>、日時 → <code>isoDateTime</code>、時刻 → <code>time24Seconds</code>、経過時間 → <code>elapsed</code>）
+  も文字列は同じ。</p>
+  <p><strong>検査。</strong>18 個がそれぞれ名乗るコードであること、組み込みでもある 14 個が仕様の番号に解決すること、
+  既定の書式が名前つきの定数であること（<code>NumberFormatVocabularyTests</code>）。openpyxl 由来の判定検査
+  （<code>kind(of:)</code>）は定数ではなく文字列を並べて同じ 22 件を見続ける。</p>
 </section>
 
 </div><!-- /.container -->

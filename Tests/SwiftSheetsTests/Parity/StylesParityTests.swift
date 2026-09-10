@@ -86,12 +86,13 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
         #expect(NumberFormat.isTimedeltaFormat(format) == result)
     }
 
+    // openpyxl's FORMAT_* constants, spelled out: the library names only the codes worth a name (spec B.57)
     static let kindCases: [(String, NumberFormat.Kind)] = [
-        (NumberFormat.dateDatetime, .datetime), (NumberFormat.dateDDMMYY, .date), (NumberFormat.dateDMMinus, .date), (NumberFormat.dateDMYSlash, .date),
-        (NumberFormat.dateMYMinus, .date), (NumberFormat.dateTime1, .time), (NumberFormat.dateTime2, .time), (NumberFormat.dateTime3, .time), (NumberFormat.dateTime4, .time),
-        (NumberFormat.dateTime5, .time), (NumberFormat.dateTime6, .time), (NumberFormat.dateTime7, .time), (NumberFormat.dateTime8, .time), (NumberFormat.dateTimedelta, .time),
-        (NumberFormat.dateXLSX14, .date), (NumberFormat.dateXLSX15, .date), (NumberFormat.dateXLSX16, .date), (NumberFormat.dateXLSX17, .date), (NumberFormat.dateXLSX22, .datetime),
-        (NumberFormat.dateYYMMDD, .date), (NumberFormat.dateYYMMDDSlash, .date), (NumberFormat.dateYYYYMMDD2, .date),
+        (NumberFormat.isoDateTime, .datetime), ("dd/mm/yy", .date), ("d-m", .date), ("d/m/y", .date),
+        ("m-y", .date), (NumberFormat.time12, .time), (NumberFormat.time12Seconds, .time), (NumberFormat.time24, .time), (NumberFormat.time24Seconds, .time),
+        (NumberFormat.minutesSeconds, .time), ("h:mm:ss", .time), ("i:s.S", .time), ("h:mm:ss@", .time), (NumberFormat.elapsed, .time),
+        ("mm-dd-yy", .date), ("d-mmm-yy", .date), ("d-mmm", .date), ("mmm-yy", .date), ("m/d/yy h:mm", .datetime),
+        ("yy-mm-dd", .date), ("yy/mm/dd@", .date), (NumberFormat.isoDate, .date),
     ]
     // openpyxl: styles/tests/test_number_style.py::test_datetime
     @Test(arguments: kindCases)
@@ -443,7 +444,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
         var ws = Workbook().activeSheet
         let today = CivilDate(year: 2026, month: 8, day: 22)!
         for v in ["12.34%", CellValue(today), "This is a test", "31.31415", nil] as [CellValue?] { ws.append([v]) }
-        ws[cell: "D9"].numberFormat = NumberFormat.number00; ws[cell: "D9"].protection = Protection(locked: true)
+        ws[cell: "D9"].numberFormat = NumberFormat.numberTwoDecimals; ws[cell: "D9"].protection = Protection(locked: true)
         ws[cell: "E1"].protection = Protection(hidden: true)
         let reg = StyleRegistry()
         for ref in ["A1", "A2", "A3", "A4", "A5", "D9", "E1"] { _ = reg.index(for: ws[cell: ref].style) }   // same registration order as the reference

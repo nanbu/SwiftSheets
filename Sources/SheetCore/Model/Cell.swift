@@ -102,9 +102,9 @@ public struct Cell: Hashable, Sendable {
     private mutating func applyDateFormat() {
         guard let v = storedValue, v.dataType == "d", !NumberFormat.isDateFormat(style.numberFormat) else { return }
         switch v {
-        case .date(let dt): style.numberFormat = dt.isMidnight ? NumberFormat.dateYYYYMMDD2 : NumberFormat.dateDatetime
-        case .time: style.numberFormat = NumberFormat.dateTime6
-        case .duration: style.numberFormat = NumberFormat.dateTimedelta
+        case .date(let dt): style.numberFormat = dt.isMidnight ? NumberFormat.isoDate : NumberFormat.isoDateTime
+        case .time: style.numberFormat = NumberFormat.time24Seconds
+        case .duration: style.numberFormat = NumberFormat.elapsed
         default: break
         }
     }

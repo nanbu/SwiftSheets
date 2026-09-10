@@ -485,7 +485,7 @@ private enum ReaderParity {
 }
 
 @Suite struct GenuineReadParityTests {
-    static let generalStyleCases: [(String, String)] = [("A1", NumberFormat.general), ("A2", NumberFormat.dateXLSX14), ("A3", NumberFormat.number00), ("A4", NumberFormat.dateTime3), ("A5", NumberFormat.percentage00)]
+    static let generalStyleCases: [(String, String)] = [("A1", NumberFormat.general), ("A2", NumberFormat.builtinCode(14)!), ("A3", NumberFormat.numberTwoDecimals), ("A4", NumberFormat.time24), ("A5", NumberFormat.percentTwoDecimals)]
     // openpyxl: tests/test_read.py::test_read_general_style
     @Test(arguments: generalStyleCases)
     func readGeneralStyle(_ cell: String, _ numberFormat: String) throws {
