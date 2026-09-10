@@ -83,7 +83,7 @@ public struct SheetProtection: Hashable, Sendable {
 
     /// Sets — or with nil clears — the modern (SHA-512) password, filling `algorithmName` / `saltedHash` /
     /// `saltValue` / `spinCount`. The legacy hash is separate and unchanged. Omit `salt` for 16 random bytes.
-    public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
+    public mutating func setModernPassword(_ password: String?, spinCount: Int = 100_000,
                                            salt: Data? = nil) {
         (algorithmName, saltedHash, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
     }
@@ -122,7 +122,7 @@ public struct WorkbookProtection: Hashable, Sendable {
     public mutating func setPassword(_ password: String?) { passwordHash = password.map(LegacyPasswordHash.hash) }
     public mutating func setRevisionsPassword(_ password: String?) { revisionsPasswordHash = password.map(LegacyPasswordHash.hash) }
     /// Sets — or with nil clears — the modern (SHA-512) password (Appendix B.31).
-    public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
+    public mutating func setModernPassword(_ password: String?, spinCount: Int = 100_000,
                                            salt: Data? = nil) {
         (algorithmName, saltedHash, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
     }
@@ -160,7 +160,7 @@ public struct ProtectedRange: Hashable, Sendable {
     }
     public mutating func setPassword(_ password: String?) { passwordHash = password.map(LegacyPasswordHash.hash) }
     /// Sets — or with nil clears — the modern (SHA-512) password (Appendix B.31).
-    public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
+    public mutating func setModernPassword(_ password: String?, spinCount: Int = 100_000,
                                            salt: Data? = nil) {
         (algorithmName, saltedHash, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
     }
@@ -248,14 +248,14 @@ public struct ScenarioList: Hashable, Sendable, RandomAccessCollection, Expressi
 /// It is a checksum, not a cipher: it keeps a colleague from editing a locked sheet by mistake, and it keeps
 /// nothing from anyone who means to get in. The plain text is never stored, so a password cannot be read back out
 /// of a file — only tested against.
-public enum LegacyPasswordHash {
+package enum LegacyPasswordHash {
     /// openpyxl's `hash_password`, character for character. Each character is shifted by its own position, the bits
     /// that fall off the top are folded back in, and the length and a constant finish it off.
     ///
     /// The arithmetic is done in 64 bits, which is exact for every password up to 58 characters — past that the
     /// reference implementation's own accumulator grows beyond the four hexadecimal digits the file format has room
     /// for, so there is nothing faithful left to match.
-    public static func hash(_ plaintext: String) -> String {
+    package static func hash(_ plaintext: String) -> String {
         var password: UInt64 = 0
         for (i, scalar) in plaintext.unicodeScalars.enumerated() {
             let shift = UInt64(i + 1)
@@ -276,14 +276,14 @@ public enum LegacyPasswordHash {
 /// not determined people — the cells are stored in plain sight either way.
 ///
 /// Adapted from XLKit (MIT — see NOTICE), whose implementation this matches round for round.
-public enum ModernPasswordHash {
+package enum ModernPasswordHash {
     /// Excel's own iteration count.
-    public static let defaultSpinCount = 100_000
+    package static let defaultSpinCount = 100_000
     /// What Excel writes as `algorithmName` for this scheme.
-    public static let algorithmName = "SHA-512"
+    package static let algorithmName = "SHA-512"
 
     /// The raw 64-byte hash for `plaintext` under `salt` and `spinCount` iterations.
-    public static func hash(_ plaintext: String, salt: Data, spinCount: Int = defaultSpinCount) -> Data {
+    package static func hash(_ plaintext: String, salt: Data, spinCount: Int = defaultSpinCount) -> Data {
         precondition(spinCount > 0, "spinCount must be positive")
         let password = Data(plaintext.utf16.flatMap { [UInt8($0 & 0xFF), UInt8($0 >> 8)] })   // UTF-16LE
         var key = SHA512.hash(salt + password)

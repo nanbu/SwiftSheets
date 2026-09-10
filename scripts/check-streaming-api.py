@@ -4,7 +4,7 @@
 No @testable and no package identity: what this proves has to survive the exported modules.
 
 Positive: close() and withStreamingWriter hand back a StreamingWriteResult that must be used or explicitly
-discarded; cancel(); StreamingCleanupError's two halves; both ways in (the umbrella's StreamingWriter(url:) and
+discarded; cancel(); StreamingCleanupError's two halves; both ways in (the umbrella's StreamingWriter(to:) and
 a CodecSet of whichever codecs are linked).
 Negative: the result and the error cannot be made up by a caller, close() is no longer Void, and the pieces the
 save is built from (the sink, the temporary file) stay inside the package.
@@ -17,8 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # (name, imports, how the writer is made) — the umbrella's convenience and any set of codecs reach the same writer
 WRITERS = [
-    ('SwiftSheets', 'import SwiftSheets', 'try StreamingWriter(url: url)'),
-    ('CodecSet', 'import SheetCore\nimport SheetXLSX', 'try CodecSet([.xlsx]).streamingWriter(url: url)'),
+    ('SwiftSheets', 'import SwiftSheets', 'try StreamingWriter(to: url)'),
+    ('CodecSet', 'import SheetCore\nimport SheetXLSX', 'try CodecSet([.xlsx]).streamingWriter(to: url)'),
 ]
 
 
@@ -56,7 +56,7 @@ def main():
 
         # 2. close() is no longer Void: a caller who typed it that way is told, rather than silently kept
         code, output = compile('import Foundation\nimport SwiftSheets\n'
-                               'func probe(_ url: URL) throws {\n    let v: Void = try StreamingWriter(url: url).close()\n    print(v)\n}\n')
+                               'func probe(_ url: URL) throws {\n    let v: Void = try StreamingWriter(to: url).close()\n    print(v)\n}\n')
         if code == 0:
             raise SystemExit(f'close() still type-checks as Void\n{output}')
         print('PASS: close() no longer returns Void', flush=True)
@@ -83,7 +83,7 @@ def main():
         # 4. the double failure keeps both halves, and a caller reads them
         code, output = compile('import Foundation\nimport SwiftSheets\n'
                                'func probe(_ url: URL) throws {\n'
-                               '    do { _ = try StreamingWriter(url: url).close() }\n'
+                               '    do { _ = try StreamingWriter(to: url).close() }\n'
                                '    catch let failure as StreamingCleanupError { print(failure.primaryError, failure.cleanupErrors) }\n}\n',
                                strict=True)
         if code:
@@ -96,7 +96,7 @@ def main():
             ('StreamingCleanupError.init', 'let e = StreamingCleanupError(primaryError: SheetError.wrongPassword, cleanupErrors: [])\n    print(e)', ['is inaccessible', 'cannot find', 'extra argument', 'no exact matches']),
             ('AtomicFileTarget', '_ = AtomicFileTarget.self', ['cannot find', 'inaccessible']),
             ('StreamingRowSink', 'let _: any StreamingRowSink.Type = nil', ['cannot find', 'inaccessible']),
-            ('StreamingWriter.sink', 'let w = try StreamingWriter(url: url)\n    print(w.sink)', ['inaccessible', 'has no member']),
+            ('StreamingWriter.sink', 'let w = try StreamingWriter(to: url)\n    print(w.sink)', ['inaccessible', 'has no member']),
         ]:
             code, output = compile(f'import Foundation\nimport SwiftSheets\nfunc probe(_ url: URL) throws {{\n    {snippet}\n}}\n')
             if code == 0 or not any(reason in output for reason in expected):

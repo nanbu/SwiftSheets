@@ -116,7 +116,7 @@ public struct PivotTable: Hashable, Sendable {
         let ref = CellRange(from: anchor,
                             to: CellRef(row: anchor.row + filterRows + 2, column: anchor.column + width - 1))
         let location = PivotLocation(ref: ref, firstHeaderRow: 1, firstDataRow: filterRows + 2,
-                                     firstDataCol: Swift.max(1, rowIndices.count))
+                                     firstDataColumn: Swift.max(1, rowIndices.count))
         return PivotTable(name: name, location: location, fields: fields, cache: cache,
                           rowFields: rowIndices, columnFields: columnPlacement,
                           pageFields: filterIndices.map { PivotPageField(field: $0) },
@@ -133,15 +133,15 @@ public struct PivotLocation: Hashable, Sendable {
     /// The first row of the body.
     public var firstDataRow: Int
     /// The first column of the body — everything left of it is row-field labels.
-    public var firstDataCol: Int
+    public var firstDataColumn: Int
     /// How many rows / columns the report filters take above the table.
     public var rowPageCount: Int?
     public var columnPageCount: Int?
 
-    public init(ref: CellRange, firstHeaderRow: Int = 1, firstDataRow: Int = 2, firstDataCol: Int = 1,
+    public init(ref: CellRange, firstHeaderRow: Int = 1, firstDataRow: Int = 2, firstDataColumn: Int = 1,
                 rowPageCount: Int? = nil, columnPageCount: Int? = nil) {
         self.ref = ref; self.firstHeaderRow = firstHeaderRow; self.firstDataRow = firstDataRow
-        self.firstDataCol = firstDataCol; self.rowPageCount = rowPageCount; self.columnPageCount = columnPageCount
+        self.firstDataColumn = firstDataColumn; self.rowPageCount = rowPageCount; self.columnPageCount = columnPageCount
     }
 }
 

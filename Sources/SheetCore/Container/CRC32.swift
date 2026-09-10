@@ -8,7 +8,7 @@ import CZlib
 /// The arithmetic is zlib's: it is on every machine this library runs on, it is the same function whichever DEFLATE
 /// route is compiled in, and it uses the processor's CRC instructions where they exist. A byte-at-a-time table
 /// loop in Swift was measured at 0.09 s over a 33 MB sheet; zlib does the same in a millisecond.
-public enum CRC32 {
+package enum CRC32 {
     /// The classic lookup table, kept for anyone who wants to check the arithmetic by hand.
     package static let table: [UInt32] = (0..<256).map { n in
         var c = UInt32(n)
@@ -16,7 +16,7 @@ public enum CRC32 {
         return c
     }
 
-    public static func checksum(_ data: Data) -> UInt32 {
+    package static func checksum(_ data: Data) -> UInt32 {
         var running = Running()
         running.update(data)
         return running.value

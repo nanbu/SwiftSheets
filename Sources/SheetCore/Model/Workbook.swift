@@ -137,7 +137,7 @@ public struct Workbook: Equatable, Sendable {
     /// ODF material the file carried that the model has no word for, so that a write can say it is gone.
     public package(set) var unmodelledODFFeatures: UnmodelledODFFeatures = []
     /// Records what a reader met and the model has no word for.
-    public mutating func noteUnmodelledODFFeatures(_ features: UnmodelledODFFeatures) { unmodelledODFFeatures.formUnion(features) }
+    package mutating func noteUnmodelledODFFeatures(_ features: UnmodelledODFFeatures) { unmodelledODFFeatures.formUnion(features) }
     /// The legacy indexed palette (`<colors><indexedColors>`), when the file overrides it. ARGB strings.
     public var indexedColors: [String] = []
     /// VBA code name of the workbook (`<workbookPr codeName>`), preserved when present.

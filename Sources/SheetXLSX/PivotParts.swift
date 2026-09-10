@@ -47,7 +47,7 @@ enum PivotParts {
 
         var generated: [(String, String)] = []
         let l = p.location
-        var loc = "<location ref=\"\(l.ref.a1)\" firstHeaderRow=\"\(l.firstHeaderRow)\" firstDataRow=\"\(l.firstDataRow)\" firstDataCol=\"\(l.firstDataCol)\""
+        var loc = "<location ref=\"\(l.ref.a1)\" firstHeaderRow=\"\(l.firstHeaderRow)\" firstDataRow=\"\(l.firstDataRow)\" firstDataCol=\"\(l.firstDataColumn)\""
         loc += XML.attr("rowPageCount", l.rowPageCount) + XML.attr("colPageCount", l.columnPageCount) + "/>"
         generated.append(("location", loc))
 
@@ -188,7 +188,7 @@ final class PivotTableParser: SAXHandler {
             guard let ref = a["ref"].flatMap(CellRange.init) else { return }
             table?.location = PivotLocation(ref: ref, firstHeaderRow: Int(a["firstHeaderRow"] ?? "1") ?? 1,
                                             firstDataRow: Int(a["firstDataRow"] ?? "2") ?? 2,
-                                            firstDataCol: Int(a["firstDataCol"] ?? "1") ?? 1,
+                                            firstDataColumn: Int(a["firstDataCol"] ?? "1") ?? 1,
                                             rowPageCount: Int(a["rowPageCount"] ?? ""),
                                             columnPageCount: Int(a["colPageCount"] ?? ""))
         case "pivotField":

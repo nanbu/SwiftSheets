@@ -504,7 +504,7 @@ final class SheetParser: SAXHandler {
         case "selection": if let ac = a["activeCell"] { sheet.view.activeCell = ac }; if let sq = a["sqref"] { sheet.view.selectedRanges = sq }
         case "sheetFormatPr":
             var f = SheetFormatProperties()
-            f.baseColWidth = Int(a["baseColWidth"] ?? "") ?? f.baseColWidth; f.defaultColWidth = Double(a["defaultColWidth"] ?? "")
+            f.baseColumnWidth = Int(a["baseColWidth"] ?? "") ?? f.baseColumnWidth; f.defaultColumnWidth = Double(a["defaultColWidth"] ?? "")
             f.defaultRowHeight = Double(a["defaultRowHeight"] ?? "") ?? f.defaultRowHeight
             f.customHeight = XMLBool.isTrue(a["customHeight"]); f.zeroHeight = XMLBool.isTrue(a["zeroHeight"])
             sheet.sheetFormat = f

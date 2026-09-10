@@ -197,7 +197,7 @@ public struct WriteResult: Sendable {
     /// best by XLSX. No format keeps all three, so Numbers is named only when the tables are the whole loss, and the
     /// count is of the elements the named format would actually keep — a suggestion that overstates is worse than
     /// none. When the target already is that format there is nowhere better to go, and nothing is suggested.
-    public static func suggest(from warnings: [ConversionWarning], target: SheetFormat, options: WriteOptions) -> Suggestion? {
+    package static func suggest(from warnings: [ConversionWarning], target: SheetFormat, options: WriteOptions) -> Suggestion? {
         let dropped = warnings.filter { $0.kind == .dropped }
         guard warnings.count >= options.suggestionThreshold || dropped.contains(where: { $0.location == nil }) else { return nil }
         let alternative: SheetFormat

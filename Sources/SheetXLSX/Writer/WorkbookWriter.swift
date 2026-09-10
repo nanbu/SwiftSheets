@@ -910,7 +910,7 @@ enum WorkbookWriter {
         }
         generated.append(("sheetViews", s + "</sheetView></sheetViews>"))
         let sf = ws.sheetFormat
-        generated.append(("sheetFormatPr", "<sheetFormatPr baseColWidth=\"\(sf.baseColWidth)\"\(sf.defaultColWidth.map { " defaultColWidth=\"\(XML.num($0))\"" } ?? "") defaultRowHeight=\"\(XML.num(sf.defaultRowHeight))\"\(XML.attr("customHeight", sf.customHeight))\(XML.attr("zeroHeight", sf.zeroHeight))/>"))
+        generated.append(("sheetFormatPr", "<sheetFormatPr baseColWidth=\"\(sf.baseColumnWidth)\"\(sf.defaultColumnWidth.map { " defaultColWidth=\"\(XML.num($0))\"" } ?? "") defaultRowHeight=\"\(XML.num(sf.defaultRowHeight))\"\(XML.attr("customHeight", sf.customHeight))\(XML.attr("zeroHeight", sf.zeroHeight))/>"))
         let cols = table.columnDimensions.filter { !$0.value.isDefault }.sorted { $0.key < $1.key }
         if !cols.isEmpty {
             s = "<cols>"

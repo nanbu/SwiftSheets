@@ -51,6 +51,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   `DynamicFilter.kind: Kind`. Files are written with the same values; a value outside the schema is dropped on read
   with the sheet's unmodelled flag set, never guessed at.
 
+- **Plumbing leaves the public surface** (B.67). `CRC32`, `ZipInspection`, `TextEncodingSniffer`, `OOXMLEscape`, `Units`,
+  `CellPixels`, `TextWidth`, `LegacyPasswordHash` and `ModernPasswordHash`, with `Table.cleanMergedRange(_:)`,
+  `WriteResult.suggest(from:target:options:)`, `Workbook.noteUnmodelledODFFeatures(_:)` and `UnopenableInput.probe(in:)`,
+  are `package` — the codecs' tools, not a caller's. `setModernPassword(_:spinCount:)` keeps its default of 100,000 as a
+  literal. The last three abbreviations become words: `SheetFormatProperties.baseColWidth` → `baseColumnWidth`,
+  `defaultColWidth` → `defaultColumnWidth`, `PivotLocation.firstDataCol` → `firstDataColumn`.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

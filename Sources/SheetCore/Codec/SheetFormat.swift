@@ -150,9 +150,9 @@ extension URL {
 }
 
 /// How a text file is encoded, as far as its first bytes tell.
-public enum TextEncodingSniffer {
+package enum TextEncodingSniffer {
     /// UTF-8 / UTF-16 BOM detection. Returns the encoding and the BOM length.
-    public static func bom(in data: Data) -> (String.Encoding, Int)? {
+    package static func bom(in data: Data) -> (String.Encoding, Int)? {
         let b = [UInt8](data.prefix(4))
         if b.count >= 3, b[0] == 0xEF, b[1] == 0xBB, b[2] == 0xBF { return (.utf8, 3) }
         if b.count >= 2, b[0] == 0xFF, b[1] == 0xFE { return (.utf16LittleEndian, 2) }
@@ -199,7 +199,7 @@ public enum TextEncodingSniffer {
 
     /// True when the bytes decode as UTF-8 / UTF-16 text without control characters other than tab / newlines.
     /// Looks at the first 64 KiB, as bytes — nothing is decoded into a `String` to be judged.
-    public static func looksLikeText(_ data: Data) -> Bool {
+    package static func looksLikeText(_ data: Data) -> Bool {
         looksLikeText(data.prefix(64 * 1024), isWholeFile: data.count <= 64 * 1024)
     }
 

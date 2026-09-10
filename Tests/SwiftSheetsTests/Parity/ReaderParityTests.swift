@@ -259,7 +259,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_sheet_format
     @Test func sheetFormat() throws {
         let ws = try sheet("<sheetFormatPr defaultRowHeight=\"14.25\" baseColWidth=\"15\"/>")
-        #expect(ws.sheetFormat.defaultRowHeight == 14.25 && ws.sheetFormat.baseColWidth == 15)
+        #expect(ws.sheetFormat.defaultRowHeight == 14.25 && ws.sheetFormat.baseColumnWidth == 15)
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_auto_filter
@@ -325,7 +325,7 @@ private enum ReaderParity {
     // openpyxl: worksheet/tests/test_reader.py::test_properties
     @Test func properties() throws {
         let ws = try sheet(try ReaderParity.fixtureText("worksheet/complex-styles-worksheet.xml"), sst: Array(repeating: .text("a"), count: 30))
-        #expect(ws.pageMargins == PageMargins() && ws.pageSetup.orientation == .portrait && ws.sheetFormat.baseColWidth == 10 && ws.view.activeCell == "I1")
+        #expect(ws.pageMargins == PageMargins() && ws.pageSetup.orientation == .portrait && ws.sheetFormat.baseColumnWidth == 10 && ws.view.activeCell == "I1")
     }
 
     // openpyxl: worksheet/tests/test_reader.py::test_more_rows_than_cells

@@ -245,8 +245,8 @@ public struct SheetView: Hashable, Sendable {
 
 /// `<sheetFormatPr>` — default row height / column width of the sheet.
 public struct SheetFormatProperties: Hashable, Sendable {
-    public var baseColWidth = 8
-    public var defaultColWidth: Double?
+    public var baseColumnWidth = 8
+    public var defaultColumnWidth: Double?
     public var defaultRowHeight = 15.0
     public var customHeight = false
     public var zeroHeight = false

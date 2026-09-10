@@ -72,7 +72,7 @@ enum ODSPivot {
             buttons.append("\(prefix).\(CellRef(row: headerRow + 1, column: ref.minColumn + i).a1)")
         }
         for (i, _) in pivot.columnFields.enumerated() where pivot.columnFields[i] != PivotTable.valuesField {
-            buttons.append("\(prefix).\(CellRef(row: headerRow, column: ref.minColumn + pivot.location.firstDataCol + i - 1).a1)")
+            buttons.append("\(prefix).\(CellRef(row: headerRow, column: ref.minColumn + pivot.location.firstDataColumn + i - 1).a1)")
         }
 
         var s = "<table:data-pilot-table table:name=\"\(XML.esc(pivot.name))\" table:application-data=\"\""

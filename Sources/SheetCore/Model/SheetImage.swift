@@ -117,11 +117,11 @@ public enum ImagePlacement: Hashable, Sendable {
 /// The pixel arithmetic of cell sizes (Calibri 11's standard metrics: a column of width w is w·7+5 px, a row of
 /// h points is h ÷ 0.75 px). Shared by `.fitCell` and `.resizeCellToFit` — approximations by nature, since the
 /// real width depends on the workbook's default font, which viewers themselves only approximate.
-public enum CellPixels {
-    public static let defaultColumnWidth = 8.43   // characters
-    public static let defaultRowHeight = 15.0     // points
-    public static func columnPixels(_ widthCharacters: Double) -> Double { (widthCharacters * 7 + 5).rounded() }
-    public static func rowPixels(_ heightPoints: Double) -> Double { (heightPoints / 0.75).rounded() }
-    public static func columnWidth(forPixels px: Double) -> Double { max((px - 5) / 7, 0) }
-    public static func rowHeight(forPixels px: Double) -> Double { px * 0.75 }
+package enum CellPixels {
+    package static let defaultColumnWidth = 8.43   // characters
+    package static let defaultRowHeight = 15.0     // points
+    package static func columnPixels(_ widthCharacters: Double) -> Double { (widthCharacters * 7 + 5).rounded() }
+    package static func rowPixels(_ heightPoints: Double) -> Double { (heightPoints / 0.75).rounded() }
+    package static func columnWidth(forPixels px: Double) -> Double { max((px - 5) / 7, 0) }
+    package static func rowHeight(forPixels px: Double) -> Double { px * 0.75 }
 }

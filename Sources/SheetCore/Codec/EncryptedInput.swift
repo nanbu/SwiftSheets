@@ -33,7 +33,7 @@ public enum UnopenableInput: Sendable, Hashable {
 
     /// What an already-open package is, when its manifest declares encryption (ODF 1.3 §4.3: the `mimetype` entry
     /// stays in the clear, so such a file still detects as `.ods`).
-    public static func probe(in container: ZipInspection) -> UnopenableInput? {
+    package static func probe(in container: ZipInspection) -> UnopenableInput? {
         if container.contains(".iwph") { return .encryptedNumbers }
         guard let manifest = container.entry(named: "META-INF/manifest.xml") else { return nil }
         return String(decoding: manifest, as: UTF8.self).contains("encryption-data") ? .encryptedODF : nil

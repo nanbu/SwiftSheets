@@ -5,8 +5,8 @@ import FoundationXML   // where Foundation is split, the XML parser lives in its
 
 /// OOXML's `_xHHHH_` escaping for control characters (openpyxl.utils.escape). Mirrors the reference exactly: `escape`
 /// encodes U+0001…U+0019, `unescape` decodes any `_xHHHH_`.
-public enum OOXMLEscape {
-    public static func escape(_ value: String) -> String {
+package enum OOXMLEscape {
+    package static func escape(_ value: String) -> String {
         var out = ""
         for ch in value.unicodeScalars {
             if ch.value >= 1, ch.value <= 25 { out += String(format: "_x%04x_", ch.value) } else { out.unicodeScalars.append(ch) }
@@ -14,7 +14,7 @@ public enum OOXMLEscape {
         return out
     }
 
-    public static func unescape(_ value: String) -> String {
+    package static func unescape(_ value: String) -> String {
         guard value.contains("_x") else { return value }
         var out = "", rest = Substring(value)
         while let r = rest.range(of: "_x") {

@@ -26,12 +26,17 @@ rule.anchorTextFormula(at: "B2")
 precondition(rule.formulas.first?.contains("B2") == true)
 precondition(StructuredTable.sanitizedName("two words") == "two_words")
 _ = CalculationSettings.asAssumedOutsideODF
-workbook.sheets[0].table.cleanMergedRange(CellRange("A1:B2")!)
 print("public preservation API OK")
 '''
 NEGATIVE = [(name, f'_ = {name}.self', ["cannot find", "inaccessible"]) for name in
             ['PreservationStore', 'SheetPreservation', 'OpaquePart', 'XMLFragment',
-             'Relationship', 'StyleTables', 'ForeignSheet']]
+             'Relationship', 'StyleTables', 'ForeignSheet',
+             # plumbing that left the public surface in the 1.0 review (spec Appendix B.67)
+             'ZipInspection', 'CRC32', 'TextEncodingSniffer', 'OOXMLEscape', 'Units', 'CellPixels', 'TextWidth',
+             'LegacyPasswordHash', 'ModernPasswordHash']]
+NEGATIVE += [('Table.cleanMergedRange', 'var t = Table(); t.cleanMergedRange(CellRange("A1:B2")!)', ['inaccessible']),
+             ('WriteResult.suggest', '_ = WriteResult.suggest(from: [], target: .xlsx, options: WriteOptions())', ['inaccessible']),
+             ('Workbook.noteUnmodelledODFFeatures', 'var w = Workbook(); w.noteUnmodelledODFFeatures([])', ['inaccessible'])]
 NEGATIVE += [
     ('Workbook.preserved', '_ = Workbook().preserved', ['inaccessible']),
     ('Sheet.preserved', '_ = Sheet(name: "X").preserved', ['inaccessible']),

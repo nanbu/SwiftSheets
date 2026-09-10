@@ -51,7 +51,7 @@ workbook.sheets[0]["A1"] = "x"
 let data = try codecs.write(workbook, as: {first}).data
 let reopened = try codecs.read(data, format: {first}).workbook
 precondition(reopened.sheets[0]["A1"] == .text("x"))
-let reader = try codecs.streamingReader(data: data, format: {first})
+let reader = try codecs.streamingReader(data, format: {first})
 let sheet = reader.sheetNames[0]
 let names: [String?] = try reader.tableNames(inSheet: sheet)
 let count = try reader.tableCount(inSheet: sheet)

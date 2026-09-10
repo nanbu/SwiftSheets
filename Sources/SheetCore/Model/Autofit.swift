@@ -7,7 +7,7 @@ import Foundation
 /// deliberate departure: East Asian wide characters get 16 px here, since 8 px would fold Japanese text in half.
 /// An approximation either way — the true width depends on the workbook's default font, which viewers themselves
 /// only approximate.
-public enum TextWidth {
+package enum TextWidth {
     /// Pixel widths of U+0020…U+007E in Calibri 11 (XlsxWriter's `CHAR_WIDTHS`).
     static let ascii: [Int] = [3, 5, 6, 7, 7, 11, 10, 3, 5, 5, 7, 7, 4, 5, 4, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
                                4, 4, 7, 7, 7, 7, 13, 9, 8, 8, 9, 7, 7, 9, 9, 4, 5, 8, 6, 12, 10, 10, 8, 10, 8,
@@ -15,13 +15,13 @@ public enum TextWidth {
                                12, 8, 8, 8, 8, 5, 6, 5, 8, 7, 11, 7, 7, 6, 5, 7, 5, 7]
 
     /// One character's width in pixels.
-    public static func pixels(_ scalar: Unicode.Scalar) -> Int {
+    package static func pixels(_ scalar: Unicode.Scalar) -> Int {
         if (0x20...0x7E).contains(scalar.value) { return ascii[Int(scalar.value) - 0x20] }
         return isEastAsianWide(scalar) ? 16 : 8
     }
 
     /// The width of one line of text in pixels (the longest line, when the text wraps).
-    public static func pixels(_ text: String) -> Int {
+    package static func pixels(_ text: String) -> Int {
         text.split(separator: "\n", omittingEmptySubsequences: false)
             .map { $0.unicodeScalars.reduce(0) { $0 + pixels($1) } }
             .max() ?? 0
