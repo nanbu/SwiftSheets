@@ -12,7 +12,7 @@ public struct DataValidation: Hashable, Sendable {
         case none, whole, decimal, list, date, time, textLength, custom
     }
 
-    /// How the spreadsheet reacts to a value the rule rejects — only when `showErrorMessage` is on.
+    /// How the spreadsheet reacts to a value the rule rejects — only when `showsErrorMessage` is on.
     public enum ErrorStyle: String, Hashable, Sendable, CaseIterable {
         /// Refuses the entry.
         case stop
@@ -38,15 +38,15 @@ public struct DataValidation: Hashable, Sendable {
     public var `operator`: Operator?
     public var errorStyle: ErrorStyle?
     /// An empty cell passes.
-    public var allowBlank: Bool
+    public var allowsBlank: Bool
     /// **Inverted on purpose**: true HIDES the in-cell dropdown arrow of a `.list` rule. The file's attribute is
     /// spelled `showDropDown` but means exactly this (openpyxl calls it `hide_drop_down` for the same reason).
-    public var hideDropDown: Bool
+    public var hidesDropDown: Bool
     /// Show `promptTitle` / `prompt` when the cell is selected.
-    public var showInputMessage: Bool
+    public var showsInputMessage: Bool
     /// Show `errorTitle` / `error` — and act on `errorStyle` — when the value does not fit. **Off means the rule
     /// only suggests**: the dropdown is there and anything else typed in is still accepted.
-    public var showErrorMessage: Bool
+    public var showsErrorMessage: Bool
     public var errorTitle: String?
     public var error: String?
     public var promptTitle: String?
@@ -56,14 +56,14 @@ public struct DataValidation: Hashable, Sendable {
 
     /// Defaults are the file format's own (every flag off), not any application's dialog defaults.
     public init(kind: Kind, ranges: MultiCellRange, formula1: String? = nil, formula2: String? = nil,
-                operator: Operator? = nil, errorStyle: ErrorStyle? = nil, allowBlank: Bool = false,
-                hideDropDown: Bool = false, showInputMessage: Bool = false, showErrorMessage: Bool = false,
+                operator: Operator? = nil, errorStyle: ErrorStyle? = nil, allowsBlank: Bool = false,
+                hidesDropDown: Bool = false, showsInputMessage: Bool = false, showsErrorMessage: Bool = false,
                 errorTitle: String? = nil, error: String? = nil, promptTitle: String? = nil, prompt: String? = nil,
                 imeMode: String? = nil) {
         self.kind = kind; self.ranges = ranges; self.formula1 = formula1; self.formula2 = formula2
-        self.operator = `operator`; self.errorStyle = errorStyle; self.allowBlank = allowBlank
-        self.hideDropDown = hideDropDown; self.showInputMessage = showInputMessage
-        self.showErrorMessage = showErrorMessage; self.errorTitle = errorTitle; self.error = error
+        self.operator = `operator`; self.errorStyle = errorStyle; self.allowsBlank = allowsBlank
+        self.hidesDropDown = hidesDropDown; self.showsInputMessage = showsInputMessage
+        self.showsErrorMessage = showsErrorMessage; self.errorTitle = errorTitle; self.error = error
         self.promptTitle = promptTitle; self.prompt = prompt; self.imeMode = imeMode
     }
 
@@ -73,9 +73,9 @@ public struct DataValidation: Hashable, Sendable {
     /// By default it **suggests**: the arrow is there, and a value that is not in the list is still accepted.
     /// Pass `rejects: true` for the strict form, which refuses anything else.
     public static func list(_ source: String, over ranges: MultiCellRange,
-                            allowBlank: Bool = true, rejects: Bool = false) -> DataValidation {
+                            allowsBlank: Bool = true, rejects: Bool = false) -> DataValidation {
         DataValidation(kind: .list, ranges: ranges, formula1: source, errorStyle: rejects ? .stop : nil,
-                       allowBlank: allowBlank, showErrorMessage: rejects)
+                       allowsBlank: allowsBlank, showsErrorMessage: rejects)
     }
 
     /// A dropdown over the choices themselves, written into the rule as the inline list `"a,b,c"` (spec Appendix
@@ -86,8 +86,8 @@ public struct DataValidation: Hashable, Sendable {
     /// whose joined text is longer than `inlineListLimit`. Put such choices on a sheet and pass its range to
     /// `list(_:over:)` instead.
     public static func list(choices: [String], over ranges: MultiCellRange,
-                            allowBlank: Bool = true, rejects: Bool = false) -> DataValidation? {
-        inlineListSource(choices).map { list($0, over: ranges, allowBlank: allowBlank, rejects: rejects) }
+                            allowsBlank: Bool = true, rejects: Bool = false) -> DataValidation? {
+        inlineListSource(choices).map { list($0, over: ranges, allowsBlank: allowsBlank, rejects: rejects) }
     }
 
     /// The most characters an inline list may hold between its quotes, separators included. Excel's own dialog refuses

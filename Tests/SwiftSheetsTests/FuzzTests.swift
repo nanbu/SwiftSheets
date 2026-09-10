@@ -185,7 +185,7 @@ import SwiftSheets
                     let reader = try StreamingReader(data: mutant, format: format)
                     if let first = reader.sheetNames.first {
                         var rows = 0
-                        try reader.forEachRow(inSheet: first, options: StreamingReadOptions(includeStyles: round % 2 == 0)) { _ in
+                        try reader.forEachRow(inSheet: first, options: StreamingReadOptions(includesStyles: round % 2 == 0)) { _ in
                             rows += 1
                             if rows >= 2_000 { throw SheetError.invalidWorkbook("enough") }
                         }

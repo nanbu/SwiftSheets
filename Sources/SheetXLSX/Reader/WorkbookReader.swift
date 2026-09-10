@@ -185,7 +185,7 @@ enum WorkbookReader {
         wb.preserved.application = source.application
 
         // everything else: kept byte for byte, with the relationships and content types that declare it
-        if options.preserveUnknownParts {
+        if options.preservesUnknownParts {
             wb.preserved.relationships[workbookPath] = rels.filter { r in
                 ![relWorksheet, relSharedStrings, relStyles, relCalcChain, relPivotCacheDefinition].contains { r.type.hasSuffix($0) }
             }

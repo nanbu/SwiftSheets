@@ -15,7 +15,7 @@ import SwiftSheets
         wb.metadata.title = "全部入り"
         wb.customProperties["部署"] = .text("経理")
         wb.definedNames["Rate"] = "0.08"
-        wb.protection.lockStructure = true
+        wb.protection.locksStructure = true
 
         var d = wb.sheets[0]
         d.name = "Data"
@@ -71,7 +71,7 @@ import SwiftSheets
 
         // what only OpenDocument has (spec Appendix B.17)
         wb.epoch = .mac1904
-        wb.calculationSettings.useRegularExpressions = true
+        wb.calculationSettings.usesRegularExpressions = true
         wb.calculationSettings.nullYear = 1930
         wb.labelRanges = [LabelRange(labels: CellRange("Data!A1:D1")!, data: CellRange("Data!A2:D9")!, orientation: .column)]
         wb.consolidation = Consolidation(function: .sum, sources: [CellRange("Data!A1:D9")!],
@@ -142,7 +142,7 @@ import SwiftSheets
             "タブ色": s.tabColor != nil,
             "定義名・ブック": !workbook.definedNames.isEmpty,
             "定義名・シート": !s.definedNames.isEmpty,
-            "ブック保護": workbook.protection.lockStructure,
+            "ブック保護": workbook.protection.locksStructure,
             "文書の自由項目": !workbook.customProperties.isEmpty,
             "隠しシート": workbook.sheets.contains { $0.isHidden },
             "1シート複数テーブル": (workbook.sheets["Multi"]?.tables.count ?? 0) > 1,
@@ -150,7 +150,7 @@ import SwiftSheets
             "ラベル範囲": !workbook.labelRanges.isEmpty,
             "統合の定義": workbook.consolidation != nil,
             "探偵の矢印": !s.tables.allSatisfy(\.detective.isEmpty),
-            "計算設定": workbook.calculationSettings.useRegularExpressions,
+            "計算設定": workbook.calculationSettings.usesRegularExpressions,
             "日付の原点": workbook.epoch == .mac1904,
             "通貨のセル種別": s.style("I1").numberFormat.contains("¥"),
         ]

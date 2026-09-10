@@ -39,7 +39,7 @@ public struct CSVWriteOptions: Sendable, Hashable {
     public var encoding: String.Encoding = .utf8
     /// True for files people will double-click into Excel (without a BOM, Japanese Excel assumes a legacy code page).
     /// Only meaningful for UTF-8 / UTF-16.
-    public var includeBOM = false
+    public var includesBOM = false
     public var dialect = CSVDialect.comma
     public var newline = CSVNewline.crlf
     /// The sheet to write; nil = the active sheet.
@@ -49,9 +49,9 @@ public struct CSVWriteOptions: Sendable, Hashable {
     /// Dates are written in this `DateFormatter` pattern; nil = ISO 8601 (`yyyy-MM-dd`, with time when present).
     public var dateFormat: String?
 
-    public init(encoding: String.Encoding = .utf8, includeBOM: Bool = false, dialect: CSVDialect = .comma, newline: CSVNewline = .crlf,
+    public init(encoding: String.Encoding = .utf8, includesBOM: Bool = false, dialect: CSVDialect = .comma, newline: CSVNewline = .crlf,
                 sheet: String? = nil, lossy: Bool = false, dateFormat: String? = nil) {
-        self.encoding = encoding; self.includeBOM = includeBOM; self.dialect = dialect; self.newline = newline
+        self.encoding = encoding; self.includesBOM = includesBOM; self.dialect = dialect; self.newline = newline
         self.sheet = sheet; self.lossy = lossy; self.dateFormat = dateFormat
     }
 }

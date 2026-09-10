@@ -261,7 +261,7 @@ package final class CSVStreamingWriter {
         handle = h
         self.options = options
         renderer = CSVCodec.FieldRenderer(options: options)
-        if options.includeBOM {
+        if options.includesBOM {
             switch options.encoding {
             case .utf8: pending.append(contentsOf: [0xEF, 0xBB, 0xBF])
             case .utf16LittleEndian: pending.append(contentsOf: [0xFF, 0xFE])
@@ -345,7 +345,7 @@ extension CSVStreamingReader: StreamingRowSource {
         func next() throws -> StreamedRow? {
             while let record = try walk.next() {
                 defer { index += 1 }
-                let style: CellStyle? = options.includeStyles ? .default : nil
+                let style: CellStyle? = options.includesStyles ? .default : nil
                 let row = StreamedRow(index: index, cells: record.enumerated().map { StreamedCell(ref: CellRef(row: index, column: $0 + 1), value: $1, style: style) })
                 if options.includesEmptyRows || !row.isEmpty { return row }
             }

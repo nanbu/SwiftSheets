@@ -462,8 +462,8 @@ enum WorkbookWriter {
             x += XML.attr("workbookPassword", p.passwordHash) + XML.attr("revisionsPassword", p.revisionsPasswordHash)
             x += XML.attr("workbookAlgorithmName", p.algorithmName) + XML.attr("workbookHashValue", p.hashValue)
             x += XML.attr("workbookSaltValue", p.saltValue) + XML.attr("workbookSpinCount", p.spinCount)
-            x += XML.attr("lockStructure", p.lockStructure) + XML.attr("lockWindows", p.lockWindows)
-            x += XML.attr("lockRevision", p.lockRevision)
+            x += XML.attr("lockStructure", p.locksStructure) + XML.attr("lockWindows", p.locksWindows)
+            x += XML.attr("lockRevision", p.locksRevision)
             generated.append(("workbookProtection", x + "/>"))
         }
         generated.append(("bookViews", "<bookViews><workbookView activeTab=\"\(wb.activeIndex)\"/></bookViews>"))
@@ -634,17 +634,17 @@ enum WorkbookWriter {
     }
 
     /// Worksheet XML in schema order, with the sheet's preserved fragments merged in at their positions.
-    /// One `<dataValidation>`. `hideDropDown` is written to the inverted `showDropDown` attribute it means.
+    /// One `<dataValidation>`. `hidesDropDown` is written to the inverted `showDropDown` attribute it means.
     static func dataValidationXML(_ dv: DataValidation) -> String {
         var s = "<dataValidation"
         if dv.kind != .none { s += " type=\"\(dv.kind.rawValue)\"" }
         s += XML.attr("errorStyle", dv.errorStyle?.rawValue)
         s += XML.attr("imeMode", dv.imeMode)
         s += XML.attr("operator", dv.operator?.rawValue)
-        s += XML.attr("allowBlank", dv.allowBlank)
-        s += XML.attr("showDropDown", dv.hideDropDown)          // 1 HIDES the arrow — the attribute is inverted
-        s += XML.attr("showInputMessage", dv.showInputMessage)
-        s += XML.attr("showErrorMessage", dv.showErrorMessage)
+        s += XML.attr("allowBlank", dv.allowsBlank)
+        s += XML.attr("showDropDown", dv.hidesDropDown)          // 1 HIDES the arrow — the attribute is inverted
+        s += XML.attr("showInputMessage", dv.showsInputMessage)
+        s += XML.attr("showErrorMessage", dv.showsErrorMessage)
         s += XML.attr("errorTitle", dv.errorTitle)
         s += XML.attr("error", dv.error)
         s += XML.attr("promptTitle", dv.promptTitle)
@@ -759,8 +759,8 @@ enum WorkbookWriter {
         generated.append(("tableColumns", columnsXML + "</tableColumns>"))
         if let info = t.styleInfo {
             generated.append(("tableStyleInfo", "<tableStyleInfo\(XML.attr("name", info.name))"
-                + " showFirstColumn=\"\(info.showFirstColumn ? 1 : 0)\" showLastColumn=\"\(info.showLastColumn ? 1 : 0)\""
-                + " showRowStripes=\"\(info.showRowStripes ? 1 : 0)\" showColumnStripes=\"\(info.showColumnStripes ? 1 : 0)\"/>"))
+                + " showFirstColumn=\"\(info.showsFirstColumn ? 1 : 0)\" showLastColumn=\"\(info.showsLastColumn ? 1 : 0)\""
+                + " showRowStripes=\"\(info.showsRowStripes ? 1 : 0)\" showColumnStripes=\"\(info.showsColumnStripes ? 1 : 0)\"/>"))
         }
         s += XMLWriter.ordered(generated, fragments: t.fragments, order: tableOrder)
         return s + "</table>"
@@ -803,12 +803,12 @@ enum WorkbookWriter {
                 + scale.colors.map { StyleRegistry.colorXML("color", $0) }.joined() + "</colorScale>"
         }
         if let bar = rule.dataBar {
-            inner += "<dataBar\(XML.attr("minLength", bar.minLength))\(XML.attr("maxLength", bar.maxLength))\(bar.showValue ? "" : " showValue=\"0\"")>"
+            inner += "<dataBar\(XML.attr("minLength", bar.minLength))\(XML.attr("maxLength", bar.maxLength))\(bar.showsValue ? "" : " showValue=\"0\"")>"
             inner += conditionalValueXML(bar.minimum) + conditionalValueXML(bar.maximum)
             inner += StyleRegistry.colorXML("color", bar.color) + "</dataBar>"
         }
         if let icons = rule.iconSet {
-            inner += "<iconSet iconSet=\"\(XML.esc(icons.name))\"\(icons.showValue ? "" : " showValue=\"0\"")\(icons.percent ? "" : " percent=\"0\"")\(XML.attr("reverse", icons.reverse))>"
+            inner += "<iconSet iconSet=\"\(XML.esc(icons.name))\"\(icons.showsValue ? "" : " showValue=\"0\"")\(icons.percent ? "" : " percent=\"0\"")\(XML.attr("reverse", icons.reverse))>"
             inner += icons.values.map { conditionalValueXML($0, includeGTE: true) }.joined() + "</iconSet>"
         }
         return inner.isEmpty ? s + "/>" : s + ">" + inner + "</cfRule>"
@@ -892,10 +892,10 @@ enum WorkbookWriter {
         var s = "<sheetPr\(XML.attr("codeName", ws.properties.codeName))\(ws.properties.filterMode.map { " filterMode=\"\($0 ? 1 : 0)\"" } ?? "")>"
         if let tc = ws.properties.tabColor { s += StyleRegistry.colorXML("tabColor", tc) }
         s += "<outlinePr summaryBelow=\"\(ws.properties.summaryBelow ? 1 : 0)\" summaryRight=\"\(ws.properties.summaryRight ? 1 : 0)\"/>"
-        s += "<pageSetUpPr\(ws.properties.fitToPage.map { " fitToPage=\"\($0 ? 1 : 0)\"" } ?? "")/></sheetPr>"
+        s += "<pageSetUpPr\(ws.properties.fitsToPage.map { " fitToPage=\"\($0 ? 1 : 0)\"" } ?? "")/></sheetPr>"
         generated.append(("sheetPr", s))
         generated.append(("dimension", "<dimension ref=\"\(table.dimensions)\"/>"))
-        s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
+        s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showsGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
         if let f = ws.freezePanes {
             // Excel omits a zero split and makes the single remaining pane active
             let active = f.column > 1 ? (f.row > 1 ? "bottomRight" : "topRight") : "bottomLeft"
@@ -1179,7 +1179,7 @@ enum WorkbookWriter {
             preservedRels.contains { $0.id == id } ? id : nil
         } : nil
         if p != PageSetup() || printerSettings != nil {
-            generated.append(("pageSetup", "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))\(XML.attr("firstPageNumber", p.firstPageNumber))\(p.useFirstPageNumber.map { " useFirstPageNumber=\"\($0 ? 1 : 0)\"" } ?? "")\(printerSettings.map { " r:id=\"\($0)\"" } ?? "")/>"))
+            generated.append(("pageSetup", "<pageSetup\(XML.attr("orientation", p.orientation?.rawValue))\(XML.attr("paperSize", p.paperSize))\(XML.attr("scale", p.scale))\(XML.attr("fitToWidth", p.fitToWidth))\(XML.attr("fitToHeight", p.fitToHeight))\(XML.attr("firstPageNumber", p.firstPageNumber))\(p.usesFirstPageNumber.map { " useFirstPageNumber=\"\($0 ? 1 : 0)\"" } ?? "")\(printerSettings.map { " r:id=\"\($0)\"" } ?? "")/>"))
         }
         let hf = ws.headerFooter
         if !hf.isEmpty {

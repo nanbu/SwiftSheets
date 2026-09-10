@@ -23,6 +23,15 @@ writes, so the constant, the README's status line and the tag always name the sa
   `streamingReader(_:)` (as `read(_:)`); `SheetFormat.detect(from:)` and `detect(from:filename:)` → one
   `detect(_:filename:)`, the shape `probe(_:filename:)` has, and `detect(in:)` is no longer public.
 
+- **Bool properties read as assertions** (B.64). Twenty-eight imperative spellings become the predicate form the other
+  forty-five already had: `includeStyles` → `includesStyles`, `includeBOM` → `includesBOM`, `allowBlank` → `allowsBlank`
+  (and the `list(choices:over:allowsBlank:)` label), `preserveUnknownParts` → `preservesUnknownParts`, `countCells` →
+  `countsCells`, `showGridLines` → `showsGridLines`, `showValue` → `showsValue`, the six `show…` flags of
+  `TableStyleInfo` / `PivotStyleInfo`, `showRowGrandTotals` / `showColumnGrandTotals` / `showAll` / `refreshOnLoad` on the
+  pivot types, `showInputMessage` / `showErrorMessage` / `hideDropDown` on `DataValidation`, `lockStructure` /
+  `lockWindows` / `lockRevision` on `WorkbookProtection`, `useWildcards` / `useRegularExpressions` / `useFirstPageNumber` /
+  `linkToSourceData` / `fitToPage`. File attributes are unchanged.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

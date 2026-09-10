@@ -618,7 +618,7 @@ import SwiftSheets
         ws.pageSetup.scale = 80
         ws.pageSetup.paperSize = 9
         ws.pageSetup.firstPageNumber = 3
-        ws.pageSetup.useFirstPageNumber = true
+        ws.pageSetup.usesFirstPageNumber = true
         ws.pageMargins.left = 0.5; ws.pageMargins.right = 0.5
         ws.pageMargins.top = 1.0; ws.pageMargins.bottom = 1.0
         ws.pageMargins.header = 0.3; ws.pageMargins.footer = 0.3

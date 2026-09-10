@@ -95,7 +95,7 @@ import SwiftSheets
     @Test func modernPasswordOnWorkbookAndRange() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        wb.protection.lockStructure = true
+        wb.protection.locksStructure = true
         wb.protection.setModernPassword("book", spinCount: 10)
         var range = ProtectedRange(name: "window", "B2:C3")!
         range.setModernPassword("range", spinCount: 10)
@@ -134,7 +134,7 @@ import SwiftSheets
 
         var wb = Workbook()
         wb.sheets[0]["A1"] = CellValue.text("ブックの構造が保護されています")
-        wb.protection.lockStructure = true
+        wb.protection.locksStructure = true
         wb.protection.setModernPassword("book")
         let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/workbook.xml", of: data)
@@ -155,8 +155,8 @@ import SwiftSheets
     @Test func workbookProtectionRoundTrips() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
-        wb.protection.lockStructure = true
-        wb.protection.lockWindows = true
+        wb.protection.locksStructure = true
+        wb.protection.locksWindows = true
         wb.protection.setPassword("secret")
         let data = try wb.write(as: .xlsx).data
         let xml = try Package.part("xl/workbook.xml", of: data)

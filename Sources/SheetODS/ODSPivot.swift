@@ -103,7 +103,7 @@ enum ODSPivot {
             s += "<table:data-pilot-field table:source-field-name=\"\(XML.esc(cached.name))\""
             if let displayName { s += " tableooo:display-name=\"\(XML.esc(displayName))\"" }
             s += " table:orientation=\"\(orientation)\" table:used-hierarchy=\"-1\" table:function=\"\(function)\">"
-            s += "<table:data-pilot-level table:show-empty=\"\(pivot.fields.indices.contains(index) && pivot.fields[index].showAll)\">"
+            s += "<table:data-pilot-level table:show-empty=\"\(pivot.fields.indices.contains(index) && pivot.fields[index].showsAll)\">"
             s += "<table:data-pilot-subtotals><table:data-pilot-subtotal table:function=\"auto\"/></table:data-pilot-subtotals>"
             s += "</table:data-pilot-level></table:data-pilot-field>"
         }

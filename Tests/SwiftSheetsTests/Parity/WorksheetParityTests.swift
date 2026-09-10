@@ -369,7 +369,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_gridlines
     @Test func gridlines() {
         let ws = Self.freshSheet()
-        #expect(ws.view.showGridLines)   // SwiftSheets defaults to Excel's "shown"; openpyxl leaves the attribute unset
+        #expect(ws.view.showsGridLines)   // SwiftSheets defaults to Excel's "shown"; openpyxl leaves the attribute unset
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_column_groups

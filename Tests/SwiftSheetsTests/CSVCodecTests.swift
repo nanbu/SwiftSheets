@@ -265,9 +265,9 @@ import SheetCore
 
     @Test func writeIncludesBOMOnRequest() throws {
         let wb = workbook([[.text("a")]])
-        let utf8 = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(includeBOM: true)))
+        let utf8 = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(includesBOM: true)))
         #expect([UInt8](utf8.data) == [0xEF, 0xBB, 0xBF, 0x61, 0x0D, 0x0A])
-        let utf16 = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(encoding: .utf16LittleEndian, includeBOM: true)))
+        let utf16 = try CSVCodec.write(wb, options: WriteOptions(csv: CSVWriteOptions(encoding: .utf16LittleEndian, includesBOM: true)))
         #expect([UInt8](utf16.data.prefix(4)) == [0xFF, 0xFE, 0x61, 0x00])
         // and the result reads back through BOM detection
         #expect(try CSVCodec.read(utf16.data).workbook.sheets[0][1, 1] == .text("a"))

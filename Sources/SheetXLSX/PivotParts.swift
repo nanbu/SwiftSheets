@@ -6,7 +6,7 @@ import SheetCore
 ///
 /// Everything the model does not carry is kept: unknown attributes of the two root elements, unknown children as
 /// XML fragments, and the `pivotCacheRecords` part as bytes. For a *new* pivot table SwiftSheets writes a cache
-/// that says `saveData="0" refreshOnLoad="1"` and has no record part at all — it lays a pivot table out rather than
+/// that says `saveData="0" refreshesOnLoad="1"` and has no record part at all — it lays a pivot table out rather than
 /// computing one, so the application reads the source range when it opens the file (spec appendix B.15).
 enum PivotParts {
     static let ctTable = "application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"
@@ -40,8 +40,8 @@ enum PivotParts {
                        ("outline", "1"), ("outlineData", "1"), ("multipleFieldFilters", "0")] {
             root.set(k, v)
         }
-        if !p.showRowGrandTotals { root.set("rowGrandTotals", "0") }
-        if !p.showColumnGrandTotals { root.set("colGrandTotals", "0") }
+        if !p.showsRowGrandTotals { root.set("rowGrandTotals", "0") }
+        if !p.showsColumnGrandTotals { root.set("colGrandTotals", "0") }
         root.fill(from: p.otherAttributes)
         var s = root.opened
 
@@ -57,7 +57,7 @@ enum PivotParts {
             fields += XML.attr("name", f.name)
             fields += XML.attr("axis", f.axis?.rawValue)
             fields += XML.attr("dataField", f.isDataField)
-            fields += XML.attr("showAll", f.showAll)
+            fields += XML.attr("showAll", f.showsAll)
             if !f.defaultSubtotal { fields += " defaultSubtotal=\"0\"" }
             for k in f.otherAttributes.keys.sorted() { fields += XML.attr(k, f.otherAttributes[k]) }
             guard !f.items.isEmpty else { fields += "/>"; continue }
@@ -96,9 +96,9 @@ enum PivotParts {
         }
         if let info = p.styleInfo {
             generated.append(("pivotTableStyleInfo", "<pivotTableStyleInfo\(XML.attr("name", info.name))"
-                + " showRowHeaders=\"\(info.showRowHeaders ? 1 : 0)\" showColHeaders=\"\(info.showColumnHeaders ? 1 : 0)\""
-                + " showRowStripes=\"\(info.showRowStripes ? 1 : 0)\" showColStripes=\"\(info.showColumnStripes ? 1 : 0)\""
-                + " showLastColumn=\"\(info.showLastColumn ? 1 : 0)\"/>"))
+                + " showRowHeaders=\"\(info.showsRowHeaders ? 1 : 0)\" showColHeaders=\"\(info.showsColumnHeaders ? 1 : 0)\""
+                + " showRowStripes=\"\(info.showsRowStripes ? 1 : 0)\" showColStripes=\"\(info.showsColumnStripes ? 1 : 0)\""
+                + " showLastColumn=\"\(info.showsLastColumn ? 1 : 0)\"/>"))
         }
         s += XMLWriter.ordered(generated, fragments: p.fragments, order: tableOrder)
         return s + "</pivotTableDefinition>"
@@ -113,7 +113,7 @@ enum PivotParts {
         for (k, v) in [("createdVersion", "8"), ("refreshedVersion", "8"), ("minRefreshableVersion", "3")] {
             root.set(k, v)
         }
-        if c.refreshOnLoad { root.set("refreshOnLoad", "1") }
+        if c.refreshesOnLoad { root.set("refreshOnLoad", "1") }
         // no record part means no saved rows; the application reads the source range when it opens the file
         if recordsRelationshipId == nil { root.set("saveData", "0") }
         root.fill(from: c.otherAttributes)
@@ -175,8 +175,8 @@ final class PivotTableParser: SAXHandler {
             var t = PivotTable(name: a["name"] ?? "PivotTable", location: PivotLocation(ref: CellRange(CellRef(row: 1, column: 1))),
                                fields: [], cache: PivotCache(sourceRef: CellRange(CellRef(row: 1, column: 1)), sourceSheet: "", fields: []),
                                dataCaption: a["dataCaption"] ?? "Values",
-                               showRowGrandTotals: XMLBool.isNotFalse(a["rowGrandTotals"]),
-                               showColumnGrandTotals: XMLBool.isNotFalse(a["colGrandTotals"]),
+                               showsRowGrandTotals: XMLBool.isNotFalse(a["rowGrandTotals"]),
+                               showsColumnGrandTotals: XMLBool.isNotFalse(a["colGrandTotals"]),
                                styleInfo: nil)
             t.otherAttributes = a.filter { !PivotTableParser.knownAttributes.contains($0.key) && !$0.key.hasPrefix("xmlns") }
             table = t
@@ -193,7 +193,7 @@ final class PivotTableParser: SAXHandler {
                                             columnPageCount: Int(a["colPageCount"] ?? ""))
         case "pivotField":
             var f = PivotField(name: a["name"], axis: a["axis"].flatMap(PivotField.Axis.init(rawValue:)),
-                               isDataField: XMLBool.isTrue(a["dataField"]), showAll: XMLBool.isTrue(a["showAll"]),
+                               isDataField: XMLBool.isTrue(a["dataField"]), showsAll: XMLBool.isTrue(a["showAll"]),
                                defaultSubtotal: XMLBool.isNotFalse(a["defaultSubtotal"]))
             f.otherAttributes = a.filter { !["name", "axis", "dataField", "showAll", "defaultSubtotal"].contains($0.key) }
             field = f
@@ -215,11 +215,11 @@ final class PivotTableParser: SAXHandler {
                                                     showDataAs: a["showDataAs"], baseField: Int(a["baseField"] ?? ""),
                                                     baseItem: Int(a["baseItem"] ?? "")))
         case "pivotTableStyleInfo":
-            table?.styleInfo = PivotStyleInfo(name: a["name"], showRowHeaders: XMLBool.isTrue(a["showRowHeaders"]),
-                                              showColumnHeaders: XMLBool.isTrue(a["showColHeaders"]),
-                                              showRowStripes: XMLBool.isTrue(a["showRowStripes"]),
-                                              showColumnStripes: XMLBool.isTrue(a["showColStripes"]),
-                                              showLastColumn: XMLBool.isTrue(a["showLastColumn"]))
+            table?.styleInfo = PivotStyleInfo(name: a["name"], showsRowHeaders: XMLBool.isTrue(a["showRowHeaders"]),
+                                              showsColumnHeaders: XMLBool.isTrue(a["showColHeaders"]),
+                                              showsRowStripes: XMLBool.isTrue(a["showRowStripes"]),
+                                              showsColumnStripes: XMLBool.isTrue(a["showColStripes"]),
+                                              showsLastColumn: XMLBool.isTrue(a["showLastColumn"]))
         default: break
         }
     }
@@ -250,7 +250,7 @@ final class PivotCacheParser: SAXHandler {
     func start(_ name: String, _ a: [String: String]) {
         depth += 1
         if depth == 1 {
-            cache.refreshOnLoad = XMLBool.isTrue(a["refreshOnLoad"])
+            cache.refreshesOnLoad = XMLBool.isTrue(a["refreshOnLoad"])
             cache.recordCount = Int(a["recordCount"] ?? "")
             cache.refreshedBy = a["refreshedBy"]
             recordsRelationshipId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value

@@ -95,7 +95,7 @@ public struct ReadOptions: Sendable, Hashable {
     public var formulaCells = FormulaCellReading.formulas
     /// Keep parts the codec does not interpret (charts, VBA, …) for a lossless write-back (spec §6). Off saves memory
     /// when only values are needed.
-    public var preserveUnknownParts = true
+    public var preservesUnknownParts = true
     public var csv = CSVReadOptions()
     /// The original file name, when known — an extension hint for text files (`.tsv` → tab dialect).
     public var filename: String?
@@ -128,10 +128,10 @@ public struct ReadOptions: Sendable, Hashable {
     /// Numbers document is read from an index.
     public var concurrency: Int?
 
-    public init(formulaCells: FormulaCellReading = .formulas, preserveUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
+    public init(formulaCells: FormulaCellReading = .formulas, preservesUnknownParts: Bool = true, csv: CSVReadOptions = CSVReadOptions(),
                 filename: String? = nil, cellLimit: Int = Int.max, limits: ZipLimits = ZipLimits(),
                 sheets: SheetSelection? = nil, concurrency: Int? = nil) {
-        self.formulaCells = formulaCells; self.preserveUnknownParts = preserveUnknownParts; self.csv = csv
+        self.formulaCells = formulaCells; self.preservesUnknownParts = preservesUnknownParts; self.csv = csv
         self.filename = filename; self.cellLimit = cellLimit; self.limits = limits; self.sheets = sheets
         self.concurrency = concurrency
     }

@@ -139,7 +139,7 @@ import SwiftSheets
     }
 
     @Test func readWithoutPreservationIsLean() throws {
-        let wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"), options: ReadOptions(preserveUnknownParts: false)).workbook
+        let wb = try XLSXCodec.read(try Self.fixture("charts-and-friends.xlsx"), options: ReadOptions(preservesUnknownParts: false)).workbook
         #expect(wb.preserved.opaqueParts.isEmpty)
         #expect(wb.sheets[0]["A1"] == .text("Item"))
     }

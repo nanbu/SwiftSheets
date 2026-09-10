@@ -249,7 +249,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | openpyxl | SwiftSheets |
 |---|---|
 | `load_workbook(path)` / `data_only=True` | `Workbook(contentsOf:)` / `ReadOptions(formulaCells: .cachedValues)`; `Workbook.read(contentsOf:)` for the warnings too |
-| (no equivalent) | `Workbook.inspect(contentsOf:)` — the sheets, how many cells each declares, what the package expands to and who wrote it, before any cell is read; `InspectOptions(countCells: true)` counts what is really there. How to choose a `ReadOptions.cellLimit` for a file you do not trust |
+| (no equivalent) | `Workbook.inspect(contentsOf:)` — the sheets, how many cells each declares, what the package expands to and who wrote it, before any cell is read; `InspectOptions(countsCells: true)` counts what is really there. How to choose a `ReadOptions.cellLimit` for a file you do not trust |
 | `keep_vba=True` | not needed — VBA is always preserved |
 | `Workbook()`, `wb.save(path)` | `Workbook()`, `wb.write(to:)` → `WriteResult` (inspect its warnings) |
 | `wb.sheetnames`, `wb['Sales']`, `wb.active` | `wb.sheetNames`, `wb.sheets["Sales"]`, `wb.activeSheet` |
@@ -275,7 +275,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(3)`, `CellRef.columnIndex("C")` (1 = A) |
 | `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
 | `cell.comment = Comment(text, author)` | `sheet[cell: "A1"].note = CellNote(text, author:)` — written as the comments part plus its legacy VML |
-| `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]`, or `.list(choices: ["Todo", "Doing", "Done"], over:)` for the choices themselves (nil when they cannot be an inline list) — read and written both ways; a rule with an attribute outside the schema keeps the file's own block (`sheet.hasUnmodelledValidations`). `hideDropDown` is named for what the inverted `showDropDown` attribute means |
+| `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]`, or `.list(choices: ["Todo", "Doing", "Done"], over:)` for the choices themselves (nil when they cannot be an inline list) — read and written both ways; a rule with an attribute outside the schema keeps the file's own block (`sheet.hasUnmodelledValidations`). `hidesDropDown` is named for what the inverted `showDropDown` attribute means |
 | `ws.conditional_formatting.add(range, Rule(...))` | `sheet.addConditionalFormatting(.cellIs(.greaterThan, "100", paint: .highlight(fill: red)), over: "B2:B99")` — 17 rule kinds plus colour scales, data bars and icon sets; priorities renumbered 1…n over the sheet |
 | `DifferentialStyle(...)`, `wb._differential_styles` | `DifferentialStyle` / `DifferentialFont`, `wb.differentialStyles` — every field optional, nil meaning "leave the cell as it is" |
 | `PatternFill` / `GradientFill` | `Fill.pattern(_:)` / `Fill.gradient(_:)`; `.solid(_:)` and `.none` for the everyday cases |

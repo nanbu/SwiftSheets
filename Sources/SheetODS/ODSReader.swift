@@ -71,7 +71,7 @@ enum ODSReader {
         if let e = content.epoch { wb.epoch = e }
         wb.labelRanges = content.labelRanges
         wb.consolidation = content.consolidation
-        wb.protection.lockStructure = content.structureProtected
+        wb.protection.locksStructure = content.structureProtected
         wb.noteUnmodelledODFFeatures(content.unmodelledODF)
         wb.formulaCells = options.formulaCells
         wb.definedNames = content.definedNames
@@ -101,7 +101,7 @@ enum ODSReader {
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
 
-        if options.preserveUnknownParts {
+        if options.preservesUnknownParts {
             for name in zip.entries.keys where !interpretedParts.contains(name) && !name.hasSuffix("/") && !name.hasPrefix("Thumbnails/") {
                 let (payload, entry) = try zip.compressed(name)
                 wb.preserved.parts[name] = .compressed(payload: payload, method: entry.method, crc32: entry.crc32, uncompressedSize: entry.uncompressedSize)
@@ -297,7 +297,7 @@ final class ContentParser: SAXHandler {
     var calculationSettings = CalculationSettings()
     var epoch: DateEpoch?
     /// `office:spreadsheet table:structure-protected` (ODF 1.3 §9.1.2): the sheet list is locked — Excel's
-    /// `lockStructure` (spec Appendix B.40.4).
+    /// `locksStructure` (spec Appendix B.40.4).
     var structureProtected = false
     var labelRanges: [LabelRange] = []
     var consolidation: Consolidation?
@@ -421,8 +421,8 @@ final class ContentParser: SAXHandler {
             if let v = ODSAttr.bool(a, "table:precision-as-shown") { calculationSettings.precisionAsShown = v }
             if let v = ODSAttr.bool(a, "table:search-criteria-must-apply-to-whole-cell") { calculationSettings.searchCriteriaMustApplyToWholeCell = v }
             if let v = ODSAttr.bool(a, "table:automatic-find-labels") { calculationSettings.automaticFindLabels = v }
-            if let v = ODSAttr.bool(a, "table:use-regular-expressions") { calculationSettings.useRegularExpressions = v }
-            if let v = ODSAttr.bool(a, "table:use-wildcards") { calculationSettings.useWildcards = v }
+            if let v = ODSAttr.bool(a, "table:use-regular-expressions") { calculationSettings.usesRegularExpressions = v }
+            if let v = ODSAttr.bool(a, "table:use-wildcards") { calculationSettings.usesWildcards = v }
             if let v = ODSAttr.int(a, "table:null-year") { calculationSettings.nullYear = v }
         case "null-date":
             // ODF lets the date origin be any date; the model, like Excel, knows two
@@ -452,7 +452,7 @@ final class ContentParser: SAXHandler {
             var c = Consolidation(function: ODSPivot.excelFunction(ODSAttr.get(a, "table:function") ?? "sum"),
                                   sources: sources, target: target.topLeft, targetSheet: targetSheet)
             c.useLabels = Consolidation.Labels(rawValue: ODSAttr.get(a, "table:use-labels") ?? "none") ?? .none
-            c.linkToSourceData = ODSAttr.bool(a, "table:link-to-source-data") ?? false
+            c.linksToSourceData = ODSAttr.bool(a, "table:link-to-source-data") ?? false
             consolidation = c
         case "detective":
             guard inCell else { return }

@@ -224,8 +224,8 @@ public struct SheetProperties: Hashable, Sendable {
     /// Where the summary row of an outline group sits (Excel default: below; set false for "parent row above").
     public var summaryBelow = true
     public var summaryRight = true
-    /// `<pageSetUpPr fitToPage>` — print scaling to the `fitToWidth` / `fitToHeight` pages of `PageSetup`.
-    public var fitToPage: Bool?
+    /// `<pageSetUpPr fitsToPage>` — print scaling to the `fitToWidth` / `fitToHeight` pages of `PageSetup`.
+    public var fitsToPage: Bool?
     /// VBA code name (`<sheetPr codeName>`), preserved when present.
     public var codeName: String?
     public var filterMode: Bool?
@@ -233,7 +233,7 @@ public struct SheetProperties: Hashable, Sendable {
 }
 
 public struct SheetView: Hashable, Sendable {
-    public var showGridLines = true
+    public var showsGridLines = true
     public var zoomScale = 100
     public var tabSelected = false
     /// The cursor cell of the (last) selection.
@@ -266,7 +266,7 @@ public struct PageSetup: Hashable, Sendable {
     public var fitToHeight: Int?
     public var scale: Int?
     public var firstPageNumber: Int?
-    public var useFirstPageNumber: Bool?
+    public var usesFirstPageNumber: Bool?
     public init() {}
 }
 

@@ -59,7 +59,7 @@ enum ODSPageStyles {
         props += " fo:margin-bottom=\"\(cm(inches: Swift.min(p.margins.footer, p.margins.bottom)))\""
         props += " fo:margin-left=\"\(cm(inches: p.margins.left))\" fo:margin-right=\"\(cm(inches: p.margins.right))\""
         props += " style:print-page-order=\"ttb\""
-        if p.setup.useFirstPageNumber == true, let n = p.setup.firstPageNumber { props += " style:first-page-number=\"\(n)\"" }
+        if p.setup.usesFirstPageNumber == true, let n = p.setup.firstPageNumber { props += " style:first-page-number=\"\(n)\"" }
         if let scale = p.setup.scale { props += " style:scale-to=\"\(scale)%\"" }
         else if p.setup.fitToWidth != nil || p.setup.fitToHeight != nil {
             props += " style:scale-to-X=\"\(p.setup.fitToWidth ?? 1)\" style:scale-to-Y=\"\(p.setup.fitToHeight ?? 1)\""
@@ -88,7 +88,7 @@ enum ODSPageStyles {
         if let l = layout {
             let p = l.properties
             if let o = ODSAttr.get(p, "style:print-orientation") { sheet.pageSetup.orientation = PageSetup.Orientation(rawValue: o) }
-            if let n = ODSAttr.int(p, "style:first-page-number") { sheet.pageSetup.firstPageNumber = n; sheet.pageSetup.useFirstPageNumber = true }
+            if let n = ODSAttr.int(p, "style:first-page-number") { sheet.pageSetup.firstPageNumber = n; sheet.pageSetup.usesFirstPageNumber = true }
             if let scale = ODSAttr.get(p, "style:scale-to"), let v = Int(scale.replacingOccurrences(of: "%", with: "")) { sheet.pageSetup.scale = v }
             if let x = ODSAttr.int(p, "style:scale-to-X") { sheet.pageSetup.fitToWidth = x }
             if let y = ODSAttr.int(p, "style:scale-to-Y") { sheet.pageSetup.fitToHeight = y }

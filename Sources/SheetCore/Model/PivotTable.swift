@@ -29,8 +29,8 @@ public struct PivotTable: Hashable, Sendable {
     public var dataFields: [PivotDataField]
     /// The caption over the values area ("値", "Values").
     public var dataCaption: String
-    public var showRowGrandTotals: Bool
-    public var showColumnGrandTotals: Bool
+    public var showsRowGrandTotals: Bool
+    public var showsColumnGrandTotals: Bool
     /// The banding and built-in look (`<pivotTableStyleInfo>`).
     public var styleInfo: PivotStyleInfo?
     /// The source snapshot this table reads.
@@ -45,12 +45,12 @@ public struct PivotTable: Hashable, Sendable {
     public init(name: String, location: PivotLocation, fields: [PivotField], cache: PivotCache,
                 rowFields: [Int] = [], columnFields: [Int] = [], pageFields: [PivotPageField] = [],
                 dataFields: [PivotDataField] = [], dataCaption: String = "Values",
-                showRowGrandTotals: Bool = true, showColumnGrandTotals: Bool = true,
+                showsRowGrandTotals: Bool = true, showsColumnGrandTotals: Bool = true,
                 styleInfo: PivotStyleInfo? = .default) {
         self.name = name; self.location = location; self.fields = fields; self.cache = cache
         self.rowFields = rowFields; self.columnFields = columnFields; self.pageFields = pageFields
         self.dataFields = dataFields; self.dataCaption = dataCaption
-        self.showRowGrandTotals = showRowGrandTotals; self.showColumnGrandTotals = showColumnGrandTotals
+        self.showsRowGrandTotals = showsRowGrandTotals; self.showsColumnGrandTotals = showsColumnGrandTotals
         self.styleInfo = styleInfo
     }
 
@@ -92,7 +92,7 @@ public struct PivotTable: Hashable, Sendable {
         guard !names.isEmpty, names.allSatisfy({ !$0.isEmpty }) else { return nil }
         var cache = PivotCache(sourceRef: source, sourceSheet: sourceSheet,
                                fields: names.map { PivotCacheField(name: $0) })
-        cache.refreshOnLoad = true
+        cache.refreshesOnLoad = true
 
         func index(of column: String) -> Int? { names.firstIndex(of: column) }
         let rowIndices = rows.compactMap(index), columnIndices = columns.compactMap(index)
@@ -160,7 +160,7 @@ public struct PivotField: Hashable, Sendable {
     /// The field is summarised in the body rather than used as a heading.
     public var isDataField: Bool
     /// Show items that no row falls into.
-    public var showAll: Bool
+    public var showsAll: Bool
     /// Show a subtotal for the field.
     public var defaultSubtotal: Bool
     /// The items the field lists, in the order the table draws them. Excel writes these out even for a table it
@@ -168,10 +168,10 @@ public struct PivotField: Hashable, Sendable {
     public var items: [PivotFieldItem]
     package var otherAttributes: [String: String] = [:]
 
-    public init(name: String? = nil, axis: Axis? = nil, isDataField: Bool = false, showAll: Bool = false,
+    public init(name: String? = nil, axis: Axis? = nil, isDataField: Bool = false, showsAll: Bool = false,
                 defaultSubtotal: Bool = true, items: [PivotFieldItem] = []) {
         self.name = name; self.axis = axis; self.isDataField = isDataField
-        self.showAll = showAll; self.defaultSubtotal = defaultSubtotal; self.items = items
+        self.showsAll = showsAll; self.defaultSubtotal = defaultSubtotal; self.items = items
     }
 }
 
@@ -236,24 +236,24 @@ public struct PivotPageField: Hashable, Sendable {
 /// The built-in look of a pivot table (`<pivotTableStyleInfo>`).
 public struct PivotStyleInfo: Hashable, Sendable {
     public var name: String?
-    public var showRowHeaders: Bool
-    public var showColumnHeaders: Bool
-    public var showRowStripes: Bool
-    public var showColumnStripes: Bool
-    public var showLastColumn: Bool
+    public var showsRowHeaders: Bool
+    public var showsColumnHeaders: Bool
+    public var showsRowStripes: Bool
+    public var showsColumnStripes: Bool
+    public var showsLastColumn: Bool
 
-    public init(name: String? = nil, showRowHeaders: Bool = true, showColumnHeaders: Bool = true,
-                showRowStripes: Bool = false, showColumnStripes: Bool = false, showLastColumn: Bool = true) {
-        self.name = name; self.showRowHeaders = showRowHeaders; self.showColumnHeaders = showColumnHeaders
-        self.showRowStripes = showRowStripes; self.showColumnStripes = showColumnStripes
-        self.showLastColumn = showLastColumn
+    public init(name: String? = nil, showsRowHeaders: Bool = true, showsColumnHeaders: Bool = true,
+                showsRowStripes: Bool = false, showsColumnStripes: Bool = false, showsLastColumn: Bool = true) {
+        self.name = name; self.showsRowHeaders = showsRowHeaders; self.showsColumnHeaders = showsColumnHeaders
+        self.showsRowStripes = showsRowStripes; self.showsColumnStripes = showsColumnStripes
+        self.showsLastColumn = showsLastColumn
     }
     public static let `default` = PivotStyleInfo(name: "PivotStyleLight16")
 }
 
 /// The snapshot of a source range a pivot table reads (`xl/pivotCache/pivotCacheDefinition*.xml`).
 ///
-/// SwiftSheets does not write the cached rows themselves: `refreshOnLoad` is set instead, so the application reads
+/// SwiftSheets does not write the cached rows themselves: `refreshesOnLoad` is set instead, so the application reads
 /// the source range when it opens the file. A cache read from a file keeps whatever record part it came with.
 public struct PivotCache: Hashable, Sendable {
     /// The cells the pivot summarises, header row included.
@@ -265,7 +265,7 @@ public struct PivotCache: Hashable, Sendable {
     /// One per column of the source, in order.
     public var fields: [PivotCacheField]
     /// Read the source range again when the file is opened. SwiftSheets sets this on every cache it writes.
-    public var refreshOnLoad: Bool
+    public var refreshesOnLoad: Bool
     /// How many source rows the cache holds, when it holds any.
     public var recordCount: Int?
     /// Who last refreshed the cache, and when — informational.
@@ -281,9 +281,9 @@ public struct PivotCache: Hashable, Sendable {
     package var recordsXML: Data?
 
     public init(sourceRef: CellRange, sourceSheet: String, fields: [PivotCacheField],
-                sourceName: String? = nil, refreshOnLoad: Bool = true, recordCount: Int? = nil) {
+                sourceName: String? = nil, refreshesOnLoad: Bool = true, recordCount: Int? = nil) {
         self.sourceRef = sourceRef; self.sourceSheet = sourceSheet; self.fields = fields
-        self.sourceName = sourceName; self.refreshOnLoad = refreshOnLoad; self.recordCount = recordCount
+        self.sourceName = sourceName; self.refreshesOnLoad = refreshesOnLoad; self.recordCount = recordCount
     }
 }
 

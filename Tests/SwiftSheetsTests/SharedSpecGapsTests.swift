@@ -10,27 +10,27 @@ import SwiftSheets
 @Suite struct SharedSpecGapsTests {
     // MARK: - The ODF structure lock
 
-    /// `office:spreadsheet table:structure-protected` is Excel's `lockStructure`: written, read back, and carried
+    /// `office:spreadsheet table:structure-protected` is Excel's `locksStructure`: written, read back, and carried
     /// across formats in both directions.
     @Test func theStructureLockRoundTripsThroughODS() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
-        wb.protection.lockStructure = true
+        wb.protection.locksStructure = true
         let written = try wb.write(as: .ods)
         #expect(!written.warnings.contains { $0.message.contains("workbook protection") }, "the lock is written, not dropped: \(written.warnings.map(\.message))")
         let content = String(decoding: try ZipArchive(data: written.data).read("content.xml"), as: UTF8.self)
         #expect(content.contains("<office:spreadsheet table:structure-protected=\"true\">"))
         let back = try Workbook(data: written.data)
-        #expect(back.protection.lockStructure)
+        #expect(back.protection.locksStructure)
         // and the way back to Excel keeps it
         let xlsx = try Workbook(data: try back.write(as: .xlsx).data)
-        #expect(xlsx.protection.lockStructure)
+        #expect(xlsx.protection.locksStructure)
 
         // an unlocked workbook writes no attribute, and reads back unlocked
         var plain = Workbook(); plain.sheets[0]["A1"] = "y"
         let plainContent = String(decoding: try ZipArchive(data: try plain.write(as: .ods).data).read("content.xml"), as: UTF8.self)
         #expect(!plainContent.contains("structure-protected"))
-        #expect(!(try Workbook(data: try plain.write(as: .ods).data)).protection.lockStructure)
+        #expect(!(try Workbook(data: try plain.write(as: .ods).data)).protection.locksStructure)
     }
 
     /// What ODF cannot say about workbook protection is still said: the window lock, the revision lock and the
@@ -38,12 +38,12 @@ import SwiftSheets
     @Test func whatODFCannotSayAboutProtectionIsReported() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
-        wb.protection.lockWindows = true
+        wb.protection.locksWindows = true
         wb.protection.setPassword("pw")
         let result = try wb.write(as: .ods)
         let about = result.warnings.filter { $0.message.contains("workbook protection") }
         #expect(about.count == 1 && about[0].message.contains("the window lock") && about[0].message.contains("the password"), "\(about)")
-        #expect(!(try Workbook(data: result.data)).protection.lockStructure)
+        #expect(!(try Workbook(data: result.data)).protection.locksStructure)
     }
 
     /// A file LibreOffice itself wrote with the structure protected reads as locked; and LibreOffice keeps the
@@ -52,7 +52,7 @@ import SwiftSheets
     func libreOfficeKeepsTheStructureLock() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "locked"
-        wb.protection.lockStructure = true
+        wb.protection.locksStructure = true
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("swiftsheets-lock-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -72,7 +72,7 @@ import SwiftSheets
         try #require(FileManager.default.fileExists(atPath: resaved.path), Comment(rawValue: "LibreOffice did not produce the file: \(log)"))
         let content = String(decoding: try ZipArchive(data: try Data(contentsOf: resaved)).read("content.xml"), as: UTF8.self)
         #expect(content.contains("table:structure-protected=\"true\""), "LibreOffice kept the lock it read from this library's file")
-        #expect(try Workbook(contentsOf: resaved).protection.lockStructure)
+        #expect(try Workbook(contentsOf: resaved).protection.locksStructure)
     }
 
     // MARK: - OOXML's calculation properties
@@ -100,7 +100,7 @@ import SwiftSheets
         #expect(again.calculationSettings.iterationEnabled && again.calculationSettings.precisionAsShown)
         // a setting only ODF has is still reported when writing XLSX
         var regex = Workbook(); regex.sheets[0]["A1"] = 1
-        regex.calculationSettings.useRegularExpressions = true
+        regex.calculationSettings.usesRegularExpressions = true
         #expect(try regex.write(as: .xlsx).warnings.contains { $0.message.contains("regular expression") })
     }
 

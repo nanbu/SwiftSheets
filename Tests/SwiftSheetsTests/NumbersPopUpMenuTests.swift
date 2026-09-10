@@ -5,7 +5,7 @@ import SwiftSheets
 
 /// A Numbers pop-up menu and a `.list` data validation are the same thing in two vocabularies, and Numbers itself
 /// says so: importing an Excel dropdown makes a pop-up, exporting a pop-up makes a strict inline-list dropdown
-/// (`allowBlank`, `showInputMessage` and `showErrorMessage` all on). The reader and writer follow that mapping.
+/// (`allowsBlank`, `showsInputMessage` and `showsErrorMessage` all on). The reader and writer follow that mapping.
 ///
 /// `popup-15.numbers` is Numbers 15.3.1's own import of an openpyxl workbook holding three list rules — text,
 /// numbers, and a strict one — over two cells each, one filled and one empty (see MAINTENANCE.md). Numbers made
@@ -23,7 +23,7 @@ import SwiftSheets
         #expect(rules.count == 3, Comment(rawValue: "\(rules)"))
         #expect(rules.allSatisfy { $0.kind == .list })
         // the shape Numbers itself exports: strict, blank allowed, messages shown
-        #expect(rules.allSatisfy { $0.allowBlank && $0.showInputMessage && $0.showErrorMessage })
+        #expect(rules.allSatisfy { $0.allowsBlank && $0.showsInputMessage && $0.showsErrorMessage })
         #expect(result.warnings.allSatisfy { !$0.message.contains("control") },
                 Comment(rawValue: "\(result.warnings.map(\.message))"))
     }

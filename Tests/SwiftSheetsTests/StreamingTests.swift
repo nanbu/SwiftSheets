@@ -115,7 +115,7 @@ import SwiftSheets
         try reader.forEachRow(inSheet: "Sheet1") { plain = $0.cells.first?.style }
         #expect(plain == nil)
         var styled: CellStyle?
-        try reader.forEachRow(inSheet: "Sheet1", options: StreamingReadOptions(includeStyles: true)) { styled = $0.cells.first?.style }
+        try reader.forEachRow(inSheet: "Sheet1", options: StreamingReadOptions(includesStyles: true)) { styled = $0.cells.first?.style }
         #expect(styled?.font.bold == true)
     }
 

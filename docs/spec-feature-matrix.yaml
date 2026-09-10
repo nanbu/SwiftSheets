@@ -628,7 +628,7 @@ formats:
               - "DataValidation"
             warning: null
             evidence: "measured"
-            note: "hideDropDown は、反転した showDropDown 属性の「意味」で名づけた。"
+            note: "hidesDropDown は、反転した showDropDown 属性の「意味」で名づけた。"
           - id: "xlsx.dv.ext"
             name: "拡張の入力規則（別シートを直接指すリストなど）"
             spec_anchor: "<extLst> x14:dataValidations"
@@ -1455,7 +1455,7 @@ formats:
             read: "full"
             write: "full"
             api:
-              - "wb.protection.lockStructure"
+              - "wb.protection.locksStructure"
             warning: null
             evidence: "judge"
             note: "シートの追加・削除・改名・並べ替えを禁じる旗。鍵（table:protection-key）は Excel の合鍵と互換が無いので運ばず、旗だけを往復する。LibreOffice が読み戻しで保持する（付録 B.40.4）。以前は「ODF に概念なし」と書いていたが誤りだった。"

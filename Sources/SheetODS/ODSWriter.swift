@@ -310,7 +310,7 @@ enum ODSWriter {
         contentHead += "<office:scripts/><office:font-face-decls>" + fontFacesXML(styles.fonts) + "</office:font-face-decls>"
         contentHead += "<office:automatic-styles>" + styles.xml() + "</office:automatic-styles>"
         // the structure lock is ODF's own (table:structure-protected, spec Appendix B.40.4); the key is not carried
-        contentHead += "<office:body><office:spreadsheet" + (wb.protection.lockStructure ? " table:structure-protected=\"true\"" : "") + ">"
+        contentHead += "<office:body><office:spreadsheet" + (wb.protection.locksStructure ? " table:structure-protected=\"true\"" : "") + ">"
         let contentTail = "</office:spreadsheet></office:body></office:document-content>"
 
         // sheet features the ODS writer does not express (all of them read and written for XLSX; none of them
@@ -356,12 +356,12 @@ enum ODSWriter {
         // and the passwords have no spelling there. The lock's own key is not carried either — ODF's
         // protection-key is a digest of another kind than Excel's, so the lock is written without one.
         var unsaid: [String] = []
-        if wb.protection.lockWindows { unsaid.append("the window lock") }
-        if wb.protection.lockRevision { unsaid.append("the revision lock") }
+        if wb.protection.locksWindows { unsaid.append("the window lock") }
+        if wb.protection.locksRevision { unsaid.append("the revision lock") }
         if wb.protection.passwordHash != nil || wb.protection.hashValue != nil { unsaid.append("the password") }
         if wb.protection.revisionsPasswordHash != nil { unsaid.append("the revisions password") }
         if !unsaid.isEmpty {
-            sink.add(.dropped, subject: .other, "workbook protection: \(unsaid.joined(separator: ", ")) dropped — ODF has the structure lock only" + (wb.protection.lockStructure ? ", which is written" : ""))
+            sink.add(.dropped, subject: .other, "workbook protection: \(unsaid.joined(separator: ", ")) dropped — ODF has the structure lock only" + (wb.protection.locksStructure ? ", which is written" : ""))
         }
 
         // warnings about what the styles could not say

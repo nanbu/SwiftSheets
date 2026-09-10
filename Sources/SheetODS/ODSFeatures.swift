@@ -43,8 +43,8 @@ enum ODSFeatures {
             attrs += " table:search-criteria-must-apply-to-whole-cell=\"\(c.searchCriteriaMustApplyToWholeCell)\""
         }
         if c.automaticFindLabels != defaults.automaticFindLabels { attrs += " table:automatic-find-labels=\"\(c.automaticFindLabels)\"" }
-        if c.useRegularExpressions != defaults.useRegularExpressions { attrs += " table:use-regular-expressions=\"\(c.useRegularExpressions)\"" }
-        if c.useWildcards != defaults.useWildcards { attrs += " table:use-wildcards=\"\(c.useWildcards)\"" }
+        if c.usesRegularExpressions != defaults.usesRegularExpressions { attrs += " table:use-regular-expressions=\"\(c.usesRegularExpressions)\"" }
+        if c.usesWildcards != defaults.usesWildcards { attrs += " table:use-wildcards=\"\(c.usesWildcards)\"" }
         if let year = c.nullYear { attrs += " table:null-year=\"\(year)\"" }
 
         var children = ""
@@ -91,7 +91,7 @@ enum ODSFeatures {
         s += " table:source-cell-range-addresses=\"\(XML.esc(sources))\""
         s += " table:target-cell-address=\"\(XML.esc(address(c.target, sheet: c.targetSheet)))\""
         if c.useLabels != .none { s += " table:use-labels=\"\(c.useLabels.rawValue)\"" }
-        if c.linkToSourceData { s += " table:link-to-source-data=\"true\"" }
+        if c.linksToSourceData { s += " table:link-to-source-data=\"true\"" }
         return s + "/>"
     }
 

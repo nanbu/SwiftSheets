@@ -135,12 +135,12 @@ import Testing
         #expect(xml.contains("showErrorMessage=\"1\"") && xml.contains("errorStyle=\"stop\""))
     }
 
-    /// `hideDropDown` is the meaning; `showDropDown="1"` is how the file spells it.
+    /// `hidesDropDown` is the meaning; `showDropDown="1"` is how the file spells it.
     @Test func hidingTheArrowWritesTheInvertedAttribute() throws {
         var wb = Workbook()
         var ws = wb.activeSheet
         var dv = DataValidation.list("\"a,b\"", over: MultiCellRange("A1")!)
-        dv.hideDropDown = true
+        dv.hidesDropDown = true
         ws.dataValidations = [dv]
         wb.sheets[0] = ws
         #expect(try Self.sheetXML(wb).contains("showDropDown=\"1\""))
@@ -152,7 +152,7 @@ import Testing
         var ws = wb.activeSheet
         ws.dataValidations = [DataValidation(kind: .whole, ranges: MultiCellRange("A1:A5 C1")!, formula1: "0",
                                              formula2: "100", operator: .between, errorStyle: .warning,
-                                             allowBlank: true, showInputMessage: true, showErrorMessage: true,
+                                             allowsBlank: true, showsInputMessage: true, showsErrorMessage: true,
                                              errorTitle: "範囲外", error: "0〜100 <で>", promptTitle: "入力",
                                              prompt: "0〜100", imeMode: "halfAlpha")]
         wb.sheets[0] = ws

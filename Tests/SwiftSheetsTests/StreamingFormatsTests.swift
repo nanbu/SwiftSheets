@@ -40,9 +40,9 @@ import SwiftSheets
     }
 
     /// The rows of the whole-workbook reader, in the streaming reader's shape, to compare against.
-    static func rows(of sheet: Sheet, includeStyles: Bool = false) -> [(index: Int, cells: [(column: Int, value: CellValue?)])] {
+    static func rows(of sheet: Sheet, includesStyles: Bool = false) -> [(index: Int, cells: [(column: Int, value: CellValue?)])] {
         var byRow: [Int: [(Int, CellValue?)]] = [:]
-        for (ref, cell) in sheet.table.cells where cell.value != nil || (includeStyles && cell.style != .default) {
+        for (ref, cell) in sheet.table.cells where cell.value != nil || (includesStyles && cell.style != .default) {
             byRow[ref.row, default: []].append((ref.column, cell.value))
         }
         return byRow.keys.sorted().compactMap { r in
@@ -85,7 +85,7 @@ import SwiftSheets
         // styles on request, and only on request
         var plain: CellStyle?, styled: CellStyle?
         try reader.forEachRow(inSheet: "Data") { if $0.index == 1 { plain = $0.cells.first?.style } }
-        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(includeStyles: true)) { if $0.index == 1 { styled = $0.cells.first?.style } }
+        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(includesStyles: true)) { if $0.index == 1 { styled = $0.cells.first?.style } }
         #expect(plain == nil && styled?.font.bold == true, "\(format): the heading is bold when styles are asked for")
         // formulas and .cachedValues
         var formula: CellValue?, cached: CellValue?
@@ -165,7 +165,7 @@ import SwiftSheets
         #expect(rows[1].cells.map(\.value) == [.integer(7), .integer(7)])
         #expect(rows[4].cells.first?.value == .text("after the gap\nsecond    para"), "ODF white space collapses; text:s is literal")
         var styled: [StreamedRow] = []
-        try reader.forEachRow(inSheet: "First", options: StreamingReadOptions(includeStyles: true)) { styled.append($0) }
+        try reader.forEachRow(inSheet: "First", options: StreamingReadOptions(includesStyles: true)) { styled.append($0) }
         #expect(styled[1].cells.map(\.ref.column) == [1, 2, 4], "with styles, the styled empty cell is delivered as a cell holding nothing")
         #expect(styled[1].cells[2].style?.font.bold == true)
         var withEmpty: [Int] = []

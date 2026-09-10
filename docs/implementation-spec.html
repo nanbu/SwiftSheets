@@ -1234,7 +1234,7 @@ pre .vr { color: var(--code-var); }
       <td colspan="2">指定（または既定）の文字コードとして不正なバイト列は、<strong>黙って文字化けさせず</strong> <code>SheetError.malformedPart</code>（バイトオフセット付き）で失敗する。<code>lossy: true</code> を指定した場合のみ置換文字で読み進め、<code>degraded</code> 警告を返す</td></tr>
     <tr><td><strong>書き出し</strong></td>
       <td>UTF-8・<strong>BOM なし</strong></td>
-      <td><code>CSVWriteOptions(encoding:includeBOM:)</code>。<code>includeBOM: true</code> で UTF-8 BOM を付与。<code>encoding</code> に任意の文字コードを指定可能（BOM 付与は UTF-8 / UTF-16 系のみ有効）</td></tr>
+      <td><code>CSVWriteOptions(encoding:includesBOM:)</code>。<code>includesBOM: true</code> で UTF-8 BOM を付与。<code>encoding</code> に任意の文字コードを指定可能（BOM 付与は UTF-8 / UTF-16 系のみ有効）</td></tr>
     <tr><td><strong>書き出し失敗時</strong></td>
       <td colspan="2">指定文字コードで表現できない文字（例：Shift_JIS に存在しない文字）は既定でエラー。<code>lossy: true</code> で置換の上 <code>degraded</code> 警告（セル位置付き）</td></tr>
   </table></div>
@@ -1242,7 +1242,7 @@ pre .vr { color: var(--code-var); }
   <div class="callout callout-tip">
     <span class="label">BOM の使い分け指針</span>
     <p>BOM なし UTF-8 の CSV を日本語環境の Excel でダブルクリックすると文字化けする（Excel が
-    レガシー文字コードで解釈するため）。<strong>人に配って Excel で開かせるなら <code>includeBOM: true</code>、
+    レガシー文字コードで解釈するため）。<strong>人に配って Excel で開かせるなら <code>includesBOM: true</code>、
     システム間連携やプログラムでの取り込みなら BOM なし</strong>が原則。この指針は API ドキュメントにも記載する。</p>
   </div>
 
@@ -1273,7 +1273,7 @@ pre .vr { color: var(--code-var); }
 }
 <span class="kw">public struct</span> <span class="ty">CSVWriteOptions</span>: <span class="ty">Sendable</span> {
     <span class="kw">public var</span> encoding: <span class="ty">String</span>.<span class="ty">Encoding</span> = .utf8
-    <span class="kw">public var</span> includeBOM: <span class="ty">Bool</span> = <span class="kw">false</span>     <span class="cm">// Excel 配布用途では true を推奨</span>
+    <span class="kw">public var</span> includesBOM: <span class="ty">Bool</span> = <span class="kw">false</span>     <span class="cm">// Excel 配布用途では true を推奨</span>
     <span class="kw">public var</span> dialect: <span class="ty">CSVDialect</span> = .comma
     <span class="kw">public var</span> newline: <span class="ty">CSVNewline</span> = .crlf
     <span class="kw">public var</span> sheet: <span class="ty">String</span>?               <span class="cm">// nil = アクティブシート</span>
@@ -1291,7 +1291,7 @@ pre .vr { color: var(--code-var); }
 
 <span class="cm">// Excel でそのまま開ける UTF-8（BOM 付き）で書き出す</span>
 <span class="kw">try</span> wb.write(to: outURL, as: .csv,
-             options: .init(csv: .init(includeBOM: <span class="kw">true</span>)))</code></pre>
+             options: .init(csv: .init(includesBOM: <span class="kw">true</span>)))</code></pre>
 </section>
 
 <!-- ===================== CH 10 ===================== -->
@@ -1639,7 +1639,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
     <tr><td><code>NumbersReadOptions(versionPolicy: .tolerant)</code></td><td>Numbers</td><td>未検証バージョンでも読み進め、警告で報告（第10章）</td></tr>
     <tr><td>（平坦化オプションは持たない）</td><td>Numbers→他形式</td><td>先頭テーブルを書き、落とした数を <code>dropped</code> 警告で言う。規則を選ばせる API を持たない理由は付録 B.12 の表</td></tr>
     <tr><td><code>CSVReadOptions(encoding: .shiftJIS)</code></td><td>CSV</td><td>文字コード明示。未指定時は UTF-8（BOM 有無を自動判別 — 第9章）</td></tr>
-    <tr><td><code>CSVWriteOptions(encoding:includeBOM:dialect:)</code></td><td>CSV</td><td>既定は UTF-8・BOM なし。Excel 配布用に BOM 付与可</td></tr>
+    <tr><td><code>CSVWriteOptions(encoding:includesBOM:dialect:)</code></td><td>CSV</td><td>既定は UTF-8・BOM なし。Excel 配布用に BOM 付与可</td></tr>
     <tr><td><code>CSVDialect(delimiter: "\t")</code></td><td>CSV</td><td>TSV・セミコロン区切り等の方言指定</td></tr>
     <tr><td><code>wb.sourceInfo</code></td><td>共通</td><td>読み込み元の形式・生成アプリ・バージョン（Numbers は BuildVersionHistory 由来）</td></tr>
   </table></div>
@@ -1820,7 +1820,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
 
 <span class="cm">// Excel でダブルクリックしても化けない CSV も併せて出力</span>
 <span class="kw">try</span> wb.write(to: csvOutURL, as: .csv,
-             options: .init(csv: .init(includeBOM: <span class="kw">true</span>)))</code></pre>
+             options: .init(csv: .init(includesBOM: <span class="kw">true</span>)))</code></pre>
   <div class="callout callout-tip">
     <span class="label">レシピの位置づけ</span>
     <p>15.1（ラウンドトリップ編集）と 15.3（一括変換）は P1 / P3 の受け入れテストを兼ねる。
@@ -1904,7 +1904,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.9 Draft</td><td>2026-08-31</td><td><strong>圧縮の差し替え口</strong>を付録 B.38 に記録。Linux を塞いでいたのは自前 ZIP ではなく、その中で実際にバイトを畳む <strong>Apple 専用の部品 2 つ</strong>だった —— <code>Compression</code> と <code>CryptoKit</code>。畳む道具を <code>Deflate</code> の向こうへ移し、Compression の無い機械では system zlib が答えるようにした（<code>Sources/CZlib</code> はモジュールマップ 1 枚・SwiftPM 依存は増えない）。SHA-512 は自前へ戻す（10 万回反復が release で 0.29 秒）。<code>XMLParser</code> は Linux では <code>FoundationXML</code> にあるので条件つき import を 8 ファイルに追加。審判は <code>-DSWIFTSHEETS_ZLIB</code> —— <strong>両方の道具箱を持つ macOS で、同じ 941 件を zlib 経路でも走らせる</strong>。Linux 対応は CI が緑になるまで名乗らない</td></tr>
     <tr><td>4.8 Draft</td><td>2026-08-31</td><td><strong>申告されていない越境</strong>を付録 B.37 に記録。2 枚目以降のシートに書式を付けると Numbers が書類を開かなかった——複製シートの部品は書いている最中は予約されているだけで目録に無く、スタイルシートへの越境の申告が丸ごと飛ばされていた。越境は集めてから <code>flushComponents()</code> の直後に登録する方式へ。一般の不変条件は入れない（Numbers 自身の書類にも未申告の越境が 47 件ある）。見本 19-style-on-second-sheet と NumbersCrossingTests で釘打ち</td></tr>
     <tr><td>4.12 Draft</td><td>2026-09-04</td><td><strong>速さと大きさの第二段</strong>を付録 B.39 に開き、その第 1・第 2 小節を記録。着手前の実測（100 万マスで読み 5.7 秒の約 7 割が Foundation の XML 部品まわり、圧縮を戻すのは 0.02 秒）を前提に、<strong>封筒（ZIP）を作り替えた</strong>: バイトの出所の抽象化（写像／位置指定読み）・ZIP64 の読み書き・切れ端ごとの展開・申告の妥当性検査（部品数・合計・圧縮率・重なり）と <code>ReadOptions.limits</code>・縮めたままの写し・CRC-32 を zlib へ。<strong>セル数の既定の天井を外した</strong>（<code>cellLimit</code> は <code>Int.max</code>、設定は残す）。README の Limits から ZIP64 の行が消え、Cell budget の行が「既定なし」になった。テスト 960 件</td></tr>
-    <tr><td>4.13 Draft</td><td>2026-09-04</td><td><strong>読む前に問い合わせる API</strong> <code>Workbook.inspect</code> を付録 B.39.3 に記録。シート・申告セル数・展開後のバイト数・生成元を、セルを作らずに返す。XLSX は部品の先頭の切れ端だけ、ODS は本文をバイト列で 1 度歩いて反復回数を掛ける、Numbers は表の archive の行数×列数。<code>InspectOptions.countCells</code> で実数も数える。タグだけを拾うバイト走査器 <code>TagScanner</code> を新設（後段の字句解析器の先触れ）。テスト 971 件</td></tr>
+    <tr><td>4.13 Draft</td><td>2026-09-04</td><td><strong>読む前に問い合わせる API</strong> <code>Workbook.inspect</code> を付録 B.39.3 に記録。シート・申告セル数・展開後のバイト数・生成元を、セルを作らずに返す。XLSX は部品の先頭の切れ端だけ、ODS は本文をバイト列で 1 度歩いて反復回数を掛ける、Numbers は表の archive の行数×列数。<code>InspectOptions.countsCells</code> で実数も数える。タグだけを拾うバイト走査器 <code>TagScanner</code> を新設（後段の字句解析器の先触れ）。テスト 971 件</td></tr>
     <tr><td>4.14 Draft</td><td>2026-09-04</td><td><strong>形式の判定</strong>を付録 B.39.4 に記録し §4.2 に規則 3 つを足した。<code>SheetFormat.detect(contentsOf:)</code> はファイル全体を読まない（先頭 4 バイト・末尾の目録・小さな 1 部品）。<code>SheetFormat.probe</code> → <code>FormatProbe</code> が形式・開けない理由・不明を 1 回で答える。フォルダー形式の Numbers 書類を開けるようにした（それまで「ディレクトリです」で失敗）。文字の判定をバイト列で行う。テスト 977 件</td></tr>
     <tr><td>4.15 Draft</td><td>2026-09-04</td><td><strong>手戻りの小さい手直し</strong>を付録 B.39.5 に記録。日付書式の判定を書式番号ごとに 1 回・書式の索引を共有スタイルの同一性で・逐次書きの 64 KiB 束ね・ODS 段落の早道・Snappy と IWA の配列写しの廃止。形式は変えない。同時刻比で読み −25%、逐次読み −37%、書き −13%。テスト 977 件</td></tr>
     <tr><td>4.16 Draft</td><td>2026-09-05</td><td><strong>自前の字句解析器</strong> <code>XMLScanner</code> を付録 B.39.6 に記録。UTF-8 の部品は既定でこれが読み、UTF-16 と別符号化の部品は Foundation へ。受け手の約束は不変、保全の断片は元のバイト列そのものに。<code>-DSWIFTSHEETS_FOUNDATION_XML</code> で旧経路に戻せ、CI が 3 経路で全件を走らせる。見本全冊 289 部品で両機関の出来事が同一。読み 5.5 → 2.6 秒、逐次読み 4.6 → 1.8 秒、ODS 読み 13.9 → 3.7 秒。テスト 984 件</td></tr>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.54 Draft</td><td>2026-09-11</td><td>Bool のプロパティの綴りを叙述形に統一。命令形だった 28 語（<code>includeStyles</code>・<code>allowBlank</code>・<code>showGridLines</code>・<code>lockStructure</code>・<code>refreshOnLoad</code> …）を <code>includesStyles</code>・<code>allowsBlank</code>・<code>showsGridLines</code>・<code>locksStructure</code>・<code>refreshesOnLoad</code> に。ファイルの属性名は変えない（B.64）。</td></tr>
     <tr><td>4.53 Draft</td><td>2026-09-11</td><td>同じ動作は同じ語・同じラベルに。<code>CellRef.offset(rows:columns:)</code> → <code>shifted(rows:columns:)</code>（<code>CellRange.shifted</code> と同じ語）、<code>CellRange.shrunk(right:bottom:left:top:)</code> → <code>shrunk(right:down:left:up:)</code>（<code>expanded</code> と同じラベル）、<code>streamingWriter(url:format:)</code> と <code>StreamingWriter(url:format:)</code> → <code>(to:as:)</code>（<code>write(to:as:)</code>・<code>withStreamingWriter(to:as:)</code> と同じ）、<code>streamingReader(data:)</code> → <code>streamingReader(_:)</code>（<code>read(_:)</code> と同じ）、<code>SheetFormat.detect</code> の 4 宣言を <code>detect(_:filename:)</code>・<code>detect(contentsOf:)</code> の 2 つに（<code>probe</code> と同じ形。<code>detect(in:)</code> は package へ）（B.63）。</td></tr>
     <tr><td>4.52 Draft</td><td>2026-09-11</td><td>A1 文字列の双子のラベルを揃える。型つきの <code>cell(at:)</code>・<code>removeCell(at:)</code>・<code>style(at:)</code>・<code>setStyle(at:_:)</code> の <code>at:</code> を外し、文字列の相棒（<code>cell("B2")</code>）と同じくラベル無しにする（<code>Sheet</code>・<code>Table</code> の 8 宣言・B.62）。</td></tr>
     <tr><td>4.51 Draft</td><td>2026-09-11</td><td>B.60 の実装漏れを修正。<code>SheetView.sqref</code> → <code>selectedRanges</code> は移行表と改訂履歴にあったがコードは旧名のままだった（検査も旧名を期待していて緑）。CHANGELOG の「旧 → 新」をコードと突き合わせる契約検査を足した。</td></tr>
@@ -2360,11 +2361,11 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <li><strong>モデル</strong>: <code>DataValidation</code>（<code>SheetCore/Model</code>）と
       <code>Sheet.dataValidations: [DataValidation]</code>。属性は CT_DataValidation を全部持つ
       （<code>kind</code> / <code>ranges</code>(sqref) / <code>formula1</code> / <code>formula2</code> /
-      <code>operator</code> / <code>errorStyle</code> / <code>allowBlank</code> / <code>hideDropDown</code> /
-      <code>showInputMessage</code> / <code>showErrorMessage</code> / タイトルと本文 4 種 / <code>imeMode</code>）。
+      <code>operator</code> / <code>errorStyle</code> / <code>allowsBlank</code> / <code>hidesDropDown</code> /
+      <code>showsInputMessage</code> / <code>showsErrorMessage</code> / タイトルと本文 4 種 / <code>imeMode</code>）。
       既定値は<strong>ファイル形式の既定</strong>に合わせる（すべて false）— openpyxl の
       <code>showErrorMessage=True</code> のような「ライブラリの好み」は入れない。</li>
-    <li><strong><code>hideDropDown</code> は名前を裏返した</strong>。ファイルの属性 <code>showDropDown</code> は
+    <li><strong><code>hidesDropDown</code> は名前を裏返した</strong>。ファイルの属性 <code>showDropDown</code> は
       <strong>1 が「ドロップダウンを出さない」</strong>という反転属性で（openpyxl も
       <code>hide_drop_down</code> を別名にしている）、そのまま公開すると必ず取り違える。
       「値は意味を運び、表現は運ばない」（§3）の一例。</li>
@@ -2459,7 +2460,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>名前つきの表（Excel の「テーブル」・ODF のデータベース範囲）</td><td><code>Sheet.structuredTables</code>（<code>StructuredTable</code>・Rev 4.45 まで <code>ExcelTable</code>）。パーツ・コンテンツタイプ・関係・<code>&lt;tableParts&gt;</code> の 4 点セットを生成</td>
       <td>グリッドを表す <code>Table</code> と名前が衝突するので別名にする。Excel 固有ではない（ODS へも書き、読み戻す）ので Excel を名乗らない（B.56）。列名の重複・空欄は Excel と同じ直し方（<code>Column2</code>・<code>Item2</code>）をする。形式が受け付けない表は書かずに <code>dropped</code> 警告。モデルに無い属性・子要素は verbatim で往復</td></tr>
     <tr><td>保護・シナリオ</td><td><code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code></td>
-      <td>形式の真偽値は「<strong>禁止</strong>されている」向きだが、モデルは <code>allows…</code> と<strong>許可の向きで名づけて</strong>、コーデックが反転する（<code>hideDropDown</code> と同じ方針）。合鍵は旧来の 16 ビット式のみ生成し、Excel 2010 以降の <code>hashValue</code> / <code>saltValue</code> は<strong>読んで書き戻すだけ</strong>（openpyxl も同じ）。これは事故を防ぐ錠であって秘密を守る錠ではない、と型の説明に書いた</td></tr>
+      <td>形式の真偽値は「<strong>禁止</strong>されている」向きだが、モデルは <code>allows…</code> と<strong>許可の向きで名づけて</strong>、コーデックが反転する（<code>hidesDropDown</code> と同じ方針）。合鍵は旧来の 16 ビット式のみ生成し、Excel 2010 以降の <code>hashValue</code> / <code>saltValue</code> は<strong>読んで書き戻すだけ</strong>（openpyxl も同じ）。これは事故を防ぐ錠であって秘密を守る錠ではない、と型の説明に書いた</td></tr>
     <tr><td>ピボット表</td><td><code>Sheet.pivotTables</code>（<code>PivotTable</code> ＋ <code>PivotCache</code>）。配置パーツ・キャッシュ定義・関係・<code>&lt;pivotCaches&gt;</code> を生成し、範囲から作る <code>Workbook.addPivotTable</code> も用意</td>
       <td><strong>集計はしない</strong>。新しく作るキャッシュは <code>saveData="0" refreshOnLoad="1"</code> を立て、レコードのパーツを持たない — 開いた側が元の範囲を読んで計算する。計算していない数字を書かない、が理由。<strong>審判は openpyxl の読み戻しと LibreOffice</strong>（変換後の値が正しく集計されていることまで確認した）。<strong>Excel 実機では開いていない</strong> — Numbers と同じく MAINTENANCE.md のリリース確認項目に置く</td></tr>
     <tr><td>逐次読み書き</td><td><code>StreamingReader</code>（openpyxl の <code>read_only</code>）・<code>StreamingWriter</code>（<code>write_only</code>）。書き出しは <code>ZipFileWriter</code> で 1 行ずつ圧縮しながらファイルへ流す</td>
@@ -3831,7 +3832,7 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     根拠は Numbers 自身の振る舞いで、<strong>双方向に実測</strong>した。Excel のリスト型入力規則を取り込ませると
     ポップアップメニューにする（B.18 の頃から観測済み）。逆にポップアップを持つ書類を Excel に書き出させると、
     選択肢を書き並べた <code>type="list"</code> の入力規則
-    （<code>allowBlank</code>・<code>showInputMessage</code>・<code>showErrorMessage</code> がすべて on、
+    （<code>allowsBlank</code>・<code>showsInputMessage</code>・<code>showsErrorMessage</code> がすべて on、
     <code>errorStyle</code> 無指定 = stop）に戻す。同じ置き換えを、読み書きの両方でこちらもする。
   </p>
 
@@ -3858,7 +3859,7 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     従来どおり落として言う。厳格・空欄許可・入力メッセージの別は<strong>どのみち Numbers に残らない</strong>——
     3 通りの規則（緩い・数値・厳格）を取り込ませる実験で、Numbers は 3 つとも同一形のポップアップにした。
     読み戻しはその逆向きで、Numbers 自身の書き戻しと同じ形
-    （allowBlank・showInputMessage・showErrorMessage on）の <code>.list</code> にする。
+    （allowsBlank・showsInputMessage・showsErrorMessage on）の <code>.list</code> にする。
     条件付き書式と同じく、規則は表ごとに読み、最初の表のものをシートに載せ、2 枚目以降の表のものは落として言う。
   </p>
   <p>
@@ -4872,7 +4873,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   <ul>
     <li><strong>XLSX</strong>: <code>workbook.xml</code> でシートを、各シート部品の先頭の <code>&lt;dimension&gt;</code> で
       申告範囲を読む。部品は<strong>最初の切れ端だけ</strong>を戻す（B.39.1 の <code>ZipEntryStream</code>）。
-      申告は嘘をつく（"A1" と書いて 10 万行を持つ書き手がある）ので、<code>InspectOptions.countCells</code> で
+      申告は嘘をつく（"A1" と書いて 10 万行を持つ書き手がある）ので、<code>InspectOptions.countsCells</code> で
       部品全体をバイト列のまま歩いて <code>&lt;c&gt;</code> を数える経路を別に持つ — 読み込みが実際に持つ数と一致する。</li>
     <li><strong>ODS</strong>: 範囲の申告が無いので <code>content.xml</code> を 1 度バイト列で歩き、値を持つセルの数を
       反復回数を<strong>掛けて</strong>（展開せずに）数える。1 KB で 10 億マスを名乗る細工は、その数がそのまま返る。</li>
@@ -5385,9 +5386,9 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   </p>
   <ul>
     <li><strong>ODS のブック構造保護</strong>: ODF 1.3 §9.1.2 の <code>&lt;office:spreadsheet table:structure-protected="true"&gt;</code>。
-      LibreOffice の「ツール ▸ スプレッドシートの構造を保護」が書く属性で、Excel の <code>workbookProtection lockStructure</code> と同じ意味
+      LibreOffice の「ツール ▸ スプレッドシートの構造を保護」が書く属性で、Excel の <code>workbookProtection locksStructure</code> と同じ意味
       （シートの追加・削除・改名・並べ替えを禁じる）。対応表は「ODF に概念なし（na）」と書いていたが、誤りだった。
-      読みは <code>wb.protection.lockStructure</code>、書きは旗だけを書く。<strong>鍵は運ばない</strong> — ODF の <code>table:protection-key</code> は
+      読みは <code>wb.protection.locksStructure</code>、書きは旗だけを書く。<strong>鍵は運ばない</strong> — ODF の <code>table:protection-key</code> は
       SHA 系のダイジェストの Base64 で、Excel の 16 ビットの合鍵とも Excel 2010 以降の SHA-512 とも互換が無く、
       鍵を訳せないまま「保護されている」と書くのが正直な形（LibreOffice は鍵の無い構造保護を、解除に合言葉の要らない保護として扱う）。
       これまで ODS 書きで出ていた「workbook protection is dropped」の警告は消える。</li>
@@ -5534,7 +5535,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
   </p>
   <p>
     <strong>変わらない約束</strong>: 警告の順序はシート順。最初の失敗はシート順。<code>ReadOptions.sheets</code> と両立
-    （外した枚は解析せず、申告の合計にも入れない）。<code>formulaCells</code>・<code>preserveUnknownParts</code> は各シートの入れ物へ
+    （外した枚は解析せず、申告の合計にも入れない）。<code>formulaCells</code>・<code>preservesUnknownParts</code> は各シートの入れ物へ
     そのまま渡る。書き側の並列は共有文字列表と書式表の番号が先着順で決まるため、この設計の外（B.39 のまま）。
   </p>
   <p>
@@ -6146,7 +6147,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
 
   <h3>B.55 入力規則の候補は配列で渡せる——インライン一覧の綴りはモデルが 1 か所で知る（Rev 4.44）</h3>
   <p>2026-09-10。1.0 前の見直し（roadmap 項目 5）。<code>DataValidation.list(_ source:over:)</code> は残したまま、
-  候補そのものを受け取る <code>list(choices:over:allowBlank:rejects:)</code> を足す。既存の 1 宣言は変えない——
+  候補そのものを受け取る <code>list(choices:over:allowsBlank:rejects:)</code> を足す。既存の 1 宣言は変えない——
   範囲参照（<code>'Choices'!$A$2:$A$4</code>）を渡す用途は別で、Stream はそちらを使っている。</p>
   <p><strong>なぜ足すか。</strong>①Excel はインラインの候補を <code>&lt;formula1&gt;"a,b,c"&lt;/formula1&gt;</code> と保存する——
   引用符で囲み、カンマで区切る。②利用者がこれを真似ると <code>.list("\"a,b,c\"", over:)</code> と書くことになり、
@@ -6409,6 +6410,42 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>shift</code>・<code>expanded</code> もそのまま。<code>format:</code> が形式の「上書き」を意味する読みの側（<code>read(_:format:)</code>・<code>streamingReader(_:format:)</code>）は
   <code>format:</code> のまま——<code>as:</code> は書く形式を指す語で、読みの推定を上書きする語ではない。</p>
   <p><strong>利用側。</strong>LeftRight: <code>StreamingWriter(url:)</code> 2・<code>streamingReader(data:)</code> 1・<code>detect(from:)</code> 4 か所。Stream: 0。どれも一括置換。</p>
+
+  <h3>B.64 Bool は叙述形——<code>allowsBlank</code>・<code>showsGridLines</code>（Rev 4.54）</h3>
+  <p>2026-09-11 決定。1.0 前の一貫性の見直し（群 3）。名前だけを変え、既定値・ファイルの属性名（<code>showGridLines="0"</code>・<code>refreshOnLoad="1"</code> はそのまま）は変えない。
+  互換の別名は残さない（B.53）。</p>
+  <p><strong>なぜ。</strong>①Swift API Design Guidelines は Bool のプロパティを「持ち主についての主張」として読めるように綴る（<code>isEmpty</code>・<code>intersects</code>）。
+  ②この library の Bool は 45 語が叙述形（<code>includesBlanks</code>・<code>allowsSorting</code>・<code>isHidden</code>・<code>hasStyle</code>）、28 語が命令形で、
+  OOXML の属性名（<code>showGridLines</code>・<code>lockStructure</code>）を写した物が命令形に残っていた。③<code>SheetProtection</code> は <code>allowsSorting</code> なのに
+  <code>WorkbookProtection</code> は <code>lockStructure</code>、<code>FilterColumn</code> は <code>includesBlanks</code> なのに <code>StreamingReadOptions</code> は <code>includeStyles</code>——
+  同じ型の家族の中で割れていた。</p>
+  <p><strong>移行表（28 語、型ごと）。</strong></p>
+  <table>
+    <thead><tr><th>型</th><th>Rev 4.53 まで</th><th>Rev 4.54 から</th></tr></thead>
+    <tbody>
+      <tr><td><code>StreamingReadOptions</code></td><td><code>includeStyles</code></td><td><code>includesStyles</code></td></tr>
+      <tr><td><code>CSVWriteOptions</code></td><td><code>includeBOM</code></td><td><code>includesBOM</code></td></tr>
+      <tr><td><code>ReadOptions</code></td><td><code>preserveUnknownParts</code></td><td><code>preservesUnknownParts</code></td></tr>
+      <tr><td><code>InspectOptions</code></td><td><code>countCells</code></td><td><code>countsCells</code></td></tr>
+      <tr><td><code>DataValidation</code>（<code>list(choices:over:…)</code> のラベルも）</td><td><code>allowBlank</code>・<code>showInputMessage</code>・<code>showErrorMessage</code>・<code>hideDropDown</code></td><td><code>allowsBlank</code>・<code>showsInputMessage</code>・<code>showsErrorMessage</code>・<code>hidesDropDown</code></td></tr>
+      <tr><td><code>SheetView</code></td><td><code>showGridLines</code></td><td><code>showsGridLines</code></td></tr>
+      <tr><td><code>SheetProperties</code></td><td><code>fitToPage</code></td><td><code>fitsToPage</code></td></tr>
+      <tr><td><code>PageSetup</code></td><td><code>useFirstPageNumber</code></td><td><code>usesFirstPageNumber</code></td></tr>
+      <tr><td><code>DataBar</code>・<code>IconSet</code></td><td><code>showValue</code></td><td><code>showsValue</code></td></tr>
+      <tr><td><code>TableStyleInfo</code>・<code>PivotStyleInfo</code></td><td><code>showFirstColumn</code>・<code>showLastColumn</code>・<code>showRowStripes</code>・<code>showColumnStripes</code>・<code>showRowHeaders</code>・<code>showColumnHeaders</code></td><td><code>showsFirstColumn</code>・<code>showsLastColumn</code>・<code>showsRowStripes</code>・<code>showsColumnStripes</code>・<code>showsRowHeaders</code>・<code>showsColumnHeaders</code></td></tr>
+      <tr><td><code>PivotTable</code>・<code>PivotField</code>・<code>PivotCache</code></td><td><code>showRowGrandTotals</code>・<code>showColumnGrandTotals</code>・<code>showAll</code>・<code>refreshOnLoad</code></td><td><code>showsRowGrandTotals</code>・<code>showsColumnGrandTotals</code>・<code>showsAll</code>・<code>refreshesOnLoad</code></td></tr>
+      <tr><td><code>WorkbookProtection</code></td><td><code>lockStructure</code>・<code>lockWindows</code>・<code>lockRevision</code></td><td><code>locksStructure</code>・<code>locksWindows</code>・<code>locksRevision</code></td></tr>
+      <tr><td><code>CalculationSettings</code></td><td><code>useWildcards</code>・<code>useRegularExpressions</code></td><td><code>usesWildcards</code>・<code>usesRegularExpressions</code></td></tr>
+      <tr><td><code>Consolidation</code></td><td><code>linkToSourceData</code></td><td><code>linksToSourceData</code></td></tr>
+    </tbody>
+  </table>
+  <p><strong>変えないもの。</strong>形容詞・名詞の Bool（<code>bold</code>・<code>hidden</code>・<code>collapsed</code>・<code>enabled</code>・<code>lossy</code>・<code>pivot</code>・<code>percent</code>・
+  <code>tabSelected</code>・<code>customHeight</code>・<code>horizontalCentered</code>・<code>headings</code>・<code>gridLines</code>・<code>caseSensitive</code>・<code>descending</code>）は主張として読めるのでそのまま。
+  <code>isDefault</code>・<code>hasStyle</code>・<code>includesBlanks</code>・<code>allows…</code> の 45 語もそのまま。<code>ConditionalFormattingRule.bottom</code>・<code>aboveAverage</code> は
+  OOXML の語そのもの（B.56 の 3 段目「業界の共通語は残す」）。</p>
+  <p><strong>やり方。</strong>28 語の置換は、文字列リテラルの中（ファイルの属性名）を飛ばし、補間 <code>\( )</code> の中だけ直す置換器で行った——B.60 の一括置換が
+  <code>&lt;xdr:col&gt;</code> のタグまで書き換えた事故（a2bd5a2）を繰り返さないため。置換後に <code>"shows…</code> のような文字列が生まれていないことを diff で確かめた。</p>
+  <p><strong>利用側。</strong>Stream: <code>allowBlank</code> 1・<code>preserveUnknownParts</code> 2・<code>hideDropDown</code> 1・<code>showErrorMessage</code> 1 か所。LeftRight: 0。</p>
 </section>
 
 </div><!-- /.container -->

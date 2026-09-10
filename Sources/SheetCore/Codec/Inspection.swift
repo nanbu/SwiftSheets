@@ -38,11 +38,11 @@ public struct SheetSummary: Sendable, Hashable {
     /// — some writers put "A1" whatever the sheet holds), the cells that carry a value for ODS (counted from the
     /// run-length markup without expanding it). Nil when the file does not say.
     public var declaredCellCount: Int?
-    /// Cells actually present, counted by walking the sheet's markup (`InspectOptions.countCells`). Every `<c>`
+    /// Cells actually present, counted by walking the sheet's markup (`InspectOptions.countsCells`). Every `<c>`
     /// element for XLSX, which is what a read will hold. Nil unless counted.
     public var countedCellCount: Int?
     /// Rows the sheet holds, where a count is cheap: rows that carry something for ODS, lines for CSV, `<row>`
-    /// elements for XLSX when `countCells` is on.
+    /// elements for XLSX when `countsCells` is on.
     public var rowCount: Int?
     /// Tables on the sheet: one for a grid, several only for Numbers.
     public var tableCount = 1
@@ -57,14 +57,14 @@ public struct SheetSummary: Sendable, Hashable {
 public struct InspectOptions: Sendable, Hashable {
     /// Walk each sheet's markup and count the cells that are really there, rather than taking the declaration.
     /// Costs a pass over every sheet part (no model is built); off by default.
-    public var countCells = false
+    public var countsCells = false
     /// The original file name, when known — the extension hint for plain text (`.tsv`).
     public var filename: String?
     /// What the container may declare about itself (`ReadOptions.limits`).
     public var limits = ZipLimits()
 
-    public init(countCells: Bool = false, filename: String? = nil, limits: ZipLimits = ZipLimits()) {
-        self.countCells = countCells; self.filename = filename; self.limits = limits
+    public init(countsCells: Bool = false, filename: String? = nil, limits: ZipLimits = ZipLimits()) {
+        self.countsCells = countsCells; self.filename = filename; self.limits = limits
     }
 }
 

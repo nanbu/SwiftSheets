@@ -319,8 +319,8 @@ import SwiftSheets
             _ = s.addPivotTable(named: "NoTotals", summarizing: source, on: "Data",
                                 headerRow: [.text("Region"), .text("Product"), .text("Qty"), .text("Price")],
                                 at: CellRef("A1")!, rows: ["Region"], columns: ["Product"], values: [("Qty", .sum)])
-            s.pivotTables[0].showRowGrandTotals = false
-            s.pivotTables[0].showColumnGrandTotals = false
+            s.pivotTables[0].showsRowGrandTotals = false
+            s.pivotTables[0].showsColumnGrandTotals = false
             wb.sheets["no-totals"] = s
         }
         try wb.write(as: .xlsx).data.write(to: Self.dir.appending(path: "pivot-shapes.xlsx"))
@@ -398,8 +398,8 @@ import SwiftSheets
         if var s = noTotals.sheets["Pivot"] {
             _ = s.addPivotTable(named: "Summary", summarizing: source, on: "Data", headerRow: header,
                                 at: CellRef("A1")!, rows: ["Region"], columns: ["Product"], values: [("Qty", .sum)])
-            s.pivotTables[0].showRowGrandTotals = false
-            s.pivotTables[0].showColumnGrandTotals = false
+            s.pivotTables[0].showsRowGrandTotals = false
+            s.pivotTables[0].showsColumnGrandTotals = false
             noTotals.sheets["Pivot"] = s
         }
         // one axis only: a single group-by, no nested tree

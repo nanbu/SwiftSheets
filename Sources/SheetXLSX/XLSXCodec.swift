@@ -19,7 +19,7 @@ package enum XLSXCodec: SpreadsheetCodec {
 
     /// The workbook part names the sheets, each sheet part declares its used range at the top, the ZIP directory
     /// says what everything expands to (spec Appendix B.39.3). Nothing past the first piece of a sheet part is read
-    /// unless `InspectOptions.countCells` asks for a count.
+    /// unless `InspectOptions.countsCells` asks for a count.
     package static func inspect(_ data: Data, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         try XLSXInspector.inspect(try ZipArchive(data: data, limits: options.limits), format: .xlsx, options: options)
     }

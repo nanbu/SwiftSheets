@@ -107,7 +107,7 @@ public struct CodecSet: Sendable {
     /// What a file says about itself, before any cell of it is read: its sheets, how many cells each declares,
     /// what the package expands to, who wrote it (spec Appendix B.39.3). For a file you do not trust, this is how
     /// to choose a `ReadOptions.cellLimit` — or to decline. Reads the package directory and the head of each
-    /// sheet part; with `InspectOptions.countCells`, walks each sheet's markup as bytes to count what is there.
+    /// sheet part; with `InspectOptions.countsCells`, walks each sheet's markup as bytes to count what is there.
     public func inspect(contentsOf url: URL, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         var opts = options
         if opts.filename == nil { opts.filename = url.lastPathComponent }

@@ -205,7 +205,7 @@ struct NumbersReader {
             // allows blank (every menu carries the blank choice) and shows its messages.
             rules.append(DataValidation(kind: .list, ranges: NumbersReader.condense(refs),
                                         formula1: "\"\(items.joined(separator: ","))\"",
-                                        allowBlank: true, showInputMessage: true, showErrorMessage: true))
+                                        allowsBlank: true, showsInputMessage: true, showsErrorMessage: true))
         }
         return (rules, unreadable.sorted { ($0.row, $0.column) < ($1.row, $1.column) })
     }

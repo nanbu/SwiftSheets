@@ -36,8 +36,8 @@ import SwiftSheets
 
         wb.epoch = .mac1904
         wb.calculationSettings.caseSensitive = true
-        wb.calculationSettings.useRegularExpressions = true
-        wb.calculationSettings.useWildcards = false
+        wb.calculationSettings.usesRegularExpressions = true
+        wb.calculationSettings.usesWildcards = false
         wb.calculationSettings.searchCriteriaMustApplyToWholeCell = false
         wb.calculationSettings.precisionAsShown = true
         wb.calculationSettings.nullYear = 1930
@@ -47,7 +47,7 @@ import SwiftSheets
         wb.labelRanges = [LabelRange(labels: CellRange("Data!A1:B1")!, data: CellRange("Data!A2:B3")!, orientation: .column)]
         wb.consolidation = Consolidation(function: .sum, sources: [CellRange("Data!A1:B3")!],
                                          target: CellRef("G1")!, targetSheet: "Data",
-                                         useLabels: .both, linkToSourceData: true)
+                                         useLabels: .both, linksToSourceData: true)
         return wb
     }
 
@@ -150,7 +150,7 @@ import SwiftSheets
         var libreOffice = CalculationSettings()
         libreOffice.automaticFindLabels = false
         libreOffice.searchCriteriaMustApplyToWholeCell = true
-        libreOffice.useWildcards = true
+        libreOffice.usesWildcards = true
         libreOffice.iterationEnabled = false
         libreOffice.iterationMaximumDifference = 0.0001
         let noise = try warnings(libreOffice)
@@ -165,7 +165,7 @@ import SwiftSheets
 
         // a setting that changes how this document's own formulas evaluate is always reported
         var regex = CalculationSettings()
-        regex.useRegularExpressions = true
+        regex.usesRegularExpressions = true
         #expect(try warnings(regex).count == 1)
 
         // the iteration detail stays quiet while iteration is off, and speaks once it is on — to a format that

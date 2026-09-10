@@ -81,8 +81,8 @@ import SwiftSheets
                                                           totalsRowFormula: "SUBTOTAL(109,Sales[Price])",
                                                           calculatedColumnFormula: "Sales[[#This Row],[Qty]]*2")],
                                totalsRowCount: 1,
-                               styleInfo: TableStyleInfo(name: "TableStyleLight1", showFirstColumn: true,
-                                                         showRowStripes: false, showColumnStripes: true))
+                               styleInfo: TableStyleInfo(name: "TableStyleLight1", showsFirstColumn: true,
+                                                         showsRowStripes: false, showsColumnStripes: true))
         table.comment = "月次"
         wb.sheets[0].structuredTables = [table]
 

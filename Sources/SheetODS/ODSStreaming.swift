@@ -171,7 +171,7 @@ final class ODSStreamingParser: StreamingRowParser {
         case "table-column":
             guard inTable, !inRow else { return }
             let n = Swift.max(1, ODSAttr.int(a, "table:number-columns-repeated") ?? 1)
-            if options.includeStyles, let d = ODSAttr.get(a, "table:default-cell-style-name"), d != "Default", columnCursor <= ODSReader.maxColumns {
+            if options.includesStyles, let d = ODSAttr.get(a, "table:default-cell-style-name"), d != "Default", columnCursor <= ODSReader.maxColumns {
                 columnDefaults.append((columnCursor, Swift.min(columnCursor + n - 1, ODSReader.maxColumns), d))
             }
             columnCursor += n
@@ -233,7 +233,7 @@ final class ODSStreamingParser: StreamingRowParser {
             value = .formula(FormulaExpr.parse(formula, dialect: .ods), cached: value)
         }
         var style: CellStyle?
-        if options.includeStyles {
+        if options.includesStyles {
             let styleName = ODSAttr.get(a, "table:style-name", lenient: lenient)
             if let styleName, styleName != "Default" { style = catalog.cellStyle(named: styleName) }
             else if let d = columnDefaults.first(where: { $0.start <= cellCursor && cellCursor <= $0.end }) { style = catalog.cellStyle(named: d.name) }

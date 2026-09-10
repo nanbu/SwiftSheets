@@ -220,7 +220,7 @@ final class StreamingSheetParser: StreamingRowParser {
         case "c":
             guard let ref = cellRef else { return }
             let value = cellValue()
-            let style = options.includeStyles ? styles.style(cellStyle) : nil
+            let style = options.includesStyles ? styles.style(cellStyle) : nil
             cells.append(StreamedCell(ref: ref, value: value, style: style))
             cellRef = nil
         case "row":

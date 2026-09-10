@@ -322,11 +322,11 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     }
 
     // openpyxl: worksheet/tests/test_page.py::test_fitToPage
-    @Test func fitToPage() {
+    @Test func fitsToPage() {
         var ws = Workbook().sheets[0]
-        #expect(ws.properties.fitToPage == nil)
-        ws.properties.fitToPage = true
-        #expect(ws.properties.fitToPage == true && sheetXML(ws).contains("<pageSetUpPr fitToPage=\"1\"/>"))
+        #expect(ws.properties.fitsToPage == nil)
+        ws.properties.fitsToPage = true
+        #expect(ws.properties.fitsToPage == true && sheetXML(ws).contains("<pageSetUpPr fitToPage=\"1\"/>"))
     }
 
     // openpyxl: worksheet/tests/test_page.py::TestPageSetup::test_write
@@ -358,7 +358,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     @Test(arguments: [(true, "<sheetView workbookViewId=\"0\">"), (false, "<sheetView workbookViewId=\"0\" showGridLines=\"0\">")])
     func showGridlines(_ value: Bool, _ result: String) {
         var ws = Workbook().sheets[0]
-        ws.view.showGridLines = value
+        ws.view.showsGridLines = value
         #expect(sheetXML(ws).contains(result))
     }
 
@@ -402,14 +402,14 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     // openpyxl: worksheet/tests/test_properties.py::test_write_properties
     @Test func writeProperties() {
         var ws = Workbook().sheets[0]
-        ws.properties.filterMode = false; ws.properties.tabColor = .rgb("FF123456"); ws.properties.fitToPage = false
+        ws.properties.filterMode = false; ws.properties.tabColor = .rgb("FF123456"); ws.properties.fitsToPage = false
         #expect(sheetXML(ws).contains("<sheetPr filterMode=\"0\"><tabColor rgb=\"FF123456\"/><outlinePr summaryBelow=\"1\" summaryRight=\"1\"/><pageSetUpPr fitToPage=\"0\"/></sheetPr>"))
     }
 
     // openpyxl: worksheet/tests/test_properties.py::test_parse_properties
     @Test func parseProperties() throws {
         let ws = try parseSheet(try openpyxlFixtureText("worksheet/sheetPr2.xml"))
-        #expect(ws.properties.filterMode == false && ws.properties.tabColor == .rgb("FF123456") && ws.properties.fitToPage == false)
+        #expect(ws.properties.filterMode == false && ws.properties.tabColor == .rgb("FF123456") && ws.properties.fitsToPage == false)
     }
 }
 

@@ -63,9 +63,9 @@ final class WorkbookXMLParser: SAXHandler {
             let v = a["date1904"]?.lowercased(); date1904 = v == "1" || v == "true"; codeName = a["codeName"]
             workbookPrAttributes = a.filter { $0.key != "date1904" && $0.key != "codeName" }
         case "workbookProtection":
-            protection.lockStructure = XMLBool.isTrue(a["lockStructure"])
-            protection.lockWindows = XMLBool.isTrue(a["lockWindows"])
-            protection.lockRevision = XMLBool.isTrue(a["lockRevision"])
+            protection.locksStructure = XMLBool.isTrue(a["lockStructure"])
+            protection.locksWindows = XMLBool.isTrue(a["lockWindows"])
+            protection.locksRevision = XMLBool.isTrue(a["lockRevision"])
             protection.passwordHash = a["workbookPassword"]
             protection.revisionsPasswordHash = a["revisionsPassword"]
             protection.algorithmName = a["workbookAlgorithmName"]; protection.hashValue = a["workbookHashValue"]
@@ -496,9 +496,9 @@ final class SheetParser: SAXHandler {
         case "tabColor": sheet.properties.tabColor = StylesParser.color(a)
         case "dimension": sheet.declaredDimension = a["ref"].flatMap(CellRange.init)
         case "sheetPr": sheet.properties.codeName = a["codeName"]; sheet.properties.filterMode = a["filterMode"].map { $0 == "1" || $0 == "true" }
-        case "pageSetUpPr": sheet.properties.fitToPage = a["fitToPage"].map { $0 == "1" || $0 == "true" }
+        case "pageSetUpPr": sheet.properties.fitsToPage = a["fitToPage"].map { $0 == "1" || $0 == "true" }
         case "sheetView":
-            sheet.view.showGridLines = XMLBool.isNotFalse(a["showGridLines"])
+            sheet.view.showsGridLines = XMLBool.isNotFalse(a["showGridLines"])
             sheet.view.zoomScale = Int(a["zoomScale"] ?? "100") ?? 100
             sheet.view.tabSelected = XMLBool.isTrue(a["tabSelected"])
         case "selection": if let ac = a["activeCell"] { sheet.view.activeCell = ac }; if let sq = a["sqref"] { sheet.view.selectedRanges = sq }
@@ -654,10 +654,10 @@ final class SheetParser: SAXHandler {
         case "colorScale" where cfRule != nil: break                                  // assembled at </cfRule>
         case "dataBar" where cfRule != nil:
             cfDataBar = DataBar(color: .black, minLength: Int(a["minLength"] ?? ""), maxLength: Int(a["maxLength"] ?? ""),
-                                showValue: XMLBool.isNotFalse(a["showValue"]))
+                                showsValue: XMLBool.isNotFalse(a["showValue"]))
         case "iconSet" where cfRule != nil:
             cfIconSet = IconSet(name: a["iconSet"] ?? "3TrafficLights1", values: [],
-                                showValue: XMLBool.isNotFalse(a["showValue"]), percent: XMLBool.isNotFalse(a["percent"]),
+                                showsValue: XMLBool.isNotFalse(a["showValue"]), percent: XMLBool.isNotFalse(a["percent"]),
                                 reverse: XMLBool.isTrue(a["reverse"]))
         case "formula" where cfRule != nil: cfFormula = true; cfFormulaText = ""
         case "extLst" where conditional != nil: unmodelledConditional = true
@@ -671,10 +671,10 @@ final class SheetParser: SAXHandler {
             var dv = DataValidation(kind: DataValidation.Kind(rawValue: a["type"] ?? "none") ?? .none, ranges: ranges)
             dv.operator = a["operator"].flatMap(DataValidation.Operator.init(rawValue:))
             dv.errorStyle = a["errorStyle"].flatMap(DataValidation.ErrorStyle.init(rawValue:))
-            dv.allowBlank = XMLBool.isTrue(a["allowBlank"])
-            dv.hideDropDown = XMLBool.isTrue(a["showDropDown"])          // the attribute is inverted: 1 HIDES the arrow
-            dv.showInputMessage = XMLBool.isTrue(a["showInputMessage"])
-            dv.showErrorMessage = XMLBool.isTrue(a["showErrorMessage"])
+            dv.allowsBlank = XMLBool.isTrue(a["allowBlank"])
+            dv.hidesDropDown = XMLBool.isTrue(a["showDropDown"])          // the attribute is inverted: 1 HIDES the arrow
+            dv.showsInputMessage = XMLBool.isTrue(a["showInputMessage"])
+            dv.showsErrorMessage = XMLBool.isTrue(a["showErrorMessage"])
             dv.errorTitle = a["errorTitle"]; dv.error = a["error"]
             dv.promptTitle = a["promptTitle"]; dv.prompt = a["prompt"]
             dv.imeMode = a["imeMode"]
@@ -708,7 +708,7 @@ final class SheetParser: SAXHandler {
             var p = PageSetup()
             p.orientation = a["orientation"].flatMap(PageSetup.Orientation.init(rawValue:)); p.paperSize = Int(a["paperSize"] ?? "")
             p.fitToWidth = Int(a["fitToWidth"] ?? ""); p.fitToHeight = Int(a["fitToHeight"] ?? ""); p.scale = Int(a["scale"] ?? "")
-            p.firstPageNumber = Int(a["firstPageNumber"] ?? ""); p.useFirstPageNumber = a["useFirstPageNumber"].map { $0 == "1" }
+            p.firstPageNumber = Int(a["firstPageNumber"] ?? ""); p.usesFirstPageNumber = a["useFirstPageNumber"].map { $0 == "1" }
             sheet.pageSetup = p
             sheet.preserved.pageSetupRelationshipId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value
         case "headerFooter":
@@ -985,10 +985,10 @@ final class TablePartParser: SAXHandler {
                                       totalsRowLabel: a["totalsRowLabel"], totalsRowFunction: a["totalsRowFunction"])
         case "calculatedColumnFormula", "totalsRowFormula": inFormula = name; formulaText = ""
         case "tableStyleInfo":
-            table?.styleInfo = TableStyleInfo(name: a["name"], showFirstColumn: XMLBool.isTrue(a["showFirstColumn"]),
-                                              showLastColumn: XMLBool.isTrue(a["showLastColumn"]),
-                                              showRowStripes: XMLBool.isTrue(a["showRowStripes"]),
-                                              showColumnStripes: XMLBool.isTrue(a["showColumnStripes"]))
+            table?.styleInfo = TableStyleInfo(name: a["name"], showsFirstColumn: XMLBool.isTrue(a["showFirstColumn"]),
+                                              showsLastColumn: XMLBool.isTrue(a["showLastColumn"]),
+                                              showsRowStripes: XMLBool.isTrue(a["showRowStripes"]),
+                                              showsColumnStripes: XMLBool.isTrue(a["showColumnStripes"]))
         default: break
         }
     }

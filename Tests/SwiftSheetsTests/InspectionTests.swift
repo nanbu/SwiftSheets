@@ -37,7 +37,7 @@ import SwiftSheets
         var wb = Self.workbook(rows: 50)
         wb.sheets[0]["Z1000"] = "far"                       // the declaration grows; the count does not follow it
         let data = try wb.write(as: .xlsx).data
-        let summary = try Workbook.inspect(data, options: InspectOptions(countCells: true))
+        let summary = try Workbook.inspect(data, options: InspectOptions(countsCells: true))
         #expect(summary.sheets[0].declaredCellCount == 26 * 1000)
         #expect(summary.sheets[0].countedCellCount == 151)
         #expect(summary.sheets[0].rowCount == 51)

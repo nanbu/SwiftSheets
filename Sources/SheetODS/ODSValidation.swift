@@ -71,17 +71,17 @@ enum ODSValidation {
                 out += "<table:content-validation table:name=\"\(name)\""
                 let condition = condition(v, sheet: sheet.name)
                 if !condition.isEmpty { out += " table:condition=\"\(XML.esc(condition))\"" }
-                out += " table:allow-empty-cell=\"\(v.allowBlank)\""
-                if v.kind == .list { out += " table:display-list=\"\(v.hideDropDown ? "no" : "unsorted")\"" }
+                out += " table:allow-empty-cell=\"\(v.allowsBlank)\""
+                if v.kind == .list { out += " table:display-list=\"\(v.hidesDropDown ? "no" : "unsorted")\"" }
                 out += " table:base-cell-address=\"\(XML.esc(base))\">"
-                if v.showInputMessage, v.promptTitle != nil || v.prompt != nil {
+                if v.showsInputMessage, v.promptTitle != nil || v.prompt != nil {
                     out += "<table:help-message"
                     if let t = v.promptTitle { out += " table:title=\"\(XML.esc(t))\"" }
                     out += " table:display=\"true\">"
                     out += (v.prompt.map { ODSWriter.paragraphsXML($0).joined() } ?? "")
                     out += "</table:help-message>"
                 }
-                if v.showErrorMessage {
+                if v.showsErrorMessage {
                     out += "<table:error-message"
                     if let style = v.errorStyle { out += " table:message-type=\"\(style.rawValue)\"" }
                     if let t = v.errorTitle { out += " table:title=\"\(XML.esc(t))\"" }
@@ -176,12 +176,12 @@ enum ODSValidation {
             }
         }
         var v = DataValidation(kind: kind, ranges: ranges, formula1: f1, formula2: f2, operator: op)
-        v.allowBlank = p.allowEmpty
-        v.hideDropDown = p.displayList == "no"
-        v.showInputMessage = p.showHelp
+        v.allowsBlank = p.allowEmpty
+        v.hidesDropDown = p.displayList == "no"
+        v.showsInputMessage = p.showHelp
         v.promptTitle = p.helpTitle
         v.prompt = p.help
-        v.showErrorMessage = p.showError
+        v.showsErrorMessage = p.showError
         v.errorTitle = p.errorTitle
         v.error = p.error
         v.errorStyle = p.errorType.flatMap { DataValidation.ErrorStyle(rawValue: $0) }

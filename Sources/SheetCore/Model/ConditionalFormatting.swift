@@ -289,12 +289,12 @@ public struct DataBar: Hashable, Sendable {
     /// The longest bar (Excel's own default is 90).
     public var maxLength: Int?
     /// Show the number as well as the bar.
-    public var showValue: Bool
+    public var showsValue: Bool
 
     public init(color: Color, minimum: ConditionalValue = .min, maximum: ConditionalValue = .max,
-                minLength: Int? = nil, maxLength: Int? = nil, showValue: Bool = true) {
+                minLength: Int? = nil, maxLength: Int? = nil, showsValue: Bool = true) {
         self.color = color; self.minimum = minimum; self.maximum = maximum
-        self.minLength = minLength; self.maxLength = maxLength; self.showValue = showValue
+        self.minLength = minLength; self.maxLength = maxLength; self.showsValue = showsValue
     }
 }
 
@@ -306,14 +306,14 @@ public struct IconSet: Hashable, Sendable {
     /// The band boundaries, the first of which is always the bottom of the range.
     public var values: [ConditionalValue]
     /// Show the number as well as the icon.
-    public var showValue: Bool
+    public var showsValue: Bool
     /// The boundaries are percentages rather than absolute values.
     public var percent: Bool
     /// Use the icons the other way round.
     public var reverse: Bool
 
-    public init(name: String, values: [ConditionalValue], showValue: Bool = true, percent: Bool = true, reverse: Bool = false) {
-        self.name = name; self.values = values; self.showValue = showValue; self.percent = percent; self.reverse = reverse
+    public init(name: String, values: [ConditionalValue], showsValue: Bool = true, percent: Bool = true, reverse: Bool = false) {
+        self.name = name; self.values = values; self.showsValue = showsValue; self.percent = percent; self.reverse = reverse
     }
 
     /// The three-band default: 0 %, 33 %, 67 %.

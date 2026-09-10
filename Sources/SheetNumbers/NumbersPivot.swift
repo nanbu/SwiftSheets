@@ -416,8 +416,8 @@ enum NumbersPivot {
                                      depth: 0, path: [], isSummary: true, isGrand: true, value: d))
             }
         }
-        let showGrandRow = pivot.showRowGrandTotals
-        let showGrandColumn = pivot.showColumnGrandTotals
+        let showGrandRow = pivot.showsRowGrandTotals
+        let showGrandColumn = pivot.showsColumnGrandTotals
         func hidden(_ lane: Lane, isRow: Bool) -> Bool { lane.isGrand && !(isRow ? showGrandRow : showGrandColumn) }
 
         // labels over the summary column lanes: a subtotal column repeats its group’s label in the heading row
@@ -957,8 +957,8 @@ enum NumbersPivot {
         m.set("is_empty_pivot", bool: false)
         m.set("source_table_uid", message: sourceTableUID)
         m.set("source_table_name", string: sourceTableName)
-        m.set("hide_grand_total_rows", bool: !pivot.showRowGrandTotals)
-        m.set("hide_grand_total_columns", bool: !pivot.showColumnGrandTotals)
+        m.set("hide_grand_total_rows", bool: !pivot.showsRowGrandTotals)
+        m.set("hide_grand_total_columns", bool: !pivot.showsColumnGrandTotals)
         m.set("grpg_col_options_map", reference: optionsMap)
         // when the rules were last applied, in Apple's reference-date seconds
         if let formulaStore { m.set("formula_store", message: formulaStore) }

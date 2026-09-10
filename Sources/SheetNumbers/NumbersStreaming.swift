@@ -160,7 +160,7 @@ package struct NumbersStreamingReader: StreamingRowSource {
             formulas = options.formulaCells == .cachedValues ? [:] : NumbersCells.dataList(store.reference("formula_table"), doc: index) { $0.message("formula") }
             let resolver = NumbersStyleResolver(doc: index, model: model, store: store)
             richTexts = NumbersCells.richTexts(store: store, doc: index, styles: resolver)
-            styles = options.includeStyles ? resolver : nil
+            styles = options.includesStyles ? resolver : nil
             decoder = NumbersFormulaDecoder { tableUUIDToName[$0] }
             tiles = NumbersCells.tiles(of: store).tiles.sorted { $0.base < $1.base }
         }

@@ -35,7 +35,7 @@ package enum XLSXInspector {
                 }
                 return false
             }
-            if options.countCells {
+            if options.countsCells {
                 var cells = 0, rows = 0
                 let whole = try zip.stream(part)
                 try TagScanner.scan({ try whole.next() }, names: ["c", "row", "sheetData"]) { tag in

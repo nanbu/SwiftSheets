@@ -792,7 +792,7 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "hideDropDown は、反転した showDropDown 属性の「意味」で名づけた。"
+              "note": "hidesDropDown は、反転した showDropDown 属性の「意味」で名づけた。"
             },
             {
               "id": "xlsx.dv.ext",
@@ -1869,7 +1869,7 @@
               "read": "full",
               "write": "full",
               "api": [
-                "wb.protection.lockStructure"
+                "wb.protection.locksStructure"
               ],
               "warning": null,
               "evidence": "judge",

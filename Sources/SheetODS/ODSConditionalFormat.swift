@@ -272,7 +272,7 @@ enum ODSConditionalFormatWriter {
                         standalone += "<calcext:formatting-entry calcext:value=\"\(XML.esc(v.value ?? "0"))\" calcext:type=\"\(ODSCondition.valueType(v.kind))\"/>"
                     }
                     standalone += "</calcext:data-bar></calcext:conditional-format>"
-                    if !bar.showValue {
+                    if !bar.showsValue {
                         sink.add(.degraded, subject: .formatting, sheet: sheet.name, "data bar written with its number showing: ODF has no way to hide it")
                     }
                 case .iconSet:
@@ -283,7 +283,7 @@ enum ODSConditionalFormatWriter {
                         standalone += "<calcext:formatting-entry calcext:value=\"\(XML.esc(v.value ?? "0"))\" calcext:type=\"\(ODSCondition.valueType(v.kind))\"/>"
                     }
                     standalone += "</calcext:icon-set></calcext:conditional-format>"
-                    if !icons.showValue {
+                    if !icons.showsValue {
                         sink.add(.degraded, subject: .formatting, sheet: sheet.name, "icon set written with its number showing: ODF has no way to hide it")
                     }
                 case .timePeriod:

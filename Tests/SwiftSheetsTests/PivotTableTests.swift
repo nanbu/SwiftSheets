@@ -103,7 +103,7 @@ import SwiftSheets
         #expect(read.fields.map(\.axis) == written.fields.map(\.axis))
         #expect(read.cache.sourceRef == CellRange("A1:D4") && read.cache.sourceSheet == "Data")
         #expect(read.cache.fields.map(\.name) == ["Item", "Region", "Qty", "Price"])
-        #expect(read.cache.refreshOnLoad)
+        #expect(read.cache.refreshesOnLoad)
     }
 
     /// More than one value needs a place for the captions; one value does not.

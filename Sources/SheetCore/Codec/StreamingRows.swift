@@ -4,7 +4,7 @@ import Foundation
 public struct StreamedCell: Sendable {
     public let ref: CellRef
     public let value: CellValue?
-    /// The cell's formatting, when `StreamingReadOptions.includeStyles` asked for it.
+    /// The cell's formatting, when `StreamingReadOptions.includesStyles` asked for it.
     public let style: CellStyle?
 
     public init(ref: CellRef, value: CellValue?, style: CellStyle? = nil) {
@@ -40,14 +40,14 @@ public struct StreamedRow: Sendable {
 public struct StreamingReadOptions: Sendable, Hashable {
     /// Resolve each cell's formatting as well as its value. Off by default: it is the expensive half, and a
     /// row-by-row pass is usually after the numbers.
-    public var includeStyles = false
+    public var includesStyles = false
     /// What a formula cell arrives as — the formula with its computed value beside it, or that value alone. The same
     /// choice, with the same answers, as `ReadOptions.formulaCells` (spec Appendix B.54).
     public var formulaCells = FormulaCellReading.formulas
     /// Rows with no cell that holds anything are handed over anyway. Off by default, as openpyxl's reader is.
     public var includesEmptyRows = false
-    public init(includeStyles: Bool = false, formulaCells: FormulaCellReading = .formulas, includesEmptyRows: Bool = false) {
-        self.includeStyles = includeStyles; self.formulaCells = formulaCells; self.includesEmptyRows = includesEmptyRows
+    public init(includesStyles: Bool = false, formulaCells: FormulaCellReading = .formulas, includesEmptyRows: Bool = false) {
+        self.includesStyles = includesStyles; self.formulaCells = formulaCells; self.includesEmptyRows = includesEmptyRows
     }
 }
 

@@ -102,11 +102,11 @@ public struct SheetProtection: Hashable, Sendable {
 /// accidents, not determined people.
 public struct WorkbookProtection: Hashable, Sendable {
     /// Sheets cannot be added, deleted, renamed, hidden or reordered.
-    public var lockStructure: Bool
+    public var locksStructure: Bool
     /// The window layout is fixed.
-    public var lockWindows: Bool
+    public var locksWindows: Bool
     /// Change tracking cannot be switched off.
-    public var lockRevision: Bool
+    public var locksRevision: Bool
     public package(set) var passwordHash: String?
     public package(set) var revisionsPasswordHash: String?
     /// The modern hashes, carried verbatim.
@@ -115,8 +115,8 @@ public struct WorkbookProtection: Hashable, Sendable {
     public var saltValue: String?
     public var spinCount: Int?
 
-    public init(lockStructure: Bool = false, lockWindows: Bool = false, lockRevision: Bool = false) {
-        self.lockStructure = lockStructure; self.lockWindows = lockWindows; self.lockRevision = lockRevision
+    public init(locksStructure: Bool = false, locksWindows: Bool = false, locksRevision: Bool = false) {
+        self.locksStructure = locksStructure; self.locksWindows = locksWindows; self.locksRevision = locksRevision
     }
 
     public mutating func setPassword(_ password: String?) { passwordHash = password.map(LegacyPasswordHash.hash) }

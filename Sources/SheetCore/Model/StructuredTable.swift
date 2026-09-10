@@ -161,15 +161,15 @@ public struct TableStyleInfo: Hashable, Sendable {
     /// One of Excel's own names — "TableStyleLight1"…"TableStyleDark11", "TableStyleMedium9". Nil is no style at
     /// all, which leaves the cells' own formatting showing.
     public var name: String?
-    public var showFirstColumn: Bool
-    public var showLastColumn: Bool
-    public var showRowStripes: Bool
-    public var showColumnStripes: Bool
+    public var showsFirstColumn: Bool
+    public var showsLastColumn: Bool
+    public var showsRowStripes: Bool
+    public var showsColumnStripes: Bool
 
-    public init(name: String? = nil, showFirstColumn: Bool = false, showLastColumn: Bool = false,
-                showRowStripes: Bool = true, showColumnStripes: Bool = false) {
-        self.name = name; self.showFirstColumn = showFirstColumn; self.showLastColumn = showLastColumn
-        self.showRowStripes = showRowStripes; self.showColumnStripes = showColumnStripes
+    public init(name: String? = nil, showsFirstColumn: Bool = false, showsLastColumn: Bool = false,
+                showsRowStripes: Bool = true, showsColumnStripes: Bool = false) {
+        self.name = name; self.showsFirstColumn = showsFirstColumn; self.showsLastColumn = showsLastColumn
+        self.showsRowStripes = showsRowStripes; self.showsColumnStripes = showsColumnStripes
     }
 
     /// The blue banding Excel gives a new table.

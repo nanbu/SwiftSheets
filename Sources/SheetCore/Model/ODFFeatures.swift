@@ -24,9 +24,9 @@ public struct CalculationSettings: Hashable, Sendable {
     /// Column and row headings may be used in formulas without being declared (see `LabelRange`).
     public var automaticFindLabels: Bool
     /// Search conditions are regular expressions.
-    public var useRegularExpressions: Bool
+    public var usesRegularExpressions: Bool
     /// Search conditions use `*` / `?` wildcards.
-    public var useWildcards: Bool
+    public var usesWildcards: Bool
     /// The first year of the hundred-year window a two-digit year falls in (`table:null-year`, e.g. 1930).
     public var nullYear: Int?
     /// Recalculate circular references instead of reporting them.
@@ -39,14 +39,14 @@ public struct CalculationSettings: Hashable, Sendable {
     /// ODF's own defaults (§9.4.1): everything off except the wildcard and heading conveniences.
     public init(caseSensitive: Bool = false, precisionAsShown: Bool = false,
                 searchCriteriaMustApplyToWholeCell: Bool = true, automaticFindLabels: Bool = true,
-                useRegularExpressions: Bool = false, useWildcards: Bool = true, nullYear: Int? = nil,
+                usesRegularExpressions: Bool = false, usesWildcards: Bool = true, nullYear: Int? = nil,
                 iterationEnabled: Bool = false, iterationSteps: Int? = nil, iterationMaximumDifference: Double? = nil) {
         self.caseSensitive = caseSensitive
         self.precisionAsShown = precisionAsShown
         self.searchCriteriaMustApplyToWholeCell = searchCriteriaMustApplyToWholeCell
         self.automaticFindLabels = automaticFindLabels
-        self.useRegularExpressions = useRegularExpressions
-        self.useWildcards = useWildcards
+        self.usesRegularExpressions = usesRegularExpressions
+        self.usesWildcards = usesWildcards
         self.nullYear = nullYear
         self.iterationEnabled = iterationEnabled
         self.iterationSteps = iterationSteps
@@ -66,7 +66,7 @@ public struct CalculationSettings: Hashable, Sendable {
     /// destination do something else with this document than the source did** (spec Appendix B.23).
     public static let asAssumedOutsideODF = CalculationSettings(
         caseSensitive: false, precisionAsShown: false, searchCriteriaMustApplyToWholeCell: true,
-        automaticFindLabels: true, useRegularExpressions: false, useWildcards: true, nullYear: 1930,
+        automaticFindLabels: true, usesRegularExpressions: false, usesWildcards: true, nullYear: 1930,
         iterationEnabled: false, iterationSteps: nil, iterationMaximumDifference: nil)
 
     /// The settings that are **in force** here and would be read differently there, each as a clause a person can
@@ -87,9 +87,9 @@ public struct CalculationSettings: Hashable, Sendable {
              "uses the number as displayed", "uses the number as stored")
         flag(searchCriteriaMustApplyToWholeCell, other.searchCriteriaMustApplyToWholeCell, "a search condition",
              "has to match the whole cell", "may match part of a cell")
-        flag(useRegularExpressions, other.useRegularExpressions, "a search condition",
+        flag(usesRegularExpressions, other.usesRegularExpressions, "a search condition",
              "is a regular expression", "is not a regular expression")
-        flag(useWildcards, other.useWildcards, "a search condition",
+        flag(usesWildcards, other.usesWildcards, "a search condition",
              "uses * and ? as wildcards", "takes * and ? literally")
         if let mine = nullYear, mine != (other.nullYear ?? 1930) {
             out.append("a two-digit year starts its hundred years at \(mine) here, and at \(other.nullYear ?? 1930) there")
@@ -150,12 +150,12 @@ public struct Consolidation: Hashable, Sendable {
     public var targetSheet: String
     public var useLabels: Labels
     /// Write formulas that follow the sources rather than a snapshot of their values.
-    public var linkToSourceData: Bool
+    public var linksToSourceData: Bool
 
     public init(function: PivotDataField.Function = .sum, sources: [CellRange], target: CellRef, targetSheet: String,
-                useLabels: Labels = .none, linkToSourceData: Bool = false) {
+                useLabels: Labels = .none, linksToSourceData: Bool = false) {
         self.function = function; self.sources = sources; self.target = target; self.targetSheet = targetSheet
-        self.useLabels = useLabels; self.linkToSourceData = linkToSourceData
+        self.useLabels = useLabels; self.linksToSourceData = linksToSourceData
     }
 }
 

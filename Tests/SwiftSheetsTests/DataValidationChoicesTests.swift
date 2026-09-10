@@ -11,9 +11,9 @@ struct DataValidationChoicesTests {
         let rule = try #require(DataValidation.list(choices: ["Todo", "Doing", "Done"], over: cells))
         #expect(rule.kind == .list && rule.formula1 == "\"Todo,Doing,Done\"")
         #expect(rule.listChoices == ["Todo", "Doing", "Done"])
-        #expect(rule.allowBlank && !rule.showErrorMessage, "the same suggest-by-default as list(_:over:)")
-        let strict = try #require(DataValidation.list(choices: ["a"], over: cells, allowBlank: false, rejects: true))
-        #expect(!strict.allowBlank && strict.showErrorMessage && strict.errorStyle == .stop)
+        #expect(rule.allowsBlank && !rule.showsErrorMessage, "the same suggest-by-default as list(_:over:)")
+        let strict = try #require(DataValidation.list(choices: ["a"], over: cells, allowsBlank: false, rejects: true))
+        #expect(!strict.allowsBlank && strict.showsErrorMessage && strict.errorStyle == .stop)
     }
 
     @Test func whatCannotBeAnInlineListIsNil() {

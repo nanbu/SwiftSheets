@@ -60,7 +60,7 @@ import Testing
         wb.sheets["Plan"]!.dataValidations = [
             .list("\"Todo,Doing,Done\"", over: MultiCellRange("C4:C6")!),
             DataValidation(kind: .whole, ranges: MultiCellRange("D4:D6")!, formula1: "0", formula2: "100",
-                           operator: .between, errorStyle: .stop, allowBlank: true, showErrorMessage: true,
+                           operator: .between, errorStyle: .stop, allowsBlank: true, showsErrorMessage: true,
                            errorTitle: "範囲外", error: "0〜100 で入力してください"),
         ]
         return wb
@@ -115,7 +115,7 @@ import Testing
         #expect(!ws.hasUnmodelledValidations)
         #expect(ws.dataValidations.count == 1)
         #expect(ws.dataValidations[0].kind == .list && ws.dataValidations[0].formula1 == "\"Todo,Doing,Done\"")
-        #expect(ws.dataValidations[0].ranges == MultiCellRange("C4:C6") && ws.dataValidations[0].allowBlank)
+        #expect(ws.dataValidations[0].ranges == MultiCellRange("C4:C6") && ws.dataValidations[0].allowsBlank)
     }
 
     /// The features added after the first interop pass — conditional formatting, named tables, differential and

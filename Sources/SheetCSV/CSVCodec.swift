@@ -458,7 +458,7 @@ package enum CSVCodec: SpreadsheetCodec {
             }
             body = lossy
         }
-        if options.includeBOM {
+        if options.includesBOM {
             switch encoding {
             case .utf8: body.insert(contentsOf: [0xEF, 0xBB, 0xBF], at: 0)
             case .utf16LittleEndian: body.insert(contentsOf: [0xFF, 0xFE], at: 0)
