@@ -2,11 +2,12 @@ import Foundation
 import SheetCore
 
 /// What a sheet's drawing part holds, read into the model (spec Appendix B.72): pictures into `Sheet.images`,
-/// charts into `Sheet.charts`, and a note of whatever else was there (shapes, pictures in a format the model
-/// cannot hold, charts whose part could not be read) so the writer knows the part says more than the model.
+/// charts into `Sheet.charts`, shapes and text boxes into `Sheet.shapes` (B.75), and a note of whatever else was
+/// there (groups of shapes, SmartArt, pictures in a format the model cannot hold, charts whose part could not be read) so the writer knows the part says more than the model.
 struct DrawingContents {
     var images: [SheetImage] = []
     var charts: [Chart] = []
+    var shapes: [Shape] = []
     /// Anchors the model has no word for, by their element (`sp`, `grpSp`, `cxnSp`, …) or a reason.
     var unmodelled: [String] = []
     /// The parts the drawing referenced (media, charts), so a rebuild can retire them.
@@ -15,14 +16,153 @@ struct DrawingContents {
 
 /// One anchor of `xdr:wsDr`, as the SAX pass collects it.
 struct DrawingAnchor {
-    enum Kind { case picture(relID: String), chart(relID: String), other(String), none }
-    enum Shape { case oneCell, twoCell, absolute }
-    var shape: Shape
+    enum Kind { case picture(relID: String), chart(relID: String), shape(Shape), other(String), none }
+    enum Form { case oneCell, twoCell, absolute }
+    var shape: Form
     var kind: Kind = .none
     var from = (column: 0, row: 0, columnOffset: 0, rowOffset: 0)
     var to = (column: 0, row: 0, columnOffset: 0, rowOffset: 0)
     var ext: (cx: Int, cy: Int)?
     var pos: (x: Int, y: Int)?
+}
+
+/// What an `xdr:sp` / `xdr:cxnSp` says, gathered while inside it (B.75): the preset, the text with its first
+/// run's font and its first paragraph's alignment, the fill and the line — from `spPr` when it states them, else
+/// from the `xdr:style` references (the theme's accent, the way Excel colours a fresh shape).
+struct ShapeCollector {
+    var name: String?
+    var isTextBox = false
+    var preset: String?
+    var fill: Color?, fillStated = false
+    var line: Color?, lineWidthEMU: Int?, lineStated = false
+    var styleFill: Color?, styleLine: Color?
+    var paragraphs: [String] = []
+    var paragraph = ""
+    var inParagraph = false
+    var alignment: Alignment.Horizontal?
+    var font: Font?
+    var fontTaken = false
+    var runFont: Font?
+    // where a colour lands
+    var inSpPr = false, inLn = false, inTxBody = false, inRPr = false, inStyle = false
+    var styleSlot: String?      // fillRef / lnRef / effectRef / fontRef
+    var styleIndex = 0
+    var pendingColor: Color?
+    var inColor = false
+    var lumMod: Double?, lumOff: Double?, shade: Double?
+
+    /// The theme index of a scheme colour name; nil for names the theme has no slot for (`phClr`).
+    static func themeIndex(_ scheme: String) -> Int? {
+        switch scheme {
+        case "bg1", "lt1": 0
+        case "tx1", "dk1": 1
+        case "bg2", "lt2": 2
+        case "tx2", "dk2": 3
+        case "accent1": 4
+        case "accent2": 5
+        case "accent3": 6
+        case "accent4": 7
+        case "accent5": 8
+        case "accent6": 9
+        case "hlink": 10
+        case "folHlink": 11
+        default: nil
+        }
+    }
+
+    var shape: Shape {
+        var s = Shape(isTextBox && (preset == nil || preset == "rect") ? .textBox : Shape.Geometry(rawValue: preset ?? "rect"))
+        s.name = name
+        if !paragraphs.isEmpty { s.text = paragraphs.joined(separator: "\n") }
+        s.font = font
+        s.textAlignment = alignment
+        s.fill = fillStated ? fill : (isTextBox ? nil : styleFill)
+        if lineStated {
+            s.outline = line.map { Shape.Outline(color: $0, width: Double(lineWidthEMU ?? 9525) / 12700) }
+        } else if !isTextBox, let c = styleLine {
+            s.outline = Shape.Outline(color: c, width: Double(lineWidthEMU ?? 9525) / 12700)
+        }
+        return s
+    }
+
+    mutating func start(_ name: String, _ a: [String: String]) {
+        switch name {
+        case "cNvPr": if self.name == nil { self.name = a["name"] }
+        case "cNvSpPr": if a["txBox"] == "1" || a["txBox"] == "true" { isTextBox = true }
+        case "prstGeom": if preset == nil { preset = a["prst"] }
+        case "spPr": inSpPr = true
+        case "ln" where inSpPr: inLn = true; lineStated = true; lineWidthEMU = a["w"].flatMap { Int($0) }
+        case "style": inStyle = true
+        case "fillRef", "lnRef", "effectRef", "fontRef": if inStyle { styleSlot = name; styleIndex = Int(a["idx"] ?? "") ?? 0 }
+        case "txBody": inTxBody = true
+        case "p" where inTxBody: inParagraph = true; paragraph = ""
+        case "pPr" where inParagraph:
+            if alignment == nil, let algn = a["algn"] {
+                switch algn {
+                case "l": alignment = .left
+                case "ctr": alignment = .center
+                case "r": alignment = .right
+                case "just": alignment = .justify
+                case "dist": alignment = .distributed
+                default: break
+                }
+            }
+        case "rPr" where inParagraph:
+            inRPr = true
+            var f = Font()
+            if let sz = a["sz"].flatMap({ Double($0) }) { f.size = sz / 100 }
+            f.bold = a["b"] == "1" || a["b"] == "true"
+            f.italic = a["i"] == "1" || a["i"] == "true"
+            if let u = a["u"], u != "none" { f.underline = u == "dbl" ? .double : .single }
+            runFont = f
+        case "latin" where inRPr: runFont?.name = a["typeface"]
+        case "br" where inParagraph: paragraph += "\n"
+        case "noFill":
+            if inLn { line = nil } else if inSpPr { fillStated = true; fill = nil }
+        case "solidFill" where inSpPr || inRPr:
+            if inSpPr && !inLn { fillStated = true }
+            inColor = true; pendingColor = nil; lumMod = nil; lumOff = nil; shade = nil
+        case "srgbClr": if inColor || inStyle, let v = a["val"] { pendingColor = Color(hex: v) }
+        case "schemeClr": if inColor || inStyle, let v = a["val"], let i = Self.themeIndex(v) { pendingColor = .theme(i) }
+        case "lumMod": lumMod = a["val"].flatMap { Double($0) }
+        case "lumOff": lumOff = a["val"].flatMap { Double($0) }
+        case "shade": shade = a["val"].flatMap { Double($0) }
+        default: break
+        }
+    }
+
+    mutating func text(_ s: String) { if inParagraph { paragraph += s } }
+
+    private func tinted(_ c: Color?) -> Color? {
+        guard case .theme(let i, _)? = c else { return c }
+        var tint = 0.0
+        if let off = lumOff { tint = off / 100_000 } else if let mod = lumMod { tint = mod / 100_000 - 1 } else if let sh = shade { tint = sh / 100_000 - 1 }
+        return .theme(i, tint: (tint * 1000).rounded() / 1000)
+    }
+
+    mutating func end(_ name: String) {
+        switch name {
+        case "spPr": inSpPr = false
+        case "ln": inLn = false
+        case "style": inStyle = false
+        case "txBody": inTxBody = false
+        case "p" where inParagraph: inParagraph = false; paragraphs.append(paragraph)
+        case "rPr" where inRPr:
+            inRPr = false
+            if !fontTaken { font = runFont; fontTaken = true }
+        case "solidFill" where inColor:
+            inColor = false
+            let c = tinted(pendingColor)
+            if inRPr { runFont?.color = c } else if inLn { line = c } else if inSpPr { fill = c }
+        case "fillRef", "lnRef":
+            if inStyle, styleIndex > 0, let c = tinted(pendingColor) {
+                if name == "fillRef" { styleFill = c } else { styleLine = c }
+            }
+            styleSlot = nil; pendingColor = nil; lumMod = nil; lumOff = nil; shade = nil
+        case "effectRef", "fontRef": styleSlot = nil; pendingColor = nil
+        default: break
+        }
+    }
 }
 
 /// xl/drawings/drawingN.xml → anchors. Element names arrive without prefixes; the relationship ids are looked up
@@ -36,12 +176,19 @@ final class DrawingParser: SAXHandler {
     private var field: String?           // col / colOff / row / rowOff
     private var buffer = ""
     private var inGraphicFrame = false
+    private var graphicKind: String?
+    private var shape: ShapeCollector?
+    private var shapeDepth = 0
+    private var groupDepth = 0
+    private var objectDepth = 0          // inside pic / graphicFrame: an `a:ext` there is the object's, not the anchor's
 
     private static func rel(_ a: [String: String], _ name: String) -> String? {
         a["r:" + name] ?? a.first { $0.key.hasSuffix(":" + name) }?.value ?? a[name]
     }
 
     func start(_ name: String, _ a: [String: String]) {
+        if shape != nil { shapeDepth += 1; shape!.start(name, a); return }
+        if groupDepth > 0 { groupDepth += 1; return }
         switch name {
         case "oneCellAnchor": current = DrawingAnchor(shape: .oneCell)
         case "twoCellAnchor": current = DrawingAnchor(shape: .twoCell)
@@ -49,30 +196,55 @@ final class DrawingParser: SAXHandler {
         case "from", "to": corner = name
         case "col", "colOff", "row", "rowOff": if corner != nil { field = name; buffer = "" }
         case "ext":
-            if current != nil, !inGraphicFrame, let cx = Int(a["cx"] ?? ""), let cy = Int(a["cy"] ?? "") { current?.ext = (cx, cy) }
+            if current != nil, !inGraphicFrame, objectDepth == 0, let cx = Int(a["cx"] ?? ""), let cy = Int(a["cy"] ?? "") { current?.ext = (cx, cy) }
         case "pos":
-            if let x = Int(a["x"] ?? ""), let y = Int(a["y"] ?? "") { current?.pos = (x, y) }
-        case "pic": if case .none? = current?.kind { current?.kind = .other("pic") }   // becomes .picture at the blip
+            if objectDepth == 0, let x = Int(a["x"] ?? ""), let y = Int(a["y"] ?? "") { current?.pos = (x, y) }
+        case "pic":
+            objectDepth += 1
+            if case .none? = current?.kind { current?.kind = .other("pic") }   // becomes .picture at the blip
         case "blip":
             if let id = Self.rel(a, "embed"), case .other("pic")? = current?.kind { current?.kind = .picture(relID: id) }
-        case "graphicFrame": inGraphicFrame = true
+        case "graphicFrame": inGraphicFrame = true; graphicKind = nil; objectDepth += 1
+        case "graphicData" where inGraphicFrame:
+            if let uri = a["uri"] {
+                if uri.hasSuffix("/diagram") { graphicKind = "SmartArt" }
+                else if uri.hasSuffix("/chart") { graphicKind = nil }
+                else if uri.contains("ole") || uri.contains("legacy") { graphicKind = "an embedded object" }
+                else { graphicKind = "graphicFrame (\((uri as NSString).lastPathComponent))" }
+            }
         case "chart":
             if inGraphicFrame, let id = Self.rel(a, "id"), case .none? = current?.kind { current?.kind = .chart(relID: id) }
-        case "sp", "grpSp", "cxnSp", "contentPart", "AlternateContent":
-            if case .none? = current?.kind { current?.kind = .other(name) }
+        case "sp", "cxnSp":
+            if current != nil, case .none? = current?.kind { shape = ShapeCollector(); shapeDepth = 1 }
+            else if case .none? = current?.kind { current?.kind = .other(name) }
+        case "grpSp":
+            if case .none? = current?.kind { current?.kind = .other("a group of shapes") }
+            groupDepth = 1
+        case "contentPart", "AlternateContent":
+            if case .none? = current?.kind { current?.kind = .other(name == "AlternateContent" ? "an object in AlternateContent" : name) }
         default: break
         }
     }
-    func text(_ s: String) { if field != nil { buffer += s } }
+    func text(_ s: String) {
+        if shape != nil { shape!.text(s); return }
+        if field != nil { buffer += s }
+    }
     func end(_ name: String) {
+        if shape != nil {
+            shape!.end(name)
+            shapeDepth -= 1
+            if shapeDepth == 0 { current?.kind = .shape(shape!.shape); shape = nil }
+            return
+        }
+        if groupDepth > 0 { groupDepth -= 1; return }
         switch name {
         case "oneCellAnchor", "twoCellAnchor", "absoluteAnchor":
             if var anchor = current {
                 if case .other("pic") = anchor.kind { anchor.kind = .other("pic without a blip") }
-                if inGraphicFrame, case .none = anchor.kind { anchor.kind = .other("graphicFrame") }
+                if inGraphicFrame, case .none = anchor.kind { anchor.kind = .other(graphicKind ?? "graphicFrame") }
                 anchors.append(anchor)
             }
-            current = nil; inGraphicFrame = false
+            current = nil; inGraphicFrame = false; objectDepth = 0
         case "from", "to": corner = nil
         case "col", "colOff", "row", "rowOff":
             guard let corner, field == name, let v = Int(buffer.trimmingCharacters(in: .whitespacesAndNewlines)) else { field = nil; return }
@@ -86,7 +258,10 @@ final class DrawingParser: SAXHandler {
                 }
             }
             if corner == "from" { if current != nil { apply(&current!.from) } } else if current != nil { apply(&current!.to) }
-        case "graphicFrame": inGraphicFrame = false
+        case "graphicFrame":
+            if case .none? = current?.kind, let graphicKind { current?.kind = .other(graphicKind) }
+            inGraphicFrame = false; objectDepth = max(0, objectDepth - 1)
+        case "pic": objectDepth = max(0, objectDepth - 1)
         default: break
         }
     }
@@ -206,6 +381,9 @@ enum DrawingReader {
                 guard (try? cp.run(data, part: path)) != nil, var chart = cp.chart else { out.unmodelled.append("chart part \(path) could not be read"); continue }
                 chart.anchor = chartRange(anchor, sheet: sheet)
                 out.charts.append(chart)
+            case .shape(var shape):
+                shape.anchor = shapeAnchor(anchor, sheet: sheet)
+                out.shapes.append(shape)
             case .other(let what): out.unmodelled.append(what)
             case .none: out.unmodelled.append("empty anchor")
             }
@@ -226,6 +404,21 @@ enum DrawingReader {
             return .span(span(a))
         case .absolute:
             let pos = a.pos ?? (0, 0), ext = a.ext ?? (Units.pixelsToEMU(Double(image.pixelWidth)), Units.pixelsToEMU(Double(image.pixelHeight)))
+            return .absolute(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700)
+        }
+    }
+
+    /// The model's anchor for a shape: a one-cell anchor is `.cell` at the extent's size, a two-cell anchor `.span`,
+    /// an absolute anchor `.absolute` in points.
+    static func shapeAnchor(_ a: DrawingAnchor, sheet: Sheet) -> SheetImage.Anchor {
+        switch a.shape {
+        case .oneCell:
+            let ref = CellRef(row: a.from.row + 1, column: a.from.column + 1)
+            guard let ext = a.ext else { return .cell(ref, sizing: .fitCell) }
+            return .cell(ref, sizing: .scaled(width: Units.emuToPixels(Double(ext.cx)), height: Units.emuToPixels(Double(ext.cy))))
+        case .twoCell: return .span(span(a))
+        case .absolute:
+            let pos = a.pos ?? (0, 0), ext = a.ext ?? (0, 0)
             return .absolute(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700)
         }
     }

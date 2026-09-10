@@ -39,6 +39,7 @@ struct ODSRawStyle {
     var column: [String: String] = [:]
     var row: [String: String] = [:]
     var table: [String: String] = [:]
+    var graphic: [String: String] = [:]
     /// `style:map` children — ODF 1.3's own conditional formats (condition, style applied, base cell).
     var maps: [(condition: String, style: String, base: String?)] = []
 }
@@ -106,6 +107,7 @@ final class ODSStyleCatalog {
         case "table-column-properties": current?.column.merge(a) { _, new in new }
         case "table-row-properties": current?.row.merge(a) { _, new in new }
         case "table-properties": current?.table.merge(a) { _, new in new }
+        case "graphic-properties": current?.graphic.merge(a) { _, new in new }
         case "number-style", "percentage-style", "currency-style", "date-style", "time-style", "boolean-style", "text-style":
             guard let kind = ODSDataStyle.Kind(rawValue: name) else { return }
             var d = ODSDataStyle(kind: kind)
@@ -324,6 +326,55 @@ final class ODSStyleCatalog {
               let v = ODSAttr.get(s.table, "table:tab-color") ?? ODSAttr.get(s.table, "tableooo:tab-color"),
               v.hasPrefix("#") else { return nil }
         return Color(hex: v)
+    }
+
+    /// The fill and the outline a graphic style gives a shape (B.75), walking the parent chain: `draw:fill` solid
+    /// with `draw:fill-color`, `draw:stroke` other than none with `svg:stroke-color` / `svg:stroke-width`.
+    func graphicStyle(named name: String?) -> (fill: Color?, outline: Shape.Outline?) {
+        var fill: Color?, stroke: Color?, width: Double?
+        var fillKind: String?, strokeKind: String?
+        for s in chain(name).reversed() {
+            if let k = ODSAttr.get(s.graphic, "draw:fill") { fillKind = k }
+            if let c = ODSAttr.get(s.graphic, "draw:fill-color"), c.hasPrefix("#") { fill = Color(hex: c) }
+            if let k = ODSAttr.get(s.graphic, "draw:stroke") { strokeKind = k }
+            if let c = ODSAttr.get(s.graphic, "svg:stroke-color"), c.hasPrefix("#") { stroke = Color(hex: c) }
+            if let w = ODSAttr.get(s.graphic, "svg:stroke-width").flatMap(ODSLength.points) { width = w }
+        }
+        let solid = fillKind == nil ? fill != nil : fillKind == "solid"
+        let stroked = strokeKind == nil ? stroke != nil : strokeKind != "none"
+        return (solid ? fill : nil, stroked ? Shape.Outline(color: stroke ?? .rgb("FF000000"), width: width ?? 0.75) : nil)
+    }
+
+    /// `fo:text-align` of a paragraph style (or of a graphic style's paragraph properties), walking the parents.
+    func paragraphAlignment(named name: String?) -> Alignment.Horizontal? {
+        var out: Alignment.Horizontal?
+        for s in chain(name).reversed() {
+            switch ODSAttr.get(s.paragraph, "fo:text-align") {
+            case "start"?, "left"?: out = .left
+            case "end"?, "right"?: out = .right
+            case "center"?: out = .center
+            case "justify"?: out = .justify
+            default: break
+            }
+        }
+        return out
+    }
+
+    /// The font a text (or paragraph, or graphic) style states, as a whole font; nil when it states nothing.
+    func font(named name: String?) -> Font? {
+        guard let d = differentialStyle(named: name)?.font else { return nil }
+        var f = Font()
+        f.name = d.name; f.size = d.size; f.bold = d.bold ?? false; f.italic = d.italic ?? false
+        f.underline = d.underline; f.strikethrough = d.strikethrough ?? false; f.color = d.color
+        return f == Font() ? nil : f
+    }
+
+    private func chain(_ name: String?) -> [ODSRawStyle] {
+        var chain: [ODSRawStyle] = []
+        var cursor = name
+        var seen = Set<String>()
+        while let n = cursor, n != "Default", let s = styles[n], seen.insert(n).inserted { chain.append(s); cursor = s.parent }
+        return chain
     }
 
     func isTableHidden(_ styleName: String?) -> Bool {

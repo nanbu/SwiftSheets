@@ -102,11 +102,12 @@ enum ODSReader {
         }
 
         // pictures and chart objects the frames named, into the model (B.73); their parts are not kept opaque
-        let drawn = try ODSDrawing.resolve(content.frames, sheets: Array(wb.sheets),
+        let drawn = try ODSDrawing.resolve(content.frames, sheets: Array(wb.sheets), catalog: content.catalog,
                                            read: { try zip.read($0) }, exists: { zip.contains($0) }, allNames: Array(zip.entries.keys))
         for i in wb.sheets.indices {
             wb.sheets[i].images = drawn.images[i] + wb.sheets[i].images
             wb.sheets[i].charts = drawn.charts[i] + wb.sheets[i].charts
+            wb.sheets[i].shapes = drawn.shapes[i] + wb.sheets[i].shapes
         }
         if options.preservesUnknownParts {
             for name in zip.entries.keys where !interpretedParts.contains(name) && !name.hasSuffix("/") && !name.hasPrefix("Thumbnails/") && !drawn.consumed.contains(name) {
@@ -249,6 +250,8 @@ final class ContentParser: SAXHandler {
     private var frame: ODSFrame?
     private var frameDepth = 0
     private var inShapes = false
+    private var frameParagraphDepth = 0   // inside a text:p of a shape or text box
+    private var frameParagraph = ""
 
     // cell state
     private var inCell = false
@@ -338,17 +341,36 @@ final class ContentParser: SAXHandler {
         if depth == 2, ContentParser.sections.contains(name) { sectionDepth = 1; return }
         if skipDepth > 0 { skipDepth += 1; return }
         if frameDepth > 0 {
-            // inside a draw:frame: the picture or the object it holds, and nothing else
+            // inside a draw:frame / draw:custom-shape / draw:line: the picture or the object it holds, its
+            // geometry, its text (B.75), and nothing else
             frameDepth += 1
-            if name == "image", frame?.imageHref == nil { frame?.imageHref = ODSAttr.get(a, "xlink:href") }
-            if name == "object", frame?.objectHref == nil { frame?.objectHref = ODSAttr.get(a, "xlink:href") }
+            switch name {
+            case "image": if frame?.imageHref == nil { frame?.imageHref = ODSAttr.get(a, "xlink:href") }
+            case "object": if frame?.objectHref == nil { frame?.objectHref = ODSAttr.get(a, "xlink:href") }
+            case "text-box": frame?.isTextBox = true
+            case "enhanced-geometry": if frame?.shapeType == nil { frame?.shapeType = ODSAttr.get(a, "draw:type") }
+            case "p":
+                frameParagraphDepth = frameDepth; frameParagraph = ""
+                if frame?.paragraphStyleName == nil { frame?.paragraphStyleName = ODSAttr.get(a, "text:style-name") }
+            case "span" where frameParagraphDepth > 0: if frame?.spanStyleName == nil { frame?.spanStyleName = ODSAttr.get(a, "text:style-name") }
+            case "line-break" where frameParagraphDepth > 0: frameParagraph += "\n"
+            case "tab" where frameParagraphDepth > 0: frameParagraph += "\t"
+            case "s" where frameParagraphDepth > 0: frameParagraph += String(repeating: " ", count: Swift.max(1, ODSAttr.int(a, "text:c") ?? 1))
+            default: break
+            }
             return
         }
-        if name == "frame", inTable, inCell || inShapes {
+        if name == "frame" || name == "custom-shape" || name == "line" || name == "connector", inTable, inCell || inShapes {
             let cm = { (key: String) -> Double? in ODSAttr.get(a, key).flatMap(ODSLength.millimetres).map { $0 / 10 } }
-            frame = ODSFrame(sheetIndex: sheets.count, cell: inCell ? CellRef(row: rowCursor, column: cellCursor) : nil,
+            var f = ODSFrame(sheetIndex: sheets.count, cell: inCell ? CellRef(row: rowCursor, column: cellCursor) : nil,
                              width: cm("svg:width"), height: cm("svg:height"), x: cm("svg:x"), y: cm("svg:y"),
                              endCell: ODSAttr.get(a, "table:end-cell-address"), endX: cm("table:end-x"), endY: cm("table:end-y"))
+            f.kind = name == "frame" ? .frame : (name == "custom-shape" ? .customShape : .line)
+            f.name = ODSAttr.get(a, "draw:name")
+            f.styleName = ODSAttr.get(a, "draw:style-name")
+            f.textStyleName = ODSAttr.get(a, "draw:text-style-name")
+            if f.kind == .line { f.x1 = cm("svg:x1"); f.y1 = cm("svg:y1"); f.x2 = cm("svg:x2"); f.y2 = cm("svg:y2") }
+            frame = f
             frameDepth = 1
             return
         }
@@ -608,7 +630,7 @@ final class ContentParser: SAXHandler {
             unmodelledODF.insert(.trackedChanges); skipDepth = 1
         case "dde-links":
             unmodelledODF.insert(.ddeLinks); skipDepth = 1
-        case "frame", "forms", "custom-shape", "control", "g":
+        case "frame", "forms", "custom-shape", "control", "g", "line", "connector":
             skipDepth = 1
         case _ where ContentParser.transparent.contains(name):
             if name == "table-row-group" { groupDepth += 1 }
@@ -618,6 +640,7 @@ final class ContentParser: SAXHandler {
 
     func text(_ s: String) {
         if sectionDepth > 1 { catalog.text(s); return }
+        if frameParagraphDepth > 0 { frameParagraph += s; return }
         guard skipDepth == 0, frameDepth == 0 else { return }
         if validationMessage != nil, inValidationParagraph { messageText += s; return }
         if inCell { cellText.text(s) }
@@ -628,6 +651,9 @@ final class ContentParser: SAXHandler {
         if sectionDepth > 0 { sectionDepth -= 1; if sectionDepth > 0 { catalog.end(name) }; return }
         if skipDepth > 0 { skipDepth -= 1; return }
         if frameDepth > 0 {
+            if name == "p", frameParagraphDepth == frameDepth {
+                frame?.paragraphs.append(frameParagraph); frameParagraphDepth = 0; frameParagraph = ""
+            }
             frameDepth -= 1
             if frameDepth == 0, let frame { frames.append(frame); self.frame = nil }
             return

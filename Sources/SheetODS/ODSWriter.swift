@@ -32,6 +32,40 @@ final class ODSStyleRegistry {
     private(set) var textOrder: [(name: String, font: Font)] = []
     private var tables: [String: String] = [:]
     private(set) var tableOrder: [(name: String, display: Bool, masterPage: String, tabColor: String?)] = []
+    private var graphics: [String: String] = [:]
+    private(set) var graphicOrder: [(name: String, xml: String)] = []
+    private var paragraphs: [String: String] = [:]
+    private(set) var paragraphOrder: [(name: String, align: String)] = []
+
+    /// The automatic graphic style of a shape (B.75): its fill and its outline, resolved to RGB by the caller.
+    func graphic(fill: String?, outline: (color: String, widthPoints: Double)?) -> String {
+        var props = fill.map { " draw:fill=\"solid\" draw:fill-color=\"\($0)\"" } ?? " draw:fill=\"none\""
+        if let o = outline {
+            props += " draw:stroke=\"solid\" svg:stroke-color=\"\(o.color)\" svg:stroke-width=\"\(ODSLength.cmValue(o.widthPoints * 2.54 / 72))\""
+        } else {
+            props += " draw:stroke=\"none\""
+        }
+        if let n = graphics[props] { return n }
+        let n = "gr\(graphicOrder.count + 1)"
+        graphics[props] = n; graphicOrder.append((n, props))
+        return n
+    }
+
+    /// The automatic paragraph style carrying a shape text's alignment.
+    func paragraph(align: Alignment.Horizontal) -> String? {
+        let value: String
+        switch align {
+        case .left: value = "start"
+        case .center, .centerContinuous: value = "center"
+        case .right: value = "end"
+        case .justify, .distributed: value = "justify"
+        default: return nil
+        }
+        if let n = paragraphs[value] { return n }
+        let n = "P\(paragraphOrder.count + 1)"
+        paragraphs[value] = n; paragraphOrder.append((n, value))
+        return n
+    }
 
     /// The automatic text style of one run of a rich-text cell (`style:family="text"`).
     func text(_ font: Font) -> String {
@@ -128,6 +162,12 @@ final class ODSStyleRegistry {
         }
         for t in textOrder {
             s += "<style:style style:name=\"\(t.name)\" style:family=\"text\"><style:text-properties\(textPropertiesXML(t.font))/></style:style>"
+        }
+        for g in graphicOrder {
+            s += "<style:style style:name=\"\(g.name)\" style:family=\"graphic\"><style:graphic-properties\(g.xml)/></style:style>"
+        }
+        for p in paragraphOrder {
+            s += "<style:style style:name=\"\(p.name)\" style:family=\"paragraph\"><style:paragraph-properties fo:text-align=\"\(p.align)\"/></style:style>"
         }
         for d in dataOrder { s += d.style.xml(name: d.name) }
         for c in cellOrder { s += cellStyleXML(c.name, c.style) }
@@ -287,6 +327,7 @@ enum ODSWriter {
             var pictureFrames: [CellRef: [ODSPicture]] = [:]
             var frames: [CellRef: String] = [:]
             var shapes: [ODSPicture] = []
+            var freeShapes = ""   // shapes at a fixed position (table:shapes), after the pictures there
             // charts become chart documents under Object N/ (B.73), numbered past whatever a source ODS brought
             for (z, chart) in sheet.charts.enumerated() {
                 guard chart.kind.isDrawable || chart.kind.rawValue.hasPrefix("chart:") else {
@@ -319,8 +360,23 @@ enum ODSWriter {
                 pictureFrames[anchor, default: []].append(picture)
             }
             for (anchor, list) in pictureFrames { frames[anchor, default: ""] += ODSPicture.framesXML(list, in: sheet) }
+            // shapes and text boxes (B.75): a custom shape, a line or a text-box frame in the anchor cell, or
+            // among the sheet's shapes when at a fixed position
+            for (n, shape) in sheet.shapes.enumerated() {
+                let xml = ODSDrawing.shapeXML(shape, number: n + 1, zIndex: sheet.images.count + sheet.charts.count + n, in: sheet, styles: styles, sink: sink)
+                if case .absolute = shape.anchor { freeShapes += xml; continue }
+                var anchor: CellRef
+                switch shape.anchor {
+                case .cell(let ref, _): anchor = ref
+                case .span(let range): anchor = range.topLeft
+                case .absolute: anchor = CellRef(row: 1, column: 1)
+                }
+                if let merge = sheet.table.merges.first(where: { $0.contains(anchor) && $0.topLeft != anchor }) { anchor = merge.topLeft }
+                frames[anchor, default: ""] += xml
+            }
             framesBySheet.append(frames)
-            shapesBySheet.append(shapes.isEmpty ? "" : "<table:shapes>" + ODSPicture.framesXML(shapes, in: sheet) + "</table:shapes>")
+            let free = (shapes.isEmpty ? "" : ODSPicture.framesXML(shapes, in: sheet)) + freeShapes
+            shapesBySheet.append(free.isEmpty ? "" : "<table:shapes>" + free + "</table:shapes>")
         }
         let body = TextSpill()
         body.write(ODSFeatures.calculationSettingsXML(wb))

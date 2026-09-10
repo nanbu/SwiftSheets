@@ -5,6 +5,9 @@ import SheetCore
 /// in a cell (the anchor) or among the table's `table:shapes` (absolute), holding a picture (`draw:image`) or an
 /// embedded object (`draw:object` — a chart document under `Object N/`).
 struct ODSFrame {
+    /// What the element is: a `draw:frame` (picture, object or text box), a `draw:custom-shape`, a `draw:line` / `draw:connector`.
+    enum Kind { case frame, customShape, line }
+    var kind: Kind = .frame
     var sheetIndex: Int
     /// The cell the frame is anchored to; nil for a frame among `table:shapes`.
     var cell: CellRef?
@@ -14,6 +17,40 @@ struct ODSFrame {
     var x: Double?, y: Double?               // cm, offset from the anchor
     var endCell: String?                     // `table:end-cell-address`
     var endX: Double?, endY: Double?         // cm
+    // shapes and text boxes (B.75)
+    var name: String?
+    var styleName: String?                   // draw:style-name (a graphic style)
+    var textStyleName: String?               // draw:text-style-name
+    var paragraphStyleName: String?          // the first paragraph's text:style-name
+    var spanStyleName: String?               // the first text:span's style
+    var shapeType: String?                   // draw:enhanced-geometry@draw:type
+    var isTextBox = false
+    var paragraphs: [String] = []
+    var x1: Double?, y1: Double?, x2: Double?, y2: Double?   // cm, a line's ends
+
+    /// The model's geometry for an ODF shape type: `ooxml-X` is X, LibreOffice's own names map where OOXML has
+    /// the same preset, anything else keeps its ODF name (the XLSX writer then draws a rectangle and says so).
+    static func geometry(_ type: String) -> Shape.Geometry {
+        if type.hasPrefix("ooxml-") { return Shape.Geometry(rawValue: String(type.dropFirst(6))) }
+        if let preset = nativeToPreset[type] { return Shape.Geometry(rawValue: preset) }
+        return Shape.Geometry(rawValue: type)
+    }
+    /// LibreOffice's ODF shape-type names against OOXML presets, both ways.
+    static let nativeToPreset: [String: String] = [
+        "rectangle": "rect", "round-rectangle": "roundRect", "ellipse": "ellipse", "diamond": "diamond",
+        "isosceles-triangle": "triangle", "right-triangle": "rtTriangle", "parallelogram": "parallelogram", "trapezoid": "trapezoid",
+        "pentagon": "pentagon", "hexagon": "hexagon", "octagon": "octagon", "star5": "star5", "star4": "star4", "star8": "star8",
+        "right-arrow": "rightArrow", "left-arrow": "leftArrow", "up-arrow": "upArrow", "down-arrow": "downArrow",
+        "left-right-arrow": "leftRightArrow", "up-down-arrow": "upDownArrow", "cross": "plus", "heart": "heart", "smiley": "smileyFace",
+        "sun": "sun", "moon": "moon", "cloud": "cloud", "can": "can", "cube": "cube", "lightning": "lightningBolt",
+        "flowchart-process": "flowChartProcess", "flowchart-decision": "flowChartDecision", "flowchart-terminator": "flowChartTerminator",
+        "flowchart-connector": "flowChartConnector", "flowchart-document": "flowChartDocument", "flowchart-data": "flowChartInputOutput",
+        "rectangular-callout": "wedgeRectCallout", "round-rectangular-callout": "wedgeRoundRectCallout", "round-callout": "wedgeEllipseCallout",
+        "cloud-callout": "cloudCallout", "line": "line",
+    ]
+    static let presetToNative: [String: String] = Dictionary(nativeToPreset.map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+    /// The ODF type the writer names a geometry by: LibreOffice's own name where one exists, else `ooxml-<preset>`.
+    static func odfType(_ g: Shape.Geometry) -> String { presetToNative[g.rawValue] ?? "ooxml-" + g.rawValue }
 }
 
 /// `Object N/content.xml` → `Chart` (B.73): the chart's class names the kind (`chart:bar` with the plot area's
@@ -80,15 +117,18 @@ final class ODFChartParser: SAXHandler {
 enum ODSDrawing {
     /// The frames of `content.xml` resolved against the package: pictures into `SheetImage`s, chart objects into
     /// `Chart`s, per sheet. `consumed` lists the parts read into the model, which the package sweep must skip.
-    static func resolve(_ frames: [ODSFrame], sheets: [Sheet], read: (String) throws -> Data?, exists: (String) -> Bool,
-                        allNames: [String]) throws -> (images: [[SheetImage]], charts: [[Chart]], consumed: Set<String>, warnings: [ConversionWarning]) {
+    static func resolve(_ frames: [ODSFrame], sheets: [Sheet], catalog: ODSStyleCatalog, read: (String) throws -> Data?, exists: (String) -> Bool,
+                        allNames: [String]) throws -> (images: [[SheetImage]], charts: [[Chart]], shapes: [[Shape]], consumed: Set<String>, warnings: [ConversionWarning]) {
         var images = Array(repeating: [SheetImage](), count: sheets.count)
         var charts = Array(repeating: [Chart](), count: sheets.count)
+        var shapes = Array(repeating: [Shape](), count: sheets.count)
         var consumed = Set<String>()
         var warnings: [ConversionWarning] = []
         for frame in frames where sheets.indices.contains(frame.sheetIndex) {
             let sheet = sheets[frame.sheetIndex]
-            if let href = frame.objectHref {
+            if frame.kind != .frame || frame.isTextBox {
+                shapes[frame.sheetIndex].append(shape(frame, catalog: catalog, sheet: sheet))
+            } else if let href = frame.objectHref {
                 // an embedded object; the draw:image beside it is only LibreOffice's preview of it
                 let dir = href.hasPrefix("./") ? String(href.dropFirst(2)) : href
                 let content = dir + "/content.xml"
@@ -111,7 +151,43 @@ enum ODSDrawing {
                 consumed.insert(path)
             }
         }
-        return (images, charts, consumed, warnings)
+        return (images, charts, shapes, consumed, warnings)
+    }
+
+    /// A `draw:custom-shape`, `draw:line` / `draw:connector` or text-box frame as a `Shape` (B.75).
+    static func shape(_ f: ODSFrame, catalog: ODSStyleCatalog, sheet: Sheet) -> Shape {
+        var s: Shape
+        switch f.kind {
+        case .line: s = Shape(.line)
+        case .customShape: s = Shape(f.shapeType.map(ODSFrame.geometry) ?? .rectangle)
+        case .frame: s = Shape(.textBox)
+        }
+        s.name = f.name
+        if !f.paragraphs.isEmpty { s.text = f.paragraphs.joined(separator: "\n") }
+        let graphic = catalog.graphicStyle(named: f.styleName)
+        s.fill = graphic.fill
+        s.outline = graphic.outline
+        if s.geometry == .textBox, f.styleName == nil { s.fill = nil; s.outline = nil }
+        s.textAlignment = catalog.paragraphAlignment(named: f.paragraphStyleName) ?? catalog.paragraphAlignment(named: f.textStyleName)
+            ?? catalog.paragraphAlignment(named: f.styleName)
+        s.font = catalog.font(named: f.spanStyleName) ?? catalog.font(named: f.paragraphStyleName) ?? catalog.font(named: f.textStyleName)
+            ?? catalog.font(named: f.styleName)
+        var frame = f
+        if f.kind == .line, let x1 = f.x1, let y1 = f.y1, let x2 = f.x2, let y2 = f.y2 {
+            frame.x = min(x1, x2); frame.y = min(y1, y2); frame.width = abs(x2 - x1); frame.height = abs(y2 - y1)
+        }
+        s.anchor = shapeAnchor(frame, sheet: sheet)
+        return s
+    }
+
+    static func shapeAnchor(_ f: ODSFrame, sheet: Sheet) -> SheetImage.Anchor {
+        let pt = { (cm: Double) in cm / 2.54 * 72 }
+        guard let cell = f.cell else {
+            return .absolute(x: pt(f.x ?? 0), y: pt(f.y ?? 0), width: pt(f.width ?? 0), height: pt(f.height ?? 0))
+        }
+        if let range = spanRange(f, from: cell) { return .span(range) }
+        guard let w = f.width, let h = f.height else { return .cell(cell, sizing: .fitCell) }
+        return .cell(cell, sizing: .scaled(width: Int((w / 2.54 * 96).rounded()), height: Int((h / 2.54 * 96).rounded())))
     }
 
     static func imageAnchor(_ f: ODSFrame, image: SheetImage, sheet: Sheet) -> SheetImage.Anchor {
@@ -164,6 +240,64 @@ enum ODSDrawing {
         var row = 1, cy = 0.0
         while cy + rowCm(row, sheet) <= y, row < CellRef.maxRow { cy += rowCm(row, sheet); row += 1 }
         return CellRef(row: row, column: column)
+    }
+
+    // MARK: - Writing a shape
+
+    /// A shape as ODF draws it (B.75): `draw:custom-shape` with an `draw:enhanced-geometry` naming the type,
+    /// `draw:line` for a line, `draw:frame` + `draw:text-box` for a text box; the text as paragraphs, each with
+    /// one span carrying the font. Colours reach here resolved (the writer resolves the workbook's theme first);
+    /// one that is not RGB is written black and said so.
+    static func shapeXML(_ shape: Shape, number: Int, zIndex: Int, in sheet: Sheet, styles: ODSStyleRegistry, sink: ODSWarningSink) -> String {
+        var nonRGB = false
+        let fill = shape.fill.map { ODSColor.hex($0, nonRGB: &nonRGB) }
+        let outline = shape.outline.map { (color: ODSColor.hex($0.color, nonRGB: &nonRGB), widthPoints: $0.width) }
+        if nonRGB {
+            sink.add(.degraded, subject: .objects, sheet: sheet.name, "a shape's colour is not an RGB colour the workbook's theme can resolve; it is written black")
+        }
+        let style = styles.graphic(fill: fill, outline: outline)
+        let paragraphStyle = shape.textAlignment.flatMap { styles.paragraph(align: $0) }
+        let textStyle = shape.font.map { styles.text($0) }
+        var text = ""
+        if let t = shape.text {
+            for paragraph in t.components(separatedBy: "\n") {
+                text += "<text:p" + (paragraphStyle.map { " text:style-name=\"\($0)\"" } ?? "") + ">"
+                if !paragraph.isEmpty {
+                    let body = ODSWriter.paragraphsXML(paragraph).map { $0.dropFirst("<text:p>".count).dropLast("</text:p>".count) }.joined(separator: "<text:line-break/>")
+                    text += textStyle.map { "<text:span text:style-name=\"\($0)\">\(body)</text:span>" } ?? body
+                }
+                text += "</text:p>"
+            }
+        }
+        // the frame's geometry: position and size in centimetres, and the end cell of a span
+        let cm = { (pt: Double) in pt * 2.54 / 72 }
+        var x = 0.0, y = 0.0, w = 0.0, h = 0.0
+        var end = ""
+        switch shape.anchor {
+        case .cell(let ref, let sizing):
+            let cell = (width: columnCm(ref.column, sheet), height: rowCm(ref.row, sheet))
+            switch sizing {
+            case .scaled(let pw, let ph): (w, h) = (Double(pw) * ODSPicture.centimetresPerPixel, Double(ph) * ODSPicture.centimetresPerPixel)
+            default: (w, h) = cell
+            }
+        case .span(let range):
+            (w, h) = rangeSize(range, in: sheet)
+            let endCell = CellRef(row: range.maxRow + 1, column: range.maxColumn + 1)
+            end = " table:end-cell-address=\"\(XML.esc(ODSFeatures.address(endCell, sheet: sheet.name)))\" table:end-x=\"0cm\" table:end-y=\"0cm\""
+        case .absolute(let ax, let ay, let aw, let ah):
+            (x, y, w, h) = (cm(ax), cm(ay), cm(aw), cm(ah))
+        }
+        let name = XML.esc(shape.name ?? (shape.geometry == .textBox ? "TextBox \(number)" : "Shape \(number)"))
+        let common = "draw:z-index=\"\(zIndex)\" draw:name=\"\(name)\" draw:style-name=\"\(style)\""
+        let box = "svg:width=\"\(ODSLength.cmValue(w))\" svg:height=\"\(ODSLength.cmValue(h))\" svg:x=\"\(ODSLength.cmValue(x))\" svg:y=\"\(ODSLength.cmValue(y))\""
+        switch shape.geometry {
+        case .textBox:
+            return "<draw:frame \(common) \(box)\(end)><draw:text-box>\(text)</draw:text-box></draw:frame>"
+        case .line:
+            return "<draw:line \(common) svg:x1=\"\(ODSLength.cmValue(x))\" svg:y1=\"\(ODSLength.cmValue(y))\" svg:x2=\"\(ODSLength.cmValue(x + w))\" svg:y2=\"\(ODSLength.cmValue(y + h))\"\(end)>\(text)</draw:line>"
+        default:
+            return "<draw:custom-shape \(common) \(box)\(end)>\(text)<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"\(XML.esc(ODSFrame.odfType(shape.geometry)))\"/></draw:custom-shape>"
+        }
     }
 
     // MARK: - Writing a chart as an embedded object

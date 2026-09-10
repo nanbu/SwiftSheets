@@ -180,11 +180,12 @@ package struct SheetPreservation: Sendable, Hashable {
     /// The cell notes as the file had them. The writer compares the sheet's notes against this: unchanged, the
     /// source `comments` and VML parts are re-packed byte for byte; changed, both are regenerated.
     package var comments: [CellRef: CellNote] = [:]
-    /// The pictures and charts as the file's drawing had them (B.72). While `Sheet.images` / `Sheet.charts` still
+    /// The pictures, charts and shapes as the file's drawing had them (B.72, B.75). While `Sheet.images` / `Sheet.charts` / `Sheet.shapes` still
     /// begin with these, the drawing and its parts are re-packed byte for byte (additions are spliced in); once one
     /// of them is changed or removed, the drawing is regenerated from the model.
     package var images: [SheetImage] = []
     package var charts: [Chart] = []
+    package var shapes: [Shape] = []
     /// The drawing part, the parts it referenced, and what it held that the model could not (shapes, …).
     package var drawingPath: String?
     package var drawingParts: [String] = []

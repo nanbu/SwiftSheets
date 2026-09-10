@@ -54,8 +54,8 @@ formats:
       public: true
       note: "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
     totals:
-      read: {full: 50, partial: 9, preserved: 15, none: 1, na: 3, unverified: 0}
-      write: {full: 50, partial: 9, preserved: 15, none: 1, na: 3, unverified: 0}
+      read: {full: 50, partial: 10, preserved: 14, none: 1, na: 3, unverified: 0}
+      write: {full: 50, partial: 10, preserved: 14, none: 1, na: 3, unverified: 0}
       rows: 78
     areas:
       - id: "package"
@@ -801,13 +801,17 @@ formats:
             note: "モデル化していない。"
           - id: "xlsx.draw.shapes"
             name: "図形・テキストボックス・SmartArt・背景画像"
-            spec_anchor: "<xdr:sp>, <picture>"
-            read: "preserved"
-            write: "preserved"
-            api: []
-            warning: "他形式へ変換すると dropped"
-            evidence: "code"
-            note: "図面を読むとき「あった」と控え（B.72）、同じ形式に触らず保存すればバイトのまま。絵かグラフを変えて図面を作り直すときは落として言う。"
+            spec_anchor: "<xdr:sp>, <xdr:cxnSp>, <xdr:grpSp>, dgm:*, <picture>"
+            read: "partial"
+            write: "partial"
+            api:
+              - "sheet.shapes"
+              - "sheet.addShape(_:over:)"
+              - "sheet.addTextBox(_:over:font:)"
+              - "Shape.Geometry"
+            warning: "作り直しで落ちる物は「N object(s) of the sheet's drawing the model could not read (a group of shapes, SmartArt) dropped」／プリセットに無い幾何は「written as a rectangle」"
+            evidence: "measured"
+            note: "図形とテキストボックス（xdr:sp / xdr:cxnSp）は読み書きする: プリセットの幾何・文と 1 書体・揃え・塗り・線・錨（B.75）。回転・影・グラデーション・段落ごとの書式は持たず、触らなければバイトのまま残る。SmartArt（dgm: の 4 部品）と図形のグループは模型に入れず「あった」と控え、同じ形式に触らず保存すればバイトのまま、図面を作り直すときは名指しで落とす。背景画像は保全のまま。LibreOffice が書いた 7 図形を読み、書いた図形を LibreOffice が読む（gated）。"
           - id: "xlsx.draw.ole"
             name: "OLE オブジェクト・ActiveX コントロール"
             spec_anchor: "<oleObjects>, <controls>"
@@ -1622,16 +1626,19 @@ formats:
             note: null
           - id: "ods.un.draw"
             name: "描画オブジェクト（グラフ・図形・テキストボックス）"
-            spec_anchor: "draw:frame, draw:object, draw:custom-shape"
+            spec_anchor: "draw:frame, draw:object, draw:custom-shape, draw:line, draw:text-box"
             read: "partial"
             write: "partial"
             api:
               - "sheet.charts"
               - "sheet.addChart(_:over:)"
               - "Chart.Kind"
-            warning: "描けない種類のグラフは「a … chart was not written: the writer draws column, bar, line and pie charts」／図形・テキストボックスは読まない"
+              - "sheet.shapes"
+              - "sheet.addShape(_:over:)"
+              - "Shape.Geometry"
+            warning: "描けない種類のグラフは「a … chart was not written: the writer draws column, bar, line and pie charts」／図形のグループ（draw:g）は読まない"
             evidence: "measured"
-            note: "グラフ: draw:object が指す Object N/content.xml（ODF のグラフ文書）を全種読み（chart:bar＋chart:vertical → column / bar、chart:line、chart:circle → pie、他は class を raw に）、4 種を chart 文書として書く（B.73）。LibreOffice は書いたグラフを XLSX へ運ぶ（gated テスト）。図形・テキストボックスは読み飛ばしたまま。"
+            note: "グラフ: draw:object が指す Object N/content.xml（ODF のグラフ文書）を全種読み（chart:bar＋chart:vertical → column / bar、chart:line、chart:circle → pie、他は class を raw に）、4 種を chart 文書として書く（B.73）。図形・テキストボックス: draw:custom-shape（draw:type は ooxml-X と LibreOffice の名の対応表）・draw:line / draw:connector・draw:frame の draw:text-box を読み書きする（B.75）。LibreOffice は書いたグラフも図形も XLSX へ運ぶ（gated テスト）。図形のグループは読み飛ばす。"
           - id: "ods.un.scenario"
             name: "シナリオ"
             spec_anchor: "table:scenario"

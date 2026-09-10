@@ -119,6 +119,13 @@ extension Workbook {
         for si in wb.sheets.indices {
             var sheet = wb.sheets[si]
             if let tab = sheet.tabColor, isUnresolved(tab) { sheet.tabColor = resolved(tab) }
+            sheet.shapes = sheet.shapes.map { shape in
+                var s = shape
+                if let f = s.fill, isUnresolved(f) { s.fill = resolved(f) }
+                if let o = s.outline, isUnresolved(o.color) { s.outline?.color = resolved(o.color) }
+                if let f = s.font { s.font = resolved(f) }
+                return s
+            }
             for ti in sheet.tables.indices {
                 var table = sheet.tables[ti]
                 for (ref, cell) in table.cells {

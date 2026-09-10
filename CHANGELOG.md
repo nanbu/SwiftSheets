@@ -11,6 +11,14 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **Shapes and text boxes.** `Shape` — a preset geometry (`.rectangle`, `.rightArrow`, `.line`, … any of OOXML's
+  187 presets by name, or `.textBox`), text with one font and alignment, a solid fill, an outline and an anchor —
+  lives in `sheet.shapes`; `addShape(_:over:)` and `addTextBox(_:over:font:)` place one. XLSX reads `xdr:sp` /
+  `xdr:cxnSp` and writes them back into the same drawing under the as-read rule (untouched: byte for byte; added:
+  spliced; changed: rebuilt); ODS reads and writes `draw:custom-shape`, `draw:line` and `draw:text-box`. SmartArt
+  and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
+  shapes as dropped (spec Appendix B.75).
+
 - **ODS carries the tab colour.** `sheet.tabColor` is written as `table:tab-color` on the table style — the
   attribute ODF 1.3 defines and LibreOffice writes — and read back; a theme colour is resolved to RGB first. The
   "ODF 1.3 has no tab colour" warning is gone, and the all-features workbook now returns 8 warnings for ODS, not 9

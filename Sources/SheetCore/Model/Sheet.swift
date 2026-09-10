@@ -78,6 +78,9 @@ public struct Sheet: Equatable, Sendable {
     /// (B.72) — a read chart may be of a kind the writers cannot draw, and is written back unchanged until it is
     /// edited.
     public var charts: [Chart] = []
+    /// The sheet's shapes and text boxes: those placed by `addShape` / `addTextBox` (spec Appendix B.75) and
+    /// those read from the file's drawing. An untouched shape is written back as the bytes it arrived in.
+    public var shapes: [Shape] = []
     /// Material the reader kept for a lossless write-back (spec §6).
     package var preserved = SheetPreservation()
 

@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.66 Draft</td><td>2026-09-11</td><td>図形とテキストボックス。<code>Shape</code>（プリセットの幾何・文・1 書体・塗り・線・錨）を <code>sheet.shapes</code> に持ち、XLSX の <code>xdr:sp</code> / <code>xdr:cxnSp</code> と ODS の <code>draw:custom-shape</code> / <code>draw:line</code> / <code>draw:text-box</code> を読み書きする。写しの規則と接頭辞の規則を図形にも広げる。SmartArt と図形のグループは模型に入れず、名指しで控えて作り直しのときに落とすと言う（B.75）。</td></tr>
     <tr><td>4.65 Draft</td><td>2026-09-11</td><td>ODS のタブの色。<code>style:table-properties@table:tab-color</code>（ODF 1.3・LibreOffice が書く属性）を読み書きし、「ODF 1.3 has no tab colour」の警告を退ける。テーマ色は書く前に RGB へ解決する（B.74）。</td></tr>
     <tr><td>4.64 Draft</td><td>2026-09-11</td><td>ODS の絵とグラフを読み、グラフを書く。セルと table:shapes の draw:frame を <code>sheet.images</code> に、Object N/ のグラフ文書を <code>sheet.charts</code> に読み、両方を新しい部品として書き戻す。<code>addChart</code> は ODS にも書ける（B.73）。</td></tr>
     <tr><td>4.63 Draft</td><td>2026-09-11</td><td>XLSX の絵とグラフを読む。drawing 部品の錨と media・chart 部品を <code>sheet.images</code> / <code>sheet.charts</code> に。触らなければバイトのまま・足せば継ぎ足し・変えれば作り直して言う。<code>SheetImage.Anchor.absolute</code>・<code>Chart.Series.nameReference</code> を追加（B.72）。</td></tr>
@@ -6755,6 +6756,52 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>expectedLosses[.ods]</code> から「タブ色」が抜ける。Numbers は従来どおり落として言う（タブに色が無い）。</p>
   <p><strong>検査。</strong><code>ODSCodecTests.theTabColourIsWrittenAndReadBack</code>（RGB とテーマ色の 2 シートを書いて属性を確かめ、読み戻す）と
   <code>libreOfficeCarriesTheTabColourToXLSX</code>（gated: 書いた ODS を LibreOffice で XLSX にして <code>&lt;tabColor&gt;</code> が出る）。</p>
+</section>
+
+<section>
+  <h3>B.75 図形とテキストボックス（Rev 4.66）</h3>
+  <p>2026-09-11 決定。B.72 / B.73 で絵とグラフを読んだが、図形（四角・矢印・線）とテキストボックスは XLSX では「あった」と控えるだけ、ODS では読み飛ばしていた。
+  どちらの形式も同じ物を言えるので模型に入れる。SmartArt は入れない——<code>dgm:</code> の 4 部品（データ・配置・様式・色）と描画枠の組で、模型が持てるのは
+  「あった」ことだけだから。図形のグループ（<code>xdr:grpSp</code> / <code>draw:g</code>）も同じ扱い。</p>
+  <p><strong>模型。</strong><code>Shape</code>: <code>geometry: Shape.Geometry</code>（raw は OOXML のプリセット名 <code>rect</code> / <code>roundRect</code> /
+  <code>ellipse</code> / <code>rightArrow</code> / <code>line</code> …。B.69 の型と同じ構造体で、<code>textBox</code> は「文が本体の四角」の名）、
+  <code>text</code>（段落は <code>\n</code> 区切り）、<code>font</code>（全文に 1 書体）、<code>textAlignment</code>、<code>fill: Color?</code>（nil は塗り無し）、
+  <code>outline: Outline?</code>（色と pt の太さ・nil は線無し）、<code>name</code>、<code>anchor: SheetImage.Anchor</code>（絵と同じ 3 種）。
+  <code>Geometry.presets</code> は ECMA-376 §20.1.10.56 の 187 名で、<code>isPreset</code> が XLSX の書き手が名指しできるかを言う。
+  <code>sheet.shapes</code>、<code>addShape(_:over:)</code>、<code>addTextBox(_:over:font:)</code>。持たない物: 回転・影・グラデーション・段落ごとの書式——
+  触らない図形はバイトのまま残るので失わず、作り直したときだけ落ちる（下の規則）。</p>
+  <p><strong>XLSX の読み。</strong><code>DrawingParser</code> は錨の中の <code>sp</code> / <code>cxnSp</code> を <code>ShapeCollector</code> に渡す:
+  <code>cNvPr@name</code>、<code>cNvSpPr@txBox</code>（rect の txBox がテキストボックス）、<code>prstGeom@prst</code>、<code>spPr</code> の
+  <code>solidFill</code>（<code>srgbClr</code> / <code>schemeClr</code>＋<code>lumMod</code> / <code>lumOff</code> / <code>shade</code> を tint に）と <code>noFill</code>、
+  <code>a:ln@w</code> と中の塗り、<code>txBody</code> の段落（<code>pPr@algn</code>・最初の <code>rPr</code> の sz / b / i / u・色・<code>latin@typeface</code>・
+  <code>br</code>）。<code>spPr</code> が塗りも線も言わない図形（Excel が新しく置いた物）は <code>xdr:style</code> の <code>fillRef</code> / <code>lnRef</code>
+  （idx が 0 でない）の <code>schemeClr</code> を色にする——accent1 が既定の青。<code>grpSp</code> は「a group of shapes」、<code>graphicFrame</code> の
+  <code>graphicData@uri</code> が diagram なら「SmartArt」と控える（<code>drawingUnmodelled</code>）。錨は絵と同じ（1 セルは ext の大きさで <code>.scaled</code>）。</p>
+  <p><strong>XLSX の書き。</strong><code>DrawingParts.shapeAnchorXML</code>: <code>xdr:sp</code>（txBox・xfrm は錨の大きさ・<code>prstGeom</code>・
+  <code>solidFill</code> か <code>noFill</code>・<code>a:ln</code>・文があれば <code>txBody</code> の段落 1 つに run 1 つ）。色は <code>wb.rgb(of:)</code> で解決して
+  <code>srgbClr</code>。プリセットに無い名は <code>rect</code> で書いて degraded で言う。<strong>写しの規則（B.72）を図形に広げる</strong>: 読んだ
+  <code>shapes</code> を <code>SheetPreservation.shapes</code> に写し、<code>images</code> / <code>charts</code> / <code>shapes</code> の 3 列がすべて写しで始まっていれば
+  元の図面はバイトのまま・足した分を継ぎ足す（図形は関係を要らないので rels は増えない・cNvPr の id は 5000 番台）。どれかが変わるか消えれば作り直し、
+  控えた物（グループ・SmartArt・pic without a blip …）を名指しで落とす。</p>
+  <p><strong>ODS の読み。</strong><code>ContentParser</code> の枠の捕捉を <code>draw:custom-shape</code>・<code>draw:line</code>・<code>draw:connector</code>・
+  <code>draw:frame</code> の <code>draw:text-box</code> に広げる（<code>ODSFrame.kind</code>）: <code>draw:name</code>・<code>draw:style-name</code>（graphic 様式）・
+  <code>draw:text-style-name</code>・<code>draw:enhanced-geometry@draw:type</code>・段落の文（<code>text:p</code> / <code>span</code> / <code>line-break</code> /
+  <code>s</code> / <code>tab</code>）・最初の段落と span の様式名・線の 4 座標。<code>ODSStyleCatalog</code> が <code>graphic-properties</code> を持ち、
+  <code>graphicStyle(named:)</code>（<code>draw:fill</code> / <code>draw:fill-color</code> / <code>draw:stroke</code> / <code>svg:stroke-color</code> /
+  <code>svg:stroke-width</code>・親をたどる）、<code>paragraphAlignment(named:)</code>、<code>font(named:)</code> を答える。幾何の名は
+  <code>ODSFrame.geometry</code>: <code>ooxml-X</code> は X、LibreOffice 固有の名（<code>rectangle</code> / <code>round-rectangle</code> / <code>ellipse</code> /
+  <code>diamond</code> / <code>right-arrow</code> …）は対応表で、他は ODF の名のまま。</p>
+  <p><strong>ODS の書き。</strong><code>ODSDrawing.shapeXML</code>: <code>draw:custom-shape</code>＋<code>draw:enhanced-geometry@draw:type</code>（対応表に
+  あれば LibreOffice の名、無ければ <code>ooxml-&lt;preset&gt;</code>——LibreOffice 26.2.3 は path 無しの <code>ooxml-rightArrow</code> を描き、XLSX へ
+  <code>prst="rightArrow"</code> で戻す。実測）、線は <code>draw:line</code>、テキストボックスは <code>draw:frame</code>＋<code>draw:text-box</code>。
+  自動様式に <code>style:family="graphic"</code>（<code>gr N</code>: 塗りと線）と <code>style:family="paragraph"</code>（<code>P N</code>: 揃え）を足し、
+  書体は既存の text 様式（<code>T N</code>）で span に。セルの錨はそのセルの中（範囲なら <code>end-cell-address</code>）、絶対位置は
+  <code>table:shapes</code>（絵の後）。ODS は毎回作り直すので、読んだ図形も新しく書く。<strong>順序は文書の順</strong>: <code>table:shapes</code> の物がセルの物より
+  先に読まれる（ODF 1.3 §9.1.2）。Numbers は落として言う。</p>
+  <p><strong>検査。</strong><code>ShapeTests</code> 13 件: LibreOffice が書いた 7 図形の XLSX と ODS（検体 <code>libreoffice-shapes.*</code>: 四角・矢印・楕円・
+  角丸・テキストボックス・線・セルの中の菱形）を読む・触らなければバイトのまま・足せば継ぎ足し・変えれば作り直す・SmartArt とグループ（検体
+  <code>smartart-and-group.xlsx</code>・手作り）を名指しで控えて作り直しで落とすと言う・5 種の往復（XLSX / ODS）・未知の幾何・Numbers の警告・形式間の運搬・
+  <strong>LibreOffice が両方の書き手の図形を読む</strong>（gated 2 件）。Excel 製の SmartArt 入りファイルは手動一覧に足す（MAINTENANCE）。</p>
 </section>
 
 </div><!-- /.container -->

@@ -193,14 +193,17 @@ enum WorkbookWriter {
             // once one of them is changed or removed, the source drawing is retired and rebuilt from the model.
             let asReadImages = sameFamily ? sheet.preserved.images : []
             let asReadCharts = sameFamily ? sheet.preserved.charts : []
+            let asReadShapes = sameFamily ? sheet.preserved.shapes : []
             let sourceDrawing: String? = sameFamily ? sheet.preserved.drawingPath.flatMap { opaque[$0] != nil ? $0 : nil } : nil
             let keepsPrefix = sourceDrawing != nil && sheet.images.starts(with: asReadImages) && sheet.charts.starts(with: asReadCharts)
-            var newImages = sheet.images, newCharts = sheet.charts
+                && sheet.shapes.starts(with: asReadShapes)
+            var newImages = sheet.images, newCharts = sheet.charts, newShapes = sheet.shapes
             var rebuild = false
             if let sourceDrawing {
                 if keepsPrefix {
                     newImages = Array(sheet.images.dropFirst(asReadImages.count))
                     newCharts = Array(sheet.charts.dropFirst(asReadCharts.count))
+                    newShapes = Array(sheet.shapes.dropFirst(asReadShapes.count))
                 } else {
                     rebuild = true
                     for path in [sourceDrawing, WorkbookReader.relsPath(of: sourceDrawing)] + sheet.preserved.drawingParts {
@@ -209,11 +212,11 @@ enum WorkbookWriter {
                     }
                     if !sheet.preserved.drawingUnmodelled.isEmpty {
                         sink.add(.dropped, subject: .objects, sheet: sheet.name,
-                                 "\(sheet.preserved.drawingUnmodelled.count) object(s) of the sheet's drawing the model could not read (\(sheet.preserved.drawingUnmodelled.joined(separator: ", "))) dropped: the drawing was rebuilt because a picture or chart was changed or removed")
+                                 "\(sheet.preserved.drawingUnmodelled.count) object(s) of the sheet's drawing the model could not read (\(sheet.preserved.drawingUnmodelled.joined(separator: ", "))) dropped: the drawing was rebuilt because a picture, chart or shape was changed or removed")
                     }
                 }
             }
-            guard !newImages.isEmpty || !newCharts.isEmpty else {
+            guard !newImages.isEmpty || !newCharts.isEmpty || !newShapes.isEmpty else {
                 if rebuild { imagePlans[i] = ImagePlan(newDrawing: nil, replacesSourceDrawing: true) }
                 continue
             }
@@ -245,11 +248,16 @@ enum WorkbookWriter {
                 entries.append((ChartParts.relationshipType, "../charts/" + (path as NSString).lastPathComponent))
                 charts.append(chart)
             }
-            guard !entries.isEmpty else {
+            // shapes and text boxes need no part of their own (B.75); a geometry the preset list does not know is
+            // drawn as a rectangle and said so
+            for shape in newShapes where !shape.geometry.isPreset {
+                sink.add(.degraded, subject: .objects, sheet: sheet.name, "a shape of geometry \(shape.geometry.rawValue) was written as a rectangle: the name is not one of OOXML's preset geometries")
+            }
+            guard !entries.isEmpty || !newShapes.isEmpty else {
                 if rebuild { imagePlans[i] = ImagePlan(newDrawing: nil, replacesSourceDrawing: true) }
                 continue
             }
-            func anchors(_ ids: [String], firstShapeID: (String) -> Int) -> [String] {
+            func anchors(_ ids: [String], firstShapeID: (String) -> Int, shapeIDBase: Int) -> [String] {
                 var out: [String] = []
                 for (n, image) in newImages.enumerated() {
                     out.append(DrawingParts.anchorXML(image, shapeID: firstShapeID(ids[n]), relID: ids[n],
@@ -259,6 +267,9 @@ enum WorkbookWriter {
                     let id = ids[newImages.count + n]
                     out.append(ChartParts.anchorXML(over: chart.anchor!, shapeID: firstShapeID(id), relID: id))
                 }
+                for (n, shape) in newShapes.enumerated() {
+                    out.append(DrawingParts.shapeAnchorXML(shape, shapeID: shapeIDBase + n, sheet: sheet, rgb: { wb.rgb(of: $0) }))
+                }
                 return out
             }
             // the sheet's existing drawing, when it is being kept: additions are spliced into its bytes
@@ -267,7 +278,7 @@ enum WorkbookWriter {
                 let relsPath = WorkbookReader.relsPath(of: drawingPath)
                 guard let patched = DrawingParts.appendingRelationships(entries: entries, to: opaque[relsPath]?.data),
                       let spliced = DrawingParts.appendingAnchors(
-                          anchors(patched.ids, firstShapeID: { 1000 + (Int($0.dropFirst(3)) ?? 0) }), to: opaque[drawingPath]!.data)
+                          anchors(patched.ids, firstShapeID: { 1000 + (Int($0.dropFirst(3)) ?? 0) }, shapeIDBase: 5000 + sheet.shapes.count), to: opaque[drawingPath]!.data)
                 else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name,
                              "\(entries.count) image(s)/chart(s) not written: the sheet's existing drawing part could not be extended")
@@ -282,7 +293,7 @@ enum WorkbookWriter {
                 usedPaths.insert(drawingPath)
                 guard let rels = DrawingParts.appendingRelationships(entries: entries, to: nil) else { continue }
                 imagePlans[i] = ImagePlan(newDrawing: (drawingPath,
-                                                      DrawingParts.drawingXML(anchors: anchors(rels.ids, firstShapeID: { 1 + (Int($0.dropFirst(3)) ?? 0) })),
+                                                      DrawingParts.drawingXML(anchors: anchors(rels.ids, firstShapeID: { 1 + (Int($0.dropFirst(3)) ?? 0) }, shapeIDBase: 100)),
                                                       String(data: rels.data, encoding: .utf8)!),
                                           replacesSourceDrawing: rebuild)
             }

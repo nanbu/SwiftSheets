@@ -452,8 +452,10 @@ final class SheetReadContext: @unchecked Sendable {
                     }
                     sheet.images = contents.images + sheet.images
                     sheet.charts = contents.charts + sheet.charts
+                    sheet.shapes = contents.shapes + sheet.shapes
                     sheet.preserved.images = contents.images
                     sheet.preserved.charts = contents.charts
+                    sheet.preserved.shapes = contents.shapes
                     sheet.preserved.drawingPath = drawingPart
                     sheet.preserved.drawingParts = contents.referencedParts
                     sheet.preserved.drawingUnmodelled = contents.unmodelled

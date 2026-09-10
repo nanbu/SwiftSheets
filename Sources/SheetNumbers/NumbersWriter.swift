@@ -141,6 +141,10 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
         }
+        for sheet in workbook.sheets where !sheet.shapes.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.shapes.count) shape(s) / text box(es) dropped: writing shapes into Numbers is not implemented yet (write .xlsx or .ods to keep them)"))
+        }
         for sheet in workbook.sheets {
             let phonetics = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.phonetic != nil }.count }
             if phonetics > 0 {

@@ -48,6 +48,88 @@ enum DrawingParts {
         }
     }
 
+    /// One anchor holding a shape or a text box (B.75): `xdr:sp` with the preset geometry, a solid fill or none,
+    /// a line or none, and the text as paragraphs of one run each. `rgb` resolves a colour to `RRGGBB` (theme and
+    /// indexed colours through the workbook's theme); a geometry the preset list does not know is written as a
+    /// rectangle, which the caller reports.
+    static func shapeAnchorXML(_ shape: Shape, shapeID: Int, sheet: Sheet, rgb: (Color) -> String?) -> String {
+        let ns = "xmlns:xdr=\"\(nsSpreadsheetDrawing)\" xmlns:a=\"\(nsDrawingMain)\""
+        func at(column: Int, row: Int) -> String {
+            "<xdr:col>\(column - 1)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row - 1)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+        }
+        func emu(_ pt: Double) -> Int { Int((pt * 12700).rounded()) }
+        func solid(_ c: Color) -> String { "<a:solidFill><a:srgbClr val=\"\(String((rgb(c) ?? "000000").suffix(6)))\"/></a:solidFill>" }
+        let isTextBox = shape.geometry == .textBox
+        let prst = isTextBox ? "rect" : (shape.geometry.isPreset ? shape.geometry.rawValue : "rect")
+        // the size, for the transform: the anchor's own for a one-cell or absolute anchor, the range's for a span
+        let size: (cx: Int, cy: Int)
+        switch shape.anchor {
+        case .cell(let ref, let sizing):
+            let cell = cellSize(of: sheet, at: .cell(ref, sizing: sizing))
+            switch sizing {
+            case .scaled(let w, let h): size = (Units.pixelsToEMU(Double(w)), Units.pixelsToEMU(Double(h)))
+            default: size = (Units.pixelsToEMU(cell.width), Units.pixelsToEMU(cell.height))
+            }
+        case .span(let range):
+            var w = 0.0, h = 0.0
+            for c in range.minColumn...range.maxColumn { w += CellPixels.columnPixels(sheet.columnDimensions[c]?.width ?? CellPixels.defaultColumnWidth) }
+            for r in range.minRow...range.maxRow { h += CellPixels.rowPixels(sheet.rowDimensions[r]?.height ?? CellPixels.defaultRowHeight) }
+            size = (Units.pixelsToEMU(w), Units.pixelsToEMU(h))
+        case .absolute(_, _, let w, let h): size = (emu(w), emu(h))
+        }
+        var sp = "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"\(shapeID)\" name=\"\(XML.esc(shape.name ?? (isTextBox ? "TextBox \(shapeID)" : "Shape \(shapeID)")))\"/>"
+        sp += isTextBox ? "<xdr:cNvSpPr txBox=\"1\"/>" : "<xdr:cNvSpPr/>"
+        sp += "</xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"\(size.cx)\" cy=\"\(size.cy)\"/></a:xfrm>"
+        sp += "<a:prstGeom prst=\"\(prst)\"><a:avLst/></a:prstGeom>"
+        sp += shape.fill.map(solid) ?? "<a:noFill/>"
+        if let o = shape.outline { sp += "<a:ln w=\"\(emu(o.width))\">\(solid(o.color))</a:ln>" } else { sp += "<a:ln><a:noFill/></a:ln>" }
+        sp += "</xdr:spPr>"
+        if let text = shape.text {
+            sp += "<xdr:txBody><a:bodyPr wrap=\"square\" rtlCol=\"0\" anchor=\"t\"/><a:lstStyle/>"
+            var pPr = ""
+            if let a = shape.textAlignment {
+                let algn: String? = switch a {
+                case .left: "l"
+                case .center, .centerContinuous: "ctr"
+                case .right: "r"
+                case .justify: "just"
+                case .distributed: "dist"
+                default: nil
+                }
+                if let algn { pPr = "<a:pPr algn=\"\(algn)\"/>" }
+            }
+            var rPr = "<a:rPr lang=\"en-US\""
+            var rPrBody = ""
+            if let f = shape.font {
+                if let sz = f.size { rPr += " sz=\"\(Int((sz * 100).rounded()))\"" }
+                if f.bold { rPr += " b=\"1\"" }
+                if f.italic { rPr += " i=\"1\"" }
+                if let u = f.underline { rPr += " u=\"\(u == .double ? "dbl" : "sng")\"" }
+                if let c = f.color { rPrBody += solid(c) }
+                if let n = f.name { rPrBody += "<a:latin typeface=\"\(XML.esc(n))\"/>" }
+            }
+            rPr += ">" + rPrBody + "</a:rPr>"
+            for paragraph in text.components(separatedBy: "\n") {
+                sp += "<a:p>" + pPr
+                if !paragraph.isEmpty { sp += "<a:r>" + rPr + "<a:t>\(XML.esc(paragraph))</a:t></a:r>" }
+                sp += "</a:p>"
+            }
+            sp += "</xdr:txBody>"
+        }
+        sp += "</xdr:sp>"
+        switch shape.anchor {
+        case .cell(let ref, _):
+            return "<xdr:oneCellAnchor \(ns)><xdr:from>\(at(column: ref.column, row: ref.row))</xdr:from>"
+                + "<xdr:ext cx=\"\(size.cx)\" cy=\"\(size.cy)\"/>" + sp + "<xdr:clientData/></xdr:oneCellAnchor>"
+        case .span(let range):
+            return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
+                + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>" + sp + "<xdr:clientData/></xdr:twoCellAnchor>"
+        case .absolute(let x, let y, _, _):
+            return "<xdr:absoluteAnchor \(ns)><xdr:pos x=\"\(emu(x))\" y=\"\(emu(y))\"/><xdr:ext cx=\"\(size.cx)\" cy=\"\(size.cy)\"/>"
+                + sp + "<xdr:clientData/></xdr:absoluteAnchor>"
+        }
+    }
+
     /// A complete, freshly generated drawing part.
     static func drawingXML(anchors: [String]) -> String {
         "<xdr:wsDr xmlns:xdr=\"\(nsSpreadsheetDrawing)\" xmlns:a=\"\(nsDrawingMain)\">" + anchors.joined() + "</xdr:wsDr>"
