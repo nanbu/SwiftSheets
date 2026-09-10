@@ -19,6 +19,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
   shapes as dropped (spec Appendix B.75).
 
+- **An inventory of what the model does not represent.** `preservationSummary.parts` counts the preserved
+  material by kind (`PreservedPartKind`: `.smartArt`, `.vbaProject`, `.slicer`, `.externalLink`, …) — the answer to
+  "what will a conversion drop?" before any write. Parts the model read (a sheet's drawing and its charts, the
+  theme, the notes) are not listed (spec Appendix B.77).
+- **The other workbooks the formulas refer to.** `wb.externalLinks` lists them (`ExternalLink`: the number the
+  formulas use, the file, the sheet names) — from OOXML's link parts, or from the documents ODS formulas name.
+  Values are never resolved (spec Appendix B.78).
 - **The sheet view's remaining words, and the calculation mode.** `SheetView` gains `showsRowColumnHeaders`,
   `showsZeros`, `rightToLeft`, `topLeftCell` and `kind` (normal / page layout / page-break preview);
   `CalculationSettings.calcMode` is `<calcPr calcMode>` (auto / autoNoTable / manual). XLSX reads and writes all

@@ -90,11 +90,13 @@
               "write": "preserved",
               "api": [
                 "wb.preservationSummary",
-                "PreservationSummary"
+                "PreservationSummary",
+                "preservationSummary.parts",
+                "PreservedPartKind"
               ],
               "warning": "他形式へ変換すると「N part(s) … cannot be carried into …」",
-              "evidence": "code",
-              "note": "触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。生の部品・XML・関係は package 内に閉じ、公開の入口は元形式・部品数・VBA 有無の要約だけ（付録 B.46）。"
+              "evidence": "measured",
+              "note": "触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。生の部品・XML・関係は package 内に閉じ、公開の入口は元形式・部品数・VBA 有無の要約と、模型に入らなかった物の種類別の目録 parts（SmartArt・スライサー・外部リンク・埋め込み …。読んだ図面・グラフ・テーマ・メモは数えない）（付録 B.46・B.77）。"
             },
             {
               "id": "xlsx.package.zip64",
@@ -244,15 +246,17 @@
             {
               "id": "xlsx.wb.external",
               "name": "外部ブックへの参照",
-              "spec_anchor": "<externalReferences>, xl/externalLinks/",
-              "read": "preserved",
+              "spec_anchor": "<externalReferences>, xl/externalLinks/externalLinkN.xml, externalLinkPath",
+              "read": "partial",
               "write": "preserved",
               "api": [
+                "wb.externalLinks",
+                "ExternalLink",
                 "FormulaExpr（[1]Sheet!A1 は文字として保持）"
               ],
               "warning": "他形式へ変換すると objects の dropped 警告",
-              "evidence": "code",
-              "note": "参照先の値は解決しない。数式の中では文字列のまま運ぶので、同形式なら壊れない。"
+              "evidence": "measured",
+              "note": "wb.externalLinks が [1] の番号・参照先のファイル・記録されたシート名を答える（B.78）。参照先の値は解決しない。数式の中では文字列のまま運ぶので、同形式なら壊れない。"
             },
             {
               "id": "xlsx.wb.props",

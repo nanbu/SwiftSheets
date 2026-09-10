@@ -15,7 +15,9 @@ var workbook = Workbook()
 let summary: PreservationSummary = workbook.preservationSummary
 precondition(summary.sourceFormat == nil && summary.opaquePartCount == 0 && !summary.hasVBAProject)
 let constructed = PreservationSummary(sourceFormat: .xlsx, opaquePartCount: 2, hasVBAProject: false)
-precondition(constructed.opaquePartCount == 2)
+precondition(constructed.opaquePartCount == 2 && constructed.parts.isEmpty)
+precondition(PreservationSummary(sourceFormat: .xlsx, opaquePartCount: 2, hasVBAProject: false, parts: [.slicer: 1]).parts[.slicer] == 1)
+precondition(workbook.externalLinks.isEmpty)
 let state: SheetContentState = workbook.sheets[0].contentState
 switch state {
 case .grid: break
@@ -43,6 +45,8 @@ NEGATIVE += [
     ('Sheet.contentState', 'var s = Sheet(name: "X"); s.contentState = .unread', ['get-only']),
     ('Workbook.preservationSummary', 'var w = Workbook(); w.preservationSummary = w.preservationSummary', ['get-only']),
     ('PreservationSummary.sourceFormat', 'var s = Workbook().preservationSummary; s.sourceFormat = .csv', ["let", 'get-only']),
+    ('PreservationSummary.parts', 'var s = Workbook().preservationSummary; s.parts = [:]', ["let", 'get-only']),
+    ('Workbook.externalLinks', 'var w = Workbook(); w.externalLinks = []', ['get-only', 'setter is inaccessible']),
 ]
 
 

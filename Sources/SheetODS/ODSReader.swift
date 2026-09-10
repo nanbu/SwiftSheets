@@ -113,6 +113,10 @@ enum ODSReader {
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
 
+        // the other documents the formulas name (B.78): `['file:///…/Budget.ods'#$Data.B2]` — listed in the order
+        // they first appear, with the sheets the formulas use
+        wb.externalLinks = ODSReader.externalLinks(in: wb)
+
         // pictures and chart objects the frames named, into the model (B.73); their parts are not kept opaque
         let drawn = try ODSDrawing.resolve(content.frames, sheets: Array(wb.sheets), catalog: content.catalog,
                                            read: { try zip.read($0) }, exists: { zip.contains($0) }, allNames: Array(zip.entries.keys))
@@ -1066,6 +1070,32 @@ final class MetaParser: SAXHandler {
             if let d = f.date(from: s) { return d }
         }
         return nil
+    }
+}
+
+extension ODSReader {
+    /// The documents the formulas refer to, by first appearance: `'<document>'#$Sheet.A1` (B.78).
+    static func externalLinks(in wb: Workbook) -> [ExternalLink] {
+        var order: [String] = []
+        var sheets: [String: [String]] = [:]
+        let pattern = /'((?:[^']|'')+)'#\$?('(?:[^']|'')+'|[^.\]\s:']+)\./
+        for sheet in wb.sheets {
+            for table in sheet.tables {
+                for cell in table.cells.values {
+                    guard case .formula(let expr, _)? = cell.value else { continue }
+                    let text = expr.text
+                    guard text.contains("'#") else { continue }
+                    for m in text.matches(of: pattern) {
+                        let doc = String(m.1).replacingOccurrences(of: "''", with: "'")
+                        var name = String(m.2)
+                        if name.hasPrefix("'") { name = String(name.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'") }
+                        if !order.contains(doc) { order.append(doc) }
+                        if !(sheets[doc] ?? []).contains(name) { sheets[doc, default: []].append(name) }
+                    }
+                }
+            }
+        }
+        return order.enumerated().map { ExternalLink(index: $0.offset + 1, target: $0.element, sheetNames: sheets[$0.element] ?? []) }
     }
 }
 

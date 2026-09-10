@@ -165,8 +165,11 @@ public struct Workbook: Equatable, Sendable {
     /// format may not carry everything described here. Consult the write result for conversion losses.
     public var preservationSummary: PreservationSummary {
         PreservationSummary(sourceFormat: preserved.sourceFormat, opaquePartCount: preserved.opaquePartCount,
-                            hasVBAProject: preserved.hasVBAProject)
+                            hasVBAProject: preserved.hasVBAProject, parts: preserved.inventory(sheets: Array(sheets), themeRead: theme != nil))
     }
+    /// The other workbooks this one's formulas refer to (spec Appendix B.78), as the file listed them. Read-only:
+    /// the values are not resolved, and a same-format write carries the file's link parts unchanged.
+    public package(set) var externalLinks: [ExternalLink] = []
 
     /// The source file's format and generating application, when read from a file.
     public var sourceInfo: SourceInfo?

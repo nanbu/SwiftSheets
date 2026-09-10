@@ -93,6 +93,23 @@ enum WorkbookReader {
         }
         if let calc = rels.first(where: { $0.type.hasSuffix(relCalcChain) }) { consumed.insert(resolve(calc.target)) }   // always dropped (Excel rebuilds it)
 
+        // the other workbooks the formulas refer to (B.78): the order of <externalReferences> is the number a
+        // formula uses; the part names the sheets, its relationships the file. Nothing here is consumed — the
+        // parts and the fragment travel as bytes on a same-format write.
+        if let refs = wbParser.fragments.first(where: { $0.element == "externalReferences" }) {
+            var links: [ExternalLink] = []
+            for (n, m) in refs.xml.matches(of: /[Ii]d="([^"]+)"/).enumerated() {
+                guard let rel = rels.first(where: { $0.id == String(m.1) }) else { continue }
+                let part = resolve(rel.target)
+                let parser = ExternalLinkParser()
+                if let data = try? zip.read(part) { try? parser.run(data, part: part) }
+                let partRels = (try? parseRels(zip, relsPath(of: part))) ?? []
+                let target = partRels.first { $0.id == parser.bookRelID }?.target ?? partRels.first { $0.type.hasSuffix("/externalLinkPath") }?.target ?? ""
+                links.append(ExternalLink(index: n + 1, target: target.removingPercentEncoding ?? target, sheetNames: parser.sheetNames))
+            }
+            wb.externalLinks = links
+        }
+
         // pivot caches: declared on the workbook, one definition part each (plus a record part it points at).
         // Reading them here means the pivot tables on the sheets below can be handed the cache they name.
         var pivotCaches: [Int: PivotCache] = [:]

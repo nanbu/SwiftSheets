@@ -1914,6 +1914,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.69 Draft</td><td>2026-09-11</td><td>外部ブックの参照先。<code>wb.externalLinks: [ExternalLink]</code>（番号・参照先・シート名）を XLSX の externalLinks/ 部品から読み、ODS は数式が名指しする文書から導く。値は解決しない（B.78）。</td></tr>
+    <tr><td>4.68 Draft</td><td>2026-09-11</td><td>解釈しない部品の目録。<code>preservationSummary.parts: [PreservedPartKind: Int]</code> が、模型に入らなかった物を種類別に数える。読んだ物（図面・グラフ・テーマ・メモ）は数えない（B.77）。</td></tr>
     <tr><td>4.67 Draft</td><td>2026-09-11</td><td>シートビューの残りの言葉と計算モード。<code>SheetView</code> に行列見出し・ゼロ表示・右から左・スクロール位置・表示の種類、<code>CalculationSettings.calcMode</code>。XLSX は全部、ODS は LibreOffice の settings と表の様式が言える分（B.76）。</td></tr>
     <tr><td>4.66 Draft</td><td>2026-09-11</td><td>図形とテキストボックス。<code>Shape</code>（プリセットの幾何・文・1 書体・塗り・線・錨）を <code>sheet.shapes</code> に持ち、XLSX の <code>xdr:sp</code> / <code>xdr:cxnSp</code> と ODS の <code>draw:custom-shape</code> / <code>draw:line</code> / <code>draw:text-box</code> を読み書きする。写しの規則と接頭辞の規則を図形にも広げる。SmartArt と図形のグループは模型に入れず、名指しで控えて作り直しのときに落とすと言う（B.75）。</td></tr>
     <tr><td>4.65 Draft</td><td>2026-09-11</td><td>ODS のタブの色。<code>style:table-properties@table:tab-color</code>（ODF 1.3・LibreOffice が書く属性）を読み書きし、「ODF 1.3 has no tab colour」の警告を退ける。テーマ色は書く前に RGB へ解決する（B.74）。</td></tr>
@@ -6820,6 +6822,39 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   ODF に表示の種類は無いので、normal 以外は degraded で言う。Numbers は表示設定を持たず、従来どおり何も言わない（計算モードも同じ）。</p>
   <p><strong>検査。</strong><code>SheetViewTests</code> 4 件: XLSX の往復（既定は痕跡なし）・ODS の往復（凍結の先のスクロール位置を含む・種類は degraded）・
   headless の LibreOffice が書いた <code>libreoffice-view.ods</code>（文書全体の項目だけ）を読む・書いた ODS を LibreOffice が XLSX にして属性が出る（gated）。</p>
+</section>
+
+<section>
+  <h3>B.77 解釈しない部品の目録（Rev 4.68）</h3>
+  <p>2026-09-11 決定。<code>preservationSummary</code> は元の形式・部品の数・VBA の有無しか答えず、「何が入っていて、変換で何が落ちるか」は書いてみて警告を
+  読むしかなかった。<code>parts: [PreservedPartKind: Int]</code> を足す。<code>PreservedPartKind</code> は B.69 の型と同じ構造体（chart / chartSheet / drawing /
+  shapeGroup / drawingObject / image / smartArt / vbaProject / script / theme / slicer / dataConnection / customXML / threadedComments / embeddedObject /
+  externalLink / pivot / table / printerSettings / other）。<code>init</code> の 4 つ目の引数は既定 <code>[:]</code> で、既存の呼び方は変わらない。</p>
+  <p><strong>数え方（<code>PreservationStore.inventory</code>）。</strong>模型が読んだ物は数えない: シートの図面部品とそれが参照した部品（<code>drawingPath</code> /
+  <code>drawingParts</code>——絵・グラフ・図形は模型の物で、バイトは B.72 の写しとして運ぶだけ）、読めたテーマ、メモの comments 部品と VML。
+  数えた物に付属する部品も数えない: <code>_rels</code>、グラフの style / colors、SmartArt の layout / quickStyle / colors（data 部品 1 つが SmartArt 1 つ）、
+  <code>persons</code>、<code>ctrlProps</code>、ActiveX の .bin、pivotCache の records、ODS の <code>ObjectReplacements/</code>・<code>Configurations2/</code>・
+  Basic の目録。図面の中で模型に入らなかった物（B.75 の <code>drawingUnmodelled</code>）は shapeGroup / drawingObject として、非グリッドのシート
+  （<code>foreignSheet</code>）は chartSheet として数える。ODS は <code>Pictures/</code> を image、<code>Object N/content.xml</code> を embeddedObject
+  （グラフとして読めた物は保全から外れているので現れない）、<code>Basic/</code> の script を script に。残りは other。</p>
+  <p><strong>検査。</strong><code>PreservationInventoryTests</code> 4 件: 全部読めた検体（charts-and-friends）は空・SmartArt と図形のグループ・VBA・グラフシート
+  （そのグラフと図面はグリッドのシートの物ではないので chart / drawing として残る）・外部リンク・ODS のグラフは現れない・型の名と順序。</p>
+</section>
+
+<section>
+  <h3>B.78 外部ブックの参照先（Rev 4.69）</h3>
+  <p>2026-09-11 決定。数式の <code>[1]Data!B2</code> は文字のまま運んでいたが、<code>[1]</code> が何のファイルかは答えられなかった。
+  <code>ExternalLink { index, target, sheetNames }</code> と <code>Workbook.externalLinks</code>（読むだけ・<code>package(set)</code>）を足す。
+  値は解決しない——セルが持つのはファイルの取ってあった値。</p>
+  <p><strong>XLSX。</strong><code>&lt;externalReferences&gt;</code> は読み手が知らない子なので断片として残る。その XML の <code>r:id</code> を順に取り
+  （順序が数式の番号）、ブックの関係で <code>xl/externalLinks/externalLinkN.xml</code> へ、部品の <code>externalBook</code> の <code>sheetName@val</code> と、
+  部品の関係の <code>externalLinkPath</code> の Target（相対パス・絶対パス・URL のまま。パーセント符号化は解く）を読む（<code>ExternalLinkParser</code>）。
+  何も消費しない: 部品も断片も同じ形式への書き戻しでバイトのまま。</p>
+  <p><strong>ODS。</strong>ODF に一覧は無く、数式が <code>['file:///…/Budget.ods'#$Data.B2]</code> と文書を直接名指しする。読み終えた全セルの数式から
+  <code>'文書'#$シート.</code> を正規表現で拾い、初出の順に番号を振り、シート名は数式が使った物。目録（B.77）の externalLink は XLSX の部品を数える物なので
+  ODS には現れない。Numbers は読まない（Numbers の外部参照は模型に無い）。</p>
+  <p><strong>検査。</strong><code>ExternalLinkTests</code> 3 件: 手作りの <code>external-links.xlsx</code>（Excel の形: sheetNames と取ってあった値）を読む・
+  同じ形式への書き戻しで部品と断片がバイトのまま・手作りの <code>external-links.ods</code> から 2 文書と 3 シート名を導く。</p>
 </section>
 
 </div><!-- /.container -->

@@ -63,6 +63,70 @@ package struct PreservationStore: Sendable, Hashable {
     /// macro loss answered with "write XLSX instead" points at a format that loses them too (spec Appendix B.22).
     package var hasVBAProject: Bool { parts.keys.contains { $0.hasSuffix("vbaProject.bin") } }
 
+    /// What the preserved material holds that the model does not represent, by kind (spec Appendix B.77).
+    /// Parts the model read stay out (a sheet's drawing and what it referenced, the theme once read, the notes'
+    /// comment parts); parts that belong to a counted one (relationships, a chart's style, a diagram's layout,
+    /// an object's replacement image) are not counted twice.
+    package func inventory(sheets: [Sheet], themeRead: Bool) -> [PreservedPartKind: Int] {
+        var counts: [PreservedPartKind: Int] = [:]
+        var modelled = Set<String>()
+        for sheet in sheets {
+            if let d = sheet.preserved.drawingPath { modelled.insert(d) }
+            modelled.formUnion(sheet.preserved.drawingParts)
+            for object in sheet.preserved.drawingUnmodelled {
+                switch object {
+                case "SmartArt": break                                   // counted by its data part below
+                case "a group of shapes": counts[.shapeGroup, default: 0] += 1
+                default: counts[.drawingObject, default: 0] += 1
+                }
+            }
+            if sheet.preserved.foreignSheet != nil { counts[.chartSheet, default: 0] += 1 }
+        }
+        for path in parts.keys where !path.contains("/_rels/") && !path.hasPrefix("_rels/") && !modelled.contains(path) {
+            guard let kind = Self.kind(ofPart: path, themeRead: themeRead) else { continue }
+            counts[kind, default: 0] += 1
+        }
+        return counts
+    }
+
+    /// The kind a preserved part counts under; nil for one that belongs to a counted part or to the application.
+    static func kind(ofPart path: String, themeRead: Bool) -> PreservedPartKind? {
+        let name = (path as NSString).lastPathComponent
+        if path.hasPrefix("xl/") {
+            switch path {
+            case _ where path.hasPrefix("xl/charts/"): return name.hasPrefix("chart") ? .chart : nil
+            case _ where path.hasPrefix("xl/chartsheets/"): return nil                      // counted from the sheet
+            case _ where path.hasPrefix("xl/drawings/"): return name.hasPrefix("commentsDrawing") ? nil : .drawing
+            case _ where path.hasPrefix("xl/media/"): return .image
+            case _ where path.hasPrefix("xl/diagrams/"): return name.hasPrefix("data") ? .smartArt : nil
+            case "xl/vbaProject.bin": return .vbaProject
+            case "xl/vbaProjectSignature.bin", "xl/vbaData.xml": return nil
+            case _ where path.hasPrefix("xl/theme/"): return themeRead ? nil : .theme
+            case _ where path.hasPrefix("xl/slicers/") || path.hasPrefix("xl/slicerCaches/"): return .slicer
+            case "xl/connections.xml", _ where path.hasPrefix("xl/queryTables/") || path.hasPrefix("xl/model/"): return .dataConnection
+            case _ where path.hasPrefix("xl/threadedComments/"): return .threadedComments
+            case _ where path.hasPrefix("xl/persons/"): return nil
+            case _ where path.hasPrefix("xl/comments"): return nil                          // the notes are the model's
+            case _ where path.hasPrefix("xl/embeddings/"): return .embeddedObject
+            case _ where path.hasPrefix("xl/activeX/"): return name.hasSuffix(".xml") ? .embeddedObject : nil   // the .bin belongs to its .xml
+            case _ where path.hasPrefix("xl/ctrlProps/"): return nil
+            case _ where path.hasPrefix("xl/externalLinks/"): return .externalLink
+            case _ where path.hasPrefix("xl/pivotCache/"): return name.hasPrefix("pivotCacheDefinition") ? .pivot : nil
+            case _ where path.hasPrefix("xl/pivotTables/"): return .pivot
+            case _ where path.hasPrefix("xl/tables/"): return .table
+            case _ where path.hasPrefix("xl/printerSettings/"): return .printerSettings
+            default: return .other
+            }
+        }
+        if path.hasPrefix("customXml/") { return name.hasPrefix("item") && !name.hasPrefix("itemProps") ? .customXML : nil }
+        // ODS
+        if path.hasPrefix("Pictures/") { return .image }
+        if path.hasPrefix("Object ") { return name == "content.xml" ? .embeddedObject : nil }
+        if path.hasPrefix("ObjectReplacements/") || path.hasPrefix("Configurations2/") || path.hasPrefix("Thumbnails/") { return nil }
+        if path.hasPrefix("Basic/") { return name.hasSuffix("-lc.xml") || name.hasSuffix("-lb.xml") ? nil : .script }
+        return .other
+    }
+
     /// Human-readable inventory: "VBA project: yes / charts: 2 / drawings: 1 / other parts: 3".
     package var summary: String {
         var counts: [(String, Int)] = []

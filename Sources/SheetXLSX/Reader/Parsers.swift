@@ -29,6 +29,23 @@ final class ContentTypesParser: SAXHandler {
     }
 }
 
+/// xl/externalLinks/externalLinkN.xml (B.78): the cached sheet names and the relationship that names the file.
+final class ExternalLinkParser: SAXHandler {
+    var driver: SAXDriver?
+    var rootAttributes: [String: String] = [:]
+    var sheetNames: [String] = []
+    var bookRelID: String?
+    func start(_ name: String, _ a: [String: String]) {
+        switch name {
+        case "externalBook": bookRelID = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value
+        case "sheetName": if let v = a["val"] { sheetNames.append(v) }
+        default: break
+        }
+    }
+    func text(_ s: String) {}
+    func end(_ name: String) {}
+}
+
 /// xl/workbook.xml: sheets, names, flags — and every child the model has no home for, kept verbatim.
 final class WorkbookXMLParser: SAXHandler {
     var driver: SAXDriver?
