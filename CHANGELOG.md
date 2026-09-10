@@ -7,7 +7,13 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.25.0] — 2026-09-11
+
+What the model could not read from a file until now, it reads: an XLSX file's pictures, charts, theme and furigana,
+an ODS file's pictures and charts — and charts can be written into ODS. Every one of these is additive
+(spec Appendices B.69–B.73); the one change to existing code is that three lists (`Chart.Kind`,
+`SheetImage.Format`, `DateEpoch`) are structs now, so a `switch` over them needs a `default`. Untouched pictures,
+charts and theme parts are still written back byte for byte.
 
 ### Added
 
@@ -1228,6 +1234,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/nanbu/SwiftSheets/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/nanbu/SwiftSheets/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/nanbu/SwiftSheets/compare/0.21.0...0.22.0
