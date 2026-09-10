@@ -77,4 +77,35 @@ public struct DataValidation: Hashable, Sendable {
         DataValidation(kind: .list, ranges: ranges, formula1: source, errorStyle: rejects ? .stop : nil,
                        allowBlank: allowBlank, showErrorMessage: rejects)
     }
+
+    /// A dropdown over the choices themselves, written into the rule as the inline list `"a,b,c"` (spec Appendix
+    /// B.55) — no sheet of choices needed. The suggest / reject choice is the same as `list(_:over:)`'s.
+    ///
+    /// Nil when the format cannot hold the choices as an inline list: a choice that contains a comma (the file's own
+    /// separator — there is no escape for it), a choice that contains a double quote, no choices at all, or choices
+    /// whose joined text is longer than `inlineListLimit`. Put such choices on a sheet and pass its range to
+    /// `list(_:over:)` instead.
+    public static func list(choices: [String], over ranges: MultiCellRange,
+                            allowBlank: Bool = true, rejects: Bool = false) -> DataValidation? {
+        inlineListSource(choices).map { list($0, over: ranges, allowBlank: allowBlank, rejects: rejects) }
+    }
+
+    /// The most characters an inline list may hold between its quotes, separators included. Excel's own dialog refuses
+    /// a longer source text; the figure is Excel's documented limit, not one this library has measured.
+    public static let inlineListLimit = 255
+
+    /// The choices of a `.list` rule whose source is an inline list (`"a,b,c"` → `["a", "b", "c"]`, empty items
+    /// kept). Nil for any other rule — a list sourced from a range, or a rule of another kind.
+    public var listChoices: [String]? {
+        guard kind == .list, let f = formula1, f.count >= 2, f.hasPrefix("\""), f.hasSuffix("\"") else { return nil }
+        return f.dropFirst().dropLast().split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+    }
+
+    /// `["a", "b"]` → `"\"a,b\""`; nil under the conditions `list(choices:over:)` documents.
+    package static func inlineListSource(_ choices: [String]) -> String? {
+        guard !choices.isEmpty, !choices.contains(where: { $0.contains(",") || $0.contains("\"") }) else { return nil }
+        let joined = choices.joined(separator: ",")
+        guard joined.count <= inlineListLimit else { return nil }
+        return "\"" + joined + "\""
+    }
 }

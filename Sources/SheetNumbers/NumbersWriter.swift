@@ -38,8 +38,8 @@ struct NumbersWriter {
     /// the rule itself (`"a,b,c"`). Anything else returns nil — a range-sourced list would have to be frozen into
     /// today's values, which changes what the rule means, and the other kinds have no control to become.
     static func popupItems(of v: DataValidation) -> [String]? {
-        guard v.kind == .list, let f = v.formula1, f.count >= 2, f.hasPrefix("\""), f.hasSuffix("\"") else { return nil }
-        let items = f.dropFirst().dropLast().split(separator: ",").map(String.init).filter { !$0.isEmpty }
+        guard let choices = v.listChoices else { return nil }
+        let items = choices.filter { !$0.isEmpty }
         return items.isEmpty ? nil : items
     }
 

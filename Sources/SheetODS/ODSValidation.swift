@@ -17,8 +17,7 @@ enum ODSValidation {
         case .custom: return "of:is-true-formula(\(one))"
         case .list:
             // an inline list is written `"a,b,c"` in XLSX and `("a";"b";"c")` in ODF
-            if let raw = v.formula1, raw.hasPrefix("\""), raw.hasSuffix("\""), raw.count >= 2 {
-                let items = String(raw.dropFirst().dropLast()).split(separator: ",", omittingEmptySubsequences: false)
+            if let items = v.listChoices {
                 return "of:cell-content-is-in-list(" + items.map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"" }.joined(separator: ";") + ")"
             }
             return "of:cell-content-is-in-list(\(one))"

@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.44 Draft</td><td>2026-09-10</td><td>入力規則の候補リストを文字列の配列から作れる <code>DataValidation.list(choices:over:)</code>（失敗可能）と、読む側の <code>listChoices</code> を追加。インライン一覧の綴り（<code>"a,b,c"</code>）の知識を 3 つのコーデックからモデル 1 か所へ寄せる（B.55）。</td></tr>
     <tr><td>4.43 Draft</td><td>2026-09-10</td><td>数式セルの読み方を <code>dataOnly: Bool</code> から <code>formulaCells: FormulaCellReading</code>（<code>.formulas</code> / <code>.cachedValues</code>）へ。通常読み・逐次読み・<code>Workbook</code> の 3 か所を同じ列挙にそろえ、計算済みの値が無い数式セルは空と定める（B.54）。</td></tr>
     <tr><td>4.42 Draft</td><td>2026-09-10</td><td>書式を変える6宣言をsetStyleへ改名し、読めないA1文字列の扱いを「書く入口は止まる／読む入口は既定値」に揃える（B.53）。</td></tr>
     <tr><td>4.41 Draft</td><td>2026-09-10</td><td>SheetErrorを分類する。unopenable(UnopenableInput)・noCodec(for:)・unsupportedEncryption(detail:)を追加し、read/inspectの判定をSheetFormat.probeへそろえる（B.52）。</td></tr>
@@ -6133,6 +6134,30 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   （<code>FormulaCellReadingTests</code>）。Numbers は「計算結果を持たない数式セル」を書き手から作れないため、この 1 点は
   Numbers では検査していない——読み手のコードが数式表を引かないことを根拠にする。既定が <code>.formulas</code> であることは
   3 か所とも直接見る。</p>
+
+  <h3>B.55 入力規則の候補は配列で渡せる——インライン一覧の綴りはモデルが 1 か所で知る（Rev 4.44）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 5）。<code>DataValidation.list(_ source:over:)</code> は残したまま、
+  候補そのものを受け取る <code>list(choices:over:allowBlank:rejects:)</code> を足す。既存の 1 宣言は変えない——
+  範囲参照（<code>'Choices'!$A$2:$A$4</code>）を渡す用途は別で、Stream はそちらを使っている。</p>
+  <p><strong>なぜ足すか。</strong>①Excel はインラインの候補を <code>&lt;formula1&gt;"a,b,c"&lt;/formula1&gt;</code> と保存する——
+  引用符で囲み、カンマで区切る。②利用者がこれを真似ると <code>.list("\"a,b,c\"", over:)</code> と書くことになり、
+  引用符とカンマの知識が呼び出し側に漏れる。同じ知識が ODS の書き手（<code>("a";"b";"c")</code> へ直す）・Numbers の書き手
+  （ポップアップメニューへ直す）・Numbers の読み手（メニューから作る）にも 3 度書かれていた。③だから候補の配列を受け取る
+  入口をモデルに 1 つ置き、読む側の <code>listChoices: [String]?</code> と対にして、コーデックの 3 か所はそれを引く。</p>
+  <p><strong>失敗可能である理由。</strong>インライン一覧に入らない候補がある——カンマを含む候補（区切り記号そのもので、エスケープの
+  規則が無い）、二重引用符を含む候補（一覧を閉じてしまう。<code>""</code> で逃がせるかは Excel で確かめていない）、候補が 0 個、
+  結合した文字列が <code>inlineListLimit</code>（255 文字・引用符を除いた区切り込みの長さ）を超えるもの。これは打ち間違いではなく
+  形式の制約なので、B.53 の「書く入口は止まる」ではなく <code>CellRef(_:)</code> と同じ失敗可能（nil）にする。そういう候補は
+  シートに置いて範囲で <code>list(_:over:)</code> に渡す道が残っている。255 は Excel が文書で言う上限であり、この library が
+  測った値ではない（<strong>未検証</strong>）——引用符を数えるかどうかも同じく未検証で、除いた長さで判定している。</p>
+  <p><strong>読む側。</strong><code>listChoices</code> は <code>.list</code> でインライン一覧のときだけ配列を返し、空の要素は
+  空のまま残す（<code>"a,,b"</code> は 3 要素）。範囲参照の一覧や他の種類の規則は nil。<code>""</code> の展開はしない
+  （上と同じ未検証のため、そのまま渡す）。</p>
+  <p><strong>Swift 側の値の検証とは別。</strong>これは「ファイルに書く規則」の話で、<code>sheet["A2"] = "x"</code> が候補に無い値
+  だからと止める機能ではない。そちらは要望が出てから別に考える。</p>
+  <p><strong>検査。</strong>配列 → <code>formula1</code> → 配列の往復、nil になる 4 条件と上限ぎりぎりが通ること、範囲参照は
+  <code>listChoices</code> が nil、XLSX と ODS に書いて読み戻すと同じ候補が返ること（<code>DataValidationChoicesTests</code>）。
+  Numbers への書き出しは既存のポップアップメニューの検査（<code>NumbersPopUpMenuTests</code>）が同じ経路を通る。</p>
 </section>
 
 </div><!-- /.container -->
