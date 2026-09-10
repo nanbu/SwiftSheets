@@ -111,7 +111,7 @@ import SwiftSheets
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
         let first = try wb.write(as: .xlsx).data
         let back = try Workbook(data: first)
-        #expect(back.sheets[0].images.count == 1, "our own picture reads back into the model (B.71) — and, untouched, is still written back as bytes")
+        #expect(back.sheets[0].images.count == 1, "our own picture reads back into the model (B.72) — and, untouched, is still written back as bytes")
         let second = try back.write(as: .xlsx).data
         for part in ["xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/media/image1.png"] {
             #expect(try ZipInspection(data: second).entry(named: part) == ZipInspection(data: first).entry(named: part),

@@ -188,7 +188,7 @@ enum WorkbookWriter {
         }
         var generatedOverrides: [String: String] = [:]
         for (i, sheet) in wb.sheets.enumerated() {
-            // The drawing a sheet was read with (B.71): while the model's pictures and charts still begin with
+            // The drawing a sheet was read with (B.72): while the model's pictures and charts still begin with
             // the ones read, the source drawing and its parts travel as bytes and only additions are spliced in;
             // once one of them is changed or removed, the source drawing is retired and rebuilt from the model.
             let asReadImages = sameFamily ? sheet.preserved.images : []
@@ -408,7 +408,7 @@ enum WorkbookWriter {
 
         // sheets first: they register styles and strings. A date origin Excel cannot name (an ODF null-date
         // that is neither 1899-12-30 nor 1904-01-01) is re-based onto the 1900 system: the model's dates are civil
-        // dates, so they land on the same day; only a raw serial that the file formats as a date would shift (B.68).
+        // dates, so they land on the same day; only a raw serial that the file formats as a date would shift (B.69).
         let epoch = wb.epoch.isExcelOrigin ? wb.epoch : DateEpoch.windows1900
         if !wb.epoch.isExcelOrigin {
             sink.add(.degraded, subject: .formatting, "the date origin \(wb.epoch.origin) is written as the 1900 system: Excel knows only 1899-12-30 and 1904-01-01 (dates keep their day; a raw serial formatted as a date shifts)")
@@ -426,7 +426,7 @@ enum WorkbookWriter {
         let themePath = preservedTheme ?? ThemePart.partPath
         let needsGeneratedTheme = preservedTheme == nil
         // a source theme travels as bytes while the model's theme still equals what was read; once the model's
-        // theme differs, the part is regenerated from the model under the same path and relationship (B.70)
+        // theme differs, the part is regenerated from the model under the same path and relationship (B.71)
         if let preservedTheme, let modelTheme = wb.theme, modelTheme != preserved.theme {
             opaque[preservedTheme] = .bytes(Data((XMLWriter.header + ThemePart.xml(for: modelTheme)).utf8))
         }
@@ -886,7 +886,7 @@ enum WorkbookWriter {
     /// drawing needs no plan: its preserved bytes were spliced during planning (spec Appendix B.32).
     struct ImagePlan {
         var newDrawing: (path: String, xml: String, rels: String)?
-        /// The source's drawing was retired (B.71): its `<drawing>` element and relationship must not be re-emitted.
+        /// The source's drawing was retired (B.72): its `<drawing>` element and relationship must not be re-emitted.
         var replacesSourceDrawing = false
     }
 
@@ -1264,7 +1264,7 @@ enum WorkbookWriter {
 /// The shared string table (deduped), written as sharedStrings.xml with rich runs where present.
 final class SharedStringTable {
     /// One entry: the text and its phonetic guide. The same text with and without a guide is two entries, as in
-    /// Excel's own table (B.69).
+    /// Excel's own table (B.70).
     struct Entry: Hashable { let value: CellValue; let phonetic: PhoneticText? }
     private var items: [Entry] = []
     private var index: [Entry: Int] = [:]

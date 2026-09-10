@@ -1,7 +1,7 @@
 import Foundation
 import SheetCore
 
-/// A `draw:frame` as `content.xml` carries it, before the package parts it names are read (spec Appendix B.72):
+/// A `draw:frame` as `content.xml` carries it, before the package parts it names are read (spec Appendix B.73):
 /// in a cell (the anchor) or among the table's `table:shapes` (absolute), holding a picture (`draw:image`) or an
 /// embedded object (`draw:object` — a chart document under `Object N/`).
 struct ODSFrame {
@@ -16,7 +16,7 @@ struct ODSFrame {
     var endX: Double?, endY: Double?         // cm
 }
 
-/// `Object N/content.xml` → `Chart` (B.72): the chart's class names the kind (`chart:bar` with the plot area's
+/// `Object N/content.xml` → `Chart` (B.73): the chart's class names the kind (`chart:bar` with the plot area's
 /// `chart:vertical` → column / bar, `chart:line`, `chart:circle` → pie; any other class stays as the raw kind),
 /// the categories come from the x axis, the series from their cell-range addresses, the title from its text.
 final class ODFChartParser: SAXHandler {
@@ -180,7 +180,7 @@ enum ODSDrawing {
 
     static let chartMediaType = "application/vnd.oasis.opendocument.chart"
 
-    /// `draw:frame` + `draw:object` for a chart, written in the anchor cell (B.72).
+    /// `draw:frame` + `draw:object` for a chart, written in the anchor cell (B.73).
     static func frameXML(_ object: ChartObject, in sheet: Sheet) -> String {
         let range = object.chart.anchor ?? CellRange(from: object.anchor, to: object.anchor)
         let size = rangeSize(range, in: sheet)

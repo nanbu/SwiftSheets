@@ -323,7 +323,7 @@ present, and the worksheet children are in schema order.
 
 **Byte-identical applies to what the model does not read, and to what it read but did not change.** VBA, shapes,
 the theme — anything the codec leaves opaque — comes out as the same bytes; so do a sheet's pictures and charts, which
-are read into `sheet.images` / `sheet.charts` (spec Appendix B.71) and re-packed byte for byte until one of them is
+are read into `sheet.images` / `sheet.charts` (spec Appendix B.72) and re-packed byte for byte until one of them is
 changed or removed, when the drawing is rebuilt from the model and whatever it held that the model cannot say is
 reported as dropped. Charts, VBA, themes, images, drawings — anything the
 codec leaves opaque — come out as the same bytes they went in as. What the model *does* read is rebuilt from the

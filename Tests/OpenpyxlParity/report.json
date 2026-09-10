@@ -2451,7 +2451,7 @@
    "key": "TestInlineFont::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2462,7 +2462,7 @@
    "key": "TestInlineFont::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2473,7 +2473,7 @@
    "key": "TestRichText::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2484,7 +2484,7 @@
    "key": "TestRichText::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2495,7 +2495,7 @@
    "key": "TestText::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2506,7 +2506,7 @@
    "key": "TestText::test_from_xml",
    "params": 2,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2517,7 +2517,7 @@
    "key": "TestText::test_empty_element",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2528,7 +2528,7 @@
    "key": "TestPhoneticText::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2539,7 +2539,7 @@
    "key": "TestPhoneticText::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2550,7 +2550,7 @@
    "key": "TestPhoneticProperties::test_ctor",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {
@@ -2561,7 +2561,7 @@
    "key": "TestPhoneticProperties::test_from_xml",
    "params": 1,
    "status": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   {

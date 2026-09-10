@@ -5,7 +5,7 @@ import Testing
 import SwiftSheets
 
 /// The phonetic guide (furigana) over a cell's text rides the shared-string table as `<rPh>` runs and a
-/// `<phoneticPr>` (spec Appendix B.69): written, read back, kept apart from the same text without readings,
+/// `<phoneticPr>` (spec Appendix B.70): written, read back, kept apart from the same text without readings,
 /// and reported by the writers that have no place for it.
 struct FuriganaTests {
     static func workbook() -> Workbook {

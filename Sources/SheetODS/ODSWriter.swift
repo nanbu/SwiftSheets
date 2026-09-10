@@ -250,7 +250,7 @@ enum ODSWriter {
 
     static func write(_ source: Workbook, options: WriteOptions) throws -> WriteResult {
         guard !source.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
-        let wb = source.resolvingColors()   // ODF has no theme: every theme / indexed colour becomes its RGB (B.70)
+        let wb = source.resolvingColors()   // ODF has no theme: every theme / indexed colour becomes its RGB (B.71)
         let sink = ODSWarningSink()
         let styles = ODSStyleRegistry()
         let conditionalStyles = ODSConditionalStyleRegistry()
@@ -285,7 +285,7 @@ enum ODSWriter {
             var pictureFrames: [CellRef: [ODSPicture]] = [:]
             var frames: [CellRef: String] = [:]
             var shapes: [ODSPicture] = []
-            // charts become chart documents under Object N/ (B.72), numbered past whatever a source ODS brought
+            // charts become chart documents under Object N/ (B.73), numbered past whatever a source ODS brought
             for (z, chart) in sheet.charts.enumerated() {
                 guard chart.kind.isDrawable || chart.kind.rawValue.hasPrefix("chart:") else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart was not written: the writer draws column, bar, line and pie charts")
@@ -310,7 +310,7 @@ enum ODSWriter {
                 pictures.append(picture)
                 // a cell inside a merge is written as a covered cell, which holds nothing: a picture anchored there
                 // moves to the merge's first cell, as LibreOffice moves it
-                // a picture at a fixed position is one of the sheet's shapes (table:shapes), not a cell's (B.72)
+                // a picture at a fixed position is one of the sheet's shapes (table:shapes), not a cell's (B.73)
                 if case .absolute = image.anchor { shapes.append(picture); continue }
                 var anchor = picture.anchor
                 if let merge = sheet.table.merges.first(where: { $0.contains(anchor) && $0.topLeft != anchor }) { anchor = merge.topLeft }

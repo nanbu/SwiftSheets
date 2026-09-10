@@ -331,7 +331,7 @@
   },
   "cell/tests/test_text.py": {
    "default": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.69）",
+   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
    "api": "Phonetic text"
   },
   "cell/tests/test_writer.py": {

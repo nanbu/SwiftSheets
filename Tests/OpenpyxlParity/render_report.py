@@ -199,7 +199,7 @@ AREAS = [
    "tests": ["xml/tests/test_functions.py::*", "descriptors/tests/test_base.py::*", "descriptors/tests/test_excel.py::*", "descriptors/tests/test_nested.py::*", "descriptors/tests/test_sequence.py::*", "descriptors/tests/test_serialisable.py::*", "descriptors/tests/test_container.py::*", "descriptors/tests/test_namespace.py::*", "compat/tests/test_compat.py::*"]},
  ]},
  {"id": "roadmap", "title": "未実装の領域（na_api）— ロードマップ", "apis": [
-  {"py": "openpyxl.chart / chartsheet / drawing", "sw": "sheet.charts / sheet.images（B.34・B.32・B.71）", "status": "roadmap", "desc": "グラフ（4 種を書き、全種を読む）と画像（読み書き）は対応。チャートシートは保全、図形は保全のみ（openpyxl の drawing オブジェクト模型は持たない）。", "pyx": "ws.add_chart(BarChart(), 'A1')", "swx": "sheet.addChart(Chart(.column), over: \"D2:K16\")",
+  {"py": "openpyxl.chart / chartsheet / drawing", "sw": "sheet.charts / sheet.images（B.34・B.32・B.72）", "status": "roadmap", "desc": "グラフ（4 種を書き、全種を読む）と画像（読み書き）は対応。チャートシートは保全、図形は保全のみ（openpyxl の drawing オブジェクト模型は持たない）。", "pyx": "ws.add_chart(BarChart(), 'A1')", "swx": "sheet.addChart(Chart(.column), over: \"D2:K16\")",
    "tests": ["chart/tests/*", "chartsheet/tests/*", "drawing/tests/*", "reader/tests/test_drawings.py::*"]},
   {"py": "openpyxl.pivot", "sw": "—", "status": "roadmap", "desc": "ピボットテーブルとキャッシュ。", "pyx": "ws._pivots", "swx": "// roadmap", "tests": ["pivot/tests/*"]},
   {"py": "openpyxl.formula（Tokenizer / Translator）", "sw": "—", "status": "roadmap", "desc": "数式のトークン化と参照の平行移動。SwiftSheets は数式を文字列のまま保持する。", "pyx": "Translator('=A1', 'B1').translate_formula('C3')", "swx": "// roadmap", "tests": ["formula/tests/*"]},

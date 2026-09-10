@@ -208,7 +208,7 @@ per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maint
   with one rule kind per column and **a parameter no other rule uses**, have Numbers import and save it with
   `numbers_app.resave`, and match each surviving rule to its column by that parameter. Numbers keeps fourteen of
   Excel's twenty-five kinds; the eleven it drops on import are the eleven SwiftSheets reports as dropped.
-- **Furigana (Appendix B.69) — no Excel-made sample on this machine.** Type Japanese into a cell in Excel (it
+- **Furigana (Appendix B.70) — no Excel-made sample on this machine.** Type Japanese into a cell in Excel (it
   records the readings as you type), save, open it with SwiftSheets and confirm `sheet[cell: "A1"].phonetic` holds the
   readings; save it back and confirm Excel still shows them (Home → Phonetic Guide → Show). Our own round trip is
   covered by `FuriganaTests`; what only Excel can judge is whether its own `<rPh>` spans match what we read.

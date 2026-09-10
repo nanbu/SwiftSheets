@@ -77,7 +77,7 @@ enum WorkbookReader {
         let styles = StylesParser()
         if zip.contains(stylesPath) { try styles.run(try zip.read(stylesPath), part: stylesPath); consumed.insert(stylesPath) }
         styles.resolveNamedStyleLinks()
-        // the theme: read into the model, and kept as a part too (B.70)
+        // the theme: read into the model, and kept as a part too (B.71)
         if let themePath = rels.first(where: { $0.type.hasSuffix("/theme") }).map({ resolve($0.target) }), zip.contains(themePath) {
             let themeParser = ThemeParser()
             try themeParser.run(try zip.read(themePath), part: themePath)
@@ -440,7 +440,7 @@ final class SheetReadContext: @unchecked Sendable {
             }
         }
 
-        // the drawing: pictures and charts into the model, the parts left opaque as well (B.71) — an untouched
+        // the drawing: pictures and charts into the model, the parts left opaque as well (B.72) — an untouched
         // drawing is re-packed byte for byte, and only a change makes the writer regenerate it
         if let drawingRel = sheetRels.first(where: { $0.type.hasSuffix("/drawing") }) {
             let drawingPart = WorkbookReader.resolvePart(drawingRel.target, relativeTo: sheetDir)

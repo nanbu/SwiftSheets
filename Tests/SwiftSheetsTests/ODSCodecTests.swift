@@ -406,7 +406,7 @@ import SwiftSheets
         ws["A2"] = .integer(2); ws.setStyle("A2") { $0.fill = .solid(.indexed(12)); $0.numberFormat = "#,##0_);(#,##0)" }
         ws["A3"] = .integer(3); ws.setStyle("A3") { $0.numberFormat = "# ?/?" }
         let result = try ODSCodec.write(Workbook(sheets: [ws]))
-        // theme and indexed colours resolve through the workbook's theme and palette (B.70): no loss to report
+        // theme and indexed colours resolve through the workbook's theme and palette (B.71): no loss to report
         #expect(!result.warnings.contains { $0.kind == .degraded }, "\(result.warnings.map(\.message))")
         let content = try Package.part("content.xml", of: result.data)
         #expect(content.contains("fo:color=\"#4472c4\"") && content.contains("fo:background-color=\"#0000ff\""))
@@ -465,7 +465,7 @@ import SwiftSheets
         }
         #expect(charts.sheets[0].style("A1").font.bold)
         #expect(charts.sheets[0].cell("A1")?.note?.text == "first column")
-        // the chart object is read into the model (B.72), so its parts are no longer opaque
+        // the chart object is read into the model (B.73), so its parts are no longer opaque
         #expect(charts.sheets[0].charts.count == 1 && charts.sheets[0].charts[0].kind == .column)
         #expect(!charts.preserved.opaqueParts.keys.contains("Object 1/content.xml"))
         #expect(!charts.preserved.opaqueParts.keys.contains { $0.hasPrefix("Thumbnails/") })

@@ -94,7 +94,7 @@ final class WorkbookXMLParser: SAXHandler {
 }
 
 /// The `<rPh>` runs and `<phoneticPr>` of one string, as the shared-string and inline-string parsers collect them;
-/// `phoneticPr@fontId` is resolved against the style table once that has been read (spec Appendix B.69).
+/// `phoneticPr@fontId` is resolved against the style table once that has been read (spec Appendix B.70).
 struct PhoneticCollector {
     var runs: [PhoneticText.Run] = []
     var kind = PhoneticText.Kind.fullwidthKatakana
@@ -129,7 +129,7 @@ struct PhoneticCollector {
 }
 
 /// sharedStrings.xml → values. Plain `<t>` → .text; `<r>` runs → .richText; `<rPh>` / `<phoneticPr>` (furigana)
-/// → `phonetics`, entry by entry (spec Appendix B.69).
+/// → `phonetics`, entry by entry (spec Appendix B.70).
 final class SharedStringsParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
@@ -205,7 +205,7 @@ struct FontAttributes {
 /// styles.xml → the style tables and resolved cellXfs. Fonts / fills / borders are parsed *and* kept as raw XML,
 /// and the index-referencing sections (`cellStyleXfs`, `cellStyles`, `dxfs`, `tableStyles`, `extLst`) are kept
 /// verbatim, so a rewrite can keep every index the file relies on.
-/// xl/theme/theme1.xml → `Theme` (B.70): the twelve scheme colours (`a:srgbClr@val`, or `a:sysClr@lastClr` for the
+/// xl/theme/theme1.xml → `Theme` (B.71): the twelve scheme colours (`a:srgbClr@val`, or `a:sysClr@lastClr` for the
 /// system colours dk1 / lt1) and the two scheme fonts' latin typefaces. Nil when the part names no colour scheme.
 final class ThemeParser: SAXHandler {
     var driver: SAXDriver?

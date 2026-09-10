@@ -5,7 +5,7 @@ import Testing
 import SwiftSheets
 
 /// Pictures and charts of an ODS file are read into the model, and charts are written as embedded chart documents
-/// (spec Appendix B.72) — LibreOffice, where installed, is the judge of what it wrote and what it can read back.
+/// (spec Appendix B.73) — LibreOffice, where installed, is the judge of what it wrote and what it can read back.
 @Suite(.serialized) struct ODSDrawingTests {
     static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
     static let fourCharts = fixtures.appendingPathComponent("drawings/libreoffice-four-charts.ods")

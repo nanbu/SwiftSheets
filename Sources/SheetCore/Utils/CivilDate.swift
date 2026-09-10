@@ -141,7 +141,7 @@ public struct CivilDateTime: Hashable, Sendable, CustomStringConvertible, Codabl
 /// Which day serial 0 means. Windows workbooks use 1900 (with Lotus's phantom 1900-02-29); Mac legacy uses 1904;
 /// OpenDocument lets the origin be any date (`table:null-date`), which `DateEpoch(origin:)` carries as read.
 /// A struct with static members rather than an enum, so `wb.epoch = .mac1904` and `wb.epoch == .mac1904` read
-/// as before while any origin fits (spec Appendix B.68). Excel and Numbers know only the two named origins:
+/// as before while any origin fits (spec Appendix B.69). Excel and Numbers know only the two named origins:
 /// their writers re-base another origin onto 1900 and say so.
 public struct DateEpoch: Sendable, Hashable {
     /// The day serial 0 stands for.

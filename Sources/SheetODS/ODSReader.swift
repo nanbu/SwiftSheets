@@ -101,7 +101,7 @@ enum ODSReader {
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
 
-        // pictures and chart objects the frames named, into the model (B.72); their parts are not kept opaque
+        // pictures and chart objects the frames named, into the model (B.73); their parts are not kept opaque
         let drawn = try ODSDrawing.resolve(content.frames, sheets: Array(wb.sheets),
                                            read: { try zip.read($0) }, exists: { zip.contains($0) }, allNames: Array(zip.entries.keys))
         for i in wb.sheets.indices {
@@ -244,7 +244,7 @@ final class ContentParser: SAXHandler {
     private var rowHasValidation = false
     private var cellCursor = 1
 
-    // drawing frames (B.72): collected as content.xml names them, resolved against the package afterwards
+    // drawing frames (B.73): collected as content.xml names them, resolved against the package afterwards
     var frames: [ODSFrame] = []
     private var frame: ODSFrame?
     private var frameDepth = 0
@@ -454,14 +454,14 @@ final class ContentParser: SAXHandler {
             if let v = ODSAttr.bool(a, "table:use-wildcards") { calculationSettings.usesWildcards = v }
             if let v = ODSAttr.int(a, "table:null-year") { calculationSettings.nullYear = v }
         case "null-date":
-            // ODF lets the date origin be any date, and DateEpoch(origin:) carries it as read (B.68);
+            // ODF lets the date origin be any date, and DateEpoch(origin:) carries it as read (B.69);
             // 1900-01-01 is the name LibreOffice's option gives the Windows system, so it maps to that epoch
             let value = ODSAttr.get(a, "table:date-value") ?? "1899-12-30"
             switch value {
             case "1904-01-01": epoch = .mac1904
             case "1899-12-30", "1900-01-01": epoch = .windows1900
             default:
-                if let day = CivilDate(iso: String(value.prefix(10))) {
+                if let day = CivilDate(iso8601: String(value.prefix(10))) {
                     epoch = DateEpoch(origin: day)
                 } else {
                     epoch = .windows1900

@@ -4,7 +4,7 @@ import Testing
 @testable import SheetXLSX
 import SwiftSheets
 
-/// Pictures and charts of an opened XLSX file are read into `sheet.images` / `sheet.charts` (spec Appendix B.71).
+/// Pictures and charts of an opened XLSX file are read into `sheet.images` / `sheet.charts` (spec Appendix B.72).
 /// Untouched, the drawing and its parts are written back byte for byte; an addition is spliced in; a change or a
 /// removal rebuilds the drawing from the model and says what that costs.
 struct DrawingReadTests {

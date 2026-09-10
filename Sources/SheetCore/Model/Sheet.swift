@@ -72,10 +72,10 @@ public struct Sheet: Equatable, Sendable {
     /// Informational: the `<dimension ref>` the file declared, if any.
     public var declaredDimension: CellRange?
     /// The sheet's pictures: those placed by `addImage` (spec Appendix B.32) and those read from the file's
-    /// drawing (B.71). An untouched picture is written back as the bytes it arrived in.
+    /// drawing (B.72). An untouched picture is written back as the bytes it arrived in.
     public var images: [SheetImage] = []
     /// The sheet's charts: those placed by `addChart` (spec Appendix B.34) and those read from the file's drawing
-    /// (B.71) — a read chart may be of a kind the writers cannot draw, and is written back unchanged until it is
+    /// (B.72) — a read chart may be of a kind the writers cannot draw, and is written back unchanged until it is
     /// edited.
     public var charts: [Chart] = []
     /// Material the reader kept for a lossless write-back (spec §6).

@@ -178,7 +178,7 @@ import SwiftSheets
         #expect(try warnings(iterating).isEmpty, "XLSX keeps iteration in <calcPr>")
     }
 
-    /// A date origin ODF allows is carried as it is (B.68): no re-basing on read, no warning.
+    /// A date origin ODF allows is carried as it is (B.69): no re-basing on read, no warning.
     @Test func anUnusualDateOriginIsCarried() throws {
         let plain = try ODSCodec.write(Workbook()).data
         let content = try Self.contentXML(plain).replacingOccurrences(

@@ -21,7 +21,7 @@ package final class CellExtras: Sendable {
 }
 
 /// The phonetic guide (furigana) Excel shows above a cell's text — the readings of the kanji, run by run (spec
-/// Appendix B.69). Kept on the cell beside its value: the readings describe the text, and travel with it through
+/// Appendix B.70). Kept on the cell beside its value: the readings describe the text, and travel with it through
 /// the shared-string table. Only Excel's file format carries it; the other writers report it as dropped.
 public struct PhoneticText: Hashable, Sendable {
     /// One reading and the span of the base text it belongs to, in UTF-16 code units (Excel's `sb` / `eb`).
@@ -104,7 +104,7 @@ public struct Cell: Hashable, Sendable {
         set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: newValue, phonetic: extras?.phonetic) }
     }
 
-    /// The phonetic guide (furigana) over the cell's text (spec Appendix B.69). Excel's file format carries it;
+    /// The phonetic guide (furigana) over the cell's text (spec Appendix B.70). Excel's file format carries it;
     /// ODS and Numbers writers report it as dropped.
     public var phonetic: PhoneticText? {
         get { extras?.phonetic }

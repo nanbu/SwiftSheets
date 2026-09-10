@@ -50,7 +50,7 @@ enum ChartParts {
         case .pie:
             return "<c:pieChart><c:varyColors val=\"1\"/>" + sers + "<c:firstSliceAng val=\"0\"/></c:pieChart>"
         default:
-            return ""   // the writer refuses a kind it cannot draw before it gets here (B.68)
+            return ""   // the writer refuses a kind it cannot draw before it gets here (B.69)
         }
     }
 

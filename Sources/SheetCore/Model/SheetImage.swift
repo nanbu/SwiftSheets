@@ -1,13 +1,13 @@
 import Foundation
 
-/// A picture on a sheet (spec Appendices B.32, B.71): placed by `addImage`, or read from a file's drawing.
+/// A picture on a sheet (spec Appendices B.32, B.72): placed by `addImage`, or read from a file's drawing.
 ///
 /// The format and pixel size are read from the bytes themselves — what the caller believes the data to be plays
 /// no part. A picture read from a file and left untouched is written back as the bytes it arrived in (F3).
 public struct SheetImage: Hashable, Sendable {
     /// The picture's format — what the leading bytes say, never the file extension. A struct with static
     /// members rather than an enum, so a format can be added without breaking a caller's `switch` (spec
-    /// Appendix B.68). `init(data:)` accepts the three formats OOXML viewers render everywhere.
+    /// Appendix B.69). `init(data:)` accepts the three formats OOXML viewers render everywhere.
     public struct Format: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
         /// The file extension the format is written under (`png`, `jpeg`, `gif`).
         public let rawValue: String

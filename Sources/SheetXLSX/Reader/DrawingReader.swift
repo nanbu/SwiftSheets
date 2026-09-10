@@ -1,7 +1,7 @@
 import Foundation
 import SheetCore
 
-/// What a sheet's drawing part holds, read into the model (spec Appendix B.71): pictures into `Sheet.images`,
+/// What a sheet's drawing part holds, read into the model (spec Appendix B.72): pictures into `Sheet.images`,
 /// charts into `Sheet.charts`, and a note of whatever else was there (shapes, pictures in a format the model
 /// cannot hold, charts whose part could not be read) so the writer knows the part says more than the model.
 struct DrawingContents {

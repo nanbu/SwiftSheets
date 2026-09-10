@@ -11,13 +11,13 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
-- **ODS pictures and charts are read, and charts are written** (B.72). A source ODS's pictures (`draw:frame` in a
+- **ODS pictures and charts are read, and charts are written** (B.73). A source ODS's pictures (`draw:frame` in a
   cell, or among the sheet's `table:shapes` for a fixed position) fill `sheet.images`, and its chart objects
   (`Object N/`) fill `sheet.charts` — every class read, the four the writers draw by name; both are written back as
   fresh parts, so the "not re-linked" warning is left for embedded objects that are not charts. `addChart` now
   writes a chart document into ODS instead of dropping the chart; LibreOffice carries it into XLSX.
 
-- **Pictures and charts are read** (B.71). An opened XLSX file's drawing fills `sheet.images` and `sheet.charts`:
+- **Pictures and charts are read** (B.72). An opened XLSX file's drawing fills `sheet.images` and `sheet.charts`:
   one-cell, two-cell and absolute anchors (`SheetImage.Anchor.absolute`, in points), PNG / JPEG / GIF media,
   every chart kind (the four the writers draw by name, the rest by their element as `Chart.Kind(rawValue:)`),
   titles, legends and series with their references — a series name held as a reference is
@@ -25,14 +25,14 @@ writes, so the constant, the README's status line and the tag always name the sa
   picture or chart is spliced in beside them; a change or a removal rebuilds the drawing from the model, and
   what the drawing held that the model cannot say (shapes, pictures in other formats) is reported as dropped.
 
-- **The theme is read, and colours resolve through it** (B.70). `Workbook.theme: Theme?` holds the twelve scheme
+- **The theme is read, and colours resolve through it** (B.71). `Workbook.theme: Theme?` holds the twelve scheme
   colours and the two scheme fonts of an XLSX file's theme part (nil for a new workbook, which resolves as
   `Theme.office`), and `wb.rgb(of:)` answers the ARGB a `Color` stands for — a theme colour with Excel's tint rule
   applied, an indexed colour through the file's palette or the legacy one. An untouched theme part is written back
   byte for byte; a changed `wb.theme` regenerates it. The ODS and Numbers writers now write the resolved RGB where
   they used to write black and report "theme/indexed colours written as default".
 
-- **Furigana travels** (B.69). `Cell.phonetic: PhoneticText?` holds the phonetic guide Excel shows above a cell's
+- **Furigana travels** (B.70). `Cell.phonetic: PhoneticText?` holds the phonetic guide Excel shows above a cell's
   text — the readings run by run with their UTF-16 spans, the conversion kind, the alignment and the font. The XLSX
   reader takes `<rPh>` / `<phoneticPr>` from shared and inline strings (openpyxl skips them; this is the one
   deliberate step past its behaviour), the writer puts them back in the shared-string table, where the same text
@@ -41,7 +41,7 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Changed
 
-- **Three lists that will grow are structs, not enums** (B.68). `Chart.Kind`, `SheetImage.Format` and `DateEpoch` are
+- **Three lists that will grow are structs, not enums** (B.69). `Chart.Kind`, `SheetImage.Format` and `DateEpoch` are
   `RawRepresentable` structs with the same static members (`.column`, `.png`, `.mac1904` …), so a kind, a format or
   a date origin can be added without breaking a `switch` — which is what reading charts and pictures from files, and
   ODF's free date origin, need. Every spelling is unchanged; a `switch` over one of them now needs a `default`.

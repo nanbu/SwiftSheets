@@ -1,7 +1,7 @@
 import Foundation
 
 /// The workbook's theme — the twelve scheme colours `Color.theme(_:tint:)` indexes and the two scheme fonts
-/// (spec Appendix B.70). Read from `xl/theme/theme1.xml`; `Theme.office` is what Excel gives a new workbook and
+/// (spec Appendix B.71). Read from `xl/theme/theme1.xml`; `Theme.office` is what Excel gives a new workbook and
 /// what every colour resolves against when a workbook has no theme of its own.
 public struct Theme: Hashable, Sendable {
     /// The twelve scheme colours as ARGB, in the order `<color theme="n"/>` indexes them: 0 = light 1 (background),

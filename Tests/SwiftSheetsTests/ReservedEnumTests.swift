@@ -3,7 +3,7 @@ import Testing
 @testable import SheetCore
 import SwiftSheets
 
-/// Three lists that will grow after 1.0 are structs with static members, not enums (spec Appendix B.68):
+/// Three lists that will grow after 1.0 are structs with static members, not enums (spec Appendix B.69):
 /// `Chart.Kind`, `SheetImage.Format` and `DateEpoch`. The way they are spelled does not change; what changes is
 /// that a value the library did not name can exist — a chart kind read from a file, a date origin ODF chose.
 struct ReservedEnumTests {

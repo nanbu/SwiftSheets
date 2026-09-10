@@ -5,7 +5,7 @@ import Testing
 import SwiftSheets
 
 /// The workbook's theme is read from the theme part, resolves theme and indexed colours to RGB, and is what the
-/// writers for formats without a theme (ODS, Numbers) draw their colours from (spec Appendix B.70).
+/// writers for formats without a theme (ODS, Numbers) draw their colours from (spec Appendix B.71).
 struct ThemeTests {
     static let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         .appendingPathComponent("Fixtures/preservation/charts-and-friends.xlsx")

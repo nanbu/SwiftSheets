@@ -13,7 +13,7 @@ enum ThemePart {
     /// The default theme part.
     static let xml: String = xml(for: .office)
 
-    /// A theme part from the model's theme (B.70): the twelve scheme colours in the file's order (dk1, lt1, dk2,
+    /// A theme part from the model's theme (B.71): the twelve scheme colours in the file's order (dk1, lt1, dk2,
     /// lt2, accent 1…6, hlink, folHlink — `Theme.colors` indexes 1, 0, 3, 2, 4…11) and the two scheme fonts;
     /// the format scheme is the minimal valid one.
     static func xml(for theme: Theme) -> String {

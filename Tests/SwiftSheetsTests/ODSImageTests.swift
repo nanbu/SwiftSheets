@@ -125,7 +125,7 @@ import SwiftSheets
         #expect(names == ["Pictures/image1.png", "Pictures/image2.gif"])
     }
 
-    /// A source ODS's own picture is read into the model (B.72) and written afresh beside a picture added
+    /// A source ODS's own picture is read into the model (B.73) and written afresh beside a picture added
     /// afterwards; the parts are numbered in order and the manifest lists both.
     @Test func namesStepPastThePartsASourceODSBroughtAlong() throws {
         var first = Workbook()
