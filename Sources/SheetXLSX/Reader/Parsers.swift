@@ -568,7 +568,7 @@ final class SheetParser: SAXHandler {
             let op = FilterCondition.Comparison(rawValue: a["operator"] ?? "equal") ?? .equal
             filterColumn!.conditions.append(FilterCondition(op, a["val"] ?? ""))
         case "top10" where filterColumn != nil:
-            filterColumn!.top10 = Top10Filter(count: Double(a["val"] ?? "") ?? 10, top: XMLBool.isNotFalse(a["top"]),
+            filterColumn!.rank = RankFilter(count: Double(a["val"] ?? "") ?? 10, top: XMLBool.isNotFalse(a["top"]),
                                               percent: XMLBool.isTrue(a["percent"]), boundary: Double(a["filterVal"] ?? ""))
         case "dynamicFilter" where filterColumn != nil:
             filterColumn!.dynamicFilter = DynamicFilter(kind: a["type"] ?? "null", value: Double(a["val"] ?? ""),
@@ -825,7 +825,7 @@ final class SheetParser: SAXHandler {
             sheet.dataValidations = []                 // the fragment is authoritative; the model must not double it
         case "tableParts":
             depth -= 1
-            return                                    // regenerated from `sheet.excelTables`
+            return                                    // regenerated from `sheet.structuredTables`
         default:
             depth -= 1
         }
@@ -936,17 +936,17 @@ final class AppPropertiesParser: SAXHandler {
 }
 
 
-/// xl/tables/tableN.xml → an `ExcelTable`. Attributes and children the model does not carry are kept verbatim.
+/// xl/tables/tableN.xml → an `StructuredTable`. Attributes and children the model does not carry are kept verbatim.
 final class TablePartParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
     static let knownAttributes: Set<String> = ["id", "name", "displayName", "ref", "headerRowCount", "totalsRowCount",
                                                "totalsRowShown", "comment", "tableType"]
     static let knownChildren: Set<String> = ["autoFilter", "tableColumns", "tableStyleInfo"]
-    var table: ExcelTable?
+    var table: StructuredTable?
     private var depth = 0
     private var filterColumn: FilterColumn?
-    private var column: ExcelTableColumn?
+    private var column: StructuredTableColumn?
     private var inFormula: String?
     private var formulaText = ""
 
@@ -955,7 +955,7 @@ final class TablePartParser: SAXHandler {
         if depth == 1 {
             guard let ref = a["ref"].flatMap(CellRange.init) else { return }
             let display = a["displayName"] ?? a["name"] ?? "Table"
-            var t = ExcelTable(name: a["name"] ?? display, ref: ref, displayName: display,
+            var t = StructuredTable(name: a["name"] ?? display, ref: ref, displayName: display,
                                headerRowCount: Int(a["headerRowCount"] ?? "1") ?? 1,
                                totalsRowCount: Int(a["totalsRowCount"] ?? "0") ?? 0,
                                totalsRowShown: XMLBool.isTrue(a["totalsRowShown"]),
@@ -978,10 +978,10 @@ final class TablePartParser: SAXHandler {
         case "customFilter" where filterColumn != nil:
             filterColumn!.conditions.append(FilterCondition(FilterCondition.Comparison(rawValue: a["operator"] ?? "equal") ?? .equal, a["val"] ?? ""))
         case "top10" where filterColumn != nil:
-            filterColumn!.top10 = Top10Filter(count: Double(a["val"] ?? "") ?? 10, top: XMLBool.isNotFalse(a["top"]),
+            filterColumn!.rank = RankFilter(count: Double(a["val"] ?? "") ?? 10, top: XMLBool.isNotFalse(a["top"]),
                                               percent: XMLBool.isTrue(a["percent"]), boundary: Double(a["filterVal"] ?? ""))
         case "tableColumn":
-            column = ExcelTableColumn(id: Int(a["id"] ?? "0") ?? 0, name: OOXMLEscape.unescape(a["name"] ?? ""),
+            column = StructuredTableColumn(id: Int(a["id"] ?? "0") ?? 0, name: OOXMLEscape.unescape(a["name"] ?? ""),
                                       totalsRowLabel: a["totalsRowLabel"], totalsRowFunction: a["totalsRowFunction"])
         case "calculatedColumnFormula", "totalsRowFormula": inFormula = name; formulaText = ""
         case "tableStyleInfo":

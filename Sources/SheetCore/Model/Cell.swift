@@ -12,10 +12,10 @@ package final class SharedStyle: Sendable {
 /// live behind a reference and an ordinary cell stays three words wide.
 package final class CellExtras: Sendable {
     package let hyperlink: Hyperlink?
-    package let comment: CellNote?
+    package let note: CellNote?
     package let control: CellControl?
-    package init(hyperlink: Hyperlink?, comment: CellNote?, control: CellControl? = nil) {
-        self.hyperlink = hyperlink; self.comment = comment; self.control = control
+    package init(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil) {
+        self.hyperlink = hyperlink; self.note = note; self.control = control
     }
 }
 
@@ -50,13 +50,14 @@ public struct Cell: Hashable, Sendable {
     public var hyperlink: Hyperlink? {
         get { extras?.hyperlink }
         set {
-            setExtras(hyperlink: newValue, comment: extras?.comment)
+            setExtras(hyperlink: newValue, note: extras?.note)
             if let h = newValue, storedValue == nil { value = .text(h.target) }
         }
     }
-    public var comment: CellNote? {
-        get { extras?.comment }
-        set { setExtras(hyperlink: extras?.hyperlink, comment: newValue, control: extras?.control) }
+    /// The cell's note — what Excel today calls a note and once called a comment (spec Appendix B.56).
+    public var note: CellNote? {
+        get { extras?.note }
+        set { setExtras(hyperlink: extras?.hyperlink, note: newValue, control: extras?.control) }
     }
 
     /// The interactive control the cell's value is edited through — a Numbers word (checkbox, stepper, slider,
@@ -64,26 +65,26 @@ public struct Cell: Hashable, Sendable {
     /// and the others report it.
     public var control: CellControl? {
         get { extras?.control }
-        set { setExtras(hyperlink: extras?.hyperlink, comment: extras?.comment, control: newValue) }
+        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: newValue) }
     }
 
-    private mutating func setExtras(hyperlink: Hyperlink?, comment: CellNote?, control: CellControl? = nil) {
-        extras = hyperlink == nil && comment == nil && control == nil
-            ? nil : CellExtras(hyperlink: hyperlink, comment: comment, control: control)
+    private mutating func setExtras(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil) {
+        extras = hyperlink == nil && note == nil && control == nil
+            ? nil : CellExtras(hyperlink: hyperlink, note: note, control: control)
     }
 
-    public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, comment: CellNote? = nil,
+    public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, note: CellNote? = nil,
                 control: CellControl? = nil) {
         storedValue = value
         self.style = style
-        setExtras(hyperlink: hyperlink, comment: comment, control: control)
+        setExtras(hyperlink: hyperlink, note: note, control: control)
         applyDateFormat()
         if let h = hyperlink, storedValue == nil { storedValue = .text(h.target) }
     }
 
     public static func == (a: Cell, b: Cell) -> Bool {
         a.storedValue == b.storedValue
-            && a.extras?.hyperlink == b.extras?.hyperlink && a.extras?.comment == b.extras?.comment
+            && a.extras?.hyperlink == b.extras?.hyperlink && a.extras?.note == b.extras?.note
             && a.extras?.control == b.extras?.control
             && (a.styleRef === b.styleRef || a.style == b.style)
     }
@@ -92,7 +93,7 @@ public struct Cell: Hashable, Sendable {
         hasher.combine(storedValue)
         hasher.combine(style)
         hasher.combine(extras?.hyperlink)
-        hasher.combine(extras?.comment)
+        hasher.combine(extras?.note)
         hasher.combine(extras?.control)
     }
 
@@ -175,8 +176,10 @@ public struct Hyperlink: Hashable, Sendable {
     public var location: String? { isInternal ? target : nil }
 }
 
-/// A cell note (what Excel calls a comment / note; named `CellNote` so it does not shadow Swift Testing's `Comment`). Held in the model and copied with the sheet; comments read from a file are preserved as opaque
-/// parts (they need a VML drawing part, which the writer does not generate yet — roadmap).
+/// A cell note — the boxed remark anchored to one cell that Excel today calls a *note* (it called it a *comment* until
+/// 2019, and the file still spells it `<comment>`); ODF's *annotation*, Numbers' *comment*. Excel's threaded
+/// *comments* are a different thing (a conversation, in their own part) and are carried as opaque parts, not
+/// modelled — so the name `comment` is left free for them (spec Appendix B.56).
 public struct CellNote: Hashable, Sendable {
     public var text: String
     public var author: String
@@ -299,7 +302,7 @@ public struct FilterColumn: Hashable, Sendable {
     /// Both comparisons must hold (`<customFilters and="1">`); otherwise either does.
     public var matchesAllConditions: Bool
     /// Only the highest or lowest few rows pass (`<top10>`).
-    public var top10: Top10Filter?
+    public var rank: RankFilter?
     /// A rule the application evaluates for itself, against today's date or the column's own average
     /// (`<dynamicFilter>`).
     public var dynamicFilter: DynamicFilter?
@@ -314,11 +317,11 @@ public struct FilterColumn: Hashable, Sendable {
 
     public init(column: Int, values: [String] = [], includesBlanks: Bool = false, conditions: [FilterCondition] = [],
                 matchesAllConditions: Bool = false, buttonHidden: Bool = false, dateGroups: [DateGroup] = [],
-                calendarType: String? = nil, top10: Top10Filter? = nil, dynamicFilter: DynamicFilter? = nil,
+                calendarType: String? = nil, rank: RankFilter? = nil, dynamicFilter: DynamicFilter? = nil,
                 colorFilter: ColorFilter? = nil, iconFilter: IconFilter? = nil, buttonShown: Bool = true) {
         self.column = column; self.values = values; self.includesBlanks = includesBlanks
         self.conditions = conditions; self.matchesAllConditions = matchesAllConditions; self.buttonHidden = buttonHidden
-        self.dateGroups = dateGroups; self.calendarType = calendarType; self.top10 = top10
+        self.dateGroups = dateGroups; self.calendarType = calendarType; self.rank = rank
         self.dynamicFilter = dynamicFilter; self.colorFilter = colorFilter; self.iconFilter = iconFilter
         self.buttonShown = buttonShown
     }
@@ -328,7 +331,7 @@ public struct FilterColumn: Hashable, Sendable {
         var n = 0
         if !values.isEmpty || includesBlanks || !dateGroups.isEmpty { n += 1 }
         if !conditions.isEmpty { n += 1 }
-        if top10 != nil { n += 1 }
+        if rank != nil { n += 1 }
         if dynamicFilter != nil { n += 1 }
         if colorFilter != nil { n += 1 }
         if iconFilter != nil { n += 1 }
@@ -338,7 +341,7 @@ public struct FilterColumn: Hashable, Sendable {
 
 /// Only the highest or lowest few rows pass (`<top10>`) — Excel's "Top 10" dialog, which does any count and
 /// percentages as well as ten.
-public struct Top10Filter: Hashable, Sendable {
+public struct RankFilter: Hashable, Sendable {
     /// The top rather than the bottom.
     public var top: Bool
     /// `count` is a percentage of the rows rather than a number of them.

@@ -5,7 +5,7 @@ import Testing
 import SwiftSheets
 
 /// Named tables — Excel's "Format as Table", the `xl/tables/*.xml` parts (openpyxl `ws.tables`).
-@Suite struct ExcelTableTests {
+@Suite struct StructuredTableTests {
 
     static func sales() -> Workbook {
         var wb = Workbook()
@@ -24,7 +24,7 @@ import SwiftSheets
     // openpyxl: worksheet/tests/test_table.py::TestTablePartList::test_ctor
     @Test func addingATableWritesAPartThatReadsBack() throws {
         var wb = Self.sales()
-        let name = wb.sheets[0].addExcelTable(named: "売上 表", over: CellRange("A1:C3")!)
+        let name = wb.sheets[0].addStructuredTable(named: "売上 表", over: CellRange("A1:C3")!)
         #expect(name == "売上_表", "the name is sanitised into one Excel accepts")
 
         let data = try wb.write(as: .xlsx).data
@@ -45,12 +45,12 @@ import SwiftSheets
         for i in id { #expect(sheetXML.contains(i) || rels.contains("hyperlink"), "dangling \(i)") }
 
         let again = try Workbook(data: data).sheets[0]
-        #expect(again.excelTables.count == 1)
-        #expect(again.excelTables[0].name == "売上_表")
-        #expect(again.excelTables[0].ref == CellRange("A1:C3"))
-        #expect(again.excelTables[0].columns.map(\.name) == ["Item", "Qty", "Price"])
-        #expect(again.excelTables[0].styleInfo == .default)
-        #expect(again.excelTable(containing: CellRef("B2")!)?.name == "売上_表")
+        #expect(again.structuredTables.count == 1)
+        #expect(again.structuredTables[0].name == "売上_表")
+        #expect(again.structuredTables[0].ref == CellRange("A1:C3"))
+        #expect(again.structuredTables[0].columns.map(\.name) == ["Item", "Qty", "Price"])
+        #expect(again.structuredTables[0].styleInfo == .default)
+        #expect(again.structuredTable(containing: CellRef("B2")!)?.name == "売上_表")
     }
 
     /// Blank and repeated header cells are repaired the way Excel repairs them, because it will not open a table
@@ -61,9 +61,9 @@ import SwiftSheets
         ws.append([.text("Item"), nil, .text("Item")])
         ws.append([.text("a"), .integer(1), .text("b")])
         wb.sheets[0] = ws
-        wb.sheets[0].addExcelTable(named: "T", over: CellRange("A1:C2")!)
-        #expect(wb.sheets[0].excelTables[0].columns.map(\.name) == ["Item", "Column2", "Item2"])
-        #expect(wb.sheets[0].excelTables[0].validationError() == nil)
+        wb.sheets[0].addStructuredTable(named: "T", over: CellRange("A1:C2")!)
+        #expect(wb.sheets[0].structuredTables[0].columns.map(\.name) == ["Item", "Column2", "Item2"])
+        #expect(wb.sheets[0].structuredTables[0].validationError() == nil)
     }
 
     /// Totals rows, calculated columns and banding.
@@ -74,17 +74,17 @@ import SwiftSheets
     @Test func totalsAndCalculatedColumnsRoundTrip() throws {
         var wb = Self.sales()
         wb.sheets[0].append([.text("合計"), nil, nil])
-        var table = ExcelTable(name: "Sales", ref: CellRange("A1:C4")!,
-                               columns: [ExcelTableColumn(id: 1, name: "Item", totalsRowLabel: "合計"),
-                                         ExcelTableColumn(id: 2, name: "Qty", totalsRowFunction: "sum"),
-                                         ExcelTableColumn(id: 3, name: "Price", totalsRowFunction: "custom",
+        var table = StructuredTable(name: "Sales", ref: CellRange("A1:C4")!,
+                               columns: [StructuredTableColumn(id: 1, name: "Item", totalsRowLabel: "合計"),
+                                         StructuredTableColumn(id: 2, name: "Qty", totalsRowFunction: "sum"),
+                                         StructuredTableColumn(id: 3, name: "Price", totalsRowFunction: "custom",
                                                           totalsRowFormula: "SUBTOTAL(109,Sales[Price])",
                                                           calculatedColumnFormula: "Sales[[#This Row],[Qty]]*2")],
                                totalsRowCount: 1,
                                styleInfo: TableStyleInfo(name: "TableStyleLight1", showFirstColumn: true,
                                                          showRowStripes: false, showColumnStripes: true))
         table.comment = "月次"
-        wb.sheets[0].excelTables = [table]
+        wb.sheets[0].structuredTables = [table]
 
         let data = try wb.write(as: .xlsx).data
         let part = try Package.part("xl/tables/table1.xml", of: data)
@@ -94,7 +94,7 @@ import SwiftSheets
         #expect(part.contains("<calculatedColumnFormula>Sales[[#This Row],[Qty]]*2</calculatedColumnFormula>"))
         #expect(part.contains("showFirstColumn=\"1\"") && part.contains("showRowStripes=\"0\"") && part.contains("showColumnStripes=\"1\""))
 
-        let again = try Workbook(data: data).sheets[0].excelTables[0]
+        let again = try Workbook(data: data).sheets[0].structuredTables[0]
         #expect(again == table)
         #expect(again.dataRows == 1...2, "the header and the totals row are not data")
     }
@@ -103,9 +103,9 @@ import SwiftSheets
     @Test func anInvalidTableIsReportedRatherThanWritten() throws {
         var wb = Self.sales()
         // three columns of cells, two column names
-        wb.sheets[0].excelTables = [ExcelTable(name: "Bad", ref: CellRange("A1:C3")!,
-                                               columns: [ExcelTableColumn(id: 1, name: "Item"),
-                                                         ExcelTableColumn(id: 2, name: "Qty")])]
+        wb.sheets[0].structuredTables = [StructuredTable(name: "Bad", ref: CellRange("A1:C3")!,
+                                               columns: [StructuredTableColumn(id: 1, name: "Item"),
+                                                         StructuredTableColumn(id: 2, name: "Qty")])]
         let result = try wb.write(as: .xlsx)
         #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("covers 3 column(s) but names 2") })
         #expect(try !Package.part("xl/worksheets/sheet1.xml", of: result.data).contains("<tableParts"))
@@ -115,10 +115,10 @@ import SwiftSheets
     @Test func aDuplicatedNameIsReported() throws {
         var wb = Self.sales()
         wb.addSheet(named: "Other")
-        wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
+        wb.sheets[0].addStructuredTable(named: "Sales", over: CellRange("A1:C3")!)
         wb.sheets[1]["A1"] = .text("Item")
-        wb.sheets[1].excelTables = [ExcelTable(name: "Sales", ref: CellRange("A1:A1")!,
-                                               columns: [ExcelTableColumn(id: 1, name: "Item")], headerRowCount: 1)]
+        wb.sheets[1].structuredTables = [StructuredTable(name: "Sales", ref: CellRange("A1:A1")!,
+                                               columns: [StructuredTableColumn(id: 1, name: "Item")], headerRowCount: 1)]
         let result = try wb.write(as: .xlsx)
         #expect(result.warnings.contains { $0.message.contains("already has that name") })
         #expect(try Package.part("xl/tables/table1.xml", of: result.data).contains("name=\"Sales\""))
@@ -128,7 +128,7 @@ import SwiftSheets
     /// does not carry come back with it.
     @Test func aSourceTableKeepsItsIdentityAndUnmodelledAttributes() throws {
         var wb = Self.sales()
-        wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
+        wb.sheets[0].addStructuredTable(named: "Sales", over: CellRange("A1:C3")!)
         let plain = try wb.write(as: .xlsx).data
         let extended = try Package.repacking(plain, replacing: "xl/tables/table1.xml", with: Data(
             try Package.part("xl/tables/table1.xml", of: plain)
@@ -137,7 +137,7 @@ import SwiftSheets
                 .replacingOccurrences(of: " ref=\"A1:C3\" totalsRowShown", with: " ref=\"A1:C3\" insertRow=\"1\" dataDxfId=\"7\" totalsRowShown").utf8))
 
         var again = try Workbook(data: extended)
-        #expect(again.sheets[0].excelTables[0].name == "Sales")
+        #expect(again.sheets[0].structuredTables[0].name == "Sales")
         again.sheets[0]["B2"] = .integer(9)                       // an edit elsewhere
         let out = try again.write(as: .xlsx).data
         let part = try Package.part("xl/tables/table1.xml", of: out)
@@ -149,9 +149,9 @@ import SwiftSheets
     /// Removing a table takes its part, its relationship and its `<tableParts>` entry with it.
     @Test func removingATableRemovesThePart() throws {
         var wb = Self.sales()
-        wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
+        wb.sheets[0].addStructuredTable(named: "Sales", over: CellRange("A1:C3")!)
         var again = try Workbook(data: try wb.write(as: .xlsx).data)
-        again.sheets[0].excelTables = []
+        again.sheets[0].structuredTables = []
         let out = try again.write(as: .xlsx).data
         #expect(try !ZipArchive(data: out).entries.keys.contains { $0.hasPrefix("xl/tables/") })
         #expect(try !Package.part("xl/worksheets/sheet1.xml", of: out).contains("<tableParts"))
@@ -163,25 +163,25 @@ import SwiftSheets
     /// The table's own filter — the buttons in its header row — is inside the table part, not the sheet.
     @Test func theTablesOwnFilterLivesInThePart() throws {
         var wb = Self.sales()
-        var table = ExcelTable(name: "Sales", ref: CellRange("A1:C3")!, headerRow: [.text("Item"), .text("Qty"), .text("Price")])
+        var table = StructuredTable(name: "Sales", ref: CellRange("A1:C3")!, headerRow: [.text("Item"), .text("Qty"), .text("Price")])
         table.filterColumns = [FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "3")])]
-        wb.sheets[0].excelTables = [table]
+        wb.sheets[0].structuredTables = [table]
         let data = try wb.write(as: .xlsx).data
         #expect(try Package.part("xl/tables/table1.xml", of: data).contains("<customFilter operator=\"greaterThan\" val=\"3\"/>"))
         #expect(try !Package.part("xl/worksheets/sheet1.xml", of: data).contains("<autoFilter"))
-        #expect(try Workbook(data: data).sheets[0].excelTables[0].filterColumns == table.filterColumns)
+        #expect(try Workbook(data: data).sheets[0].structuredTables[0].filterColumns == table.filterColumns)
     }
 
     /// A named table becomes an ODF database range: the name and the cells travel, the banded-row style does not.
     @Test func odsWritesADatabaseRange() throws {
         var wb = Self.sales()
-        wb.sheets[0].addExcelTable(named: "Sales", over: CellRange("A1:C3")!)
+        wb.sheets[0].addStructuredTable(named: "Sales", over: CellRange("A1:C3")!)
         let result = try wb.write(as: .ods)
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("banded-row style") })
         let read = try Workbook(data: result.data).sheets[0]
-        #expect(read.excelTables.count == 1)
-        #expect(read.excelTables[0].name == "Sales")
-        #expect(read.excelTables[0].ref == CellRange("A1:C3"))
-        #expect(read.excelTables[0].styleInfo == nil)
+        #expect(read.structuredTables.count == 1)
+        #expect(read.structuredTables[0].name == "Sales")
+        #expect(read.structuredTables[0].ref == CellRange("A1:C3"))
+        #expect(read.structuredTables[0].styleInfo == nil)
     }
 }

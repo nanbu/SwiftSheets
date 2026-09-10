@@ -75,7 +75,7 @@ import SwiftSheets
         ws["E2"] = .time(TimeOfDay(hour: 9, minute: 30)); ws.setStyle("E2") { $0.numberFormat = "h:mm" }
         ws["A3"] = .text("merged"); ws.merge("A3:C4")
         ws["A5"] = .text("link"); ws[cell: "A5"].hyperlink = Hyperlink(target: "https://example.com/")
-        ws["B5"] = .text("noted"); ws[cell: "B5"].comment = CellNote("a note\nsecond line", author: "tester")
+        ws["B5"] = .text("noted"); ws[cell: "B5"].note = CellNote("a note\nsecond line", author: "tester")
         ws.setWidth(20, ofColumn: "A")
         ws.setColumnDimension("C") { $0.hidden = true }
         ws.setHeight(30, ofRow: 1)
@@ -149,7 +149,7 @@ import SwiftSheets
         #expect(back.sheets[1]["A1"] == .text("secret"))
         #expect(back.definedNames["MyRange"] == "Data!$A$1:$B$2")
         #expect(ws.cell("A5")?.hyperlink?.target == "https://example.com/")
-        #expect(ws.cell("B5")?.comment == CellNote("a note\nsecond line", author: "tester"))
+        #expect(ws.cell("B5")?.note == CellNote("a note\nsecond line", author: "tester"))
         let st = ws.style("A2")
         #expect(st.font.bold && st.font.italic)
         #expect(st.font.name == "Arial" && st.font.size == 14)
@@ -439,7 +439,7 @@ import SwiftSheets
             #expect(charts.sheets[0][ref]?.cachedValue == cell.value?.cachedValue, Comment(rawValue: "\(ref)"))
         }
         #expect(charts.sheets[0].style("A1").font.bold)
-        #expect(charts.sheets[0].cell("A1")?.comment?.text == "first column")
+        #expect(charts.sheets[0].cell("A1")?.note?.text == "first column")
         #expect(charts.preserved.opaqueParts.keys.contains("Object 1/content.xml"))
         #expect(charts.preserved.contentTypeOverrides["Object 1/content.xml"] == "text/xml")
         #expect(!charts.preserved.opaqueParts.keys.contains { $0.hasPrefix("Thumbnails/") })
@@ -548,7 +548,7 @@ import SwiftSheets
         #expect(log.contains("-> "), Comment(rawValue: log))
         let back = try XLSXCodec.read(try Data(contentsOf: xlsx)).workbook
         #expect(back.sheets[0]["A1"] == wb.sheets[0]["A1"])
-        #expect(back.sheets[0].cell("A1")?.comment?.text == "first column" || back.preserved.opaqueParts.keys.contains { $0.hasPrefix("xl/comments") })
+        #expect(back.sheets[0].cell("A1")?.note?.text == "first column" || back.preserved.opaqueParts.keys.contains { $0.hasPrefix("xl/comments") })
     }
 
     /// Auto-filters travel as anonymous database ranges (ODF 1.3 §9.4) — LibreOffice's own spelling.

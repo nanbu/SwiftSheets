@@ -206,8 +206,8 @@ struct NumbersWriter {
                 warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
                                                   message: "the sheet's conditional formats are written onto its first table: the model keeps them per sheet, Numbers per table"))
             }
-            if !sheet.excelTables.isEmpty {
-                warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name, message: "\(sheet.excelTables.count) named table(s) dropped: every Numbers table is named, but its own header rows are not this frame"))
+            if !sheet.structuredTables.isEmpty {
+                warnings.append(ConversionWarning(.dropped, subject: .tables, sheet: sheet.name, message: "\(sheet.structuredTables.count) named table(s) dropped: every Numbers table is named, but its own header rows are not this frame"))
             }
             // the rest of what a sheet can say and a Numbers table cannot. None of it is dropped in silence.
             if sheet.autoFilter != nil || !sheet.filterColumns.isEmpty || sheet.sortState != nil {
@@ -1542,7 +1542,7 @@ struct NumbersWriter {
                                                       message: "the link on a cell holding a \(value.map { "\($0)" }.map { $0.prefix(while: { $0 != "(" }) } ?? "value") is dropped: a Numbers link lives inside text, and the value is worth more than the link"))
                 }
             }
-            let commentID = try cell.comment.map { try commentKey(for: $0) }
+            let commentID = try cell.note.map { try commentKey(for: $0) }
             let style = cell.style
             let keys = try styleWriter.keys(for: style)
             var formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
@@ -1911,7 +1911,7 @@ extension NumbersWriter {
             }
             if case .richText(let runs)? = value { value = .text(runs.map(\.text).joined()); t.richAsPlain += 1 }
             if cell.hyperlink != nil { t.linksDropped += 1 }
-            if cell.comment != nil { t.notesDropped += 1 }
+            if cell.note != nil { t.notesDropped += 1 }
             if cell.control != nil { t.controlsDropped += 1 }
             let style = cell.style
             let keys = try t.styleWriter.keys(for: style)

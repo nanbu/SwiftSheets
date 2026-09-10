@@ -1661,7 +1661,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
     <tr><td>差分書式（<code>dxfs</code>）・階調塗り</td><td><strong>読み書き対応済み</strong>（<code>DifferentialStyle</code>・<code>Fill.gradient</code>・Rev 2.0・B.15）</td></tr>
     <tr><td>データ検証（<code>DataValidation</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.dataValidations</code>・書き出しは Rev 1.8・B.13、読み込みは Rev 2.0・B.15）。規約外の属性を持つ規則だけは元の XML のまま書き戻し、<code>Sheet.hasUnmodelledValidations</code> がそれを知らせる</td></tr>
     <tr><td>コメント</td><td>読み書き対応済み（VML 込み・Rev 1.7・B.12）</td></tr>
-    <tr><td>名前付きの表（<code>ws.tables</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.excelTables</code>・Rev 2.0・B.15）</td></tr>
+    <tr><td>名前付きの表（<code>ws.tables</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.structuredTables</code>・Rev 2.0・B.15、名前は Rev 4.45・B.56）</td></tr>
     <tr><td>絞り込みの応用（色・アイコン・上位10・動的・日付グループ）</td><td><strong>読み書き対応済み</strong>（<code>FilterColumn</code>・Rev 2.0・B.15）。<code>&lt;extLst&gt;</code> 拡張だけは元の XML のまま</td></tr>
     <tr><td>文書の自由項目（<code>custom_doc_props</code>）</td><td><strong>読み書き対応済み</strong>（<code>Workbook.customProperties</code>・Rev 2.0・B.15）。ODF の <code>meta:user-defined</code> とも往復する</td></tr>
     <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きも Rev 4.25（B.42）で同じ 4 形式が 1 つの入口（<code>StreamingWriter(url:)</code>、拡張子で形式を決める）</td></tr>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.45 Draft</td><td>2026-09-10</td><td>編集モデルの型名 3 件。<code>ExcelTable</code> → <code>StructuredTable</code>（<code>structuredTables</code>・<code>addStructuredTable</code>・<code>StructuredTableColumn</code> も）、<code>Cell.comment</code> → <code>Cell.note</code>（型 <code>CellNote</code> はそのまま）、<code>Top10Filter</code> → <code>RankFilter</code>（<code>FilterColumn.rank</code>）。互換の別名は残さない（B.56）。</td></tr>
     <tr><td>4.44 Draft</td><td>2026-09-10</td><td>入力規則の候補リストを文字列の配列から作れる <code>DataValidation.list(choices:over:)</code>（失敗可能）と、読む側の <code>listChoices</code> を追加。インライン一覧の綴り（<code>"a,b,c"</code>）の知識を 3 つのコーデックからモデル 1 か所へ寄せる（B.55）。</td></tr>
     <tr><td>4.43 Draft</td><td>2026-09-10</td><td>数式セルの読み方を <code>dataOnly: Bool</code> から <code>formulaCells: FormulaCellReading</code>（<code>.formulas</code> / <code>.cachedValues</code>）へ。通常読み・逐次読み・<code>Workbook</code> の 3 か所を同じ列挙にそろえ、計算済みの値が無い数式セルは空と定める（B.54）。</td></tr>
     <tr><td>4.42 Draft</td><td>2026-09-10</td><td>書式を変える6宣言をsetStyleへ改名し、読めないA1文字列の扱いを「書く入口は止まる／読む入口は既定値」に揃える（B.53）。</td></tr>
@@ -1977,7 +1978,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td><code>Workbook()</code> は "Sheet1"</td><td>同じ（openpyxl の "Sheet" から変更）</td><td>本文どおり</td></tr>
     <tr><td><code>ColumnName(2)</code> / <code>ColumnIndex("C")</code></td><td><code>CellRef.columnName(2)</code> / <code>CellRef.columnIndex("C")</code></td><td>大文字の関数名は Swift では型に見える。意味は同じ（0 始まり）</td></tr>
     <tr><td><code>Formula("=…")</code>（型）</td><td><code>Formula(_:)</code> は <code>CellValue</code> を返す関数（<code>sheet["C1"] = Formula("=SUM(A1:B2)")</code> は本文どおり書ける）。型としては <code>FormulaExpr</code></td><td>添字の代入型を <code>CellValue?</code> 一本に保つため</td></tr>
-    <tr><td>—</td><td><code>Comment</code> は <code>CellNote</code>（プロパティ名は <code>cell.comment</code> のまま）</td><td>Swift Testing の <code>Comment</code> と名前が衝突する</td></tr>
+    <tr><td>—</td><td><code>Comment</code> は <code>CellNote</code>、プロパティは <code>cell.note</code>（Rev 4.45・B.56）</td><td>Excel の現行の呼び名は「メモ」。「コメント」はスレッド形式の別物に空けておく</td></tr>
     <tr><td>—</td><td><code>Workbook.epoch</code>（1900 / 1904）・<code>indexedColors</code>・<code>codeName</code> をモデルに保持</td><td>ファイル単位の意味属性であり、書き出し時に利用者が指定し得る（シリアル値そのものは持たない）</td></tr>
   </table></div>
 
@@ -2204,7 +2205,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <code>xl/comments*.xml</code>、吹き出しの形が <strong>レガシー VML</strong>
       （<code>xl/drawings/commentsDrawing*.vml</code>）。VML が無いと Excel は「修復しますか」と言う。
       ECMA-376 Part 1 §18.7 と Part 4 §14.1 から実装し、Excel と LibreOffice の両方が受け取る最小形にした。
-      読みは本文と作成者を <code>Cell.comment</code> へ、大きさを VML の <code>style</code> から拾う
+      読みは本文と作成者を <code>Cell.note</code> へ、大きさを VML の <code>style</code> から拾う
       （単位は px — openpyxl の <code>Comment(width:height:)</code> と同じ）。
       <strong>F3 との両立</strong>: 読んだ時点のメモを <code>SheetPreservation.comments</code> に控えておき、
       書き出しではシートごとに現在のメモと突き合わせる。同じならソースの 2 パートをバイトのまま詰め直す
@@ -2214,7 +2215,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
       入っていた場合は、作り直しで失われる旨を <code>dropped</code> 警告に出す。
       これで ODS → XLSX でメモが消えなくなった（<code>make-verification-samples.sh</code> の
       「既知の差」も 1 つ消える）。審判: openpyxl が
-      <code>ws["A7"].comment.text / .author</code> を読み戻す（双方向）、LibreOffice が
+      <code>ws["A7"].comment.text / .author</code>（openpyxl 側）を読み戻す（双方向）、LibreOffice が
       <code>office:annotation</code> として取り込む。</li>
     <li><strong>交差演算子</strong>（B.3 が唯一の穴として挙げていたもの）: Excel は空白（<code>A1:B5 B1:D5</code> は
       B1:B5）、OpenFormula は <code>!</code>（LibreOffice の出力を観察して確認 — 併合は <code>~</code>）。
@@ -2439,7 +2440,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><th>件</th><th>入れたもの</th><th>境目（モデルにしなかったもの）</th></tr>
     <tr><td>データ検証（読取）</td><td><code>Sheet.dataValidations</code> を読み込みでも埋める。B.13 の「読み込みはモデル化しない」を<strong>撤回</strong></td>
       <td>規約外の属性を持つ <code>&lt;dataValidation&gt;</code> があれば、その塊ごと元の XML のまま書き戻し、モデルは空のままにする（半分だけ読むより無い方がまし）。<code>x14</code> 形はワークシートの <code>&lt;extLst&gt;</code> にあり、これまでどおり保全</td></tr>
-    <tr><td>絞り込みの応用</td><td><code>Top10Filter</code> / <code>DynamicFilter</code> / <code>ColorFilter</code> / <code>IconFilter</code> / <code>DateGroup</code> を <code>FilterColumn</code> に追加</td>
+    <tr><td>絞り込みの応用</td><td><code>RankFilter</code>（Rev 4.45 まで <code>Top10Filter</code>）/ <code>DynamicFilter</code> / <code>ColorFilter</code> / <code>IconFilter</code> / <code>DateGroup</code> を <code>FilterColumn</code> に追加</td>
       <td><code>&lt;extLst&gt;</code> 拡張だけが <code>hasUnmodelledFilters</code> の対象として残る。1 列は 1 通りにしか絞れない（形式の <code>xsd:choice</code>）ので、2 つ以上立っていたら先頭だけ書いて <code>degraded</code> 警告</td></tr>
     <tr><td>文書の付帯情報</td><td><code>Workbook.customProperties</code>（<code>docProps/custom.xml</code>）。文字・整数・小数・真偽・日時・定義名リンクの 6 種</td>
       <td>ODF には <code>meta:user-defined</code> があるので ODS とも往復する。ただしリンク型だけは ODF に無く、対象の名前を文字として書いて <code>substituted</code> 警告</td></tr>
@@ -2447,8 +2448,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
       <td><strong>1.0 前の破壊的変更</strong>: <code>CellStyle.fill</code> / <code>Cell.fill</code> の型が <code>PatternFill</code> から <code>Fill</code> へ。<code>.solid(_:)</code> / <code>.none</code> と <code>patternType</code> / <code>foregroundColor</code> の読み出しはそのまま通るので、直すのは <code>PatternFill(...)</code> を直接代入していた箇所だけ。差分書式の「下線を明示的に外す」（<code>&lt;u val="none"/&gt;</code>）は言えないが、元の項目は生の XML のまま再出力するので往復では失われない</td></tr>
     <tr><td>条件付き書式</td><td><code>Sheet.conditionalFormatting</code>。17 種の規則、色階調・データバー・アイコンセット、規則ごとの <code>DifferentialStyle</code></td>
       <td>知らない種類の規則、または <code>&lt;extLst&gt;</code> を持つ規則があれば塊ごと元の XML のまま（<code>hasUnmodelledConditionalFormats</code>）。<strong>優先順位はシート全体で 1…n に振り直す</strong> — Excel は重複を嫌い、順序だけが意味を持つため</td></tr>
-    <tr><td>Excel の「テーブル」</td><td><code>Sheet.excelTables</code>（<code>ExcelTable</code>）。パーツ・コンテンツタイプ・関係・<code>&lt;tableParts&gt;</code> の 4 点セットを生成</td>
-      <td>グリッドを表す <code>Table</code> と名前が衝突するので <code>ExcelTable</code>。列名の重複・空欄は Excel と同じ直し方（<code>Column2</code>・<code>Item2</code>）をする。形式が受け付けない表は書かずに <code>dropped</code> 警告。モデルに無い属性・子要素は verbatim で往復</td></tr>
+    <tr><td>名前つきの表（Excel の「テーブル」・ODF のデータベース範囲）</td><td><code>Sheet.structuredTables</code>（<code>StructuredTable</code>・Rev 4.45 まで <code>ExcelTable</code>）。パーツ・コンテンツタイプ・関係・<code>&lt;tableParts&gt;</code> の 4 点セットを生成</td>
+      <td>グリッドを表す <code>Table</code> と名前が衝突するので別名にする。Excel 固有ではない（ODS へも書き、読み戻す）ので Excel を名乗らない（B.56）。列名の重複・空欄は Excel と同じ直し方（<code>Column2</code>・<code>Item2</code>）をする。形式が受け付けない表は書かずに <code>dropped</code> 警告。モデルに無い属性・子要素は verbatim で往復</td></tr>
     <tr><td>保護・シナリオ</td><td><code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code></td>
       <td>形式の真偽値は「<strong>禁止</strong>されている」向きだが、モデルは <code>allows…</code> と<strong>許可の向きで名づけて</strong>、コーデックが反転する（<code>hideDropDown</code> と同じ方針）。合鍵は旧来の 16 ビット式のみ生成し、Excel 2010 以降の <code>hashValue</code> / <code>saltValue</code> は<strong>読んで書き戻すだけ</strong>（openpyxl も同じ）。これは事故を防ぐ錠であって秘密を守る錠ではない、と型の説明に書いた</td></tr>
     <tr><td>ピボット表</td><td><code>Sheet.pivotTables</code>（<code>PivotTable</code> ＋ <code>PivotCache</code>）。配置パーツ・キャッシュ定義・関係・<code>&lt;pivotCaches&gt;</code> を生成し、範囲から作る <code>Workbook.addPivotTable</code> も用意</td>
@@ -6078,7 +6079,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
 
   <p>動きが変わる入口は10。<code>Table</code>: <code>removeCell(_ a1:)</code>・<code>moveRange(_ a1:rows:cols:)</code>・
   <code>unmerge(_ a1:)</code>・<code>setColumnDimension(_ name:_:)</code>（<code>setWidth(_:ofColumn name:)</code>が従う）・
-  <code>groupColumns(_:_:outlineLevel:hidden:)</code>。<code>Sheet</code>: <code>addExcelTable(named:over a1:styleInfo:)</code>・
+  <code>groupColumns(_:_:outlineLevel:hidden:)</code>。<code>Sheet</code>: <code>addStructuredTable(named:over a1:styleInfo:)</code>・
   <code>addConditionalFormatting(_:over sqref:)</code>・<code>freezePanes(at:)</code>・<code>freezePanesA1</code>のsetter・
   <code>autoFilterA1</code>のsetter。加えて<code>addImage(_:at a1:sizing:)</code>と<code>addImage(_:over a1:)</code>は
   止まること自体は変わらないが、<code>!</code>による無言の停止を理由の文つきに直す。</p>
@@ -6092,7 +6093,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   最初の実装ではここも止めるようにしたが、既存の照合検査が落ちて分かった。この線引きが「プログラマが書く座標」と
   「ファイルから来た文字列」の境目である。
   <code>moveRange</code>のnilと<code>unmerge</code>のfalseは、読めない文字列以外の意味（移動先が負になる／併合されていなかった）
-  で今後も返る。<code>addExcelTable(named:over a1:)</code>の戻り値は<code>String?</code>から<code>String</code>になる——
+  で今後も返る。<code>addStructuredTable(named:over a1:)</code>の戻り値は<code>String?</code>から<code>String</code>になる——
   nilは「読めなかった」以外の意味を持っていなかったため。</p>
 
   <p><code>throws</code>に揃える案は採れない。値の代入<code>sheet["A1"] = 5</code>と<code>sheet[cell: "A1"] = cell</code>は
@@ -6158,6 +6159,35 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>配列 → <code>formula1</code> → 配列の往復、nil になる 4 条件と上限ぎりぎりが通ること、範囲参照は
   <code>listChoices</code> が nil、XLSX と ODS に書いて読み戻すと同じ候補が返ること（<code>DataValidationChoicesTests</code>）。
   Numbers への書き出しは既存のポップアップメニューの検査（<code>NumbersPopUpMenuTests</code>）が同じ経路を通る。</p>
+
+  <h3>B.56 編集モデルの型名 3 件——Excel を名乗るのは Excel 固有のものだけ（Rev 4.45）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 7）。3 つは別々に判断し、それぞれの理由で決めた。互換の別名は残さない（B.53）。</p>
+  <p><strong>1. <code>ExcelTable</code> → <code>StructuredTable</code>。</strong>この型は「名前を持ち、数式から
+  <code>Sales[Amount]</code> と引け、見出し行が絞り込みを持つ、格子の上の枠」——Excel の「テーブル」、openpyxl の <code>Table</code>、
+  ODF の <code>table:database-range</code>。①Excel は <code>xl/tables/tableN.xml</code> に書く。②この library は ODS へも
+  <code>table:database-range</code> として<strong>書き、読み戻す</strong>（<code>ODSWriter.databaseRangesXML</code>・
+  <code>ODSReader</code>）。Numbers だけは落として言う。③Excel 固有ではない物に Excel の名を付けると、ODS を扱う利用者が
+  「Excel 用の機能だ」と読み違える。だから中立の名にする。<code>Table</code> は格子（Numbers の表）が取っているので使えない。
+  候補は <code>StructuredTable</code>（Excel の「構造化参照」の語・2026-09-07 の方向資料の案）・<code>NamedTable</code>
+  （名前付き範囲 <code>DefinedName</code> と紛れる）・<code>ListObject</code>（Excel の VBA 名で、やはり Excel 固有）。
+  <code>StructuredTable</code> を採る。<code>Sheet.structuredTables</code>・<code>addStructuredTable(named:over:)</code>・
+  <code>structuredTable(containing:)</code>・<code>StructuredTableColumn</code> も同じ語に揃える。</p>
+  <p><strong>2. <code>Cell.comment</code> → <code>Cell.note</code>、型 <code>CellNote</code> はそのまま。</strong>
+  型は <code>CellNote</code>、プロパティは <code>comment</code>、一覧は <code>Sheet.notes</code> と、同じ物に 2 つの語が
+  ついていた。どちらに寄せるか。①Excel は 2019 以降、この「セルに付く吹き出し」を<strong>メモ（Note）</strong>と呼び、
+  <strong>コメント（Comment）</strong>はスレッド形式の別機能（<code>threadedComments</code> パート）に付け替えた。ファイルの要素名
+  <code>&lt;comment&gt;</code> と openpyxl の <code>Comment</code> は旧称のまま。②この library がモデル化しているのは吹き出しの方
+  だけで、スレッドは不透明パーツとして持ち越す。将来スレッドをモデル化するなら、その型は <code>CellComment</code> が自然。
+  ③だから「メモ」に寄せる: <code>CellNote</code>・<code>cell.note</code>・<code>sheet.notes</code>。方向資料が挙げていた
+  <code>CellComment</code> 案は、将来のスレッド型と名前を取り合うので採らない。</p>
+  <p><strong>3. <code>Top10Filter</code> → <code>RankFilter</code>、<code>FilterColumn.top10</code> → <code>rank</code>。</strong>
+  ①Excel のダイアログ名は「トップテン」で、要素名も <code>&lt;top10&gt;</code>。②だが中身は「上位／下位の <em>n</em> 件または
+  <em>n</em>%」で、10 は既定値にすぎない——<code>Top10Filter(count: 5, top: false)</code> は名前と中身が食い違う。
+  ③件数でも割合でも「順位で残す」絞り込みなので <code>RankFilter</code>。条件付き書式の <code>.top10</code>（規則の種類・OOXML の
+  <code>cfRule type="top10"</code> の写し）はこの決定の外——そちらは仕様の語をそのまま持つ列挙で、<code>rank</code> 属性を既に持つ。</p>
+  <p><strong>検査。</strong>改名は呼び出し側がコンパイルで全部見つかる（本体・テストで約 70 行）。名前が変わっただけで動きは変えて
+  いないので、既存の検査（<code>StructuredTableTests</code>・<code>CommentTests</code>・<code>CellParityTests</code>・ODS の往復）
+  がそのまま通ることを見る。</p>
 </section>
 
 </div><!-- /.container -->

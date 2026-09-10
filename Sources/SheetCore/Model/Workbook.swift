@@ -150,7 +150,7 @@ public struct Workbook: Equatable, Sendable {
     public var namedStyles: [NamedStyle] = [.normal]
     /// The workbook's differential formats (`<dxfs>`), in the file's order — what conditional formats, tables and
     /// colour filters paint with. A rule carries its own `DifferentialStyle`, so this list only matters when
-    /// something addresses one by index (`ColorFilter.differentialStyleID`, `ExcelTable.styleInfo`). Reading fills
+    /// something addresses one by index (`ColorFilter.differentialStyleID`, `StructuredTable.styleInfo`). Reading fills
     /// it in; writing keeps every entry where it is and appends whatever the rules need.
     public var differentialStyles: [DifferentialStyle] = []
     /// How the formula cells were read (`ReadOptions.formulaCells`): after a `.cachedValues` read they hold plain values.

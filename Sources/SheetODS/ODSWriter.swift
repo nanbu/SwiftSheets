@@ -331,7 +331,7 @@ enum ODSWriter {
             if sheet.tabColor != nil {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)")
             }
-            for table in sheet.excelTables where table.styleInfo != nil {
+            for table in sheet.structuredTables where table.styleInfo != nil {
                 sink.add(.degraded, subject: .tables, sheet: sheet.name, "named table \(table.name) written as an ODF database range: its banded-row style is not carried")
             }
             if sheet.hasUnmodelledConditionalFormats {
@@ -554,7 +554,7 @@ enum ODSWriter {
         for (i, sheet) in wb.sheets.enumerated() {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
             func address(_ range: CellRange) -> String { "\(prefix).\(range.topLeft.a1):\(prefix).\(range.bottomRight.a1)" }
-            for table in sheet.excelTables {
+            for table in sheet.structuredTables {
                 s += "<table:database-range table:name=\"\(XML.esc(table.name))\" table:target-range-address=\"\(XML.esc(address(table.ref)))\""
                 s += " table:display-filter-buttons=\"\(table.autoFilter != nil)\"/>"
             }
@@ -585,7 +585,7 @@ enum ODSWriter {
                 for c in column.conditions {
                     conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"\(XML.esc(filterOperator(c.comparison)))\" table:value=\"\(XML.esc(c.value))\"/>")
                 }
-            } else if let top = column.top10 {
+            } else if let top = column.rank {
                 let op = top.top ? (top.percent ? "top percent" : "top values") : (top.percent ? "bottom percent" : "bottom values")
                 conditions.append("<table:filter-condition table:field-number=\"\(column.column)\" table:operator=\"\(op)\" table:value=\"\(XML.num(top.count))\"/>")
             } else if column.dynamicFilter != nil || column.colorFilter != nil || column.iconFilter != nil || !column.dateGroups.isEmpty {
@@ -850,7 +850,7 @@ enum ODSWriter {
             paragraphs[0] = "<text:p><text:a xlink:href=\"\(XML.esc(href))\" xlink:type=\"simple\">\(first)</text:a></text:p>"
         }
         var s = "<table:table-cell\(attrs)\(valueAttrs)>"
-        if let note = cell.comment {
+        if let note = cell.note {
             s += "<office:annotation office:display=\"false\">"
             if !note.author.isEmpty { s += "<dc:creator>\(XML.esc(note.author))</dc:creator>" }
             s += paragraphsXML(note.text).joined() + "</office:annotation>"

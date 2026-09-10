@@ -6,7 +6,7 @@ import Foundation
 ///
 /// Not to be confused with `Table`, the grid a sheet's cells live in: that one is the paper, this one is a frame
 /// drawn on it. A sheet may carry several, and they may not overlap.
-public struct ExcelTable: Hashable, Sendable {
+public struct StructuredTable: Hashable, Sendable {
     /// The name formulas use. Must start with a letter or underscore and hold no spaces — `sanitizedName(_:)`
     /// makes an acceptable one out of anything.
     public var name: String
@@ -20,7 +20,7 @@ public struct ExcelTable: Hashable, Sendable {
     public var totalsRowCount: Int
     /// Excel remembers a totals row that is currently switched off.
     public var totalsRowShown: Bool
-    public var columns: [ExcelTableColumn]
+    public var columns: [StructuredTableColumn]
     /// The banding and the built-in look (`<tableStyleInfo>`).
     public var styleInfo: TableStyleInfo?
     /// The filter over the table's own header row. Usually the whole `ref`; nil for a table without filter buttons.
@@ -42,7 +42,7 @@ public struct ExcelTable: Hashable, Sendable {
     package var relationshipId: String?
     package var sourceID: Int?
 
-    public init(name: String, ref: CellRange, columns: [ExcelTableColumn] = [], displayName: String? = nil,
+    public init(name: String, ref: CellRange, columns: [StructuredTableColumn] = [], displayName: String? = nil,
                 headerRowCount: Int = 1, totalsRowCount: Int = 0, totalsRowShown: Bool = false,
                 styleInfo: TableStyleInfo? = .default, autoFilter: CellRange? = nil,
                 filterColumns: [FilterColumn] = [], comment: String? = nil, tableType: String? = nil) {
@@ -74,13 +74,13 @@ public struct ExcelTable: Hashable, Sendable {
             while names.contains(where: { $0.lowercased() == unique.lowercased() }) { n += 1; unique = candidate + String(n) }
             names.append(unique)
         }
-        self.init(name: name, ref: ref, columns: names.enumerated().map { ExcelTableColumn(id: $0.offset + 1, name: $0.element) },
+        self.init(name: name, ref: ref, columns: names.enumerated().map { StructuredTableColumn(id: $0.offset + 1, name: $0.element) },
                   displayName: displayName, headerRowCount: 1, totalsRowCount: totalsRowCount, styleInfo: styleInfo)
     }
 
     /// Two tables are the same when they frame the same cells the same way. The part path, the relationship id and
     /// the numeric id are provenance — which file this table came out of — and take no part in that.
-    public static func == (a: ExcelTable, b: ExcelTable) -> Bool {
+    public static func == (a: StructuredTable, b: StructuredTable) -> Bool {
         a.name == b.name && a.displayName == b.displayName && a.ref == b.ref
             && a.headerRowCount == b.headerRowCount && a.totalsRowCount == b.totalsRowCount
             && a.totalsRowShown == b.totalsRowShown && a.columns == b.columns && a.styleInfo == b.styleInfo
@@ -133,8 +133,8 @@ public struct ExcelTable: Hashable, Sendable {
     }
 }
 
-/// One column of an `ExcelTable` (`<tableColumn>`). `name` is what the header cell shows and what formulas use.
-public struct ExcelTableColumn: Hashable, Sendable {
+/// One column of an `StructuredTable` (`<tableColumn>`). `name` is what the header cell shows and what formulas use.
+public struct StructuredTableColumn: Hashable, Sendable {
     /// Unique within the table, and never renumbered — Excel's calculated columns refer to it.
     public var id: Int
     public var name: String

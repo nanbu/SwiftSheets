@@ -820,9 +820,9 @@
               "read": "full",
               "write": "full",
               "api": [
-                "sheet.excelTables",
-                "addExcelTable(named:over:)",
-                "ExcelTable",
+                "sheet.structuredTables",
+                "addStructuredTable(named:over:)",
+                "StructuredTable",
                 "TableStyleInfo"
               ],
               "warning": "名前が重複すると「named table not written」",
@@ -852,7 +852,7 @@
               "api": [
                 "sheet.filterColumns",
                 "FilterColumn",
-                "Top10Filter",
+                "RankFilter",
                 "DynamicFilter",
                 "ColorFilter",
                 "IconFilter",
@@ -1760,8 +1760,8 @@
               "read": "full",
               "write": "partial",
               "api": [
-                "sheet.excelTables",
-                "addExcelTable(named:over:)"
+                "sheet.structuredTables",
+                "addStructuredTable(named:over:)"
               ],
               "warning": "「named table … written as an ODF database range: its banded-row style …」",
               "evidence": "measured",
@@ -2410,7 +2410,7 @@
               "read": "none",
               "write": "none",
               "api": [
-                "sheet.excelTables"
+                "sheet.structuredTables"
               ],
               "warning": "「N named table(s) dropped: every Numbers table is named, but its own header rows are not this frame」",
               "evidence": "measured",

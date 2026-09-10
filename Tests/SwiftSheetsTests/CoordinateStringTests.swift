@@ -36,7 +36,7 @@ import SwiftSheets
         await #expect(processExitsWith: .failure) { var wb = Workbook(); wb.sheets[0].merge("☃") }
         await #expect(processExitsWith: .failure) { var wb = Workbook(); _ = wb.sheets[0].unmerge("☃") }
         await #expect(processExitsWith: .failure) { let wb = Workbook(); _ = wb.sheets[0].range("☃") }
-        await #expect(processExitsWith: .failure) { var wb = Workbook(); _ = wb.sheets[0].addExcelTable(named: "t", over: "☃") }
+        await #expect(processExitsWith: .failure) { var wb = Workbook(); _ = wb.sheets[0].addStructuredTable(named: "t", over: "☃") }
     }
 
     @Test func columnsAndDimensionsStop() async {
@@ -144,7 +144,7 @@ import SwiftSheets
         #expect(wb.sheets[0].moveRange("A1:B2", rows: -5) == nil, "off the top of the sheet")
         #expect(wb.sheets[0].unmerge("A1:B2") == false, "it was not merged")
         // and the name of a table always comes back now — the Optional only ever meant "unparsable"
-        let name: String = wb.sheets[0].addExcelTable(named: "T", over: "A1:B2")
+        let name: String = wb.sheets[0].addStructuredTable(named: "T", over: "A1:B2")
         #expect(name == "T")
     }
 

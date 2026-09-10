@@ -548,9 +548,9 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
     // openpyxl: worksheet/tests/test_worksheet_copy.py::test_cell_copy_comment
     @Test func cellCopyComment() {
         var wb = Workbook()
-        wb.sheets[0][cell: "A1"].comment = CellNote("A Comment", author: "Nobody")
+        wb.sheets[0][cell: "A1"].note = CellNote("A Comment", author: "Nobody")
         let j = wb.duplicateSheet(named: "Sheet1")!
-        #expect(wb.sheets[j][cell: "A1"].comment == CellNote("A Comment", author: "Nobody"))
+        #expect(wb.sheets[j][cell: "A1"].note == CellNote("A Comment", author: "Nobody"))
     }
 
     // openpyxl: worksheet/tests/test_worksheet_copy.py::test_cell_copy_hyperlink
@@ -610,7 +610,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
         for r in 0..<ws1.rowCount {
             let ref = CellRef(row: r, col: 0)
             let c1 = ws1.cell(at: ref), c2 = ws2.cell(at: ref)
-            #expect(c1?.value == c2?.value && c1?.dataType == c2?.dataType && c1?.comment == c2?.comment && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
+            #expect(c1?.value == c2?.value && c1?.dataType == c2?.dataType && c1?.note == c2?.note && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
         }
         #expect(ws1.cells.count == ws2.cells.count)
     }

@@ -32,7 +32,7 @@ import SwiftSheets
         d["H1"] = "リンク"
         d[cell: "H1"].hyperlink = Hyperlink(target: "https://example.com/")
         d["H2"] = "メモつき"
-        d[cell: "H2"].comment = CellNote("これはメモ", author: "作者")
+        d[cell: "H2"].note = CellNote("これはメモ", author: "作者")
         d["H3"] = .richText([TextRun("赤", font: Font(bold: true)), TextRun("青")])
         d.merge("A11:B12")
         d["A11"] = "結合"
@@ -45,7 +45,7 @@ import SwiftSheets
         d.autoFilterA1 = "A1:D9"
         d.filterColumns = [FilterColumn(column: 0, values: ["East"])]
         d.sortState = SortState(range: CellRange("A2:D9")!, conditions: [SortCondition(range: CellRange("C2:C9")!, descending: true)])
-        d.addExcelTable(named: "Sales", over: "A1:D9")
+        d.addStructuredTable(named: "Sales", over: "A1:D9")
         d.dataValidations = [DataValidation.list("\"A,B\"", over: MultiCellRange("B2:B9")!, rejects: true)]
         d["I2"] = true
         d[cell: "I2"].control = .checkbox
@@ -118,7 +118,7 @@ import SwiftSheets
             "グループ化": s.rowDimensions.values.contains { $0.outlineLevel > 0 },
             "ウィンドウ枠固定": s.freezePanes != nil,
             "ハイパーリンク": s.cell("H1")?.hyperlink != nil,
-            "メモ": s.cell("H2")?.comment != nil,
+            "メモ": s.cell("H2")?.note != nil,
             "リッチテキスト": richText,
             "条件付き書式": rules.contains { $0.kind == .cellIs },   // the plain rule; the three richer kinds have rows of their own
             "CF・カラースケール": rules.contains { $0.kind == .colorScale },
@@ -126,7 +126,7 @@ import SwiftSheets
             "CF・アイコンセット": rules.contains { $0.kind == .iconSet },
             "入力規則": !s.dataValidations.isEmpty,
             "セルの制御": s.cell("I2")?.control != nil,
-            "名前付きの表": !s.excelTables.isEmpty,
+            "名前付きの表": !s.structuredTables.isEmpty,
             "オートフィルタ": s.autoFilter != nil,
             "絞り込み条件": !s.filterColumns.isEmpty,
             "並べ替えの記録": s.sortState != nil,

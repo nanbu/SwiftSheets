@@ -384,7 +384,7 @@ final class SheetReadContext: @unchecked Sendable {
             guard var t = tp.table else { continue }
             t.partPath = tablePart
             t.relationshipId = rel.id
-            sheet.excelTables.append(t)
+            sheet.structuredTables.append(t)
         }
 
         // pivot tables: the layout part names the cache it reads by id
@@ -420,7 +420,7 @@ final class SheetReadContext: @unchecked Sendable {
                    let vml = try? zip.read(WorkbookReader.resolvePart(vmlRel.target, relativeTo: (part as NSString).deletingLastPathComponent)) {
                     CommentParts.applySizes(from: vml, to: &notes)
                 }
-                for (ref, note) in notes { sheet[cell: ref].comment = note }
+                for (ref, note) in notes { sheet[cell: ref].note = note }
                 sheet.preserved.comments = notes
             }
         }

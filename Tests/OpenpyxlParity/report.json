@@ -19760,10 +19760,10 @@
    "key": "TestTableColumn::test_ctor",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19774,10 +19774,10 @@
    "key": "TestTableColumn::test_from_xml",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19788,10 +19788,10 @@
    "key": "TestTable::test_ctor",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19846,10 +19846,10 @@
    "key": "TestTable::test_path",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19860,10 +19860,10 @@
    "key": "TestTable::test_write",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19874,10 +19874,10 @@
    "key": "TestTableFormula::test_ctor",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19899,10 +19899,10 @@
    "key": "TestTableInfo::test_ctor",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {
@@ -19946,10 +19946,10 @@
    "key": "TestTablePartList::test_ctor",
    "params": 1,
    "status": "adapted",
-   "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）",
+   "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）",
    "api": "Tables",
    "swift": [
-    "ExcelTableTests.swift"
+    "StructuredTableTests.swift"
    ]
   },
   {

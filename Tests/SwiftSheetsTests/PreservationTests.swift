@@ -19,7 +19,7 @@ import SwiftSheets
         #expect(wb.definedNames["Prices"] == "Data!$C$2:$C$4")
         #expect(wb.preserved.summary.contains("charts: 1"))
         #expect(wb.preserved.summary.contains("comments: 2"))
-        #expect(wb.sheets[0].excelTables.map(\.name) == ["Items"])   // the table is modelled now, not an opaque part
+        #expect(wb.sheets[0].structuredTables.map(\.name) == ["Items"])   // the table is modelled now, not an opaque part
         #expect(wb.preserved.opaqueParts["xl/theme/theme1.xml"] != nil)
         // conditional formatting, data validation and the table are modelled now, so they are regenerated rather
         // than kept as bytes: what stays a fragment is only what the model still has no home for

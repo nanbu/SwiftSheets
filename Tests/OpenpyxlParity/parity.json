@@ -2481,35 +2481,35 @@
    "tests": {
     "TestTable::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTable::test_write": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTable::test_path": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTablePartList::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTableColumn::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTableColumn::test_from_xml": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTableInfo::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     },
     "TestTableFormula::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.excelTables として読み書きする（Rev 1.9）"
+     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
     }
    }
   },

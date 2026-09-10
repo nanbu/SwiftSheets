@@ -95,7 +95,7 @@ import SwiftSheets
         e[cell: "A1"].hyperlink = Hyperlink(target: "https://example.com/one")
         e["B1"] = .richText([TextRun("bold", font: Font(bold: true)), TextRun("plain")])
         e["C1"] = "has a note"
-        e[cell: "C1"].comment = CellNote("first note text", author: "Author One")
+        e[cell: "C1"].note = CellNote("first note text", author: "Author One")
         extras.sheets[0] = e
         out.append(("13-links-runs-notes", extras))
 

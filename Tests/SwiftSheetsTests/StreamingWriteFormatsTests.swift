@@ -218,7 +218,7 @@ import SwiftSheets
         func row() -> [Cell] {
             var a = Cell(); a.value = .formula(FormulaExpr.parse("=1+1"), cached: .integer(2))
             var b = Cell(); b.value = .text("link"); b.hyperlink = Hyperlink(target: "https://example.com")
-            var c = Cell(); c.value = .integer(3); c.comment = CellNote("note", author: "t")
+            var c = Cell(); c.value = .integer(3); c.note = CellNote("note", author: "t")
             var d = Cell(); d.value = .formula(FormulaExpr.parse("=A1*2"), cached: nil)
             return [a, b, c, d]
         }

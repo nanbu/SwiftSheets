@@ -405,7 +405,7 @@ struct NumbersReader {
                     let note = s.commentID.flatMap { comments[$0] }
                     if value != nil || style != .default || note != nil || control != nil {
                         var cell = Cell(value: value)
-                        cell.comment = note
+                        cell.note = note
                         cell.control = control
                         if let first = rich?.links.first {
                             cell.hyperlink = Hyperlink(target: first)

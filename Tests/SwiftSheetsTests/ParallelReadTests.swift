@@ -22,7 +22,7 @@ import SwiftSheets
             sheet[cell: "C1"].numberFormat = "0.000"
             sheet[cell: "B2"].numberFormat = "yyyy-mm-dd"
             sheet[cell: "A1"].hyperlink = Hyperlink(target: "https://example.com/\(s)")
-            sheet[cell: "A2"].comment = CellNote("note on sheet \(s)", author: "t")
+            sheet[cell: "A2"].note = CellNote("note on sheet \(s)", author: "t")
             sheet.merge("D1:E2")
             out.append(sheet)
         }
@@ -39,7 +39,7 @@ import SwiftSheets
         #expect(parallel.workbook.sheets.map(\.name) == (1...6).map { "S\($0)" })
         #expect(parallel.workbook.sheets[3]["B5"] == .integer(16))            // row 4 of sheet 4
         #expect(parallel.workbook.sheets[5][cell: "C1"].numberFormat == "0.000")
-        #expect(parallel.workbook.sheets[5][cell: "A2"].comment?.text == "note on sheet 6")
+        #expect(parallel.workbook.sheets[5][cell: "A2"].note?.text == "note on sheet 6")
         #expect(parallel.workbook.sheets[0][cell: "A1"].hyperlink?.target == "https://example.com/1")
     }
 

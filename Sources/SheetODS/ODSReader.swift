@@ -60,9 +60,9 @@ enum ODSReader {
                 if !entry.sort.isEmpty { sheetsRead[i].sortState = SortState(range: range, conditions: entry.sort) }
             } else {
                 let header = (range.topLeft.col...range.bottomRight.col).map { sheetsRead[i][range.topLeft.row, $0] }
-                var table = ExcelTable(name: entry.name, ref: range, headerRow: header, styleInfo: nil)
+                var table = StructuredTable(name: entry.name, ref: range, headerRow: header, styleInfo: nil)
                 if !entry.buttons { table.autoFilter = nil }
-                sheetsRead[i].excelTables.append(table)
+                sheetsRead[i].structuredTables.append(table)
             }
         }
 
@@ -540,7 +540,7 @@ final class ContentParser: SAXHandler {
                 dbFilters[i].matchesAllConditions = !dbOr
             } else {
                 var column = FilterColumn(column: field)
-                if let c = ContentParser.top10(op, value) { column.top10 = c }
+                if let c = ContentParser.top10(op, value) { column.rank = c }
                 else { column.conditions = [FilterCondition(ContentParser.comparison(op), value)] }
                 dbFilters.append(column)
             }
@@ -745,7 +745,7 @@ final class ContentParser: SAXHandler {
             }
         }
         if cellText.hasNote {
-            cell.comment = CellNote(cellText.noteParagraphs.joined(separator: "\n"), author: cellText.noteAuthor.trimmingCharacters(in: .whitespacesAndNewlines))
+            cell.note = CellNote(cellText.noteParagraphs.joined(separator: "\n"), author: cellText.noteAuthor.trimmingCharacters(in: .whitespacesAndNewlines))
         }
         let colSpan = intAttr(a, "table:number-columns-spanned") ?? 1
         let rowSpan = intAttr(a, "table:number-rows-spanned") ?? 1
@@ -765,7 +765,7 @@ final class ContentParser: SAXHandler {
             rowHasStyleMap = true
         }
 
-        let material = cell.value != nil || cell.hyperlink != nil || cell.comment != nil || matrixCols > 0
+        let material = cell.value != nil || cell.hyperlink != nil || cell.note != nil || matrixCols > 0
             || rowDetective.contains { $0.col == cellCursor }
         guard material || (cell.style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
@@ -807,9 +807,9 @@ final class ContentParser: SAXHandler {
     }
 
     /// ODF's "top values" / "bottom percent" filter operators.
-    static func top10(_ op: String, _ value: String) -> Top10Filter? {
+    static func top10(_ op: String, _ value: String) -> RankFilter? {
         guard op.hasPrefix("top") || op.hasPrefix("bottom"), let n = Double(value) else { return nil }
-        return Top10Filter(count: n, top: op.hasPrefix("top"), percent: op.hasSuffix("percent"))
+        return RankFilter(count: n, top: op.hasPrefix("top"), percent: op.hasSuffix("percent"))
     }
 
     static func number(_ v: String) -> CellValue? {

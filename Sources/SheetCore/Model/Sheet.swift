@@ -42,7 +42,7 @@ public struct Sheet: Equatable, Sendable {
     public package(set) var hasUnmodelledConditionalFormats = false
     /// The named tables drawn over this sheet's cells (`xl/tables/*.xml`) — Excel's "Format as Table". Distinct
     /// from `tables`, which is the grid itself.
-    public var excelTables: [ExcelTable] = []
+    public var structuredTables: [StructuredTable] = []
     /// The pivot tables drawn on this sheet (`xl/pivotTables/*.xml`), each with the cache it reads.
     public var pivotTables: [PivotTable] = []
     /// What a protected sheet still lets people do (`<sheetProtection>`).
@@ -127,27 +127,27 @@ public struct Sheet: Equatable, Sendable {
     /// Adds a named table over `ref`, taking its column names from the sheet's own first row. Returns the name it
     /// was given (sanitised, and de-duplicated against the tables already on this sheet).
     @discardableResult
-    public mutating func addExcelTable(named name: String, over ref: CellRange,
+    public mutating func addStructuredTable(named name: String, over ref: CellRange,
                                        styleInfo: TableStyleInfo? = .default) -> String {
-        var final = ExcelTable.sanitizedName(name)
-        let taken = excelTables.map { $0.name.lowercased() }
+        var final = StructuredTable.sanitizedName(name)
+        let taken = structuredTables.map { $0.name.lowercased() }
         if taken.contains(final.lowercased()) {
             var n = 2
             while taken.contains((final + String(n)).lowercased()) { n += 1 }
             final += String(n)
         }
         let header = (ref.topLeft.col...ref.bottomRight.col).map { self[ref.topLeft.row, $0] }
-        excelTables.append(ExcelTable(name: final, ref: ref, headerRow: header, styleInfo: styleInfo))
+        structuredTables.append(StructuredTable(name: final, ref: ref, headerRow: header, styleInfo: styleInfo))
         return final
     }
     /// The A1 form. An unparsable range is a programming error, so the name always comes back (Appendix B.53).
     @discardableResult
-    public mutating func addExcelTable(named name: String, over a1: String, styleInfo: TableStyleInfo? = .default) -> String {
+    public mutating func addStructuredTable(named name: String, over a1: String, styleInfo: TableStyleInfo? = .default) -> String {
         guard let r = CellRange(a1) else { preconditionFailure("invalid range \(a1)") }
-        return addExcelTable(named: name, over: r, styleInfo: styleInfo)
+        return addStructuredTable(named: name, over: r, styleInfo: styleInfo)
     }
     /// The named table covering a cell, if any.
-    public func excelTable(containing ref: CellRef) -> ExcelTable? { excelTables.first { $0.ref.contains(ref) } }
+    public func structuredTable(containing ref: CellRef) -> StructuredTable? { structuredTables.first { $0.ref.contains(ref) } }
 
     /// Adds a pivot table summarising `source` on `sourceSheet`, laid out with its top-left cell at `anchor`.
     ///
@@ -231,7 +231,7 @@ public struct Sheet: Equatable, Sendable {
     /// The cells that carry a note, in reading order. Notes are rare, so this walks the cells rather than keeping
     /// an index of them.
     public var notes: [(ref: CellRef, note: CellNote)] {
-        table.cells.compactMap { ref, cell in cell.comment.map { (ref, $0) } }.sorted { $0.ref < $1.ref }
+        table.cells.compactMap { ref, cell in cell.note.map { (ref, $0) } }.sorted { $0.ref < $1.ref }
     }
 
     public subscript(cell ref: CellRef) -> Cell {

@@ -256,11 +256,11 @@ enum WorkbookWriter {
         // named tables: each gets a part of its own, an id unique across the workbook, and a sheet relationship.
         // A table read from a file keeps its part path and id; a new one is numbered after the highest in use.
         var usedTableIDs = Set<Int>()
-        var nextTableID = (wb.sheets.flatMap { $0.excelTables.compactMap(\.sourceID) }.max() ?? 0) + 1
+        var nextTableID = (wb.sheets.flatMap { $0.structuredTables.compactMap(\.sourceID) }.max() ?? 0) + 1
         var tablePlans: [Int: [TablePlan]] = [:]
         var takenTableNames = Set<String>()
         for (i, sheet) in wb.sheets.enumerated() {
-            for table in sheet.excelTables {
+            for table in sheet.structuredTables {
                 if let reason = table.validationError() {
                     sink.add(.dropped, subject: .tables, sheet: sheet.name, "named table not written: \(reason)")
                     continue
@@ -293,7 +293,7 @@ enum WorkbookWriter {
             for column in sheet.filterColumns {
                 if let id = column.colorFilter?.differentialStyleID { dxfClaims[id, default: 0] += 1 }
             }
-            for table in sheet.excelTables {
+            for table in sheet.structuredTables {
                 for column in table.filterColumns {
                     if let id = column.colorFilter?.differentialStyleID { dxfClaims[id, default: 0] += 1 }
                 }
@@ -667,7 +667,7 @@ enum WorkbookWriter {
             }
             s += "<filterColumn colId=\"\(column.column)\"\(column.buttonHidden ? " hiddenButton=\"1\"" : "")\(column.buttonShown ? "" : " showButton=\"0\"")"
             let hasValues = !column.values.isEmpty || column.includesBlanks || !column.dateGroups.isEmpty
-            guard hasValues || !column.conditions.isEmpty || column.top10 != nil || column.dynamicFilter != nil
+            guard hasValues || !column.conditions.isEmpty || column.rank != nil || column.dynamicFilter != nil
                     || column.colorFilter != nil || column.iconFilter != nil else { s += "/>"; continue }
             s += ">"
             if hasValues {
@@ -679,7 +679,7 @@ enum WorkbookWriter {
                 s += "<customFilters\(column.matchesAllConditions ? " and=\"1\"" : "")>"
                 s += column.conditions.map { "<customFilter operator=\"\($0.comparison.rawValue)\" val=\"\(XML.esc($0.value))\"/>" }.joined()
                 s += "</customFilters>"
-            } else if let t = column.top10 {
+            } else if let t = column.rank {
                 s += "<top10\(t.top ? "" : " top=\"0\"")\(XML.attr("percent", t.percent)) val=\"\(XML.num(t.count))\"\(t.boundary.map { " filterVal=\"\(XML.num($0))\"" } ?? "")/>"
             } else if let d = column.dynamicFilter {
                 s += "<dynamicFilter type=\"\(XML.esc(d.kind))\"\(d.value.map { " val=\"\(XML.num($0))\"" } ?? "")\(d.maxValue.map { " maxVal=\"\(XML.num($0))\"" } ?? "")"
@@ -723,7 +723,7 @@ enum WorkbookWriter {
 
     /// Where a sheet's named-table parts go, and what id each gets. Table ids are unique across the workbook.
     struct TablePlan {
-        let table: ExcelTable
+        let table: StructuredTable
         let path: String
         let relationshipId: String
         let id: Int

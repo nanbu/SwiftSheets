@@ -10,7 +10,7 @@ import Testing
     // openpyxl: worksheet/tests/test_writer.py::test_setup
     @Test func setup() {
         let ws = Workbook().sheets[0]
-        #expect(ws.cells.values.allSatisfy { $0.hyperlink == nil && $0.comment == nil })
+        #expect(ws.cells.values.allSatisfy { $0.hyperlink == nil && $0.note == nil })
     }
 
     // openpyxl: worksheet/tests/test_writer.py::test_properties

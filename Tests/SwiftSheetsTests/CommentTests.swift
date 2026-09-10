@@ -19,9 +19,9 @@ import SwiftSheets
     // openpyxl: comments/tests/test_author.py::TestAuthor::test_from_xml
     @Test func readsNotesFromAWorkbook() throws {
         let wb = try Workbook(data: try Self.fixture("preservation/charts-and-friends.xlsx"))
-        let note = try #require(wb.sheets[0][cell: "A1"].comment)
+        let note = try #require(wb.sheets[0][cell: "A1"].note)
         #expect(!note.text.isEmpty)
-        #expect(wb.sheets[1][cell: "A2"].comment != nil)
+        #expect(wb.sheets[1][cell: "A2"].note != nil)
     }
 
     /// The whole point of the pair: the comments part carries the text, the VML carries the shape. Without the VML
@@ -31,8 +31,8 @@ import SwiftSheets
     @Test func writesBothParts() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "値"
-        wb.sheets[0][cell: "A1"].comment = CellNote("確認してください\n2 行目", author: "南部")
-        wb.sheets[0][cell: "C3"].comment = CellNote("another", author: "B")
+        wb.sheets[0][cell: "A1"].note = CellNote("確認してください\n2 行目", author: "南部")
+        wb.sheets[0][cell: "C3"].note = CellNote("another", author: "B")
         let data = try wb.write(as: .xlsx).data
         let zip = try ZipInspection(data: data)
 
@@ -59,13 +59,13 @@ import SwiftSheets
 
     @Test func notesSurviveARoundTrip() throws {
         var wb = Workbook()
-        wb.sheets[0][cell: "B2"].comment = CellNote("メモ", author: "作者")
+        wb.sheets[0][cell: "B2"].note = CellNote("メモ", author: "作者")
         wb.addSheet(named: "Two")
-        wb.sheets[1][cell: "D4"].comment = CellNote("second sheet")
+        wb.sheets[1][cell: "D4"].note = CellNote("second sheet")
         let again = try Workbook(data: try wb.write(as: .xlsx).data)
-        #expect(again.sheets[0][cell: "B2"].comment == CellNote("メモ", author: "作者"))
-        #expect(again.sheets[1][cell: "D4"].comment?.text == "second sheet")
-        #expect(again.sheets[1][cell: "D4"].comment?.author == "")
+        #expect(again.sheets[0][cell: "B2"].note == CellNote("メモ", author: "作者"))
+        #expect(again.sheets[1][cell: "D4"].note?.text == "second sheet")
+        #expect(again.sheets[1][cell: "D4"].note?.author == "")
     }
 
     // openpyxl: comments/tests/test_shape_writer.py::test_shape_with_custom_size
@@ -73,29 +73,29 @@ import SwiftSheets
         var wb = Workbook()
         var note = CellNote("大きい", author: "A")
         note.width = 260; note.height = 130
-        wb.sheets[0][cell: "A1"].comment = note
+        wb.sheets[0][cell: "A1"].note = note
         let again = try Workbook(data: try wb.write(as: .xlsx).data)
-        #expect(again.sheets[0][cell: "A1"].comment?.width == 260)
-        #expect(again.sheets[0][cell: "A1"].comment?.height == 130)
+        #expect(again.sheets[0][cell: "A1"].note?.width == 260)
+        #expect(again.sheets[0][cell: "A1"].note?.height == 130)
     }
 
     /// The reason this had to be done: a note written in LibreOffice reached .xlsx as a warning, not as a note.
     @Test func aNoteConvertedFromODSArrives() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "値"
-        wb.sheets[0][cell: "A1"].comment = CellNote("ODS 由来のメモ", author: "LibreOffice")
+        wb.sheets[0][cell: "A1"].note = CellNote("ODS 由来のメモ", author: "LibreOffice")
         let viaODS = try Workbook(data: try wb.write(as: .ods).data)
-        #expect(viaODS.sheets[0][cell: "A1"].comment?.text == "ODS 由来のメモ")
+        #expect(viaODS.sheets[0][cell: "A1"].note?.text == "ODS 由来のメモ")
         let result = try viaODS.write(as: .xlsx)
         #expect(!result.warnings.contains { $0.message.contains("note") })
-        #expect(try Workbook(data: result.data).sheets[0][cell: "A1"].comment?.text == "ODS 由来のメモ")
+        #expect(try Workbook(data: result.data).sheets[0][cell: "A1"].note?.text == "ODS 由来のメモ")
     }
 
     /// Editing a note rewrites the source's own parts in place — the sheet keeps pointing at the same paths, so
     /// nothing else in the package has to move.
     @Test func editingANoteRewritesTheSourcePartsInPlace() throws {
         var wb = try Workbook(data: try Self.fixture("preservation/charts-and-friends.xlsx"))
-        wb.sheets[0][cell: "A1"].comment = CellNote("差し替え", author: "南部")
+        wb.sheets[0][cell: "A1"].note = CellNote("差し替え", author: "南部")
         let data = try wb.write(as: .xlsx).data
         let zip = try ZipInspection(data: data)
         let comments = String(decoding: try #require(zip.entry(named: "xl/comments/comment1.xml")), as: UTF8.self)
@@ -104,7 +104,7 @@ import SwiftSheets
         // the second sheet was not touched, so its parts are still the source's bytes
         let before = try ZipInspection(data: try Self.fixture("preservation/charts-and-friends.xlsx"))
         #expect(zip.entry(named: "xl/comments/comment2.xml") == before.entry(named: "xl/comments/comment2.xml"))
-        #expect(try Workbook(data: data).sheets[0][cell: "A1"].comment?.text == "差し替え")
+        #expect(try Workbook(data: data).sheets[0][cell: "A1"].note?.text == "差し替え")
     }
 
     /// Removing every note on a sheet takes the parts, their relationships and the `<legacyDrawing>` with them —
@@ -112,7 +112,7 @@ import SwiftSheets
     @Test func removingEveryNoteRemovesTheParts() throws {
         var wb = try Workbook(data: try Self.fixture("preservation/charts-and-friends.xlsx"))
         for i in wb.sheets.indices {
-            for (ref, _) in wb.sheets[i].notes { wb.sheets[i][cell: ref].comment = nil }
+            for (ref, _) in wb.sheets[i].notes { wb.sheets[i][cell: ref].note = nil }
         }
         let data = try wb.write(as: .xlsx).data
         let zip = try ZipInspection(data: data)

@@ -401,7 +401,7 @@ public struct Table: Equatable, Sendable {
     /// Clears the non-anchor cells of a merged range and formats its edges (openpyxl `_clean_merge_range`).
     public mutating func cleanMergedRange(_ r: CellRange) {
         for ref in existingRefs(in: r) where ref != r.topLeft {
-            if var c = storage[ref] { c.value = nil; c.hyperlink = nil; c.comment = nil; put(c.isBlank ? nil : c, at: ref) }
+            if var c = storage[ref] { c.value = nil; c.hyperlink = nil; c.note = nil; put(c.isBlank ? nil : c, at: ref) }
         }
         formatMergedRange(r)
     }

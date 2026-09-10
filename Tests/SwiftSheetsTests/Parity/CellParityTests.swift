@@ -12,7 +12,7 @@ import Testing
     @Test func ctor() {
         // PORT-NOTE: position lives on `CellRef` now; the old `cell.column == 1 && cell.row == 1` is the 0-based ref of A1.
         let cell = dummyCell(), ref = CellRef(row: 0, col: 0)
-        #expect(cell.dataType == "n" && ref.col == 0 && ref.row == 0 && ref.a1 == "A1" && cell.value == nil && cell.comment == nil)
+        #expect(cell.dataType == "n" && ref.col == 0 && ref.row == 0 && ref.a1 == "A1" && cell.value == nil && cell.note == nil)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_null
@@ -143,28 +143,28 @@ import Testing
     // openpyxl: cell/tests/test_cell.py::test_comment_assignment
     @Test func commentAssignment() {
         var cell = dummyCell()
-        #expect(cell.comment == nil)
+        #expect(cell.note == nil)
         let comm = CellNote("text", author: "author")
-        cell.comment = comm
-        #expect(cell.comment == comm)
+        cell.note = comm
+        #expect(cell.note == comm)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_only_one_cell_per_comment
     @Test func onlyOneCellPerComment() {
         var wb = Workbook()
         let comm = CellNote("text", author: "author")
-        wb.sheets[0][cell: "A1"].comment = comm
-        wb.sheets[0][cell: CellRef(row: 1, col: 0)].comment = comm
+        wb.sheets[0][cell: "A1"].note = comm
+        wb.sheets[0][cell: CellRef(row: 1, col: 0)].note = comm
         let c2 = wb.sheets[0][cell: CellRef(row: 1, col: 0)]
-        #expect(c2.comment == comm && wb.sheets[0][cell: "A1"].comment == comm)   // value type: each cell owns its own copy
+        #expect(c2.note == comm && wb.sheets[0][cell: "A1"].note == comm)   // value type: each cell owns its own copy
     }
 
     // openpyxl: cell/tests/test_cell.py::test_remove_comment
     @Test func removeComment() {
         var cell = dummyCell()
-        cell.comment = CellNote("text", author: "author")
-        cell.comment = nil
-        #expect(cell.comment == nil)
+        cell.note = CellNote("text", author: "author")
+        cell.note = nil
+        #expect(cell.note == nil)
     }
 
     // openpyxl: cell/tests/test_cell.py::test_cell_offset
@@ -240,9 +240,9 @@ import Testing
     // openpyxl: cell/tests/test_cell.py::TestMergedCell::test_comment
     @Test func mergedComment() {
         var ws = Workbook().sheets[0]
-        ws[cell: "B2"].comment = CellNote("x")
+        ws[cell: "B2"].note = CellNote("x")
         ws.merge("A1:C3")
-        #expect(ws[cell: "B2"].comment == nil)
+        #expect(ws[cell: "B2"].note == nil)
     }
 
     // openpyxl: cell/tests/test_cell.py::TestMergedCell::test_coordinate

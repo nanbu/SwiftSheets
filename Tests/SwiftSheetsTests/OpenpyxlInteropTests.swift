@@ -47,7 +47,7 @@ import Testing
         wb.metadata.creator = "interop"; wb.metadata.title = "Interop"
         wb.definedNames["PlanRange"] = "Plan!$A$1:$H$6"
         wb.addNamedStyle(NamedStyle(name: "Accent X", style: accentStyle))
-        wb.sheets["Plan"]![cell: "A7"].comment = CellNote("確認してください\n2 行目", author: "南部")
+        wb.sheets["Plan"]![cell: "A7"].note = CellNote("確認してください\n2 行目", author: "南部")
         wb.sheets["Plan"]!.headerFooter.oddHeader = "&L四半期報告&C&P"
         wb.sheets["Plan"]!.headerFooter.oddFooter = "&R&F"
         wb.sheets["Plan"]!.rowBreaks = [4]
@@ -103,7 +103,7 @@ import Testing
                                      FilterColumn(column: 1, conditions: [FilterCondition(.greaterThan, "10")])])
         #expect(ws.sortState == SortState(range: CellRange("A1:H1")!, conditions: [SortCondition(range: CellRange("B1:B1")!, descending: true)]))
         #expect(ws.printTitleRows == 0...0 && ws.printArea.map(\.a1) == ["A1:H6"])
-        #expect(ws[cell: "A7"].comment == CellNote("確認してください\n2 行目", author: "南部"))
+        #expect(ws[cell: "A7"].note == CellNote("確認してください\n2 行目", author: "南部"))
         #expect(ws.headerFooter.oddHeader == "&L四半期報告&C&P" && ws.headerFooter.oddFooter == "&R&F")
         #expect(ws.rowBreaks == [4] && ws.columnBreaks == [2])
         #expect(ws.table.arrayFormulas[CellRef("B7")!] == CellRange("B7:B8"))
@@ -141,7 +141,7 @@ import Testing
         ws.addConditionalFormatting(.iconSet(.threeBand("3Arrows")), over: "C2:C4")
         ws.addConditionalFormatting(.top(2, paint: red, bottom: true), over: "B2:B4")
 
-        ws.addExcelTable(named: "Sales", over: CellRange("A1:C4")!)
+        ws.addStructuredTable(named: "Sales", over: CellRange("A1:C4")!)
 
         ws[cell: "E1"].fill = .gradient(GradientFill(from: .white, to: .rgb("FFBFD7F5"), degree: 90))
         ws["E1"] = "gradient"
@@ -150,7 +150,7 @@ import Testing
         var other = Sheet(name: "Filtered")
         for r in 0..<6 { other[r, 0] = .text("row\(r)"); other[r, 1] = .integer(r) }
         other.autoFilter = CellRange("A1:B6")
-        other.filterColumns = [FilterColumn(column: 1, top10: Top10Filter(count: 3, top: false, percent: true))]
+        other.filterColumns = [FilterColumn(column: 1, rank: RankFilter(count: 3, top: false, percent: true))]
         wb.sheets[0] = ws
         wb.sheets.append(pivotSheet)
         wb.sheets.append(other)

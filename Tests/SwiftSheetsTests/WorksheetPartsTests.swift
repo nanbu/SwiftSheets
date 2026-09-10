@@ -159,7 +159,7 @@ import SwiftSheets
         wb.sheets[0].filterColumns = [
             FilterColumn(column: 0, colorFilter: ColorFilter(differentialStyleID: 0)),
             FilterColumn(column: 1, iconFilter: IconFilter(iconSet: "3TrafficLights1", iconID: 2)),
-            FilterColumn(column: 2, top10: Top10Filter(count: 5, top: false, percent: true, boundary: 3)),
+            FilterColumn(column: 2, rank: RankFilter(count: 5, top: false, percent: true, boundary: 3)),
             FilterColumn(column: 3, dynamicFilter: DynamicFilter(kind: "aboveAverage", value: 2.5)),
             FilterColumn(column: 4, dateGroups: [DateGroup(grouping: .month, year: 2026, month: 3)], calendarType: "japan"),
             FilterColumn(column: 5, values: ["x"], buttonShown: false),
@@ -182,7 +182,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0]["A1"] = 1
         wb.sheets[0].autoFilter = CellRange("A1:A5")
-        wb.sheets[0].filterColumns = [FilterColumn(column: 0, values: ["x"], top10: Top10Filter(count: 3))]
+        wb.sheets[0].filterColumns = [FilterColumn(column: 0, values: ["x"], rank: RankFilter(count: 3))]
         let result = try wb.write(as: .xlsx)
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("one way") })
         let xml = try Package.part("xl/worksheets/sheet1.xml", of: result.data)

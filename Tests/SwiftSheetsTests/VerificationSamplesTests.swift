@@ -36,7 +36,7 @@ import SwiftSheets
         #expect(sales["H4"]?.cachedValue?.doubleValue == 456_000)
         #expect(sales.style("A1").font.bold && sales.style("A1").fill.patternType == .solid)
         #expect(sales.style("G4").numberFormat.contains("¥") || sales.style("G4").numberFormat.contains("#,##0"))
-        #expect(sales.cell("B4")?.comment != nil, "cell note read from the ODS")
+        #expect(sales.cell("B4")?.note != nil, "cell note read from the ODS")
         #expect(sales.cell("E2")?.hyperlink != nil, "hyperlink read from the ODS")
         #expect(wb.sheets["Extra"]?.state == .hidden)
         #expect(wb.sheets["Staff"]?["A2"] == .text("0012"), "leading zero kept as text")

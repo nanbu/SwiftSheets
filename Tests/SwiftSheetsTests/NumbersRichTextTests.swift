@@ -18,9 +18,9 @@ import SwiftSheets
         sheet["B1"] = .richText([TextRun("bold", font: Font(bold: true)), TextRun("plain"),
                                  TextRun("red", font: Font(color: Color(hex: "FF0000")))])
         sheet["C1"] = "has a note"
-        sheet[cell: "C1"].comment = CellNote("first note text", author: "Author One")
+        sheet[cell: "C1"].note = CellNote("first note text", author: "Author One")
         sheet["C2"] = "another"
-        sheet[cell: "C2"].comment = CellNote("second note", author: "Author Two")
+        sheet[cell: "C2"].note = CellNote("second note", author: "Author Two")
         wb.sheets[0] = sheet
         return wb
     }
@@ -45,10 +45,10 @@ import SwiftSheets
         #expect(runs[1].font == nil, "a run that varies nothing carries no font")
         #expect(runs[2].font?.color == Color(hex: "FF0000"))
 
-        #expect(back[cell: "C1"].comment?.text == "first note text")
-        #expect(back[cell: "C1"].comment?.author == "Author One")
-        #expect(back[cell: "C2"].comment?.text == "second note")
-        #expect(back[cell: "C2"].comment?.author == "Author Two")
+        #expect(back[cell: "C1"].note?.text == "first note text")
+        #expect(back[cell: "C1"].note?.author == "Author One")
+        #expect(back[cell: "C2"].note?.text == "second note")
+        #expect(back[cell: "C2"].note?.author == "Author Two")
     }
 
     /// Two notes by one person share one author archive, and every author is registered with the document's own
@@ -58,7 +58,7 @@ import SwiftSheets
         var sheet = wb.sheets[0]
         for r in 0..<3 {
             sheet[CellRef(row: r, col: 0)] = .text("row \(r)")
-            sheet[cell: CellRef(row: r, col: 0)].comment = CellNote("note \(r)", author: "One Person")
+            sheet[cell: CellRef(row: r, col: 0)].note = CellNote("note \(r)", author: "One Person")
         }
         wb.sheets[0] = sheet
         let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
@@ -99,9 +99,9 @@ import SwiftSheets
 
         #expect(data[cell: "A1"].hyperlink?.target == "https://example.com/one")
         #expect(data[cell: "A2"].hyperlink?.target == "https://example.com/two")
-        #expect(data[cell: "C1"].comment?.text == "first note text")
-        #expect(data[cell: "C1"].comment?.author == "Author One")
-        #expect(data[cell: "C2"].comment?.text == "second note\nwith two lines")
+        #expect(data[cell: "C1"].note?.text == "first note text")
+        #expect(data[cell: "C1"].note?.author == "Author One")
+        #expect(data[cell: "C2"].note?.text == "second note\nwith two lines")
 
         // and the formulas that reach into the other sheet's table
         guard case .formula(let expr, _)? = data["D1"] else {
