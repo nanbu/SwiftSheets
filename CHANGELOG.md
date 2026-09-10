@@ -16,6 +16,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   and `isMerged(_:)` already were. `addImage(_:at:)` and `subscript(cell:)`, whose two sides already shared a label,
   are unchanged.
 
+- **Same operation, same word; same role, same label** (B.63). `CellRef.offset(rows:columns:)` → `shifted(rows:columns:)`
+  (the word `CellRange` already used); `CellRange.shrunk(right:bottom:left:top:)` → `shrunk(right:down:left:up:)` (the
+  labels `expanded` already used); `CodecSet.streamingWriter(url:format:)` and `StreamingWriter(url:format:)` →
+  `(to:as:)` (the labels `write(to:as:)` and `withStreamingWriter(to:as:)` use); `streamingReader(data:)` →
+  `streamingReader(_:)` (as `read(_:)`); `SheetFormat.detect(from:)` and `detect(from:filename:)` → one
+  `detect(_:filename:)`, the shape `probe(_:filename:)` has, and `detect(in:)` is no longer public.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

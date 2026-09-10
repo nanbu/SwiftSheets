@@ -93,7 +93,7 @@ import SwiftSheets
 
     @Test func xlsmKeepsVBAAndXlsxDropsItWithAWarning() throws {
         let data = try Self.fixture("with-vba.xlsm")
-        #expect(SheetFormat.detect(from: data) == .xlsm)
+        #expect(SheetFormat.detect(data) == .xlsm)
         let wb = try Workbook(data: data)
         #expect(wb.sourceInfo?.format == .xlsm)
         #expect(wb.preserved.summary.hasPrefix("VBA project: yes"))
@@ -104,7 +104,7 @@ import SwiftSheets
         #expect(try keptZip.read("xl/vbaProject.bin") == ZipArchive(data: data).read("xl/vbaProject.bin"))
         #expect(String(decoding: try keptZip.read("[Content_Types].xml"), as: UTF8.self).contains("macroEnabled"))
         #expect(String(decoding: try keptZip.read("xl/_rels/workbook.xml.rels"), as: UTF8.self).contains("vbaProject"))
-        #expect(SheetFormat.detect(from: kept.data) == .xlsm)
+        #expect(SheetFormat.detect(kept.data) == .xlsm)
 
         let dropped = try wb.write(as: .xlsx)
         #expect(dropped.warnings.contains { $0.kind == .dropped && $0.message.contains("VBA") })
@@ -113,14 +113,14 @@ import SwiftSheets
         #expect(!droppedZip.contains("xl/vbaProject.bin"))
         #expect(!String(decoding: try droppedZip.read("xl/_rels/workbook.xml.rels"), as: UTF8.self).contains("vbaProject"))
         #expect(!String(decoding: try droppedZip.read("[Content_Types].xml"), as: UTF8.self).contains("macroEnabled"))
-        #expect(SheetFormat.detect(from: dropped.data) == .xlsx)
+        #expect(SheetFormat.detect(dropped.data) == .xlsx)
     }
 
     @Test func xlsxToXlsmIsJustTheContentType() throws {
         let wb = Workbook()
         let out = try wb.write(as: .xlsm)
         #expect(out.warnings.isEmpty)
-        #expect(SheetFormat.detect(from: out.data) == .xlsm)
+        #expect(SheetFormat.detect(out.data) == .xlsm)
         #expect(try Workbook(data: out.data).sheetNames == ["Sheet1"])
     }
 

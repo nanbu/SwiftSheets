@@ -28,7 +28,7 @@ package enum XLSXCodec: SpreadsheetCodec {
         StreamingReader(source: try XLSXStreamingReader(contentsOf: url, limits: limits), format: .xlsx)
     }
 
-    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(_ data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: try XLSXStreamingReader(data: data, limits: limits), format: .xlsx)
     }
 
@@ -61,7 +61,7 @@ package enum XLSMCodec: SpreadsheetCodec {
         StreamingReader(source: try XLSXStreamingReader(contentsOf: url, limits: limits), format: .xlsm)
     }
 
-    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(_ data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: try XLSXStreamingReader(data: data, limits: limits), format: .xlsm)
     }
 

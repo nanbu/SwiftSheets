@@ -19,7 +19,7 @@ import SwiftSheets
     @Test func encryptedOOXMLSaysSoRatherThanLookingCorrupt() throws {
         let data = try Self.fixture("agile.xlsx")
         #expect(UnopenableInput.probe(data) == .encryptedOOXML)
-        #expect(SheetFormat.detect(from: data) == nil)   // it is not a ZIP; nothing to detect
+        #expect(SheetFormat.detect(data) == nil)   // it is not a ZIP; nothing to detect
 
         for read in [{ try Workbook(data: data) }, { try Workbook(data: data, format: .xlsx) }] {
             let error = #expect(throws: SheetError.self) { _ = try read() }
@@ -50,7 +50,7 @@ import SwiftSheets
     /// one that has to notice.
     @Test func encryptedODFIsRecognisedFromItsManifest() throws {
         let data = try Self.fixture("protected.ods")
-        #expect(SheetFormat.detect(from: data) == .ods)
+        #expect(SheetFormat.detect(data) == .ods)
         #expect(UnopenableInput.probe(in: try ZipInspection(data: data)) == .encryptedODF)
         for read in [{ try Workbook(data: data) }, { try ODSCodec.read(data).workbook }] {
             #expect(throws: SheetError.unopenable(.encryptedODF)) { _ = try read() }

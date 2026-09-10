@@ -25,7 +25,7 @@ import SwiftSheets
         #expect(viaWorkbook == viaSet)
         #expect(try Workbook.read(data).workbook.sheets[0]["B2"] == CodecSet.all.read(data).workbook.sheets[0]["B2"])
         let reader = try StreamingReader(data: data)
-        let fromSet = try CodecSet.all.streamingReader(data: data)
+        let fromSet = try CodecSet.all.streamingReader(data)
         #expect(reader.format == .xlsx && fromSet.format == .xlsx && reader.sheetNames == fromSet.sheetNames)
     }
 

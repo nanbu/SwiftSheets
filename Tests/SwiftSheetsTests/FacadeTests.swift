@@ -13,24 +13,24 @@ import SwiftSheets
     }()
 
     @Test func detectsFormatsFromContent() throws {
-        #expect(SheetFormat.detect(from: try Data(contentsOf: Self.fixtures.appendingPathComponent("styled.xlsx"))) == .xlsx)
-        #expect(SheetFormat.detect(from: try Data(contentsOf: Self.fixtures.appendingPathComponent("preservation/with-vba.xlsm"))) == .xlsm)
-        #expect(SheetFormat.detect(from: Data("a,b\n1,2\n".utf8)) == .csv)
-        #expect(SheetFormat.detect(from: Data([0xEF, 0xBB, 0xBF] + Array("名前,値\n".utf8))) == .csv)
-        #expect(SheetFormat.detect(from: Data()) == .csv)
-        #expect(SheetFormat.detect(from: Data([0x00, 0x01, 0x02, 0xFF, 0xFE, 0x00])) == nil)
+        #expect(SheetFormat.detect(try Data(contentsOf: Self.fixtures.appendingPathComponent("styled.xlsx"))) == .xlsx)
+        #expect(SheetFormat.detect(try Data(contentsOf: Self.fixtures.appendingPathComponent("preservation/with-vba.xlsm"))) == .xlsm)
+        #expect(SheetFormat.detect(Data("a,b\n1,2\n".utf8)) == .csv)
+        #expect(SheetFormat.detect(Data([0xEF, 0xBB, 0xBF] + Array("名前,値\n".utf8))) == .csv)
+        #expect(SheetFormat.detect(Data()) == .csv)
+        #expect(SheetFormat.detect(Data([0x00, 0x01, 0x02, 0xFF, 0xFE, 0x00])) == nil)
         // ODS: a ZIP whose first, stored entry is the mimetype
         var ods = ZipWriter()
         ods.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
         ods.add("content.xml", Data("<x/>".utf8))
-        #expect(SheetFormat.detect(from: ods.finish()) == .ods)
+        #expect(SheetFormat.detect(ods.finish()) == .ods)
         var numbers = ZipWriter()
         numbers.add("Index/Document.iwa", Data([1, 2, 3]))
-        #expect(SheetFormat.detect(from: numbers.finish()) == .numbers)
+        #expect(SheetFormat.detect(numbers.finish()) == .numbers)
         // an unknown ZIP is not a spreadsheet
         var other = ZipWriter()
         other.add("README", Data("hi".utf8))
-        #expect(SheetFormat.detect(from: other.finish()) == nil)
+        #expect(SheetFormat.detect(other.finish()) == nil)
         #expect(SheetFormat(fileExtension: "tsv") == .csv)
         #expect(SheetFormat(fileExtension: "XLSM") == .xlsm)
     }
@@ -51,7 +51,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = "名前"; wb.sheets[0]["B1"] = 42; wb.sheets[0]["C1"] = CellValue(CivilDate(year: 2026, month: 9, day: 1)!)
         for format in SheetFormat.allCases {
             let result = try wb.write(as: format)
-            #expect(SheetFormat.detect(from: result.data) == format, "\(format)")
+            #expect(SheetFormat.detect(result.data) == format, "\(format)")
             let back = try Workbook(data: result.data)
             #expect(back.sheets[0]["A1"] == .text("名前"), "\(format)")
             if format == .csv {
@@ -74,7 +74,7 @@ import SwiftSheets
         let xlsx = Self.tmp.appendingPathComponent("book.xlsx")
         let written = try wb.write(to: xlsx)    // format from the extension
         #expect(written.warnings.isEmpty)
-        #expect(SheetFormat.detect(from: try Data(contentsOf: xlsx)) == .xlsx)
+        #expect(SheetFormat.detect(try Data(contentsOf: xlsx)) == .xlsx)
 
         let back = try Workbook(contentsOf: xlsx)
         #expect(back.sheetNames == ["集計", "明細"])
@@ -103,7 +103,7 @@ import SwiftSheets
         // writing without an extension falls back to the source format
         let plain = Self.tmp.appendingPathComponent("plain")
         _ = try fromCSV.write(to: plain)
-        #expect(SheetFormat.detect(from: try Data(contentsOf: plain)) == .csv)
+        #expect(SheetFormat.detect(try Data(contentsOf: plain)) == .csv)
         #expect(try wb.write(as: .xlsx).data.count > 0)
     }
 

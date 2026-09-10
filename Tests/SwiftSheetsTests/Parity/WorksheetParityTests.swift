@@ -683,7 +683,7 @@ import Testing
     @Test func expand() { #expect(CellRange("E5:K10")!.expanded(right: 2, down: 2, left: 1, up: 2).a1 == "D3:M12") }
 
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_shrink
-    @Test func shrink() { #expect(CellRange("E5:K10")!.shrunk(right: 2, bottom: 2, left: 1, top: 2)?.a1 == "F7:I8") }
+    @Test func shrink() { #expect(CellRange("E5:K10")!.shrunk(right: 2, down: 2, left: 1, up: 2)?.a1 == "F7:I8") }
 
     // openpyxl: worksheet/tests/test_cell_range.py::TestCellRange::test_size
     @Test func size() {

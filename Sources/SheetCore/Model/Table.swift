@@ -355,7 +355,7 @@ public struct Table: Equatable, Sendable {
         for ref in order {
             let cell = storage[ref]
             put(nil, at: ref)
-            put(cell, at: ref.offset(rows: rows, columns: columns))
+            put(cell, at: ref.shifted(rows: rows, columns: columns))
         }
         return target
     }

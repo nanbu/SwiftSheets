@@ -44,7 +44,7 @@ extension ODSCodec {
         StreamingReader(source: try ODSStreamingReader(contentsOf: url, limits: limits), format: .ods)
     }
 
-    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(_ data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: try ODSStreamingReader(data: data, limits: limits), format: .ods)
     }
 

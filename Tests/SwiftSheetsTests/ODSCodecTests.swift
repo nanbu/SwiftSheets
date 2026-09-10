@@ -103,7 +103,7 @@ import SwiftSheets
         #expect(String(decoding: bytes[30..<38], as: UTF8.self) == "mimetype")
         #expect(bytes[8] == 0 && bytes[9] == 0, "mimetype must be stored (method 0)")
         #expect(String(decoding: bytes[38..<(38 + 46)], as: UTF8.self) == "application/vnd.oasis.opendocument.spreadsheet")
-        #expect(SheetFormat.detect(from: data) == .ods)
+        #expect(SheetFormat.detect(data) == .ods)
         let zip = try ZipInspection(data: data)
         let manifest = String(decoding: zip.entry(named: "META-INF/manifest.xml")!, as: UTF8.self)
         for name in zip.entryNames where name != "mimetype" && name != "META-INF/manifest.xml" {

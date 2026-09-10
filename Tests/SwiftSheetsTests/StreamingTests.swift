@@ -21,7 +21,7 @@ import SwiftSheets
         let url = Self.temporary("stream.xlsx")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let writer = try StreamingWriter(url: url, sheetName: "売上")
+        let writer = try StreamingWriter(to: url, sheetName: "売上")
         try writer.append([.text("品目"), .text("数量"), .text("単価")])
         try writer.append([.text("apple"), .integer(3), .number(1.5)])
         try writer.append([.text("  余白  "), .bool(true), .error("#N/A")])
@@ -133,7 +133,7 @@ import SwiftSheets
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let rows = 100_000
 
-        let writer = try StreamingWriter(url: url, sheetName: "Big")
+        let writer = try StreamingWriter(to: url, sheetName: "Big")
         try writer.append([.text("n"), .text("square")])
         for i in 1...rows { try writer.append([.integer(i), .integer(i * i)]) }
         _ = try writer.close()
@@ -159,7 +159,7 @@ import SwiftSheets
     @Test func theStreamedPackageIsWellFormed() throws {
         let url = Self.temporary("package.xlsx")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        let writer = try StreamingWriter(url: url, sheetName: "A")
+        let writer = try StreamingWriter(to: url, sheetName: "A")
         try writer.append([.text("x")])
         try writer.addSheet(named: "B")
         try writer.append([.integer(1)])
@@ -179,7 +179,7 @@ import SwiftSheets
         for id in wb.components(separatedBy: "r:id=\"").dropFirst().compactMap({ $0.split(separator: "\"").first.map(String.init) }) {
             #expect(rels.contains("Id=\"\(id)\""), "dangling \(id)")
         }
-        #expect(SheetFormat.detect(from: data) == .xlsx)
+        #expect(SheetFormat.detect(data) == .xlsx)
     }
 
     // MARK: - A character across a piece boundary

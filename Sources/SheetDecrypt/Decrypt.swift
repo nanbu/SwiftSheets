@@ -24,7 +24,7 @@ public func decrypt(_ data: Data, password: String, limits: ZipLimits = ZipLimit
         guard unopenable == .encryptedOOXML else { throw unopenable.error }
         return try OOXMLEncryption.decrypt(data, password: password)
     }
-    switch SheetFormat.detect(from: data) {
+    switch SheetFormat.detect(data) {
     case .ods:
         // an encrypted ODF package keeps `mimetype` in the clear; the manifest names the encrypted entries
         let zip = try ZipArchive(data: data, limits: limits)

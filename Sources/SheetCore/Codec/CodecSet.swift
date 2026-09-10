@@ -5,7 +5,7 @@ import Foundation
 /// row (spec Appendix B.44).
 ///
 /// The `SwiftSheets` product holds every codec as `CodecSet.all`, and its conveniences — `Workbook(contentsOf:)`,
-/// `Workbook.inspect`, `StreamingReader(contentsOf:)`, `StreamingWriter(url:)` — are these methods on that set. An
+/// `Workbook.inspect`, `StreamingReader(contentsOf:)`, `StreamingWriter(to:)` — are these methods on that set. An
 /// application that links only the formats it needs makes its own set and gets the same facade, with the same
 /// detection and the same refusals:
 ///
@@ -98,7 +98,7 @@ public struct CodecSet: Sendable {
                 return f
             }
         }
-        guard let f = SheetFormat.detect(from: data, filename: filename) else { throw SheetError.unrecognizedFormat }
+        guard let f = SheetFormat.detect(data, filename: filename) else { throw SheetError.unrecognizedFormat }
         return f
     }
 
@@ -189,7 +189,7 @@ public struct CodecSet: Sendable {
     }
 
     /// The same reader over bytes. `format` overrides detection; `filename` only breaks ties for plain text (`.tsv`).
-    public func streamingReader(data: Data, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
+    public func streamingReader(_ data: Data, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
                                 csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         // An encrypted package or a legacy .xls says so plainly (spec Appendix B.39.9), a protected ODS or Numbers
         // document by name. The probe runs with this reader's limits, as it does for a file (Rev 4.31).
@@ -205,7 +205,7 @@ public struct CodecSet: Sendable {
             case .spreadsheet(let detected): f = detected
             }
         }
-        return try implementation(for: f).streamingReader(data: data, limits: limits, csv: csv, filename: filename)
+        return try implementation(for: f).streamingReader(data, limits: limits, csv: csv, filename: filename)
     }
 
     /// A writer that appends rows to a file, without ever building the workbook (spec Appendix B.42). The
@@ -215,7 +215,7 @@ public struct CodecSet: Sendable {
     /// The rows go into a temporary file beside `url`, which is replaced only by a `close()` that completes
     /// (spec Appendix B.51) — so a writer dropped, failed or never closed leaves whatever was at `url` alone.
     /// `close()` returns the save's result and must be called; `withStreamingWriter` calls it for you.
-    public func streamingWriter(url: URL, format: SheetFormat? = nil, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900,
+    public func streamingWriter(to url: URL, as format: SheetFormat? = nil, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900,
                                 csv: CSVWriteOptions = CSVWriteOptions()) throws -> StreamingWriter {
         let made = try streamingWriterParts(url: url, format: format, sheetName: sheetName, epoch: epoch, csv: csv)
         return StreamingWriter(sink: made.sink, format: made.format, target: made.target)
@@ -239,10 +239,10 @@ public struct CodecSet: Sendable {
     public func withStreamingWriter(to url: URL, as format: SheetFormat? = nil, sheetName: String = "Sheet1",
                                     epoch: DateEpoch = .windows1900, csv: CSVWriteOptions = CSVWriteOptions(),
                                     _ body: (StreamingWriter) throws -> Void) throws -> StreamingWriteResult {
-        try streamingWriter(url: url, format: format, sheetName: sheetName, epoch: epoch, csv: csv).run(body)
+        try streamingWriter(to: url, as: format, sheetName: sheetName, epoch: epoch, csv: csv).run(body)
     }
 
-    /// The three things a row-by-row writer is made of, for the `SwiftSheets` product's `StreamingWriter(url:)`,
+    /// The three things a row-by-row writer is made of, for the `SwiftSheets` product's `StreamingWriter(to:)`,
     /// which is this call under the name it has always had.
     ///
     /// The order matters: a format with no codec in this set is refused before anything is created on disk, and

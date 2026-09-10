@@ -169,7 +169,7 @@ import Testing
 
     // openpyxl: cell/tests/test_cell.py::test_cell_offset
     @Test func cellOffset() {
-        #expect(CellRef(row: 1, column: 1).offset(rows: 2, columns: 1).a1 == "B3")
+        #expect(CellRef(row: 1, column: 1).shifted(rows: 2, columns: 1).a1 == "B3")
     }
 
     // openpyxl: cell/tests/test_cell.py::test_font

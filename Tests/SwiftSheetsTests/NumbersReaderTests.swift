@@ -170,7 +170,7 @@ import SwiftSheets
         let wb = try Workbook(contentsOf: url)
         #expect(wb.sourceInfo?.format == .numbers)
         #expect(wb.sourceInfo?.version?.hasPrefix("M") == true)
-        #expect(SheetFormat.detect(from: try Data(contentsOf: url)) == .numbers)
+        #expect(SheetFormat.detect(try Data(contentsOf: url)) == .numbers)
         #expect(wb.sheets[0].tables[0].name == "Table 1")
     }
 }

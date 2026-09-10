@@ -10,7 +10,7 @@ extension StreamingWriter {
     ///
     /// Nothing at `url` is touched until `close()` completes the file (spec Appendix B.51). `CodecSet.all`'s
     /// `withStreamingWriter` does that closing for you.
-    public convenience init(url: URL, format: SheetFormat? = nil, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900,
+    public convenience init(to url: URL, as format: SheetFormat? = nil, sheetName: String = "Sheet1", epoch: DateEpoch = .windows1900,
                             csv: CSVWriteOptions = CSVWriteOptions()) throws {
         // the same parts the set assembles — taken apart rather than re-made, so the temporary file has one owner
         let made = try CodecSet.all.streamingWriterParts(url: url, format: format, sheetName: sheetName, epoch: epoch, csv: csv)

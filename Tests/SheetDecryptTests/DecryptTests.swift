@@ -19,7 +19,7 @@ import SheetDecrypt
         let data = try Data(contentsOf: Self.fixture("encrypted/agile.xlsx"))
         #expect(SheetFormat.probe(data) == .unopenable(.encryptedOOXML))
         let plain = try decrypt(data, password: Self.password)
-        #expect(SheetFormat.detect(from: plain) == .xlsx, "the plain package inside is an ordinary XLSX")
+        #expect(SheetFormat.detect(plain) == .xlsx, "the plain package inside is an ordinary XLSX")
         let wb = try Workbook(data: data, password: Self.password)
         #expect(wb.sheets[0].name == "Secret")
         #expect(wb.sheets[0]["A1"] == .text("こんにちは") && wb.sheets[0]["A2"] == .integer(42))
@@ -51,7 +51,7 @@ import SheetDecrypt
             #expect(try Workbook(contentsOf: url, password: Self.password).sheets[0]["A1"] == .text("こんにちは"), "\(name)")
             #expect(try Workbook.read(contentsOf: url, password: Self.password).workbook.sheets[0]["A1"] == .text("こんにちは"), "\(name)")
             #expect(try Workbook.inspect(contentsOf: url, password: Self.password).sheets.count == 1, "\(name)")
-            #expect(SheetFormat.detect(from: try decrypt(contentsOf: url, password: Self.password)) != nil, "\(name)")
+            #expect(SheetFormat.detect(try decrypt(contentsOf: url, password: Self.password)) != nil, "\(name)")
             #expect(throws: SheetError.self) { _ = try StreamingReader(contentsOf: url) }
             let reader = try StreamingReader(contentsOf: url, password: Self.password)
             var first: CellValue?

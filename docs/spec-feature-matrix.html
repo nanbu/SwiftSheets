@@ -182,7 +182,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>どの行にも共通する入口</h2>
 <pre><code>読む:   Workbook(contentsOf:) / Workbook.read(contentsOf:) -&gt; ReadResult / wb.readWarnings
 書く:   wb.write(to:as:) -&gt; WriteResult / wb.write(as:).data / Workbook.convert(_:to:as:)
-見分ける: SheetFormat.detect(from:)
+見分ける: SheetFormat.detect(_:)
 落としたものの受け取り方: ConversionWarning(kind: .dropped/.degraded/.substituted, subject:, sheet:, location:, message:)</code></pre>
 </section>
 <section>
@@ -294,7 +294,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>グラフシート・ダイアログシート・マクロシート</td><td class="m">▣</td><td class="m">▣</td><td><code>xl/chartsheets/, &lt;chartsheet&gt;</code></td><td><code>sheet.contentState</code> <code>SheetContentState</code></td><td><strong>言うこと</strong>: 読むと「a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived」。そのシートにセルを書き込むと「N cell(s) … are not saved」。他形式へ変換すると dropped ワークシートではないシート。ブックはワークシートと並べて挙げるが、部品の根は &lt;chartsheet&gt; で、モデルには中身を言う言葉がない。だから解釈せずに運ぶ——部品はバイトのまま出入りし、コンテンツタイプと関係の種別も元のまま。検体は Excel 16.112.2 自身に作らせ（Tests/FixtureGenerator/make_chartsheet_fixture.py）、書き戻した結果は LibreOffice が元と同じページ数に描くことで確かめている（付録 B.35）。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>
 <tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>xl/worksheets/sheetN.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>forEachRow(inSheet:)</code> <code>rows(inSheet:)</code> <code>StreamedRow</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 100 万マスで 23 MB（モデル全体は 221 MB — docs/performance.json）。結合・メモ・保全は運ばない。傘の StreamingReader は ODS・Numbers・CSV も同じ呼び方で開く（付録 B.40）。 <span class="chip">文書</span></td></tr>
-<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>同上</code></td><td><code>StreamingWriter(url:)</code> <code>XLSXStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: なし 行数によらず数 MB。値と書式だけ。傘の StreamingWriter は拡張子で形式を決め、ODS・Numbers・CSV にも同じ呼び方で書く（付録 B.42）。 <span class="chip">文書</span></td></tr>
+<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>同上</code></td><td><code>StreamingWriter(to:)</code> <code>XLSXStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: なし 行数によらず数 MB。値と書式だけ。傘の StreamingWriter は拡張子で形式を決め、ODS・Numbers・CSV にも同じ呼び方で書く（付録 B.42）。 <span class="chip">文書</span></td></tr>
 <tr><td>セル数の上限</td><td class="m h">△</td><td class="m">—</td><td><code>ReadOptions.cellLimit（既定は上限なし — 付録 B.39.2）</code></td><td><code>ReadOptions(cellLimit:)</code></td><td><strong>言うこと</strong>: degraded の警告で「読み取りをここで止めた」と言う 黙って途中で止めない。上限は読む側が決め、Workbook.inspect が決める材料を出す。 <span class="chip">文書</span></td></tr>
 </tbody></table></div>
 </section>
@@ -376,7 +376,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」 <span class="chip">実測</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>
 <tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>content.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>ODSStreamingReader</code> <code>forEachRow(inSheet:)</code> <code>rows(inSheet:)</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。 <span class="chip">実測</span></td></tr>
-<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>content.xml（office:automatic-styles が表より前）</code></td><td><code>StreamingWriter(url:)</code> <code>ODSStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: ODF に無い書式・色は全載せの書き手と同じ警告 行は来るたびに XML にして退避し（8 MiB までメモリ・超えたら一時ファイル）、close で様式の後ろに流す。メモリは行数によらず数 MB、ディスクに本文 1 回分。値と書式だけ。付録 B.42。 <span class="chip">実測</span></td></tr>
+<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>content.xml（office:automatic-styles が表より前）</code></td><td><code>StreamingWriter(to:)</code> <code>ODSStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: ODF に無い書式・色は全載せの書き手と同じ警告 行は来るたびに XML にして退避し（8 MiB までメモリ・超えたら一時ファイル）、close で様式の後ろに流す。メモリは行数によらず数 MB、ディスクに本文 1 回分。値と書式だけ。付録 B.42。 <span class="chip">実測</span></td></tr>
 </tbody></table></div>
 </section>
 <section>
@@ -456,7 +456,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>共同編集の履歴</td><td class="m n">×</td><td class="m n">×</td><td><code>TSCK.* （collaboration）</code></td><td>—</td><td><strong>言うこと</strong>: なし（モデルに対応物が無い） 型は名簿に実在するが、読み書きの対象にしていない。 <span class="chip">コード確認</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>
 <tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>Index/Tables/Tile-*.iwa の逐次復号</code></td><td><code>StreamingReader(contentsOf:)</code> <code>NumbersStreamingReader</code> <code>forEachRow(inSheet:table:)</code> <code>tableCount(inSheet:)</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる。1 枚のシートの 2 枚目以降の表は table: で。値と書式だけ。付録 B.40.3。 <span class="chip">実測</span></td></tr>
-<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>Index/Tables/Tile-*.iwa を 256 行ごとに書き出す</code></td><td><code>StreamingWriter(url:)</code> <code>NumbersStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: 数式はキャッシュ値・リッチテキストは平文・リンクと注釈と制御は落とす（枚数つき） タイルは埋まるたびに封筒へ書いて手放す。残るのは文字列一覧・様式一覧・行ごと約 12 バイトの行ヘッダ。表の幅は最も広い行で、書き出し済みのタイルより広い行は refuse。付録 B.42。 <span class="chip">実測</span></td></tr>
+<tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>Index/Tables/Tile-*.iwa を 256 行ごとに書き出す</code></td><td><code>StreamingWriter(to:)</code> <code>NumbersStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: 数式はキャッシュ値・リッチテキストは平文・リンクと注釈と制御は落とす（枚数つき） タイルは埋まるたびに封筒へ書いて手放す。残るのは文字列一覧・様式一覧・行ごと約 12 バイトの行ヘッダ。表の幅は最も広い行で、書き出し済みのタイルより広い行は refuse。付録 B.42。 <span class="chip">実測</span></td></tr>
 </tbody></table></div>
 </section>
 <section>

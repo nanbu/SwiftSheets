@@ -34,7 +34,7 @@ package protocol SpreadsheetCodec: Sendable {
     /// text file — a codec ignores what does not apply to its format.
     static func streamingReader(contentsOf url: URL, limits: ZipLimits, csv: CSVReadOptions) throws -> StreamingReader
     /// The same reader over bytes. `filename` is the extension hint plain text needs (`.tsv`).
-    static func streamingReader(data: Data, limits: ZipLimits, csv: CSVReadOptions, filename: String?) throws -> StreamingReader
+    static func streamingReader(_ data: Data, limits: ZipLimits, csv: CSVReadOptions, filename: String?) throws -> StreamingReader
     /// A writer that appends rows to a new file (spec Appendix B.42), starting with a sheet named `sheetName`.
     /// `epoch` is the date origin where the format has one; `csv` the dialect and encoding of a text file.
     ///

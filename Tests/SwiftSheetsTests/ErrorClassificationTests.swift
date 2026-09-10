@@ -68,7 +68,7 @@ import SwiftSheets
         for codecs in [CodecSet([.xlsx]), CodecSet.all, CodecSet([])] {
             #expect(Self.step { _ = try codecs.read(odf) } == .askForThePassword, "read, set: \(codecs.formats)")
             #expect(Self.step { _ = try codecs.inspect(odf) } == .askForThePassword, "inspect, set: \(codecs.formats)")
-            #expect(Self.step { _ = try codecs.streamingReader(data: odf) } == .askForThePassword, "stream, set: \(codecs.formats)")
+            #expect(Self.step { _ = try codecs.streamingReader(odf) } == .askForThePassword, "stream, set: \(codecs.formats)")
         }
         // over a file as well as over bytes
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("protected-\(UUID().uuidString).ods")

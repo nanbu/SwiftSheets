@@ -27,7 +27,7 @@ import SwiftSheets
     /// Two sheets; the second wears a number format on its third column.
     @discardableResult
     static func write(_ url: URL, format: SheetFormat? = nil) throws -> StreamingWriter {
-        let w = try StreamingWriter(url: url, format: format, sheetName: "First")
+        let w = try StreamingWriter(to: url, as: format, sheetName: "First")
         for r in 0..<rows { try w.append(expected(r, sheet: 1)) }
         try w.addSheet(named: "Second")
         for r in 0..<rows {
@@ -177,7 +177,7 @@ import SwiftSheets
     /// the disk or the format's own rules that raised it).
     @Test func delimitedTextRefusesASecondSheet() throws {
         let url = Self.temporary("one.csv")
-        let w = try StreamingWriter(url: url)
+        let w = try StreamingWriter(to: url)
         #expect(w.format == .csv)
         try w.append([.text("a"), .integer(1)])
         #expect(throws: SheetError.self) { try w.addSheet(named: "Two") }
@@ -189,21 +189,21 @@ import SwiftSheets
     /// The format follows the extension the way `Workbook.write(to:)` decides it, or the argument; a path with
     /// neither is XLSX.
     @Test func theFormatFollowsTheExtensionOrTheArgument() throws {
-        let tsv = try StreamingWriter(url: Self.temporary("t.tsv"))
+        let tsv = try StreamingWriter(to: Self.temporary("t.tsv"))
         #expect(tsv.format == .csv)
         _ = try tsv.close()
-        let bare = try StreamingWriter(url: Self.temporary("bare"))
+        let bare = try StreamingWriter(to: Self.temporary("bare"))
         #expect(bare.format == .xlsx)
         _ = try bare.close()
         let datURL = Self.temporary("t.dat")
-        let dat = try StreamingWriter(url: datURL, format: .ods, sheetName: "X")
+        let dat = try StreamingWriter(to: datURL, as: .ods, sheetName: "X")
         #expect(dat.format == .ods)
         try dat.append([.integer(7)])
         _ = try dat.close()
         let ods = try Workbook.read(contentsOf: datURL)   // the bytes say ODS whatever the extension
         #expect(ods.workbook.sheets[0].name == "X" && ods.workbook.sheets[0]["A1"] == .integer(7))
         let macro = Self.temporary("m.xlsm")
-        let xlsm = try StreamingWriter(url: macro)
+        let xlsm = try StreamingWriter(to: macro)
         #expect(xlsm.format == .xlsm)
         try xlsm.append([.text("macro-enabled, no macros")])
         _ = try xlsm.close()
@@ -223,7 +223,7 @@ import SwiftSheets
             return [a, b, c, d]
         }
         let numbers = Self.temporary("said.numbers")
-        let n = try StreamingWriter(url: numbers, sheetName: "S")
+        let n = try StreamingWriter(to: numbers, sheetName: "S")
         try n.append(row()); try n.append(row())
         _ = try n.close()
         let said = n.warnings.map(\.message).joined(separator: " | ")
@@ -233,7 +233,7 @@ import SwiftSheets
         #expect(wb.sheets[0]["A1"] == .integer(2) && wb.sheets[0]["D1"] == nil && wb.sheets[0]["C2"] == .integer(3))
 
         let xlsx = Self.temporary("said.xlsx")
-        let x = try StreamingWriter(url: xlsx, sheetName: "S")
+        let x = try StreamingWriter(to: xlsx, sheetName: "S")
         try x.append(row())
         _ = try x.close()
         #expect(x.warnings.isEmpty)
@@ -245,7 +245,7 @@ import SwiftSheets
     @Test(arguments: [SheetFormat.xlsx, .ods, .numbers])
     func aSheetWithNoRowsIsStillASheet(_ format: SheetFormat) throws {
         let url = Self.temporary("empty.\(format.rawValue)")
-        let w = try StreamingWriter(url: url, sheetName: "Empty")
+        let w = try StreamingWriter(to: url, sheetName: "Empty")
         try w.addSheet(named: "Also")
         _ = try w.close()
         let wb = try Workbook(contentsOf: url)

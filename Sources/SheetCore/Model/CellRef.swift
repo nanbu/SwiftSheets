@@ -49,8 +49,8 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
 
     public static func < (a: CellRef, b: CellRef) -> Bool { a.row != b.row ? a.row < b.row : a.column < b.column }
 
-    /// The cell `rows` below and `cols` to the right.
-    public func offset(rows: Int = 0, columns: Int = 0) -> CellRef { CellRef(row: row + rows, column: column + columns) }
+    /// The cell `rows` below and `columns` to the right — the same word as `CellRange.shifted`.
+    public func shifted(rows: Int = 0, columns: Int = 0) -> CellRef { CellRef(row: row + rows, column: column + columns) }
 
     // MARK: - Column names (bijective base-26)
 
@@ -249,8 +249,8 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
         CellRange(minRow: Swift.max(1, minRow - up), minColumn: Swift.max(1, minColumn - left), maxRow: maxRow + down, maxColumn: maxColumn + right, sheet: sheet)
     }
     /// Shrunk on each side; nil when nothing would remain.
-    public func shrunk(right: Int = 0, bottom: Int = 0, left: Int = 0, top: Int = 0) -> CellRange? {
-        let c0 = minColumn + left, r0 = minRow + top, c1 = maxColumn - right, r1 = maxRow - bottom
+    public func shrunk(right: Int = 0, down: Int = 0, left: Int = 0, up: Int = 0) -> CellRange? {
+        let c0 = minColumn + left, r0 = minRow + up, c1 = maxColumn - right, r1 = maxRow - down
         guard c1 >= c0, r1 >= r0 else { return nil }
         return CellRange(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1, sheet: sheet)
     }

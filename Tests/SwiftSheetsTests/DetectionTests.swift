@@ -30,7 +30,7 @@ import SwiftSheets
             let ext = url.pathExtension.lowercased()
             guard ["xlsx", "xlsm", "ods", "numbers", "csv", "tsv", "xls", "zip"].contains(ext) else { continue }
             let data = try Data(contentsOf: url)
-            #expect(try SheetFormat.detect(contentsOf: url) == SheetFormat.detect(from: data, filename: url.lastPathComponent), "\(url.lastPathComponent)")
+            #expect(try SheetFormat.detect(contentsOf: url) == SheetFormat.detect(data, filename: url.lastPathComponent), "\(url.lastPathComponent)")
             #expect(try SheetFormat.probe(contentsOf: url) == SheetFormat.probe(data, filename: url.lastPathComponent), "\(url.lastPathComponent)")
             checked += 1
         }

@@ -39,7 +39,7 @@ import SwiftSheets
         let wb = Self.sampleWorkbook()
         let result = try wb.write(as: .numbers)
         #expect(!result.warnings.contains { $0.subject == .formulas })   // SUM(B2:B3) is written as a formula, not a value
-        #expect(SheetFormat.detect(from: result.data) == .numbers)
+        #expect(SheetFormat.detect(result.data) == .numbers)
         let url = Self.outDir.appendingPathComponent("sample.numbers")
         try result.data.write(to: url)
         let reread = try NumbersCodec.read(result.data)

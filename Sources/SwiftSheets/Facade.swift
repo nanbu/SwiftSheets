@@ -7,7 +7,7 @@ import Foundation
 
 extension CodecSet {
     /// Every codec the library ships. The conveniences of this product — `Workbook(contentsOf:)`, `Workbook.inspect`,
-    /// `write(to:as:)`, `Workbook.convert`, `StreamingReader(contentsOf:)`, `StreamingWriter(url:)` — are this set's
+    /// `write(to:as:)`, `Workbook.convert`, `StreamingReader(contentsOf:)`, `StreamingWriter(to:)` — are this set's
     /// methods under their older names (spec §4.3, Appendix B.44). An application that links fewer products makes
     /// its own `CodecSet` and has the same facade.
     public static let all = CodecSet([.xlsx, .xlsm, .csv, .ods, .numbers])

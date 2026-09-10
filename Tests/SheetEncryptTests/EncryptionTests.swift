@@ -65,7 +65,7 @@ import SheetEncrypt
         wb.sheets[1]["C3"] = .formula("=1+2")
         let protected = try wb.write(as: .xlsx, password: "パスワード").data
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedOOXML))
-        #expect(SheetFormat.detect(from: protected) == nil)
+        #expect(SheetFormat.detect(protected) == nil)
         let back = try Workbook(data: protected, password: "パスワード")
         #expect(back.sheets[0]["A1"] == .text("秘密") && back.sheets[0]["B2"] == .number(3.25))
         #expect(back.sheets[1]["C3"]?.formula?.text == "=1+2")
@@ -118,7 +118,7 @@ import SheetEncrypt
         wb.sheets[0]["B2"] = 3.25
         wb.sheets[0].setStyle("A1") { $0.font.bold = true }
         let protected = try wb.write(as: .ods, password: "合言葉").data
-        #expect(SheetFormat.detect(from: protected) == .ods, "the mimetype stays in the clear")
+        #expect(SheetFormat.detect(protected) == .ods, "the mimetype stays in the clear")
         #expect(SheetFormat.probe(protected) == .unopenable(.encryptedODF))
         let zip = try ZipArchive(data: protected)
         #expect(zip.entries["content.xml"]?.method == 0, "encrypted entries are stored")

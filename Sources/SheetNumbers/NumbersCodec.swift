@@ -56,7 +56,7 @@ extension NumbersCodec {
         StreamingReader(source: try NumbersStreamingReader(contentsOf: url, limits: limits), format: .numbers)
     }
 
-    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(_ data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: try NumbersStreamingReader(data: data, limits: limits), format: .numbers)
     }
 

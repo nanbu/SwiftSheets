@@ -50,7 +50,7 @@
     "common_api": {
       "read": "Workbook(contentsOf:) / Workbook.read(contentsOf:) -> ReadResult / wb.readWarnings",
       "write": "wb.write(to:as:) -> WriteResult / wb.write(as:).data / Workbook.convert(_:to:as:)",
-      "detect": "SheetFormat.detect(from:)",
+      "detect": "SheetFormat.detect(_:)",
       "warnings": "ConversionWarning(kind: .dropped/.degraded/.substituted, subject:, sheet:, location:, message:)"
     }
   },
@@ -1215,7 +1215,7 @@
               "read": "na",
               "write": "partial",
               "api": [
-                "StreamingWriter(url:)",
+                "StreamingWriter(to:)",
                 "XLSXStreamingWriter",
                 "append(_:)",
                 "close()",
@@ -2139,7 +2139,7 @@
               "read": "na",
               "write": "partial",
               "api": [
-                "StreamingWriter(url:)",
+                "StreamingWriter(to:)",
                 "ODSStreamingWriter",
                 "append(_:)",
                 "close()",
@@ -3012,7 +3012,7 @@
               "read": "na",
               "write": "partial",
               "api": [
-                "StreamingWriter(url:)",
+                "StreamingWriter(to:)",
                 "NumbersStreamingWriter",
                 "append(_:)",
                 "close()",

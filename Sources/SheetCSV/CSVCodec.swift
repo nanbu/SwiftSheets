@@ -495,7 +495,7 @@ extension CSVCodec {
         StreamingReader(source: try CSVStreamingReader(contentsOf: url, options: csv), format: .csv)
     }
 
-    package static func streamingReader(data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
+    package static func streamingReader(_ data: Data, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws -> StreamingReader {
         StreamingReader(source: CSVStreamingReader(data: data, options: csv, filename: filename), format: .csv)
     }
 

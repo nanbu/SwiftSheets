@@ -1,6 +1,6 @@
 import Foundation
 
-/// The file formats SwiftSheets knows about. Detection is content-based (see `detect(from:)`), never by extension.
+/// The file formats SwiftSheets knows about. Detection is content-based (see `detect(_:filename:)`), never by extension.
 public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
     case xlsx, xlsm, ods, numbers, csv
 
@@ -36,17 +36,20 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
     /// 3. ZIP with `Index/Document.iwa` (or a bundle's `Index.zip`) → `.numbers`
     /// 4. Not a ZIP: readable as text (UTF-8 / UTF-16 with or without BOM) → `.csv`
     /// 5. Otherwise nil.
-    public static func detect(from data: Data) -> SheetFormat? {
+    /// `filename` only breaks ties: a file that is plain text is `.csv` regardless, and one that is nothing
+    /// recognisable takes its extension's format when it names one.
+    public static func detect(_ data: Data, filename: String? = nil) -> SheetFormat? {
         if ZipInspection.looksLikeZip(data) {
             guard let zip = try? ZipInspection(data: data) else { return nil }
             return detect(in: zip)
         }
-        return TextEncodingSniffer.looksLikeText(data) ? .csv : nil
+        if TextEncodingSniffer.looksLikeText(data) { return .csv }
+        return filename.flatMap { SheetFormat(fileExtension: ($0 as NSString).pathExtension) }
     }
 
     /// Steps 1–3 of the same rules, for a container that is already open. Every codec's `canDecode` answers from
     /// here: the order in which a package is recognised is one decision, and it lives in one place.
-    public static func detect(in zip: ZipInspection) -> SheetFormat? {
+    package static func detect(in zip: ZipInspection) -> SheetFormat? {
         if let mime = zip.entry(named: "mimetype"), String(decoding: mime, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) == "application/vnd.oasis.opendocument.spreadsheet" {
             return .ods
         }
@@ -58,11 +61,6 @@ public enum SheetFormat: String, Hashable, Sendable, CaseIterable, Codable {
         return nil
     }
 
-    /// Detection with a filename hint: the content decides, the extension only breaks ties (plain text → `.csv`).
-    public static func detect(from data: Data, filename: String?) -> SheetFormat? {
-        if let f = detect(from: data) { return f }
-        return filename.flatMap { SheetFormat(fileExtension: ($0 as NSString).pathExtension) }
-    }
 
     /// The same rules over a file, reading only what they need: the first bytes, the ZIP directory at the end and
     /// the one or two small entries the rules look at — never the whole file, whatever its size (spec §4.2,

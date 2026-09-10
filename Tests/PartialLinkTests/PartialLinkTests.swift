@@ -53,7 +53,7 @@ import SheetNumbers
         #expect(summary.format == format)
         #expect(summary.sheets.map(\.name) == ["Data"])
 
-        let reader = try Self.codecs.streamingReader(data: data)
+        let reader = try Self.codecs.streamingReader(data)
         #expect(reader.format == format)
         var rows = 0
         try reader.forEachRow(inSheet: "Data") { _ in rows += 1 }
@@ -72,7 +72,7 @@ import SheetNumbers
         // and a row-by-row write, read back by the ordinary reader
         let streamed = Self.temporary("streamed.\(format.fileExtension)")
         defer { try? FileManager.default.removeItem(at: streamed.deletingLastPathComponent()) }
-        let writer = try Self.codecs.streamingWriter(url: streamed, sheetName: "Rows")
+        let writer = try Self.codecs.streamingWriter(to: streamed, sheetName: "Rows")
         try writer.append([.text("a"), .integer(1)])
         try writer.append([.text("b"), .integer(2)])
         _ = try writer.close()
@@ -93,10 +93,10 @@ import SheetNumbers
             Self.refusal { _ = try Self.codecs.read(csv) },
             Self.refusal { _ = try Self.codecs.read(contentsOf: url) },
             Self.refusal { _ = try Self.codecs.inspect(csv) },
-            Self.refusal { _ = try Self.codecs.streamingReader(data: csv) },
+            Self.refusal { _ = try Self.codecs.streamingReader(csv) },
             Self.refusal { _ = try Self.codecs.streamingReader(contentsOf: url) },
             Self.refusal { _ = try Self.codecs.write(Self.sample(), as: .csv) },
-            Self.refusal { _ = try Self.codecs.streamingWriter(url: url) },     // the extension asks for CSV
+            Self.refusal { _ = try Self.codecs.streamingWriter(to: url) },     // the extension asks for CSV
         ]
         for message in refusals {
             let text = try #require(message, "the call must be refused")

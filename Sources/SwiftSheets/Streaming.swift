@@ -17,6 +17,6 @@ extension StreamingReader {
     /// Reads from bytes. `format` overrides detection; `filename` only breaks ties for plain text (`.tsv`).
     public init(data: Data, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
                 csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws {
-        self = try CodecSet.all.streamingReader(data: data, format: format, limits: limits, csv: csv, filename: filename)
+        self = try CodecSet.all.streamingReader(data, format: format, limits: limits, csv: csv, filename: filename)
     }
 }

@@ -75,7 +75,7 @@ import SwiftSheets
         let old = Data("not a spreadsheet at all".utf8)
         try old.write(to: url)
 
-        let writer = try StreamingWriter(url: url, format: format, sheetName: "S")
+        let writer = try StreamingWriter(to: url, as: format, sheetName: "S")
         try Self.rows(writer)
         #expect(try Data(contentsOf: url) == old, "\(format): the destination changed while rows were still arriving")
         // the file being written is beside the destination, on the same file system, so the replace is a rename
@@ -93,7 +93,7 @@ import SwiftSheets
     @Test(arguments: formats) func aNewDestinationAppearsOnlyWhenItIsWhole(format: SheetFormat) throws {
         let dir = Self.directory()
         let url = dir.appendingPathComponent("new.\(format.fileExtension)")
-        let writer = try StreamingWriter(url: url, format: format, sheetName: "S")
+        let writer = try StreamingWriter(to: url, as: format, sheetName: "S")
         try Self.rows(writer)
         #expect(!FileManager.default.fileExists(atPath: url.path), "\(format): the destination existed before close()")
         _ = try writer.close()
@@ -258,16 +258,16 @@ import SwiftSheets
         let dir = Self.directory()
         let folder = dir.appendingPathComponent("book.xlsx")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        #expect(throws: SheetError.self) { _ = try StreamingWriter(url: folder) }
+        #expect(throws: SheetError.self) { _ = try StreamingWriter(to: folder) }
 
         let real = dir.appendingPathComponent("real.xlsx")
         try Data("real".utf8).write(to: real)
         let link = dir.appendingPathComponent("link.xlsx")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
-        #expect(throws: SheetError.self) { _ = try StreamingWriter(url: link) }
+        #expect(throws: SheetError.self) { _ = try StreamingWriter(to: link) }
         #expect(try Data(contentsOf: real) == Data("real".utf8))
 
-        #expect(throws: SheetError.self) { _ = try StreamingWriter(url: dir.appendingPathComponent("nope/book.xlsx")) }
+        #expect(throws: SheetError.self) { _ = try StreamingWriter(to: dir.appendingPathComponent("nope/book.xlsx")) }
         #expect(Self.entries(dir).sorted() == ["book.xlsx", "link.xlsx", "real.xlsx"])
     }
 
@@ -277,7 +277,7 @@ import SwiftSheets
     @Test func closingTwiceSavesOnce() throws {
         let dir = Self.directory()
         let url = dir.appendingPathComponent("book.csv")
-        let writer = try StreamingWriter(url: url, sheetName: "S")
+        let writer = try StreamingWriter(to: url, sheetName: "S")
         try Self.rows(writer)
         let first = try writer.close()
         let planted = Data("someone else wrote this afterwards".utf8)
@@ -292,7 +292,7 @@ import SwiftSheets
     @Test func aFinishedWriterIsOver() throws {
         let dir = Self.directory()
         let url = dir.appendingPathComponent("book.csv")
-        let writer = try StreamingWriter(url: url, sheetName: "S")
+        let writer = try StreamingWriter(to: url, sheetName: "S")
         try Self.rows(writer)
         _ = try writer.close()
         #expect(throws: SheetError.self) { try writer.append([.text("more")]) }
@@ -361,7 +361,7 @@ import SwiftSheets
         let old = Data("the file that was already there".utf8)
         try old.write(to: url)
         do {
-            let writer = try StreamingWriter(url: url, sheetName: "S")
+            let writer = try StreamingWriter(to: url, sheetName: "S")
             try Self.rows(writer)
             #expect(Self.entries(dir).count == 2)
         }
@@ -374,7 +374,7 @@ import SwiftSheets
     @Test func anUnregisteredFormatCreatesNothing() throws {
         let dir = Self.directory()
         let codecs = CodecSet([])
-        #expect(throws: SheetError.self) { _ = try codecs.streamingWriter(url: dir.appendingPathComponent("book.xlsx")) }
+        #expect(throws: SheetError.self) { _ = try codecs.streamingWriter(to: dir.appendingPathComponent("book.xlsx")) }
         #expect(throws: SheetError.self) {
             _ = try codecs.withStreamingWriter(to: dir.appendingPathComponent("book.xlsx")) { _ in }
         }
@@ -385,8 +385,8 @@ import SwiftSheets
     @Test func twoWritersOnOneDestinationDoNotCollide() throws {
         let dir = Self.directory()
         let url = dir.appendingPathComponent("book.csv")
-        let first = try StreamingWriter(url: url, sheetName: "S")
-        let second = try StreamingWriter(url: url, sheetName: "S")
+        let first = try StreamingWriter(to: url, sheetName: "S")
+        let second = try StreamingWriter(to: url, sheetName: "S")
         try first.append([.text("first")])
         try second.append([.text("second")])
         #expect(Self.entries(dir).count == 2, "the two writers reserved the same name")

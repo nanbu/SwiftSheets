@@ -1632,7 +1632,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
   <h3>14.9 ODS / Numbers / CSV 固有 API</h3>
   <div class="compare pbauto"><table>
     <tr><th>API</th><th>形式</th><th>説明</th></tr>
-    <tr><td><code>SheetFormat.detect(from: data)</code></td><td>共通</td><td>内容ベースの形式判別（第4章の判別規則を公開 API 化）</td></tr>
+    <tr><td><code>SheetFormat.detect(data)</code></td><td>共通</td><td>内容ベースの形式判別（第4章の判別規則を公開 API 化）</td></tr>
     <tr><td><code>ODSWriteOptions(strict: true)</code></td><td>ODS</td><td>ODF 1.2 互換の保守的出力（古い実装向け）</td></tr>
     <tr><td><code>sheet.tables[i].name / .anchor</code></td><td>Numbers</td><td>キャンバス上のテーブル名と位置。読み書き可</td></tr>
     <tr><td><code>sheet.addTable(named:anchor:)</code></td><td>Numbers</td><td>テーブル追加。XLSX / ODS へ書き出すと<strong>先頭テーブルだけ</strong>が残り、残りは <code>dropped</code> 警告になる（第3章・付録 B.12）</td></tr>
@@ -1664,7 +1664,7 @@ sheet.setStyle(<span class="st">"B2:B100"</span>) { $0.numberFormat = <span clas
     <tr><td>名前付きの表（<code>ws.tables</code>）</td><td><strong>読み書き対応済み</strong>（<code>Sheet.structuredTables</code>・Rev 2.0・B.15、名前は Rev 4.45・B.56）</td></tr>
     <tr><td>絞り込みの応用（色・アイコン・上位10・動的・日付グループ）</td><td><strong>読み書き対応済み</strong>（<code>FilterColumn</code>・Rev 2.0・B.15）。<code>&lt;extLst&gt;</code> 拡張だけは元の XML のまま</td></tr>
     <tr><td>文書の自由項目（<code>custom_doc_props</code>）</td><td><strong>読み書き対応済み</strong>（<code>Workbook.customProperties</code>・Rev 2.0・B.15）。ODF の <code>meta:user-defined</code> とも往復する</td></tr>
-    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きも Rev 4.25（B.42）で同じ 4 形式が 1 つの入口（<code>StreamingWriter(url:)</code>、拡張子で形式を決める）</td></tr>
+    <tr><td><code>read_only</code> / <code>write_only</code>（ストリーミング）</td><td><strong>対応済み</strong>（<code>StreamingReader</code> / <code>StreamingWriter</code>・Rev 2.0・B.15）。値と書式だけを扱い、保全はしない。読みは Rev 4.22（B.40）で XLSX / XLSM・ODS・Numbers・CSV の 4 形式が同じ 1 つの入口になった。書きも Rev 4.25（B.42）で同じ 4 形式が 1 つの入口（<code>StreamingWriter(to:)</code>、拡張子で形式を決める）</td></tr>
     <tr><td>シート保護・シナリオ</td><td><strong>読み書き対応済み</strong>（<code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code>・Rev 2.0・B.15）。合鍵は旧来の 16 ビット式のみ生成する</td></tr>
     <tr><td>ブック暗号化</td><td><strong><code>SheetDecrypt</code> / <code>SheetEncrypt</code> を繋いだときだけ対応</strong>（Rev 4.29・B.39.9）。Excel の agile 形式と ODF 1.2〜1.3 の包。中核だけでは名指しで断る（§1.3）</td></tr>
     <tr><td>ピボットテーブル</td><td><strong>配置の読み書き対応済み</strong>（<code>Sheet.pivotTables</code>・Rev 2.0・B.15）。<strong>集計はしない</strong> — 「開いたときに再計算」を立てて書くので、数字は開いた側が入れる</td></tr>
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.53 Draft</td><td>2026-09-11</td><td>同じ動作は同じ語・同じラベルに。<code>CellRef.offset(rows:columns:)</code> → <code>shifted(rows:columns:)</code>（<code>CellRange.shifted</code> と同じ語）、<code>CellRange.shrunk(right:bottom:left:top:)</code> → <code>shrunk(right:down:left:up:)</code>（<code>expanded</code> と同じラベル）、<code>streamingWriter(url:format:)</code> と <code>StreamingWriter(url:format:)</code> → <code>(to:as:)</code>（<code>write(to:as:)</code>・<code>withStreamingWriter(to:as:)</code> と同じ）、<code>streamingReader(data:)</code> → <code>streamingReader(_:)</code>（<code>read(_:)</code> と同じ）、<code>SheetFormat.detect</code> の 4 宣言を <code>detect(_:filename:)</code>・<code>detect(contentsOf:)</code> の 2 つに（<code>probe</code> と同じ形。<code>detect(in:)</code> は package へ）（B.63）。</td></tr>
     <tr><td>4.52 Draft</td><td>2026-09-11</td><td>A1 文字列の双子のラベルを揃える。型つきの <code>cell(at:)</code>・<code>removeCell(at:)</code>・<code>style(at:)</code>・<code>setStyle(at:_:)</code> の <code>at:</code> を外し、文字列の相棒（<code>cell("B2")</code>）と同じくラベル無しにする（<code>Sheet</code>・<code>Table</code> の 8 宣言・B.62）。</td></tr>
     <tr><td>4.51 Draft</td><td>2026-09-11</td><td>B.60 の実装漏れを修正。<code>SheetView.sqref</code> → <code>selectedRanges</code> は移行表と改訂履歴にあったがコードは旧名のままだった（検査も旧名を期待していて緑）。CHANGELOG の「旧 → 新」をコードと突き合わせる契約検査を足した。</td></tr>
     <tr><td>4.50 Draft</td><td>2026-09-10</td><td><strong>セル座標の整数を 1 始まりに</strong>。<code>CellRef(row: 1, column: 1)</code> が A1。座標（<code>CellRef</code>・<code>CellRange</code>・添字・行列の寸法・挿入削除・グループ・印刷タイトル・逐次読みの行番号・列名の関数）は画面の番号、Swift のコレクションの位置（シート・ピボットの欄・配列）は 0 始まりのまま。<code>rowNumber</code> は不要になり消える。<code>FilterColumn.column</code> は <code>columnOffset</code>、<code>RangeView</code> の相対添字は <code>[rowOffset:columnOffset:]</code>（B.61）。</td></tr>
@@ -6380,6 +6381,34 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   変わるのは <code>at:</code> を書いていた呼び出しだけで、コンパイルが全部教える。Stream は <code>cell(at:)</code> が 6 か所、LeftRight は 0。</p>
   <p><strong>変えないもの。</strong><code>addImage(_:at:)</code>（第 1 引数が画像なので位置のラベルが要る）、<code>subscript(cell:)</code>、
   <code>conditionalFormattingRules(at:)</code>（文字列の相棒が無い単独の宣言）、<code>RangeView.Row.cell(_:)</code>（もともとラベル無し）。</p>
+
+  <h3>B.63 同じ動作は同じ語、同じ役割は同じラベル（Rev 4.53）</h3>
+  <p>2026-09-11 決定。1.0 前の一貫性の見直し（群 2）。名前とラベルだけを変え、動き・既定値・戻り値は変えない。互換の別名は残さない（B.53）。</p>
+  <p><strong>なぜ。</strong>①<code>CellRange</code> をずらす操作は <code>shifted(rows:columns:)</code>、<code>CellRef</code> をずらす操作は <code>offset(rows:columns:)</code> と、
+  同じ操作が型ごとに別の動詞だった。②<code>expanded(right:down:left:up:)</code> の逆は <code>shrunk(right:bottom:left:top:)</code> で、同じ 4 辺を別の語で呼んでいた。
+  ③出力先 URL は <code>to:</code>・形式は <code>as:</code> という規則（B.49 の <code>write(to:as:)</code>・<code>convert(_:to:as:)</code>・B.51 の
+  <code>withStreamingWriter(to:as:)</code>）から、<code>streamingWriter(url:format:)</code> と傘の <code>StreamingWriter(url:format:)</code> だけが外れていた。
+  ④bytes を受ける読みは <code>read(_ data)</code> でラベル無しなのに、逐次読みだけ <code>streamingReader(data:)</code> だった。
+  ⑤「この file は何か」を聞く方法が <code>detect</code> 4 つ（<code>from:</code>・<code>from:filename:</code>・<code>in:</code>・<code>contentsOf:</code>）と
+  <code>probe</code> 2 つ（<code>_:filename:</code>・<code>contentsOf:</code>）の 6 通りあり、同じ入力に別のラベルが付いていた。</p>
+  <p><strong>移行表。</strong></p>
+  <table>
+    <thead><tr><th>Rev 4.52 まで</th><th>Rev 4.53 から</th></tr></thead>
+    <tbody>
+      <tr><td><code>ref.offset(rows: 1, columns: 2)</code></td><td><code>ref.shifted(rows: 1, columns: 2)</code></td></tr>
+      <tr><td><code>range.shrunk(right: 1, bottom: 1, left: 0, top: 0)</code></td><td><code>range.shrunk(right: 1, down: 1, left: 0, up: 0)</code></td></tr>
+      <tr><td><code>codecs.streamingWriter(url: u, format: .xlsx, sheetName:)</code></td><td><code>codecs.streamingWriter(to: u, as: .xlsx, sheetName:)</code></td></tr>
+      <tr><td><code>StreamingWriter(url: u, format: .xlsx)</code></td><td><code>StreamingWriter(to: u, as: .xlsx)</code></td></tr>
+      <tr><td><code>codecs.streamingReader(data: d, format:)</code></td><td><code>codecs.streamingReader(d, format:)</code></td></tr>
+      <tr><td><code>SheetFormat.detect(from: d)</code>・<code>detect(from: d, filename: n)</code></td><td><code>SheetFormat.detect(d)</code>・<code>detect(d, filename: n)</code></td></tr>
+      <tr><td><code>SheetFormat.detect(in: zip)</code>（public）</td><td>package——コーデックの <code>canDecode</code> だけが使う</td></tr>
+    </tbody>
+  </table>
+  <p><strong>変えないもの。</strong><code>StreamingReader(data:format:)</code>・<code>Workbook(data:format:)</code> のイニシャライザは名詞のラベルのまま（イニシャライザは
+  引数の役割を名で言う）。<code>detect(contentsOf:)</code>・<code>probe(contentsOf:)</code>・<code>probe(_:filename:)</code> はそのまま。<code>CellRange.shifted</code> /
+  <code>shift</code>・<code>expanded</code> もそのまま。<code>format:</code> が形式の「上書き」を意味する読みの側（<code>read(_:format:)</code>・<code>streamingReader(_:format:)</code>）は
+  <code>format:</code> のまま——<code>as:</code> は書く形式を指す語で、読みの推定を上書きする語ではない。</p>
+  <p><strong>利用側。</strong>LeftRight: <code>StreamingWriter(url:)</code> 2・<code>streamingReader(data:)</code> 1・<code>detect(from:)</code> 4 か所。Stream: 0。どれも一括置換。</p>
 </section>
 
 </div><!-- /.container -->

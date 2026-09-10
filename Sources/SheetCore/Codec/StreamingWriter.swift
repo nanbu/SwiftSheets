@@ -54,8 +54,8 @@ public struct StreamingCleanupError: Error, CustomStringConvertible {
 ///     print(result.warnings)   // the closure returned, so the file is saved
 ///
 /// `withStreamingWriter` is the usual way in: it closes the writer when the closure returns, and cancels it when
-/// the closure throws. Rows that come from several functions can still open one by hand — `StreamingWriter(url:)`
-/// in the `SwiftSheets` product, `codecs.streamingWriter(url:)` on any set — and then `close()` must be called,
+/// the closure throws. Rows that come from several functions can still open one by hand — `StreamingWriter(to:)`
+/// in the `SwiftSheets` product, `codecs.streamingWriter(to:)` on any set — and then `close()` must be called,
 /// or nothing is saved.
 ///
 /// **What it costs.** One row, the styles the rows have worn so far, and what the format has to hold until the end:
