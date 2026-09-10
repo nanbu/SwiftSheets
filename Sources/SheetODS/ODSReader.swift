@@ -1102,7 +1102,7 @@ extension ODSReader {
         let pattern = /'((?:[^']|'')+)'#\$?('(?:[^']|'')+'|[^.\]\s:']+)\./
         for sheet in wb.sheets {
             for table in sheet.tables {
-                for cell in table.cells.values {
+                for (_, cell) in table.cells.sorted(by: { $0.key < $1.key }) {   // document order, so the numbering is stable
                     guard case .formula(let expr, _)? = cell.value else { continue }
                     let text = expr.text
                     guard text.contains("'#") else { continue }

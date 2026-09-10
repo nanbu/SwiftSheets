@@ -54,8 +54,8 @@ formats:
       public: true
       note: "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
     totals:
-      read: {full: 52, partial: 10, preserved: 12, none: 1, na: 3, unverified: 0}
-      write: {full: 52, partial: 9, preserved: 13, none: 1, na: 3, unverified: 0}
+      read: {full: 53, partial: 10, preserved: 11, none: 1, na: 3, unverified: 0}
+      write: {full: 53, partial: 9, preserved: 12, none: 1, na: 3, unverified: 0}
       rows: 78
     areas:
       - id: "package"
@@ -799,13 +799,16 @@ formats:
             note: "コメント部と、その相棒の VML の両方を書く。"
           - id: "xlsx.draw.threaded"
             name: "スレッド形式のコメント"
-            spec_anchor: "xl/threadedComments/, xl/persons/"
-            read: "preserved"
-            write: "preserved"
-            api: []
-            warning: "他形式へ変換すると dropped"
-            evidence: "code"
-            note: "モデル化していない。"
+            spec_anchor: "xl/threadedComments/threadedCommentN.xml, xl/persons/person.xml, comments の鏡"
+            read: "full"
+            write: "full"
+            api:
+              - "cell.thread"
+              - "CommentThread"
+              - "sheet.threads"
+            warning: "他形式へは「N threaded comment(s) written as notes …」（substituted）"
+            evidence: "measured"
+            note: "本文・返信・解決済み・日時・人の名を読み書きする（B.80）。古い読み手向けの鏡のメモは隠し、書き戻しで作り直す。触らなければ 4 部品はバイトのまま、変えれば作り直して人の id は保つ。Excel 製の検体は無く、公開の部品構成から手作りした検体で検査している（手動一覧）。"
           - id: "xlsx.draw.shapes"
             name: "図形・テキストボックス・SmartArt・背景画像"
             spec_anchor: "<xdr:sp>, <xdr:cxnSp>, <xdr:grpSp>, dgm:*, <picture>"

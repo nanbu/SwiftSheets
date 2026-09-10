@@ -5,6 +5,8 @@ import Foundation
 /// and content types. Converting to another format cannot carry these; the writer lists them as `dropped` warnings.
 package struct PreservationStore: Sendable, Hashable {
     package var sourceFormat: SheetFormat?
+    /// `xl/persons/person.xml` as read: person id → display name (B.80), so a same-family write can keep the ids.
+    package var persons: [String: String] = [:]
     /// Uninterpreted parts by package path ("xl/charts/chart1.xml", "xl/vbaProject.bin"), bytes untouched.
     ///
     /// Reading this expands every part a reader kept compressed (spec Appendix B.39.7); it is the view for a
@@ -73,6 +75,13 @@ package struct PreservationStore: Sendable, Hashable {
         for sheet in sheets {
             if let d = sheet.preserved.drawingPath { modelled.insert(d) }
             modelled.formUnion(sheet.preserved.drawingParts)
+            // the notes' comments part and legacy VML are the model's (B.56, B.80)
+            if !sheet.preserved.comments.isEmpty || !sheet.preserved.threads.isEmpty, let part = sheet.preserved.partPath {
+                let dir = (part as NSString).deletingLastPathComponent
+                for r in sheet.preserved.relationships where r.type.hasSuffix("/vmlDrawing") || r.type.hasSuffix("/comments") || r.type.hasSuffix("/threadedComment") {
+                    modelled.insert(Self.resolved(r.target, relativeTo: dir))
+                }
+            }
             for object in sheet.preserved.drawingUnmodelled {
                 switch object {
                 case "SmartArt": break                                   // counted by its data part below
@@ -87,6 +96,16 @@ package struct PreservationStore: Sendable, Hashable {
             counts[kind, default: 0] += 1
         }
         return counts
+    }
+
+    /// "xl/worksheets" + "../drawings/vmlDrawing1.vml" → "xl/drawings/vmlDrawing1.vml".
+    static func resolved(_ target: String, relativeTo base: String) -> String {
+        if target.hasPrefix("/") { return String(target.dropFirst()) }
+        var parts = base.split(separator: "/").map(String.init)
+        for segment in target.split(separator: "/") {
+            if segment == ".." { if !parts.isEmpty { parts.removeLast() } } else if segment != "." { parts.append(String(segment)) }
+        }
+        return parts.joined(separator: "/")
     }
 
     /// The kind a preserved part counts under; nil for one that belongs to a counted part or to the application.
@@ -104,8 +123,7 @@ package struct PreservationStore: Sendable, Hashable {
             case _ where path.hasPrefix("xl/theme/"): return themeRead ? nil : .theme
             case _ where path.hasPrefix("xl/slicers/") || path.hasPrefix("xl/slicerCaches/"): return .slicer
             case "xl/connections.xml", _ where path.hasPrefix("xl/queryTables/") || path.hasPrefix("xl/model/"): return .dataConnection
-            case _ where path.hasPrefix("xl/threadedComments/"): return .threadedComments
-            case _ where path.hasPrefix("xl/persons/"): return nil
+            case _ where path.hasPrefix("xl/threadedComments/") || path.hasPrefix("xl/persons/"): return nil   // the threads are the model's (B.80)
             case _ where path.hasPrefix("xl/comments"): return nil                          // the notes are the model's
             case _ where path.hasPrefix("xl/embeddings/"): return .embeddedObject
             case _ where path.hasPrefix("xl/activeX/"): return name.hasSuffix(".xml") ? .embeddedObject : nil   // the .bin belongs to its .xml
@@ -244,6 +262,8 @@ package struct SheetPreservation: Sendable, Hashable {
     /// The cell notes as the file had them. The writer compares the sheet's notes against this: unchanged, the
     /// source `comments` and VML parts are re-packed byte for byte; changed, both are regenerated.
     package var comments: [CellRef: CellNote] = [:]
+    /// The threaded comments as the file had them (B.80), under the same rule as `comments`.
+    package var threads: [CellRef: CommentThread] = [:]
     /// The pictures, charts and shapes as the file's drawing had them (B.72, B.75). While `Sheet.images` / `Sheet.charts` / `Sheet.shapes` still
     /// begin with these, the drawing and its parts are re-packed byte for byte (additions are spliced in); once one
     /// of them is changed or removed, the drawing is regenerated from the model.

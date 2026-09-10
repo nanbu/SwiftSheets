@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.71 Draft</td><td>2026-09-11</td><td>スレッド形式のコメント。<code>CommentThread</code>（本文・返信・解決済み・日時）を <code>cell.thread</code> に持ち、XLSX の threadedComments / persons 部品を読み書きし（写しの規則・人の id は保つ・古い読み手向けの鏡のメモは隠す）、ODS・Numbers はメモに置き換えて言う（B.80）。</td></tr>
     <tr><td>4.70 Draft</td><td>2026-09-11</td><td>スパークライン。<code>SparklineGroup</code>（種類・色・点の表示・空セルの扱い・複数のスパークライン）を <code>sheet.sparklines</code> に持ち、XLSX の <code>x14:sparklineGroups</code>（写しの規則で保全）と ODS の <code>calcext:sparkline-groups</code>（LibreOffice）を読み書きする。Numbers は落として言う（B.79）。</td></tr>
     <tr><td>4.69 Draft</td><td>2026-09-11</td><td>外部ブックの参照先。<code>wb.externalLinks: [ExternalLink]</code>（番号・参照先・シート名）を XLSX の externalLinks/ 部品から読み、ODS は数式が名指しする文書から導く。値は解決しない（B.78）。</td></tr>
     <tr><td>4.68 Draft</td><td>2026-09-11</td><td>解釈しない部品の目録。<code>preservationSummary.parts: [PreservedPartKind: Int]</code> が、模型に入らなかった物を種類別に数える。読んだ物（図面・グラフ・テーマ・メモ）は数えない（B.77）。</td></tr>
@@ -6829,12 +6830,12 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <h3>B.77 解釈しない部品の目録（Rev 4.68）</h3>
   <p>2026-09-11 決定。<code>preservationSummary</code> は元の形式・部品の数・VBA の有無しか答えず、「何が入っていて、変換で何が落ちるか」は書いてみて警告を
   読むしかなかった。<code>parts: [PreservedPartKind: Int]</code> を足す。<code>PreservedPartKind</code> は B.69 の型と同じ構造体（chart / chartSheet / drawing /
-  shapeGroup / drawingObject / image / smartArt / vbaProject / script / theme / slicer / dataConnection / customXML / threadedComments / embeddedObject /
+  shapeGroup / drawingObject / image / smartArt / vbaProject / script / theme / slicer / dataConnection / customXML / embeddedObject /
   externalLink / pivot / table / printerSettings / other）。<code>init</code> の 4 つ目の引数は既定 <code>[:]</code> で、既存の呼び方は変わらない。</p>
   <p><strong>数え方（<code>PreservationStore.inventory</code>）。</strong>模型が読んだ物は数えない: シートの図面部品とそれが参照した部品（<code>drawingPath</code> /
   <code>drawingParts</code>——絵・グラフ・図形は模型の物で、バイトは B.72 の写しとして運ぶだけ）、読めたテーマ、メモの comments 部品と VML。
   数えた物に付属する部品も数えない: <code>_rels</code>、グラフの style / colors、SmartArt の layout / quickStyle / colors（data 部品 1 つが SmartArt 1 つ）、
-  <code>persons</code>、<code>ctrlProps</code>、ActiveX の .bin、pivotCache の records、ODS の <code>ObjectReplacements/</code>・<code>Configurations2/</code>・
+  threadedComments と <code>persons</code>（B.80 で模型の物）、<code>ctrlProps</code>、ActiveX の .bin、pivotCache の records、ODS の <code>ObjectReplacements/</code>・<code>Configurations2/</code>・
   Basic の目録。図面の中で模型に入らなかった物（B.75 の <code>drawingUnmodelled</code>）は shapeGroup / drawingObject として、非グリッドのシート
   （<code>foreignSheet</code>）は chartSheet として数える。ODS は <code>Pictures/</code> を image、<code>Object N/content.xml</code> を embeddedObject
   （グラフとして読めた物は保全から外れているので現れない）、<code>Basic/</code> の script を script に。残りは other。</p>
@@ -6881,6 +6882,32 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong><code>SparklineTests</code> 5 件: LibreOffice が書いた 2 群の XLSX と ODS（検体 <code>libreoffice-sparklines.*</code>）を読む・
   触らなければ extLst がバイトのまま・変えれば作り直す（他の物は残す）・2 形式の往復と Numbers の警告・LibreOffice が両方の書き手のスパークラインを
   読む（gated）。</p>
+</section>
+
+<section>
+  <h3>B.80 スレッド形式のコメント（Rev 4.71）</h3>
+  <p>2026-09-11 決定。Excel 2019 以降のコメントは会話（開始の 1 件と返信、解決済みの旗）で、<code>xl/threadedComments/threadedCommentN.xml</code>
+  （シートごと・<code>ref</code> / <code>dT</code> / <code>personId</code> / <code>id</code> / <code>parentId</code> / <code>done</code>）と
+  <code>xl/persons/person.xml</code>（ブックに 1 つ・id → 表示名）に入り、古い読み手のために <code>[Threaded comment]</code> で始まるメモが comments 部品に
+  鏡として置かれる（作者は <code>tc={id}</code>）。今まではこの鏡が <code>cell.note</code> に読まれ、部品は目録の 1 種だった。</p>
+  <p><strong>模型。</strong><code>CommentThread { author, text, created: CivilDateTime?, resolved, replies: [Reply(author, text, created)] }</code>、
+  <code>Cell.thread</code>（<code>note</code> の隣・<code>CellExtras</code> に）、<code>Sheet.threads</code>。<code>noteText</code> は「本文、空行、作者: 返信」の
+  形で、スレッドを持てない形式のメモの文になる。</p>
+  <p><strong>XLSX の読み。</strong>ブックの関係 <code>…/2017/10/relationships/person</code> の部品を <code>PersonParser</code> で id → 名に読み
+  （<code>preserved.persons</code>・<code>SheetReadContext.persons</code>）、シートの関係 <code>…/threadedComment</code> の部品を
+  <code>ThreadedCommentParser</code> で読み、parentId の無い物を開始、ある物を返信として文書順に束ねる（<code>ThreadedCommentParts.parse</code>）。
+  スレッドの付いたセルの、<code>[Threaded comment]</code> で始まるメモは隠す（鏡であって利用者のメモではない）。部品は 4 つとも保全のまま
+  （メモと同じ規則）。写し: <code>preserved.threads</code>。目録（B.77）からは threadedComments の種類を外した——模型の物になったので。</p>
+  <p><strong>XLSX の書き。</strong>メモの規則を広げる: シートのメモ（鏡を除いた as-read と比べる）とスレッドが両方とも写しと同じなら、comments / VML /
+  threadedComments の部品をバイトのまま。どれかが違えば 3 部品を退けて作り直す: threadedComments 部品（id は新しい GUID・Excel も保存のたびに振り直す）、
+  comments 部品にはシートのメモ＋スレッドごとの鏡（自分のメモを持つセルは自分のメモが勝つ）、VML はその全部。persons 部品はブックの物なので、
+  どこかのシートが作り直されたときにブック全体で作り直す——元の部品が名指した人は元の id のまま（<code>preserved.persons</code> を名で引く）、新しい人は
+  名から決まる id（FNV-1a）。関係と Content_Types（<code>application/vnd.ms-excel.threadedcomments+xml</code> / <code>…person+xml</code>）を足す。</p>
+  <p><strong>ODS・Numbers。</strong>スレッドは <code>noteText</code> のメモ（作者は開始者）として書き、substituted で件数を言う。自分のメモとスレッドの両方を持つ
+  セルはメモが勝ち、スレッドは dropped で言う。LibreOffice は Excel の鏡のメモをそのまま読む（実測: 手作りの検体を ODS に変換すると 3 つの annotation）。</p>
+  <p><strong>検査。</strong><code>ThreadedCommentTests</code> 6 件: 手作りの Excel 形の検体（<code>threaded-comments.xlsx</code>: 2 スレッド・返信 1・
+  解決済み 1・素のメモ 1）を読み鏡を隠す・触らなければ 4 部品がバイトのまま・変えれば作り直して人の id を保つ・新規ブックが 3 部品と型を書く・
+  ODS と Numbers の置き換えと両方持つセルの警告・書いた鏡を LibreOffice が読む（gated）。Excel 製の検体は手動一覧に足す（MAINTENANCE）。</p>
 </section>
 
 </div><!-- /.container -->

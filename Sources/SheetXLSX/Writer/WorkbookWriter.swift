@@ -134,19 +134,37 @@ enum WorkbookWriter {
         // cell notes: a sheet whose notes are exactly the ones it was read with keeps its source parts (byte for
         // byte, spec §6); any other sheet with notes gets a freshly generated comments part and legacy VML.
         var commentPlans: [Int: CommentPlan] = [:]
+        // threaded comments (B.80): the persons part is the workbook's; it is regenerated when any sheet's threads
+        // are, keeping the ids the source gave the people it already named
+        var personsByName: [String: String] = [:]
+        for (id, name) in preserved.persons where sameFamily { personsByName[name] = id }
+        let sourcePersons: String? = sameFamily ? (preserved.relationships["xl/workbook.xml"] ?? []).first { $0.type == ThreadedCommentParts.personRelationshipType }
+            .map { WorkbookReader.resolvePart($0.target, relativeTo: "xl") } : nil
+        var regeneratesPersons = false
+        func personID(_ name: String) -> String {
+            if let id = personsByName[name] { return id }
+            let id = ThreadedCommentParts.personID(name)
+            personsByName[name] = id
+            return id
+        }
         for (i, sheet) in wb.sheets.enumerated() {
             let notes = sheet.notes
+            let threads = sheet.threads
             let sheetDir = (plans[i].path as NSString).deletingLastPathComponent
             let sheetRels = sameFamily ? sheet.preserved.relationships : []
             func sourcePath(_ type: String) -> String? {
                 sheetRels.first { $0.type.hasSuffix(type) }.map { WorkbookReader.resolvePart($0.target, relativeTo: sheetDir) }
             }
             let sourceComments = sourcePath(CommentParts.relationshipType), sourceVML = sourcePath(CommentParts.vmlRelationshipType)
-            let asRead = sameFamily ? sheet.preserved.comments : [:]
-            if sourceComments != nil, Dictionary(notes.map { ($0.ref, $0.note) }, uniquingKeysWith: { a, _ in a }) == asRead { continue }
+            let sourceThreads = sourcePath(ThreadedCommentParts.relationshipType)
+            // the as-read notes without the threads' mirrors, which the model hides
+            let asRead = sameFamily ? sheet.preserved.comments.filter { !$0.value.text.hasPrefix(CommentThread.mirrorPrefix) || sheet.preserved.threads[$0.key] == nil } : [:]
+            let asReadThreads = sameFamily ? sheet.preserved.threads : [:]
+            if sourceComments != nil, Dictionary(notes.map { ($0.ref, $0.note) }, uniquingKeysWith: { a, _ in a }) == asRead,
+               Dictionary(threads.map { ($0.ref, $0.thread) }, uniquingKeysWith: { a, _ in a }) == asReadThreads { continue }
 
             // the source parts stop being authoritative the moment the model disagrees with them
-            for path in [sourceComments, sourceVML].compactMap({ $0 }) {
+            for path in [sourceComments, sourceVML, sourceThreads].compactMap({ $0 }) {
                 if let vml = sourceVML, path == vml, let bytes = opaque[vml]?.data, CommentParts.holdsNonNoteShapes(bytes) {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name,
                              "legacy drawing shapes other than cell notes (form controls, buttons) were dropped: the part had to be regenerated for the notes")
@@ -154,7 +172,7 @@ enum WorkbookWriter {
                 opaque[path] = nil
                 usedPaths.remove(path)
             }
-            guard !notes.isEmpty else { continue }
+            guard !notes.isEmpty || !threads.isEmpty else { continue }
             func path(_ existing: String?, _ pattern: (Int) -> String) -> String {
                 if let existing { usedPaths.insert(existing); return existing }
                 var n = 1
@@ -162,9 +180,25 @@ enum WorkbookWriter {
                 usedPaths.insert(pattern(n))
                 return pattern(n)
             }
-            commentPlans[i] = CommentPlan(commentsPath: path(sourceComments) { "xl/comments/comment\($0).xml" },
-                                          vmlPath: path(sourceVML) { "xl/drawings/commentsDrawing\($0).vml" },
-                                          notes: notes)
+            var plan = CommentPlan(commentsPath: path(sourceComments) { "xl/comments/comment\($0).xml" },
+                                   vmlPath: path(sourceVML) { "xl/drawings/commentsDrawing\($0).vml" },
+                                   notes: notes)
+            if !threads.isEmpty {
+                let generated = ThreadedCommentParts.threadedCommentsXML(threads, personID: personID)
+                // a cell with both keeps its own note; the mirror is for cells whose thread is all they have
+                let own = Set(notes.map(\.ref))
+                plan = CommentPlan(commentsPath: plan.commentsPath, vmlPath: plan.vmlPath,
+                                   notes: (notes + generated.mirrors.filter { !own.contains($0.ref) }).sorted { $0.ref < $1.ref },
+                                   threadsPath: path(sourceThreads) { "xl/threadedComments/threadedComment\($0).xml" }, threadsXML: generated.xml)
+                regeneratesPersons = true
+            }
+            commentPlans[i] = plan
+        }
+        var personsPart: (path: String, xml: String)?
+        if regeneratesPersons {
+            if let sourcePersons { opaque[sourcePersons] = nil; usedPaths.remove(sourcePersons) }
+            personsPart = (ThreadedCommentParts.personsPath, ThreadedCommentParts.personsXML(personsByName.sorted { $0.key < $1.key }.map { (id: $0.value, name: $0.key) }))
+            usedPaths.insert(ThreadedCommentParts.personsPath)
         }
 
         // pictures (spec Appendix B.32): media goes into the package once per image; a sheet that already has a
@@ -474,8 +508,10 @@ enum WorkbookWriter {
             else if part.path.hasPrefix("xl/tables/") { overrides[part.path] = ctTable }
             else if part.path.hasPrefix("xl/pivotTables/") { overrides[part.path] = PivotParts.ctTable }
             else if part.path.hasPrefix("xl/drawings/") { overrides[part.path] = DrawingParts.contentType }
+            else if part.path.hasPrefix("xl/threadedComments/") { overrides[part.path] = ThreadedCommentParts.contentType }
             else { overrides[part.path] = CommentParts.contentType }
         }
+        if let personsPart { overrides[personsPart.path] = ThreadedCommentParts.personContentType }
         for ext in imageExtensions.sorted() where defaults[ext] == nil {
             defaults[ext] = SheetImage.Format(rawValue: ext).contentType
         }
@@ -576,6 +612,10 @@ enum WorkbookWriter {
             rels += "<Relationship Id=\"\(plan.relationshipId)\" Type=\"\(XMLWriter.nsRel)\(PivotParts.relCacheDefinition)\" Target=\"\(XML.esc(relativeTarget(plan.definitionPath, from: "xl")))\"/>"
         }
         for r in wbRels where r.targetMode == "External" || opaque[WorkbookReader.resolvePart(r.target, relativeTo: "xl")] != nil { rels += relationshipXML(r) }
+        if let personsPart {
+            rels += "<Relationship Id=\"\(freshId())\" Type=\"\(ThreadedCommentParts.personRelationshipType)\" Target=\"\(XML.esc(relativeTarget(personsPart.path, from: "xl")))\"/>"
+            archive.add(personsPart.path, Data((XMLWriter.header + personsPart.xml).utf8))
+        }
         // (a preserved theme keeps its own relationship above; a generated one was added with `themeId`)
         rels += "</Relationships>"
         archive.add("xl/_rels/workbook.xml.rels", Data(rels.utf8))
@@ -891,7 +931,11 @@ enum WorkbookWriter {
     struct CommentPlan {
         let commentsPath: String
         let vmlPath: String
+        /// The notes for the comments part: the sheet's own and, for each thread, the mirror older readers see.
         let notes: [(ref: CellRef, note: CellNote)]
+        /// The threaded-comments part (B.80), when the sheet has threads.
+        var threadsPath: String?
+        var threadsXML: String?
     }
 
     /// A freshly generated drawing part for a sheet that had none. A sheet whose source already carries a
@@ -1236,6 +1280,11 @@ enum WorkbookWriter {
             generated.append(("legacyDrawing", "<legacyDrawing r:id=\"\(vmlID)\"/>"))
             extraParts.append((plan.commentsPath, Data((XMLWriter.header + CommentParts.commentsXML(plan.notes)).utf8)))
             extraParts.append((plan.vmlPath, Data(CommentParts.vmlXML(plan.notes).utf8)))
+            if let threadsPath = plan.threadsPath, let xml = plan.threadsXML {
+                let id = freshRelID()
+                relXML += "<Relationship Id=\"\(id)\" Type=\"\(ThreadedCommentParts.relationshipType)\" Target=\"\(XML.esc(relativeTarget(threadsPath, from: dir)))\"/>"
+                extraParts.append((threadsPath, Data((XMLWriter.header + xml).utf8)))
+            }
         }
         if let plan = images?.newDrawing {
             let dir = (ws.preserved.partPath.map { ($0 as NSString).deletingLastPathComponent } ?? "xl/worksheets")

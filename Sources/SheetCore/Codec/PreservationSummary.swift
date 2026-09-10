@@ -53,7 +53,6 @@ public struct PreservedPartKind: Hashable, Sendable, RawRepresentable, CustomStr
     /// A data connection, query table or data model.
     public static let dataConnection = PreservedPartKind(rawValue: "dataConnection")
     public static let customXML = PreservedPartKind(rawValue: "customXML")
-    public static let threadedComments = PreservedPartKind(rawValue: "threadedComments")
     /// An OLE / ActiveX embedding, or an ODS embedded object that is not a chart.
     public static let embeddedObject = PreservedPartKind(rawValue: "embeddedObject")
     /// A link to another workbook (`wb.externalLinks` lists them).

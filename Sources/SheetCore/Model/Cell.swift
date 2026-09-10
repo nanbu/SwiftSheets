@@ -15,8 +15,9 @@ package final class CellExtras: Sendable {
     package let note: CellNote?
     package let control: CellControl?
     package let phonetic: PhoneticText?
-    package init(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil, phonetic: PhoneticText? = nil) {
-        self.hyperlink = hyperlink; self.note = note; self.control = control; self.phonetic = phonetic
+    package let thread: CommentThread?
+    package init(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil, phonetic: PhoneticText? = nil, thread: CommentThread? = nil) {
+        self.hyperlink = hyperlink; self.note = note; self.control = control; self.phonetic = phonetic; self.thread = thread
     }
 }
 
@@ -86,14 +87,19 @@ public struct Cell: Hashable, Sendable {
     public var hyperlink: Hyperlink? {
         get { extras?.hyperlink }
         set {
-            setExtras(hyperlink: newValue, note: extras?.note)
+            setExtras(hyperlink: newValue, note: extras?.note, control: extras?.control, phonetic: extras?.phonetic, thread: extras?.thread)
             if let h = newValue, storedValue == nil { value = .text(h.target) }
         }
     }
     /// The cell's note — what Excel today calls a note and once called a comment (spec Appendix B.56).
     public var note: CellNote? {
         get { extras?.note }
-        set { setExtras(hyperlink: extras?.hyperlink, note: newValue, control: extras?.control) }
+        set { setExtras(hyperlink: extras?.hyperlink, note: newValue, control: extras?.control, phonetic: extras?.phonetic, thread: extras?.thread) }
+    }
+    /// The threaded comment on the cell (spec Appendix B.80), beside the note.
+    public var thread: CommentThread? {
+        get { extras?.thread }
+        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: extras?.control, phonetic: extras?.phonetic, thread: newValue) }
     }
 
     /// The interactive control the cell's value is edited through — a Numbers word (checkbox, stepper, slider,
@@ -101,19 +107,19 @@ public struct Cell: Hashable, Sendable {
     /// and the others report it.
     public var control: CellControl? {
         get { extras?.control }
-        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: newValue, phonetic: extras?.phonetic) }
+        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: newValue, phonetic: extras?.phonetic, thread: extras?.thread) }
     }
 
     /// The phonetic guide (furigana) over the cell's text (spec Appendix B.70). Excel's file format carries it;
     /// ODS and Numbers writers report it as dropped.
     public var phonetic: PhoneticText? {
         get { extras?.phonetic }
-        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: extras?.control, phonetic: newValue) }
+        set { setExtras(hyperlink: extras?.hyperlink, note: extras?.note, control: extras?.control, phonetic: newValue, thread: extras?.thread) }
     }
 
-    private mutating func setExtras(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil, phonetic: PhoneticText? = nil) {
-        extras = hyperlink == nil && note == nil && control == nil && phonetic == nil
-            ? nil : CellExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic)
+    private mutating func setExtras(hyperlink: Hyperlink?, note: CellNote?, control: CellControl? = nil, phonetic: PhoneticText? = nil, thread: CommentThread? = nil) {
+        extras = hyperlink == nil && note == nil && control == nil && phonetic == nil && thread == nil
+            ? nil : CellExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic, thread: thread)
     }
 
     public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, note: CellNote? = nil,
@@ -129,6 +135,7 @@ public struct Cell: Hashable, Sendable {
         a.storedValue == b.storedValue
             && a.extras?.hyperlink == b.extras?.hyperlink && a.extras?.note == b.extras?.note
             && a.extras?.control == b.extras?.control && a.extras?.phonetic == b.extras?.phonetic
+            && a.extras?.thread == b.extras?.thread
             && (a.styleRef === b.styleRef || a.style == b.style)
     }
 
@@ -139,6 +146,7 @@ public struct Cell: Hashable, Sendable {
         hasher.combine(extras?.note)
         hasher.combine(extras?.control)
         hasher.combine(extras?.phonetic)
+        hasher.combine(extras?.thread)
     }
 
     /// Assigning a date / time / duration sets a matching number format unless the cell already has a date format
@@ -227,6 +235,36 @@ public struct CellNote: Hashable, Sendable {
     public var width: Double = 144
     public var height: Double = 79
     public init(_ text: String, author: String = "") { self.text = text; self.author = author }
+}
+
+/// A threaded comment (spec Appendix B.80): the conversation Excel 2019+ hangs on a cell beside the old note —
+/// an opening comment, replies, and whether the thread is resolved. XLSX carries it in its own parts (and mirrors
+/// the text into a note for older readers, which this model hides); ODS and Numbers have no threads, so their
+/// writers put the conversation into a note and say so.
+public struct CommentThread: Hashable, Sendable {
+    public struct Reply: Hashable, Sendable {
+        public var author: String
+        public var text: String
+        public var created: CivilDateTime?
+        public init(_ text: String, author: String, created: CivilDateTime? = nil) { self.text = text; self.author = author; self.created = created }
+    }
+    public var author: String
+    public var text: String
+    public var created: CivilDateTime?
+    public var resolved = false
+    public var replies: [Reply] = []
+    public init(_ text: String, author: String, created: CivilDateTime? = nil) { self.text = text; self.author = author; self.created = created }
+
+    /// The conversation as one note's text, for a format without threads: the comment, then each reply
+    /// prefixed by its author.
+    public var noteText: String {
+        var s = text
+        for r in replies { s += "\n\n\(r.author): \(r.text)" }
+        return s
+    }
+    /// What Excel writes into the mirror note so older versions show something; a note beginning like this is
+    /// the thread's shadow, not a note of its own.
+    public static let mirrorPrefix = "[Threaded comment]"
 }
 
 /// Row formatting (openpyxl RowDimension).

@@ -141,6 +141,18 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
         }
+        for sheet in workbook.sheets {
+            let threads = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.thread != nil && $0.note == nil }.count }
+            if threads > 0 {
+                warnings.append(ConversionWarning(.substituted, subject: .other, sheet: sheet.name,
+                                                  message: "\(threads) threaded comment(s) written as comments (the comment, then each reply with its author): Numbers has no comment threads"))
+            }
+            let shadowed = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.thread != nil && $0.note != nil }.count }
+            if shadowed > 0 {
+                warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name,
+                                                  message: "\(shadowed) threaded comment(s) dropped: the cell has a note of its own, which is written instead"))
+            }
+        }
         for sheet in workbook.sheets where !sheet.sparklines.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.sparklines.count) sparkline group(s) dropped: Numbers has no sparklines (write .xlsx or .ods to keep them)"))
@@ -1560,7 +1572,7 @@ struct NumbersWriter {
                                                       message: "the link on a cell holding a \(value.map { "\($0)" }.map { $0.prefix(while: { $0 != "(" }) } ?? "value") is dropped: a Numbers link lives inside text, and the value is worth more than the link"))
                 }
             }
-            let commentID = try cell.note.map { try commentKey(for: $0) }
+            let commentID = try (cell.note ?? cell.thread.map { CellNote($0.noteText, author: $0.author) }).map { try commentKey(for: $0) }
             let style = cell.style
             let keys = try styleWriter.keys(for: style)
             var formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)

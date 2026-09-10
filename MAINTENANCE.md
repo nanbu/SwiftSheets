@@ -217,6 +217,11 @@ per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maint
   while the SmartArt and the group are named in the `dropped` warning only after a shape is changed; save the file
   untouched and confirm Excel still shows the SmartArt. The synthetic `smartart-and-group.xlsx` fixture covers the
   part plumbing; what only Excel can judge is its own diagram parts.
+- **Threaded comments (Appendix B.80) — no Excel-made sample on this machine.** Add a comment with a reply on a
+  cell in Excel, save, open it with SwiftSheets and confirm `sheet[cell: "A1"].thread` holds both and the cell has
+  no note; add a reply here, save, and confirm Excel shows the thread and its people. The synthetic
+  `threaded-comments.xlsx` fixture is written from the published part layout; what only Excel can judge is its own
+  ids and the mirror text it expects.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

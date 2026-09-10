@@ -242,6 +242,10 @@ public struct Sheet: Equatable, Sendable {
     public var notes: [(ref: CellRef, note: CellNote)] {
         table.cells.compactMap { ref, cell in cell.note.map { (ref, $0) } }.sorted { $0.ref < $1.ref }
     }
+    /// The threaded comments of the default table, by cell (spec Appendix B.80).
+    public var threads: [(ref: CellRef, thread: CommentThread)] {
+        table.cells.compactMap { ref, cell in cell.thread.map { (ref, $0) } }.sorted { $0.ref < $1.ref }
+    }
 
     public subscript(cell ref: CellRef) -> Cell {
         get { table[cell: ref] }

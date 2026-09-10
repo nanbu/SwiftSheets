@@ -426,6 +426,14 @@ enum ODSWriter {
             if controls > 0 {
                 sink.add(.dropped, subject: .other, sheet: sheet.name, "\(controls) cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has no cell controls — the value is kept (write .numbers to keep the control)")
             }
+            let threads = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.thread != nil && $0.note == nil }.count }
+            if threads > 0 {
+                sink.add(.substituted, subject: .other, sheet: sheet.name, "\(threads) threaded comment(s) written as notes (the comment, then each reply with its author): ODF has no comment threads")
+            }
+            let shadowed = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.thread != nil && $0.note != nil }.count }
+            if shadowed > 0 {
+                sink.add(.dropped, subject: .other, sheet: sheet.name, "\(shadowed) threaded comment(s) dropped: the cell has a note of its own, which is written instead")
+            }
             let phonetics = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.phonetic != nil }.count }
             if phonetics > 0 {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "\(phonetics) phonetic guide(s) (furigana) dropped: ODF has no phonetic guide on a cell — the text is kept (write .xlsx to keep the readings)")
@@ -967,7 +975,7 @@ enum ODSWriter {
             paragraphs[0] = "<text:p><text:a xlink:href=\"\(XML.esc(href))\" xlink:type=\"simple\">\(first)</text:a></text:p>"
         }
         var s = "<table:table-cell\(attrs)\(valueAttrs)>"
-        if let note = cell.note {
+        if let note = cell.note ?? cell.thread.map({ CellNote($0.noteText, author: $0.author) }) {
             s += "<office:annotation office:display=\"false\">"
             if !note.author.isEmpty { s += "<dc:creator>\(XML.esc(note.author))</dc:creator>" }
             s += paragraphsXML(note.text).joined() + "</office:annotation>"

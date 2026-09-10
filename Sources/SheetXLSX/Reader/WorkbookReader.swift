@@ -144,8 +144,14 @@ enum WorkbookReader {
         // sheets are read side by side when the workbook is worth it, or when the caller says so
         styles.prefill()
         let phonetics = sst.resolvedPhonetics(fonts: styles.fonts)
+        // the people threaded comments name (B.80): the part stays opaque, its table rides into every sheet's read
+        if let personRel = rels.first(where: { $0.type == ThreadedCommentParts.personRelationshipType }),
+           let data = try? zip.read(resolve(personRel.target)) {
+            wb.preserved.persons = ThreadedCommentParts.persons(data, part: resolve(personRel.target))
+        }
         let context = SheetReadContext(zip: zip, sst: sst.strings, phonetics: phonetics, styles: styles, epoch: wb.epoch, options: options,
-                                       contentTypes: ct.overrides, rels: rels, base: base, pivotCaches: pivotCaches, workbookPath: workbookPath)
+                                       contentTypes: ct.overrides, rels: rels, base: base, pivotCaches: pivotCaches, workbookPath: workbookPath,
+                                       persons: wb.preserved.persons)
         let infos = wbParser.sheets
         let parsedBytes = infos.enumerated().compactMap { index, info -> Int? in   // what the grids to be parsed expand to
             guard let rel = rels.first(where: { $0.id == info.rId }), rel.type.hasSuffix(relWorksheet) else { return nil }
@@ -315,10 +321,13 @@ final class SheetReadContext: @unchecked Sendable {
     let base: String
     let pivotCaches: [Int: PivotCache]
     let workbookPath: String
+    /// Person id → display name, from `xl/persons/person.xml` (B.80).
+    let persons: [String: String]
     init(zip: ZipArchive, sst: [CellValue], phonetics: [PhoneticText?] = [], styles: StylesParser, epoch: DateEpoch, options: ReadOptions, contentTypes: [String: String],
-         rels: [Relationship], base: String, pivotCaches: [Int: PivotCache], workbookPath: String) {
+         rels: [Relationship], base: String, pivotCaches: [Int: PivotCache], workbookPath: String, persons: [String: String] = [:]) {
         self.zip = zip; self.sst = sst; self.phonetics = phonetics; self.styles = styles; self.epoch = epoch; self.options = options
         self.contentTypes = contentTypes; self.rels = rels; self.base = base; self.pivotCaches = pivotCaches; self.workbookPath = workbookPath
+        self.persons = persons
     }
 
     /// One sheet's outcome: the sheet, the parts it consumed, what it had to report — or the error that stopped it.
@@ -455,6 +464,19 @@ final class SheetReadContext: @unchecked Sendable {
                 }
                 for (ref, note) in notes { sheet[cell: ref].note = note }
                 sheet.preserved.comments = notes
+            }
+        }
+        // threaded comments (B.80): the threads into the cells; the note Excel mirrors each thread into is the
+        // thread's shadow, not a note of its own, so it is hidden. The parts stay opaque like the notes'.
+        if let threadRel = sheetRels.first(where: { $0.type == ThreadedCommentParts.relationshipType }) {
+            let threadsPart = WorkbookReader.resolvePart(threadRel.target, relativeTo: (part as NSString).deletingLastPathComponent)
+            if let data = try? zip.read(threadsPart) {
+                let threads = ThreadedCommentParts.parse(data, part: threadsPart, persons: persons)
+                for (ref, thread) in threads {
+                    sheet[cell: ref].thread = thread
+                    if sheet[cell: ref].note?.text.hasPrefix(CommentThread.mirrorPrefix) == true { sheet[cell: ref].note = nil }
+                }
+                sheet.preserved.threads = threads
             }
         }
 

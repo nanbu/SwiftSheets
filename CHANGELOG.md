@@ -19,12 +19,17 @@ writes, so the constant, the README's status line and the tag always name the sa
   and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
   shapes as dropped (spec Appendix B.75).
 
+- **Threaded comments.** `cell.thread` holds a `CommentThread` — the opening comment, its replies, whether it is
+  resolved, and when — beside the note. XLSX reads Excel's threadedComments and persons parts (hiding the
+  "[Threaded comment]" mirror note older readers see), keeps them byte for byte until a change, and then
+  regenerates the parts with each person's id kept. ODS and Numbers write the conversation as a note and report
+  the substitution (spec Appendix B.80).
 - **Sparklines.** `sheet.sparklines` holds `SparklineGroup`s (line / column / win-loss, colours, the points shown,
   empty-cell handling, one or more sparklines each drawing a range into a cell); `addSparkline(_:data:at:)` adds
   one. XLSX reads and writes the `x14:sparklineGroups` extension (untouched: byte for byte), ODS reads and writes
   LibreOffice's `calcext:sparkline-groups`. Numbers reports them as dropped (spec Appendix B.79).
 - **An inventory of what the model does not represent.** `preservationSummary.parts` counts the preserved
-  material by kind (`PreservedPartKind`: `.smartArt`, `.vbaProject`, `.slicer`, `.externalLink`, …) — the answer to
+  material by kind (`PreservedPartKind`: `.smartArt`, `.vbaProject`, `.slicer`, `.externalLink`, `.embeddedObject`, …) — the answer to
   "what will a conversion drop?" before any write. Parts the model read (a sheet's drawing and its charts, the
   theme, the notes) are not listed (spec Appendix B.77).
 - **The other workbooks the formulas refer to.** `wb.externalLinks` lists them (`ExternalLink`: the number the
