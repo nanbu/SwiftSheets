@@ -258,6 +258,29 @@ import SwiftSheets
         #expect(wb.sheets[0]["A1"] == .text("x"))
     }
 
+    /// A sheet may declare more `<table:table-column>` elements than a sheet has columns. Once the cursor has
+    /// passed the last column (Appendix B.61: the cursor counts from 1, the cap is `CellRef.maxColumn`), a
+    /// declaration that carries a width or hides its columns must be dropped, not turned into an inverted range.
+    @Test func columnDeclarationsPastTheLastColumnAreIgnored() throws {
+        let columns = String(repeating: #"<table:table-column table:number-columns-repeated="999" table:visibility="collapse"/>"#, count: 18)
+        let content = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3">
+        <office:body><office:spreadsheet><table:table table:name="Wide">
+        \(columns)
+        <table:table-row><table:table-cell office:value-type="string"><text:p>x</text:p></table:table-cell></table:table-row>
+        </table:table></office:spreadsheet></office:body></office:document-content>
+        """
+        var zip = ZipWriter()
+        zip.add("mimetype", Data("application/vnd.oasis.opendocument.spreadsheet".utf8), stored: true)
+        zip.add("content.xml", Data(content.utf8))
+        let wb = try ODSCodec.read(zip.finish()).workbook
+        #expect(wb.sheets[0]["A1"] == .text("x"))
+        #expect(wb.sheets[0].columnDimensions[1]?.hidden == true)
+        #expect(wb.sheets[0].columnDimensions[CellRef.maxColumn]?.hidden == true)
+        #expect(wb.sheets[0].columnDimensions.keys.max() == CellRef.maxColumn)
+    }
+
     @Test func hugeTrailingRepeatIsNotExpanded() throws {
         let content = """
         <?xml version="1.0" encoding="UTF-8"?>

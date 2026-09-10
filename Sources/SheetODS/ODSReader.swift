@@ -373,7 +373,7 @@ final class ContentParser: SAXHandler {
             if let d = defaultCell, !catalog.conditionalMaps(d).isEmpty, n < ODSReader.paddingRepeat, columnCursor <= ODSReader.maxColumns {
                 styleMapColumns.append((d, columnCursor, Swift.min(columnCursor + n - 1, ODSReader.maxColumns)))
             }
-            if n < ODSReader.paddingRepeat, width != nil || hidden || (defaultCell != nil && defaultCell != "Default") {
+            if n < ODSReader.paddingRepeat, columnCursor <= ODSReader.maxColumns, width != nil || hidden || (defaultCell != nil && defaultCell != "Default") {
                 let style = defaultCell.flatMap { $0 == "Default" ? nil : catalog.cellStyle(named: $0) }
                 for c in columnCursor...Swift.min(columnCursor + n - 1, ODSReader.maxColumns) where c >= columnCursor {
                     sheet?.columnDimensions[c] = ColumnDimension(width: width, hidden: hidden, style: style == .default ? nil : style)
