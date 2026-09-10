@@ -439,6 +439,30 @@ final class SheetReadContext: @unchecked Sendable {
                 sheet.preserved.comments = notes
             }
         }
+
+        // the drawing: pictures and charts into the model, the parts left opaque as well (B.71) — an untouched
+        // drawing is re-packed byte for byte, and only a change makes the writer regenerate it
+        if let drawingRel = sheetRels.first(where: { $0.type.hasSuffix("/drawing") }) {
+            let drawingPart = WorkbookReader.resolvePart(drawingRel.target, relativeTo: sheetDir)
+            if let data = try? zip.read(drawingPart) {
+                let drawingRels = (try? WorkbookReader.parseRels(zip, WorkbookReader.relsPath(of: drawingPart))) ?? []
+                do {
+                    let contents = try DrawingReader.contents(of: data, part: drawingPart, rels: drawingRels, sheet: sheet) { path in
+                        zip.contains(path) ? try zip.read(path) : nil
+                    }
+                    sheet.images = contents.images + sheet.images
+                    sheet.charts = contents.charts + sheet.charts
+                    sheet.preserved.images = contents.images
+                    sheet.preserved.charts = contents.charts
+                    sheet.preserved.drawingPath = drawingPart
+                    sheet.preserved.drawingParts = contents.referencedParts
+                    sheet.preserved.drawingUnmodelled = contents.unmodelled
+                } catch {
+                    result.warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
+                                                      message: "the sheet's drawing could not be read (\(drawingPart)); its pictures and charts are carried as bytes only"))
+                }
+            }
+        }
         result.sheet = sheet
     }
 }

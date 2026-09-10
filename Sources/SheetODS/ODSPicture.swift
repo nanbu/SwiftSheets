@@ -18,6 +18,7 @@ struct ODSPicture {
         switch image.anchor {
         case .cell(let ref, _): return ref
         case .span(let range): return range.topLeft
+        case .absolute: return CellRef(row: 1, column: 1)   // the offset from A1 is the position itself
         }
     }
 
@@ -39,6 +40,8 @@ struct ODSPicture {
                         height: CellPixels.rowPixels(sheet.rowDimensions[ref.row]?.height ?? CellPixels.defaultRowHeight))
             let shown = image.displaySize(cellSize: cell)
             return (shown.width * Self.centimetresPerPixel, shown.height * Self.centimetresPerPixel)
+        case .absolute(_, _, let w, let h):
+            return (w * 2.54 / 72, h * 2.54 / 72)
         case .span(let range):
             var width = 0.0, height = 0.0
             for c in range.minColumn...range.maxColumn {
@@ -59,8 +62,10 @@ struct ODSPicture {
         var s = ""
         for p in pictures {
             let size = p.size(in: sheet)
+            var offset = (x: 0.0, y: 0.0)
+            if case .absolute(let x, let y, _, _) = p.image.anchor { offset = (x * 2.54 / 72, y * 2.54 / 72) }
             s += "<draw:frame draw:z-index=\"\(p.zIndex)\" draw:name=\"Image \(p.number)\""
-                + " svg:width=\"\(ODSLength.cmValue(size.width))\" svg:height=\"\(ODSLength.cmValue(size.height))\" svg:x=\"0cm\" svg:y=\"0cm\""
+                + " svg:width=\"\(ODSLength.cmValue(size.width))\" svg:height=\"\(ODSLength.cmValue(size.height))\" svg:x=\"\(offset.x == 0 ? "0cm" : ODSLength.cmValue(offset.x))\" svg:y=\"\(offset.y == 0 ? "0cm" : ODSLength.cmValue(offset.y))\""
             if case .span(let range) = p.image.anchor {
                 let end = CellRef(row: range.maxRow + 1, column: range.maxColumn + 1)
                 s += " table:end-cell-address=\"\(XML.esc(ODSFeatures.address(end, sheet: sheet.name)))\" table:end-x=\"0cm\" table:end-y=\"0cm\""

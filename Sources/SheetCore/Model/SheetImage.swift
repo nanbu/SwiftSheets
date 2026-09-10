@@ -1,10 +1,9 @@
 import Foundation
 
-/// A picture placed on a sheet by this library (spec Appendix B.32).
+/// A picture on a sheet (spec Appendices B.32, B.71): placed by `addImage`, or read from a file's drawing.
 ///
-/// This is the *adding* side only. Pictures already in a file the reader opened stay preserved as opaque bytes
-/// (F3) and do not appear here; `images` holds what `addImage` put in. The format and pixel size are read from
-/// the bytes themselves — what the caller believes the data to be plays no part.
+/// The format and pixel size are read from the bytes themselves — what the caller believes the data to be plays
+/// no part. A picture read from a file and left untouched is written back as the bytes it arrived in (F3).
 public struct SheetImage: Hashable, Sendable {
     /// The picture's format — what the leading bytes say, never the file extension. A struct with static
     /// members rather than an enum, so a format can be added without breaking a caller's `switch` (spec
@@ -44,6 +43,9 @@ public struct SheetImage: Hashable, Sendable {
         case cell(CellRef, sizing: Sizing)
         /// Stretched over a range (`xdr:twoCellAnchor` — both corners follow their cells).
         case span(CellRange)
+        /// At a fixed position on the sheet, in points from its top-left corner, with a fixed size
+        /// (`xdr:absoluteAnchor` — no cell moves it). Read from files; `addImage` never makes one.
+        case absolute(x: Double, y: Double, width: Double, height: Double)
     }
 
     public let data: Data
@@ -101,6 +103,7 @@ public struct SheetImage: Hashable, Sendable {
 
     /// The size the picture is drawn at, in pixels. `cellSize` is the anchor cell's current size, used by `.fitCell`.
     public func displaySize(cellSize: (width: Double, height: Double)? = nil) -> (width: Double, height: Double) {
+        if case .absolute(_, _, let w, let h) = anchor { return (w / 0.75, h / 0.75) }   // points → pixels at 96 dpi
         guard case .cell(_, let sizing) = anchor else { return (Double(pixelWidth), Double(pixelHeight)) }
         switch sizing {
         case .original: return (Double(pixelWidth), Double(pixelHeight))

@@ -1,9 +1,8 @@
 import Foundation
 
-/// A chart built by this library (spec Appendix B.34) — the four kinds that carry most real work.
-///
-/// Like pictures (B.32), this is the *adding* side only: charts already in an opened file stay preserved as
-/// opaque bytes, and `sheet.charts` holds what `addChart` put in. Series ranges may name their sheet
+/// A chart on a sheet (spec Appendices B.34, B.71): built by `addChart` — the four kinds that carry most real
+/// work — or read from a file's drawing, in which case `kind` may be one the writers cannot draw and the chart is
+/// written back as the bytes it arrived in until it is changed. Series ranges may name their sheet
 /// (`'集計'!$B$2:$B$13`) or not (`B2:B13`) — an unqualified range is qualified with the host sheet's name and
 /// made absolute at write time, since chart references accept nothing less.
 public struct Chart: Hashable, Sendable {
@@ -33,9 +32,13 @@ public struct Chart: Hashable, Sendable {
     public struct Series: Hashable, Sendable {
         public var values: String
         public var categories: String?
+        /// The series' name as text.
         public var name: String?
-        public init(values: String, categories: String? = nil, name: String? = nil) {
-            self.values = values; self.categories = categories; self.name = name
+        /// The series' name as a reference to a cell (`'Data'!$B$1`), the way Excel usually records it; when
+        /// both are set, the reference is what is written.
+        public var nameReference: String?
+        public init(values: String, categories: String? = nil, name: String? = nil, nameReference: String? = nil) {
+            self.values = values; self.categories = categories; self.name = name; self.nameReference = nameReference
         }
     }
 

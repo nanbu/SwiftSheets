@@ -321,7 +321,11 @@ table, conditional formatting, data validation, comments and a defined name, edi
 every opaque part is byte-identical, every `r:id` still resolves, `[Content_Types].xml` declares exactly the parts
 present, and the worksheet children are in schema order.
 
-**Byte-identical applies to what the model does not read.** Charts, VBA, themes, images, drawings — anything the
+**Byte-identical applies to what the model does not read, and to what it read but did not change.** VBA, shapes,
+the theme — anything the codec leaves opaque — comes out as the same bytes; so do a sheet's pictures and charts, which
+are read into `sheet.images` / `sheet.charts` (spec Appendix B.71) and re-packed byte for byte until one of them is
+changed or removed, when the drawing is rebuilt from the model and whatever it held that the model cannot say is
+reported as dropped. Charts, VBA, themes, images, drawings — anything the
 codec leaves opaque — come out as the same bytes they went in as. What the model *does* read is rebuilt from the
 model: conditional formatting, data validation, named tables, pivot tables and differential formats are the same
 XML in meaning, not necessarily in bytes. Where an entry is addressed by index from elsewhere (a `dxf`, a

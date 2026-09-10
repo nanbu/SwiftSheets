@@ -71,10 +71,12 @@ public struct Sheet: Equatable, Sendable {
     public var definedNames: [String: String] = [:]
     /// Informational: the `<dimension ref>` the file declared, if any.
     public var declaredDimension: CellRange?
-    /// Pictures placed by `addImage` (spec Appendix B.32). Pictures already in an opened file stay in
-    /// `preserved` as opaque bytes and are not listed here.
+    /// The sheet's pictures: those placed by `addImage` (spec Appendix B.32) and those read from the file's
+    /// drawing (B.71). An untouched picture is written back as the bytes it arrived in.
     public var images: [SheetImage] = []
-    /// Charts placed by `addChart` (spec Appendix B.34). Charts already in an opened file stay in `preserved`.
+    /// The sheet's charts: those placed by `addChart` (spec Appendix B.34) and those read from the file's drawing
+    /// (B.71) — a read chart may be of a kind the writers cannot draw, and is written back unchanged until it is
+    /// edited.
     public var charts: [Chart] = []
     /// Material the reader kept for a lossless write-back (spec §6).
     package var preserved = SheetPreservation()

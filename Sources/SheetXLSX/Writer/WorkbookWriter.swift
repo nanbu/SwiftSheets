@@ -187,10 +187,39 @@ enum WorkbookWriter {
             if let n = Int(stem.prefix(while: \.isNumber)) { nextChart = max(nextChart, n + 1) }
         }
         var generatedOverrides: [String: String] = [:]
-        for (i, sheet) in wb.sheets.enumerated() where !sheet.images.isEmpty || !sheet.charts.isEmpty {
+        for (i, sheet) in wb.sheets.enumerated() {
+            // The drawing a sheet was read with (B.71): while the model's pictures and charts still begin with
+            // the ones read, the source drawing and its parts travel as bytes and only additions are spliced in;
+            // once one of them is changed or removed, the source drawing is retired and rebuilt from the model.
+            let asReadImages = sameFamily ? sheet.preserved.images : []
+            let asReadCharts = sameFamily ? sheet.preserved.charts : []
+            let sourceDrawing: String? = sameFamily ? sheet.preserved.drawingPath.flatMap { opaque[$0] != nil ? $0 : nil } : nil
+            let keepsPrefix = sourceDrawing != nil && sheet.images.starts(with: asReadImages) && sheet.charts.starts(with: asReadCharts)
+            var newImages = sheet.images, newCharts = sheet.charts
+            var rebuild = false
+            if let sourceDrawing {
+                if keepsPrefix {
+                    newImages = Array(sheet.images.dropFirst(asReadImages.count))
+                    newCharts = Array(sheet.charts.dropFirst(asReadCharts.count))
+                } else {
+                    rebuild = true
+                    for path in [sourceDrawing, WorkbookReader.relsPath(of: sourceDrawing)] + sheet.preserved.drawingParts {
+                        opaque[path] = nil
+                        usedPaths.remove(path)
+                    }
+                    if !sheet.preserved.drawingUnmodelled.isEmpty {
+                        sink.add(.dropped, subject: .objects, sheet: sheet.name,
+                                 "\(sheet.preserved.drawingUnmodelled.count) object(s) of the sheet's drawing the model could not read (\(sheet.preserved.drawingUnmodelled.joined(separator: ", "))) dropped: the drawing was rebuilt because a picture or chart was changed or removed")
+                    }
+                }
+            }
+            guard !newImages.isEmpty || !newCharts.isEmpty else {
+                if rebuild { imagePlans[i] = ImagePlan(newDrawing: nil, replacesSourceDrawing: true) }
+                continue
+            }
             // every image becomes a media part; every chart with series becomes a chart part (B.34)
             var entries: [(type: String, target: String)] = []
-            for image in sheet.images {
+            for image in newImages {
                 let path = "xl/media/image\(nextMedia).\(image.format.rawValue)"
                 nextMedia += 1
                 usedPaths.insert(path)
@@ -199,7 +228,7 @@ enum WorkbookWriter {
                 entries.append((DrawingParts.imageRelationshipType, "../media/" + (path as NSString).lastPathComponent))
             }
             var charts: [Chart] = []
-            for chart in sheet.charts {
+            for chart in newCharts {
                 guard chart.kind.isDrawable else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart was not written: the writer draws column, bar, line and pie charts")
                     continue
@@ -216,25 +245,24 @@ enum WorkbookWriter {
                 entries.append((ChartParts.relationshipType, "../charts/" + (path as NSString).lastPathComponent))
                 charts.append(chart)
             }
-            guard !entries.isEmpty else { continue }
+            guard !entries.isEmpty else {
+                if rebuild { imagePlans[i] = ImagePlan(newDrawing: nil, replacesSourceDrawing: true) }
+                continue
+            }
             func anchors(_ ids: [String], firstShapeID: (String) -> Int) -> [String] {
                 var out: [String] = []
-                for (n, image) in sheet.images.enumerated() {
+                for (n, image) in newImages.enumerated() {
                     out.append(DrawingParts.anchorXML(image, shapeID: firstShapeID(ids[n]), relID: ids[n],
                                                       cellSize: DrawingParts.cellSize(of: sheet, at: image.anchor)))
                 }
                 for (n, chart) in charts.enumerated() {
-                    let id = ids[sheet.images.count + n]
+                    let id = ids[newImages.count + n]
                     out.append(ChartParts.anchorXML(over: chart.anchor!, shapeID: firstShapeID(id), relID: id))
                 }
                 return out
             }
-            // the sheet's existing drawing, if the source had one and it survived into this write
-            let sheetDir = (plans[i].path as NSString).deletingLastPathComponent
-            let existing: String? = !sameFamily ? nil : sheet.preserved.relationships
-                .first { $0.type.hasSuffix(DrawingParts.relationshipType) }
-                .map { WorkbookReader.resolvePart($0.target, relativeTo: sheetDir) }
-                .flatMap { opaque[$0] != nil ? $0 : nil }
+            // the sheet's existing drawing, when it is being kept: additions are spliced into its bytes
+            let existing: String? = keepsPrefix ? sourceDrawing : nil
             if let drawingPath = existing {
                 let relsPath = WorkbookReader.relsPath(of: drawingPath)
                 guard let patched = DrawingParts.appendingRelationships(entries: entries, to: opaque[relsPath]?.data),
@@ -248,13 +276,15 @@ enum WorkbookWriter {
                 opaque[drawingPath] = .bytes(spliced)
                 opaque[relsPath] = .bytes(patched.data)
             } else {
-                let drawingPath = "xl/drawings/drawing\(nextDrawing).xml"
-                nextDrawing += 1
+                // a rebuilt drawing keeps the retired part's name, so nothing else in the package need change
+                let drawingPath: String
+                if rebuild, let sourceDrawing { drawingPath = sourceDrawing } else { drawingPath = "xl/drawings/drawing\(nextDrawing).xml"; nextDrawing += 1 }
                 usedPaths.insert(drawingPath)
                 guard let rels = DrawingParts.appendingRelationships(entries: entries, to: nil) else { continue }
                 imagePlans[i] = ImagePlan(newDrawing: (drawingPath,
                                                       DrawingParts.drawingXML(anchors: anchors(rels.ids, firstShapeID: { 1 + (Int($0.dropFirst(3)) ?? 0) })),
-                                                      String(data: rels.data, encoding: .utf8)!))
+                                                      String(data: rels.data, encoding: .utf8)!),
+                                          replacesSourceDrawing: rebuild)
             }
         }
 
@@ -854,7 +884,11 @@ enum WorkbookWriter {
 
     /// A freshly generated drawing part for a sheet that had none. A sheet whose source already carries a
     /// drawing needs no plan: its preserved bytes were spliced during planning (spec Appendix B.32).
-    struct ImagePlan { var newDrawing: (path: String, xml: String, rels: String)? }
+    struct ImagePlan {
+        var newDrawing: (path: String, xml: String, rels: String)?
+        /// The source's drawing was retired (B.71): its `<drawing>` element and relationship must not be re-emitted.
+        var replacesSourceDrawing = false
+    }
 
     /// A worksheet part with its rows still to be generated: `head` and `tail` are the small parts of the XML
     /// around `<sheetData>`, and `rows` writes the rows themselves into whatever is given — a buffer feeding the
@@ -1116,6 +1150,10 @@ enum WorkbookWriter {
             preservedRels.removeAll { $0.type.hasSuffix(CommentParts.relationshipType) || $0.type.hasSuffix(CommentParts.vmlRelationshipType) }
             noteFragments.removeAll { $0.element == "legacyDrawing" }
         }
+        if images?.replacesSourceDrawing == true {
+            preservedRels.removeAll { $0.type.hasSuffix(DrawingParts.relationshipType) }
+            noteFragments.removeAll { $0.element == "drawing" }
+        }
         var extraParts: [(path: String, data: Data)] = []
         var rels: String?
         var relXML = "<Relationships xmlns=\"\(XMLWriter.nsPkgRel)\">" + preservedRels.map(relationshipXML).joined()
@@ -1180,7 +1218,7 @@ enum WorkbookWriter {
             extraParts.append((plan.path, Data((XMLWriter.header + plan.xml).utf8)))
             extraParts.append((WorkbookReader.relsPath(of: plan.path), Data(plan.rels.utf8)))
         }
-        if !preservedRels.isEmpty || relXML.contains("/hyperlink") || comments != nil || !tables.isEmpty || !pivots.isEmpty || images?.newDrawing != nil {
+        if !preservedRels.isEmpty || relXML.contains("/hyperlink") || comments != nil || !tables.isEmpty || !pivots.isEmpty || images?.newDrawing != nil || images?.replacesSourceDrawing == true {
             rels = relXML + "</Relationships>"
         }
         let po = ws.printOptions

@@ -58,6 +58,14 @@ struct FormulaParser {
     private func fail(_ detail: String) -> SheetError { .formulaSyntax(offset: pos, detail: detail) }
 
     mutating func parseFormula() throws -> FormulaExpr {
+        // Nesting past the limit is refused before any recursion: the recursive descent costs a few kilobytes of
+        // stack per level in a debug build, and a background thread's stack is small, so the depth guard inside
+        // parseExpression alone leaves no margin for the frames of whoever called the parser (spec §12).
+        var level = 0
+        for token in tokens {
+            if token == .lparen { level += 1; if level > FormulaParser.maxDepth { throw fail("formula nests deeper than \(FormulaParser.maxDepth) levels") } }
+            else if token == .rparen { level = Swift.max(0, level - 1) }
+        }
         let e = try parseExpression(minPrecedence: 0)
         guard current == .end else { throw fail("unexpected token after expression") }
         return e

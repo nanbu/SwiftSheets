@@ -1916,6 +1916,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
     <tr><td>4.59 Draft</td><td>2026-09-11</td><td>「A1」を名前から外す。<code>freezePanesA1</code>・<code>autoFilterA1</code> を削除（型つきの <code>freezePanes = CellRef("B2")</code>・<code>autoFilter = CellRange("A1:D9")</code> で書く）。A1 記法を作る getter を address 系に: <code>CellRef.a1</code> / <code>CellRange.a1</code> → <code>address</code>、<code>absoluteA1</code> → <code>absoluteAddress</code>、<code>qualifiedA1</code> → <code>qualifiedAddress</code>、<code>Sheet.dimensions</code> / <code>Table.dimensions</code> → <code>extentAddress</code>。ISO 8601 の初期化子を <code>iso8601:</code> に統一（<code>CivilDate</code>・<code>TimeOfDay</code>・<code>CivilDateTime</code> の <code>iso:</code> を改名）（B.68）。</td></tr>
     <tr><td>4.58 Draft</td><td>2026-09-11</td><td>B.62 の一部を戻す。<code>style(at:)</code>・<code>setStyle(at:_:)</code> の型つきの側は <code>at:</code> を残す（メソッド名がセルを言わないため）。<code>cell(_:)</code>・<code>removeCell(_:)</code> はラベル無しのまま。</td></tr>
+    <tr><td>4.62 Draft</td><td>2026-09-11</td><td>XLSX の絵とグラフを読む。drawing 部品の錨と media・chart 部品を <code>sheet.images</code> / <code>sheet.charts</code> に。触らなければバイトのまま・足せば継ぎ足し・変えれば作り直して言う。<code>SheetImage.Anchor.absolute</code>・<code>Chart.Series.nameReference</code> を追加（B.71）。</td></tr>
     <tr><td>4.61 Draft</td><td>2026-09-11</td><td>テーマを読む。<code>Workbook.theme: Theme?</code>（12 色・2 書体）と <code>wb.rgb(of:)</code>（テーマ色の濃淡・索引色の解決）。触らないテーマ部品はバイトのまま、変えれば同じパスに作り直す。ODS・Numbers の書き手は解決した RGB を書く（B.70）。</td></tr>
     <tr><td>4.60 Draft</td><td>2026-09-11</td><td>ふりがなを運ぶ。<code>Cell.phonetic: PhoneticText?</code>（読みの区間・変換の種類・配置・書体）を共有文字列と inline 文字列の <code>&lt;rPh&gt;</code> / <code>&lt;phoneticPr&gt;</code> から読み、共有文字列表へ書き戻す。openpyxl の「読み飛ばし」から意図して離れた唯一の点（B.69）。</td></tr>
     <tr><td>4.59 Draft</td><td>2026-09-11</td><td>増える一覧を構造体に。<code>Chart.Kind</code>・<code>SheetImage.Format</code>・<code>DateEpoch</code> を、静的メンバーを持つ <code>RawRepresentable</code> の構造体へ（呼び方は不変・switch には default が要る）。<code>DateEpoch(origin:)</code> で ODF の任意の日付原点をそのまま持ち、Excel・Numbers へは 1900 系に据え直して言う。描けない種類のグラフは書き手が名指しで落とす（B.68）。</td></tr>
@@ -6641,6 +6642,40 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   ODS と Numbers の書き手は「N phonetic guide(s) (furigana) dropped: … the text is kept (write .xlsx to keep the readings)」と <code>dropped</code> で言い、文字は残す。</p>
   <p><strong>検査。</strong><code>FuriganaTests</code> 4 件: 表の XML（区間・種類・配置・書体の登録・同じ文字が別項目）・往復（全体の読み・複数区間・書式付き文字の横）・
   inline 文字列の読み・ODS と Numbers の警告。Excel 自身が書いたふりがな付きのファイルは手元に無い——実機の確認は <code>MAINTENANCE.md</code> の手動一覧に足した。</p>
+</section>
+
+<section>
+  <h3>B.71 XLSX の絵とグラフを読む——写しと同じなら バイトのまま、違えば作り直す（Rev 4.62）</h3>
+  <p>2026-09-11 決定。B.32・B.34 は「足す側だけ」で、開いたファイルの絵とグラフは保全のバイトとして運ぶだけだった。読めるようにする——
+  <code>sheet.images</code> と <code>sheet.charts</code> に読み込みで入り、利用側が数えられ・見られ・消せる。新しい型は作らない。</p>
+  <p><strong>読み。</strong>ワークシートの <code>&lt;drawing r:id&gt;</code> が指す部品を <code>DrawingParser</code> が錨ごとに読む: <code>oneCellAnchor</code>
+  （<code>from</code>＋<code>ext</code>）・<code>twoCellAnchor</code>（<code>from</code>＋<code>to</code>）・<code>absoluteAnchor</code>（<code>pos</code>＋<code>ext</code>）。
+  錨の中身が <code>pic/blipFill/blip@r:embed</code> なら絵——media 部品を <code>SheetImage(data:)</code> に通す（PNG・JPEG・GIF 以外は「模型に持てない絵」として
+  控える）。<code>graphicFrame/…/c:chart@r:id</code> ならグラフ——<code>ChartPartParser</code> が plotArea の最初のグラフ群の要素名で種類を決め
+  （<code>barChart</code>＋<code>barDir</code> → column / bar、<code>lineChart</code>、<code>pieChart</code>、それ以外は要素名を raw のまま <code>Chart.Kind</code> に・B.68）、
+  <code>ser</code> の <code>tx</code>（<code>v</code> なら名前、<code>strRef/f</code> なら参照——<code>Chart.Series.nameReference</code> を足した。Excel は通常こちらで記録する）・
+  <code>cat</code> / <code>xVal</code>（分類）・<code>val</code> / <code>yVal</code>（値）の参照式、plotArea の外の <code>title</code>、<code>legend</code> の有無を集める。
+  <code>sp</code>・<code>grpSp</code>・<code>cxnSp</code> などは「模型に無い物」として控える。</p>
+  <p><strong>錨の写像。</strong>絵: 1 セル錨は <code>.cell(ref, sizing:)</code>（<code>ext</code> の画素が絵の画素と同じなら <code>.original</code>、違えば <code>.scaled</code>）、
+  2 セル錨は <code>.span</code>（<code>to</code> は排他的。オフセットが 0 でなければそのセルまで届いていると見る）、絶対位置は新しい <code>.absolute(x:y:width:height:)</code>
+  （ポイント。EMU ÷ 12700）——1.0 前に case を足せる最後の機会なので今足した。XLSX の書き手は <code>xdr:absoluteAnchor</code> に、ODS の書き手は A1 に錨を置いて
+  <code>svg:x</code> / <code>svg:y</code> でずらす。グラフ: 2 セル錨はその範囲、1 セル錨と絶対位置は <code>ext</code> の EMU をシートの列幅・行高（無ければ既定）で
+  割って届く範囲を求める——openpyxl は 1 セル錨でグラフを置くので、この写像が無いと読めない。</p>
+  <p><strong>書き戻しの規則（メモの B.32 脚注と同じ「写し」方式）。</strong>読み手は読んだ絵とグラフの写しを <code>SheetPreservation.images</code> / <code>.charts</code> に、
+  図面部品のパスと、図面が参照した media・chart 部品のパスと、模型に無かった物の控えを置く。部品は消費せず保全に残す。書き手は 3 つに分ける:
+  ①模型の <code>images</code> / <code>charts</code> が写しで<strong>始まって</strong>いれば（触っていない・足しただけ）、元の図面と部品はバイトのまま、足した分だけ
+  従来どおり継ぎ足す（B.32 の splice）。②写しの物が 1 つでも変わるか消えていれば、元の図面・その rels・参照していた部品を退け、図面を模型から作り直す
+  （名前は退けた部品のものを使い回す——他の部品が変わらずに済む）。模型に無かった物があれば dropped「N object(s) of the sheet's drawing the model could not read
+  (sp, …) dropped: the drawing was rebuilt because a picture or chart was changed or removed」。描けない種類のグラフは B.68 のとおり名指しで落ちる。
+  ③全部消えたなら図面の要素と関係も消す。</p>
+  <p><strong>なぜ「始まっていれば」か。</strong>「等しければ」だと、図形しか無い図面に絵を 1 枚足しただけで図面を作り直して図形を失う——今までの動き
+  （継ぎ足し）より悪くなる。接頭辞なら、足すのは今までどおり安く、変える・消すときだけ作り直しの代償を払う。</p>
+  <p><strong>検査。</strong><code>DrawingReadTests</code> 5 件: openpyxl が書いた 4 種のグラフ（散布図は raw <code>scatterChart</code>・yVal が値・xVal が分類・1 セル錨から
+  範囲を求める）・触らない保存で図面と chart 部品がバイト同一・表題を変えると図面が作り直され散布図が名指しで落ちる・絵の 3 種の錨の往復と「足す＝継ぎ足し／消す＝作り直し／
+  全部消す＝要素も消える」・Excel 製の検体（chart＋読めない形式の絵）で読めた物と控え。<code>ImageTests</code> / <code>ChartTests</code> の
+  <code>theSecondSaveChangesNothing</code> は「読み戻すと空」の 1 行を「読み戻すと 1 つ」に反転し、バイト同一の主張は据え置き。検体
+  <code>Tests/SwiftSheetsTests/Fixtures/drawings/openpyxl-four-charts.xlsx</code>（openpyxl 3.1.5 製）と LibreOffice 26.2.3 がそれを .ods にした
+  <code>libreoffice-four-charts.ods</code>（B.72 で使う）を足した。</p>
 </section>
 
 </div><!-- /.container -->

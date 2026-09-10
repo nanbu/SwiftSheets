@@ -11,6 +11,14 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **Pictures and charts are read** (B.71). An opened XLSX file's drawing fills `sheet.images` and `sheet.charts`:
+  one-cell, two-cell and absolute anchors (`SheetImage.Anchor.absolute`, in points), PNG / JPEG / GIF media,
+  every chart kind (the four the writers draw by name, the rest by their element as `Chart.Kind(rawValue:)`),
+  titles, legends and series with their references — a series name held as a reference is
+  `Chart.Series.nameReference`. Untouched, the drawing and its parts are written back byte for byte; an added
+  picture or chart is spliced in beside them; a change or a removal rebuilds the drawing from the model, and
+  what the drawing held that the model cannot say (shapes, pictures in other formats) is reported as dropped.
+
 - **The theme is read, and colours resolve through it** (B.70). `Workbook.theme: Theme?` holds the twelve scheme
   colours and the two scheme fonts of an XLSX file's theme part (nil for a new workbook, which resolves as
   `Theme.office`), and `wb.rgb(of:)` answers the ARGB a `Color` stands for — a theme colour with Excel's tint rule

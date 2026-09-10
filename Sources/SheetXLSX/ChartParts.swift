@@ -56,7 +56,8 @@ enum ChartParts {
 
     private static func seriesXML(_ series: Chart.Series, index: Int, kind: Chart.Kind, sheetName: String) -> String {
         var x = "<c:ser><c:idx val=\"\(index)\"/><c:order val=\"\(index)\"/>"
-        if let name = series.name { x += "<c:tx><c:v>\(XML.esc(name))</c:v></c:tx>" }
+        if let ref = series.nameReference { x += "<c:tx><c:strRef><c:f>\(XML.esc(qualify(ref, sheet: sheetName)))</c:f></c:strRef></c:tx>" }
+        else if let name = series.name { x += "<c:tx><c:v>\(XML.esc(name))</c:v></c:tx>" }
         if kind == .line { x += "<c:marker><c:symbol val=\"none\"/></c:marker>" }
         if let cats = series.categories {
             x += "<c:cat><c:strRef><c:f>\(XML.esc(qualify(cats, sheet: sheetName)))</c:f></c:strRef></c:cat>"

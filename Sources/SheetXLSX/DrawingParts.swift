@@ -41,6 +41,10 @@ enum DrawingParts {
             return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
                 + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
                 + pic + "<xdr:clientData/></xdr:twoCellAnchor>"
+        case .absolute(let x, let y, let w, let h):
+            func emu(_ pt: Double) -> Int { Int((pt * 12700).rounded()) }
+            return "<xdr:absoluteAnchor \(ns)><xdr:pos x=\"\(emu(x))\" y=\"\(emu(y))\"/><xdr:ext cx=\"\(emu(w))\" cy=\"\(emu(h))\"/>"
+                + pic + "<xdr:clientData/></xdr:absoluteAnchor>"
         }
     }
 

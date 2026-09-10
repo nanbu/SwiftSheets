@@ -54,7 +54,7 @@ formats:
       public: true
       note: "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
     totals:
-      read: {full: 48, partial: 9, preserved: 17, none: 1, na: 3, unverified: 0}
+      read: {full: 50, partial: 9, preserved: 15, none: 1, na: 3, unverified: 0}
       write: {full: 50, partial: 9, preserved: 15, none: 1, na: 3, unverified: 0}
       rows: 78
     areas:
@@ -753,28 +753,32 @@ formats:
           - id: "xlsx.draw.image"
             name: "画像の埋め込み（マスに置く・範囲に合わせる）"
             spec_anchor: "xl/media/, xl/drawings/drawingN.xml, <twoCellAnchor> <oneCellAnchor>"
-            read: "preserved"
+            read: "full"
             write: "full"
             api:
               - "sheet.addImage(try SheetImage(data:), at: \"B2\", sizing: .resizeCellToFit)"
               - "addImage(_:over:)"
               - "SheetImage"
               - "ImagePlacement"
+              - "sheet.images"
+              - "SheetImage.Anchor.absolute"
             warning: "他形式へ変換すると dropped"
-            evidence: "judge"
-            note: "PNG / JPEG / GIF。形式と画素数はバイトから読む。既に図形のあるシートには錨だけを差し込み、他はバイトのまま。読み取りの模型化はない（付録 B.32）。"
+            evidence: "measured"
+            note: "PNG / JPEG / GIF。形式と画素数はバイトから読む。読み: drawing 部品の錨（1 セル・2 セル・絶対位置）と media 部品を sheet.images に読む（B.71）。触らなければ部品はバイトのまま、足せば継ぎ足し、変える・消すと図面を作り直して言う。他の形式（BMP・EMF など）の絵は模型に入れず、作り直しで落ちると言う。"
           - id: "xlsx.draw.chart"
             name: "グラフ（縦棒・横棒・折れ線・円）"
             spec_anchor: "xl/charts/chartN.xml"
-            read: "preserved"
+            read: "full"
             write: "partial"
             api:
               - "sheet.addChart(Chart(.column), over: \"D2:K16\")"
               - "chart.addSeries(values:categories:name:)"
               - "Chart.Kind"
-            warning: "系列のないグラフは「a … chart with no series was not written」／他形式へは dropped"
-            evidence: "judge"
-            note: "書けるのは 4 種。既にファイルにあるグラフは触らずそのまま（F3）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。 Chart.Kind は構造体で、描けない種類は名指しで落とす（B.68）。"
+              - "sheet.charts"
+              - "Chart.Series.nameReference"
+            warning: "系列のないグラフは「a … chart with no series was not written」／描けない種類は「a … chart was not written: the writer draws column, bar, line and pie charts」／他形式へは dropped"
+            evidence: "measured"
+            note: "書けるのは 4 種、読めるのは全種（種類は Chart.Kind の raw に要素名で残る・B.68）。読んだグラフは触らなければバイトのまま（B.71）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。"
           - id: "xlsx.draw.comment"
             name: "メモ（セルのコメント）"
             spec_anchor: "xl/comments1.xml + legacy VML"
@@ -803,7 +807,7 @@ formats:
             api: []
             warning: "他形式へ変換すると dropped"
             evidence: "code"
-            note: null
+            note: "図面を読むとき「あった」と控え（B.71）、同じ形式に触らず保存すればバイトのまま。絵かグラフを変えて図面を作り直すときは落として言う。"
           - id: "xlsx.draw.ole"
             name: "OLE オブジェクト・ActiveX コントロール"
             spec_anchor: "<oleObjects>, <controls>"
