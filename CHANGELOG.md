@@ -7,7 +7,11 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.24.0] — 2026-09-11
+
+The consistency pass of the 1.0 API review: six groups of naming rules made uniform (spec Appendices B.62–B.67),
+plus the `selectedRanges` rename 0.23.0 announced but did not ship. Names and labels only, no compatibility aliases;
+the five places where behaviour changed are named in their entries.
 
 ### Changed
 
@@ -1175,6 +1179,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[0.24.0]: https://github.com/nanbu/SwiftSheets/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/nanbu/SwiftSheets/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/nanbu/SwiftSheets/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/nanbu/SwiftSheets/compare/0.20.0...0.21.0

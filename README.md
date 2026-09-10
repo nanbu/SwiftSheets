@@ -72,7 +72,7 @@ result and must be called — and `cancel()` throws the rows away.
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.23.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.24.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
@@ -102,7 +102,7 @@ links only the plain products can declare that it carries no cipher, and one tha
 decrypts; CI reads both promises off the symbol tables on every push (`scripts/check-no-crypto.sh`, spec Appendix
 B.39.9).
 
-Status: **0.23.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
+Status: **0.24.0** — all five formats are usable; the API may still change before 1.0. What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
 test keeps the constant, this line and the pin above in step.
 
