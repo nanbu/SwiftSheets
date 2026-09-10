@@ -144,71 +144,47 @@ public enum DateEpoch: Sendable, Hashable {
     case mac1904
 }
 
-/// Excel date serials ⇄ civil dates. Mirrors openpyxl.utils.datetime (`from_excel` / `to_excel`): serials may be
-/// negative, fractions are rounded to the millisecond, and the 1900 epoch skips Lotus's phantom 1900-02-29.
-public enum ExcelDate {
-    static let epoch1899_12_30 = CivilDate(year: 1899, month: 12, day: 30)!.dayNumber
-    static let epoch1904 = CivilDate(year: 1904, month: 1, day: 1)!.dayNumber
+extension DateEpoch {
+    /// The day number (`CivilDate.dayNumber`) that serial 0 stands for.
+    package var baseDayNumber: Int { self == .mac1904 ? DateEpoch.day1904 : DateEpoch.day1899_12_30 }
+    package static let day1899_12_30 = CivilDate(year: 1899, month: 12, day: 30)!.dayNumber
+    package static let day1904 = CivilDate(year: 1904, month: 1, day: 1)!.dayNumber
+}
 
-    /// Serial → `.date` / `.time`. Serials in [0, 1) are a time of day, as in openpyxl. Nil for NaN / infinities.
-    public static func fromSerial(_ serial: Double, epoch: DateEpoch = .windows1900) -> CellValue? {
+// Excel date serials ⇄ civil dates, on the types themselves (spec Appendix B.66). Mirrors openpyxl.utils.datetime
+// (`from_excel` / `to_excel`): serials may be negative, fractions are rounded to the millisecond, and the 1900 epoch
+// skips Lotus's phantom 1900-02-29.
+extension CellValue {
+    /// A serial as `.date` / `.time`. Serials in [0, 1) are a time of day, as in openpyxl. Nil for NaN / infinities.
+    public init?(serial: Double, epoch: DateEpoch = .windows1900) {
         guard serial.isFinite else { return nil }
         var day = Int(serial.rounded(.down))
         let fraction = serial - Double(day)
         let ms = Int((fraction * 86_400_000).rounded())
         let diffDays = ms / 86_400_000, rest = ms % 86_400_000
-        if serial >= 0, serial < 1, diffDays == 0 { return .time(TimeOfDay(millisecondsSinceMidnight: rest)) }
+        if serial >= 0, serial < 1, diffDays == 0 { self = .time(TimeOfDay(millisecondsSinceMidnight: rest)); return }
         if serial > 0, serial < 60, epoch == .windows1900 { day += 1 }
-        let base = epoch == .mac1904 ? epoch1904 : epoch1899_12_30
-        return .date(CivilDateTime(date: CivilDate(dayNumber: base + day + diffDays), time: TimeOfDay(millisecondsSinceMidnight: rest)))
+        self = .date(CivilDateTime(date: CivilDate(dayNumber: epoch.baseDayNumber + day + diffDays), time: TimeOfDay(millisecondsSinceMidnight: rest)))
     }
 
-    /// Serial → elapsed time (openpyxl `from_excel(value, timedelta=True)`), rounded to the millisecond. Nil for NaN.
-    public static func durationFromSerial(_ serial: Double) -> Duration? {
-        guard serial.isFinite else { return nil }
-        let ms = (serial * 86_400_000).rounded()
-        return .milliseconds(Int64(ms))
-    }
-
-    public static func toSerial(_ value: CivilDateTime, epoch: DateEpoch = .windows1900) -> Double {
-        let day = value.date.dayNumber
-        var whole: Int
-        switch epoch {
-        case .mac1904: whole = day - epoch1904
-        case .windows1900:
-            whole = day - epoch1899_12_30
-            if whole > 0, whole <= 60 { whole -= 1 }   // before the phantom 1900-02-29
-        }
-        return Double(whole) + value.time.dayFraction
-    }
-
-    public static func toSerial(_ date: CivilDate, epoch: DateEpoch = .windows1900) -> Int {
-        Int(toSerial(CivilDateTime(date: date), epoch: epoch))
-    }
-
-    /// Elapsed time → days (openpyxl `timedelta_to_days`).
-    public static func toSerial(_ duration: Duration) -> Double {
-        let (s, attos) = duration.components
-        return (Double(s) + Double(attos) / 1e18) / 86_400
-    }
-
-    /// Serial for any date-like value; nil for other cases.
-    public static func toSerial(_ value: CellValue, epoch: DateEpoch = .windows1900) -> Double? {
-        switch value {
-        case .date(let dt): return toSerial(dt, epoch: epoch)
+    /// The serial of a date-like value (`.date`, `.time`, `.duration`); nil for the other cases.
+    public func serial(epoch: DateEpoch = .windows1900) -> Double? {
+        switch self {
+        case .date(let dt): return dt.serial(epoch: epoch)
         case .time(let t): return t.dayFraction
-        case .duration(let d): return toSerial(d)
+        case .duration(let d): return d.serialDays
         default: return nil
         }
     }
 
-    /// ISO 8601 text → `.date` / `.time` / `.duration` (openpyxl `from_ISO8601`): dates, times, datetimes and `PT2H0M1S` durations.
-    public static func fromISO8601(_ text: String) -> CellValue? {
+    /// ISO 8601 text as `.date` / `.time` / `.duration` (openpyxl `from_ISO8601`): dates, times, datetimes and
+    /// `PT2H0M1S` durations. Nil for anything else.
+    public init?(iso8601 text: String) {
         let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !s.isEmpty else { return nil }
-        if let dt = CivilDateTime(iso: s) { return .date(dt) }
-        if let d = CivilDate(iso: s.hasSuffix("Z") ? String(s.dropLast()) : s) { return .date(CivilDateTime(date: d)) }
-        if let t = TimeOfDay(iso: s.hasSuffix("Z") ? String(s.dropLast()) : s) { return .time(t) }
+        if let dt = CivilDateTime(iso: s) { self = .date(dt); return }
+        if let d = CivilDate(iso: s.hasSuffix("Z") ? String(s.dropLast()) : s) { self = .date(CivilDateTime(date: d)); return }
+        if let t = TimeOfDay(iso: s.hasSuffix("Z") ? String(s.dropLast()) : s) { self = .time(t); return }
         if s.hasPrefix("PT") {
             var total = 0.0, number = "", matched = false
             for ch in s.dropFirst(2) {
@@ -218,17 +194,55 @@ public enum ExcelDate {
                 number = ""; matched = true
             }
             guard matched, number.isEmpty else { return nil }
-            return .duration(.milliseconds(Int64((total * 1000).rounded())))
+            self = .duration(.milliseconds(Int64((total * 1000).rounded()))); return
         }
         return nil
     }
 
-    /// `.date` → "2011-12-25T14:23:55" (date-only when midnight), `.time` → "14:15:25" (openpyxl `to_ISO8601`).
-    public static func toISO8601(_ value: CellValue) -> String? {
-        switch value {
+    /// `.date` as "2011-12-25T14:23:55" (date-only when midnight), `.time` as "14:15:25" (openpyxl `to_ISO8601`);
+    /// nil for the other cases.
+    public var iso8601: String? {
+        switch self {
         case .date(let dt): return dt.isMidnight ? dt.date.description : dt.iso8601
         case .time(let t): return t.iso8601
         default: return nil
         }
+    }
+}
+
+extension CivilDateTime {
+    /// The Excel serial: whole days from the epoch plus the day fraction.
+    public func serial(epoch: DateEpoch = .windows1900) -> Double {
+        let day = date.dayNumber
+        var whole: Int
+        switch epoch {
+        case .mac1904: whole = day - DateEpoch.day1904
+        case .windows1900:
+            whole = day - DateEpoch.day1899_12_30
+            if whole > 0, whole <= 60 { whole -= 1 }   // before the phantom 1900-02-29
+        }
+        return Double(whole) + time.dayFraction
+    }
+}
+
+extension CivilDate {
+    /// The Excel serial of midnight on this day.
+    public func serial(epoch: DateEpoch = .windows1900) -> Int {
+        Int(CivilDateTime(date: self).serial(epoch: epoch))
+    }
+}
+
+extension Duration {
+    /// Elapsed time from a serial measured in days (openpyxl `from_excel(value, timedelta=True)`), rounded to the
+    /// millisecond. Nil for NaN / infinities.
+    public init?(serialDays: Double) {
+        guard serialDays.isFinite else { return nil }
+        self = .milliseconds(Int64((serialDays * 86_400_000).rounded()))
+    }
+
+    /// Elapsed time in days, the way a duration cell is stored (openpyxl `timedelta_to_days`).
+    public var serialDays: Double {
+        let (s, attos) = components
+        return (Double(s) + Double(attos) / 1e18) / 86_400
     }
 }

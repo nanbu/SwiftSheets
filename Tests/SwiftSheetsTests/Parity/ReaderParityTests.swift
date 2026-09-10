@@ -407,7 +407,7 @@ private enum ReaderParity {
 
     // openpyxl: reader/tests/test_strings.py::test_formatted_string_table
     @Test func formattedStringTable() throws {
-        var bold = Font(name: "Calibri", size: 11, bold: true, color: .theme(1)); bold.family = 2; bold.scheme = "minor"
+        var bold = Font(name: "Calibri", size: 11, bold: true, color: .theme(1)); bold.family = 2; bold.scheme = .minor
         var boldU = bold; boldU.underline = .single
         #expect(try table("reader/shared-strings-rich.xml") == [
             "Welcome",

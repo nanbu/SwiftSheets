@@ -358,10 +358,16 @@ public struct RankFilter: Hashable, Sendable {
 /// A rule the application evaluates itself rather than a fixed list (`<dynamicFilter>`): the values are relative to
 /// today's date or to the column's own average, so the same file filters differently tomorrow.
 public struct DynamicFilter: Hashable, Sendable {
-    /// Excel's own rule name — "aboveAverage", "belowAverage", "today", "yesterday", "thisMonth", "lastQuarter",
-    /// "Q1", "M3", "yearToDate", … Carried verbatim: every reader agrees on the names, and a round trip cannot
-    /// lose one the model did not think of.
-    public var kind: String
+    /// Excel's rule (`type` in the file). The schema's list is closed, so it is an enumeration; a reader that meets a
+    /// name outside it drops the filter and marks the sheet's filters unmodelled rather than guessing.
+    public enum Kind: String, Hashable, Sendable, CaseIterable {
+        case null, aboveAverage, belowAverage, tomorrow, today, yesterday, nextWeek, thisWeek, lastWeek
+        case nextMonth, thisMonth, lastMonth, nextQuarter, thisQuarter, lastQuarter, nextYear, thisYear, lastYear, yearToDate
+        case quarter1 = "Q1", quarter2 = "Q2", quarter3 = "Q3", quarter4 = "Q4"
+        case month1 = "M1", month2 = "M2", month3 = "M3", month4 = "M4", month5 = "M5", month6 = "M6"
+        case month7 = "M7", month8 = "M8", month9 = "M9", month10 = "M10", month11 = "M11", month12 = "M12"
+    }
+    public var kind: Kind
     /// The boundary the application computed, as a serial date or a number (`val` / `maxVal`), informational.
     public var value: Double?
     public var maxValue: Double?
@@ -369,7 +375,7 @@ public struct DynamicFilter: Hashable, Sendable {
     public var valueISO: String?
     public var maxValueISO: String?
 
-    public init(kind: String, value: Double? = nil, maxValue: Double? = nil, valueISO: String? = nil, maxValueISO: String? = nil) {
+    public init(kind: Kind, value: Double? = nil, maxValue: Double? = nil, valueISO: String? = nil, maxValueISO: String? = nil) {
         self.kind = kind; self.value = value; self.maxValue = maxValue; self.valueISO = valueISO; self.maxValueISO = maxValueISO
     }
 }

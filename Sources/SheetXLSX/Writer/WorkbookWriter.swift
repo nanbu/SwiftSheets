@@ -261,8 +261,8 @@ enum WorkbookWriter {
         var takenTableNames = Set<String>()
         for (i, sheet) in wb.sheets.enumerated() {
             for table in sheet.structuredTables {
-                if let reason = table.validationError() {
-                    sink.add(.dropped, subject: .tables, sheet: sheet.name, "named table not written: \(reason)")
+                do { try table.validate() } catch {
+                    sink.add(.dropped, subject: .tables, sheet: sheet.name, "named table not written: \(Self.reason(error))")
                     continue
                 }
                 if !takenTableNames.insert(table.name.lowercased()).inserted {
@@ -309,8 +309,8 @@ enum WorkbookWriter {
         var cachePlans: [CachePlan] = []
         for (i, sheet) in wb.sheets.enumerated() {
             for pivot in sheet.pivotTables {
-                if let reason = pivot.validationError() {
-                    sink.add(.dropped, subject: .objects, sheet: sheet.name, "pivot table not written: \(reason)")
+                do { try pivot.validate() } catch {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name, "pivot table not written: \(Self.reason(error))")
                     continue
                 }
                 var tablePath = pivot.partPath.flatMap { sameFamily && !usedPaths.contains($0) ? $0 : nil }
@@ -460,7 +460,7 @@ enum WorkbookWriter {
             let p = wb.protection
             var x = "<workbookProtection"
             x += XML.attr("workbookPassword", p.passwordHash) + XML.attr("revisionsPassword", p.revisionsPasswordHash)
-            x += XML.attr("workbookAlgorithmName", p.algorithmName) + XML.attr("workbookHashValue", p.hashValue)
+            x += XML.attr("workbookAlgorithmName", p.algorithmName) + XML.attr("workbookHashValue", p.saltedHash)
             x += XML.attr("workbookSaltValue", p.saltValue) + XML.attr("workbookSpinCount", p.spinCount)
             x += XML.attr("lockStructure", p.locksStructure) + XML.attr("lockWindows", p.locksWindows)
             x += XML.attr("lockRevision", p.locksRevision)
@@ -619,9 +619,9 @@ enum WorkbookWriter {
         case .integer(let i): return ("", "<v>\(i)</v>")
         case .number(let d): return ("", "<v>\(XMLWriter.num(d))</v>")
         case .bool(let b): return (" t=\"b\"", "<v>\(b ? 1 : 0)</v>")
-        case .date(let dt): return ("", "<v>\(XML.num(ExcelDate.toSerial(dt, epoch: epoch)))</v>")
+        case .date(let dt): return ("", "<v>\(XML.num(dt.serial(epoch: epoch)))</v>")
         case .time(let t): return ("", "<v>\(t.dayFraction)</v>")
-        case .duration(let d): return ("", "<v>\(XML.num(ExcelDate.toSerial(d)))</v>")
+        case .duration(let d): return ("", "<v>\(XML.num(d.serialDays))</v>")
         case .error(let e): return (" t=\"e\"", "<v>\(XML.esc(e))</v>")
         case .text(let s):
             if inline { return (" t=\"str\"", "<v>\(XML.esc(s))</v>") }
@@ -682,7 +682,7 @@ enum WorkbookWriter {
             } else if let t = column.rank {
                 s += "<top10\(t.top ? "" : " top=\"0\"")\(XML.attr("percent", t.percent)) val=\"\(XML.num(t.count))\"\(t.boundary.map { " filterVal=\"\(XML.num($0))\"" } ?? "")/>"
             } else if let d = column.dynamicFilter {
-                s += "<dynamicFilter type=\"\(XML.esc(d.kind))\"\(d.value.map { " val=\"\(XML.num($0))\"" } ?? "")\(d.maxValue.map { " maxVal=\"\(XML.num($0))\"" } ?? "")"
+                s += "<dynamicFilter type=\"\(d.kind.rawValue)\"\(d.value.map { " val=\"\(XML.num($0))\"" } ?? "")\(d.maxValue.map { " maxVal=\"\(XML.num($0))\"" } ?? "")"
                 s += XML.attr("valIso", d.valueISO) + XML.attr("maxValIso", d.maxValueISO) + "/>"
             } else if let c = column.colorFilter {
                 s += "<colorFilter\(XML.attr("dxfId", c.differentialStyleID))\(c.byCellColor ? "" : " cellColor=\"0\"")/>"
@@ -750,7 +750,7 @@ enum WorkbookWriter {
         var columnsXML = "<tableColumns count=\"\(t.columns.count)\">"
         for c in t.columns {
             columnsXML += "<tableColumn id=\"\(c.id)\" name=\"\(XML.esc(OOXMLEscape.escape(c.name)))\""
-            columnsXML += XML.attr("totalsRowLabel", c.totalsRowLabel) + XML.attr("totalsRowFunction", c.totalsRowFunction)
+            columnsXML += XML.attr("totalsRowLabel", c.totalsRowLabel) + XML.attr("totalsRowFunction", c.totalsRowFunction?.rawValue)
             var inner = ""
             if let f = c.calculatedColumnFormula { inner += "<calculatedColumnFormula>\(XML.esc(f))</calculatedColumnFormula>" }
             if let f = c.totalsRowFormula { inner += "<totalsRowFormula>\(XML.esc(f))</totalsRowFormula>" }
@@ -787,7 +787,7 @@ enum WorkbookWriter {
         s += " priority=\"\(priority)\""
         s += XML.attr("operator", rule.operator?.rawValue)
         s += XML.attr("text", rule.text)
-        s += XML.attr("timePeriod", rule.timePeriod)
+        s += XML.attr("timePeriod", rule.timePeriod?.rawValue)
         s += XML.attr("rank", rule.rank)
         s += XML.attr("bottom", rule.bottom)
         s += XML.attr("percent", rule.percent)
@@ -991,7 +991,7 @@ enum WorkbookWriter {
         if !ws.protection.isDefault {
             let p = ws.protection
             var x = "<sheetProtection"
-            x += XML.attr("algorithmName", p.algorithmName) + XML.attr("hashValue", p.hashValue)
+            x += XML.attr("algorithmName", p.algorithmName) + XML.attr("hashValue", p.saltedHash)
             x += XML.attr("saltValue", p.saltValue) + XML.attr("spinCount", p.spinCount)
             x += XML.attr("password", p.passwordHash)
             x += XML.attr("sheet", p.enabled)
@@ -1018,7 +1018,7 @@ enum WorkbookWriter {
             for r in ws.protectedRanges {
                 x += "<protectedRange"
                 x += XML.attr("password", r.passwordHash) + XML.attr("algorithmName", r.algorithmName)
-                x += XML.attr("hashValue", r.hashValue) + XML.attr("saltValue", r.saltValue) + XML.attr("spinCount", r.spinCount)
+                x += XML.attr("hashValue", r.saltedHash) + XML.attr("saltValue", r.saltValue) + XML.attr("spinCount", r.spinCount)
                 x += " sqref=\"\(r.ranges.description)\" name=\"\(XML.esc(r.name))\""
                 x += XML.attr("securityDescriptor", r.securityDescriptor) + "/>"
             }
@@ -1250,5 +1250,13 @@ final class SharedStringTable {
 
     private func preserve(_ t: String) -> String {
         (t.hasPrefix(" ") || t.hasSuffix(" ") || t.hasPrefix("　") || t.hasSuffix("　") || t.contains("\n") || t.contains("\t")) ? " xml:space=\"preserve\"" : ""
+    }
+}
+
+extension WorkbookWriter {
+    /// The reason a model object's `validate()` gave, without the error's "invalid workbook:" prefix.
+    static func reason(_ error: any Error) -> String {
+        if case SheetError.invalidWorkbook(let reason) = error { return reason }
+        return "\(error)"
     }
 }

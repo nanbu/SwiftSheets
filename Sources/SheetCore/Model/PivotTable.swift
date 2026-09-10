@@ -58,26 +58,26 @@ public struct PivotTable: Hashable, Sendable {
     /// column. A table with more than one value needs it somewhere, or the captions have nowhere to go.
     public static let valuesField = -2
 
-    /// Nil when the table is one the format would accept, else the reason.
-    public func validationError() -> String? {
-        if name.isEmpty { return "a pivot table needs a name" }
-        if cache.fields.isEmpty { return "pivot table \"\(name)\" has no source fields" }
+    /// Throws `SheetError.invalidWorkbook` with the reason when the table is not one a file could hold; a writer drops
+    /// such a table with that reason as a warning.
+    public func validate() throws {
+        if name.isEmpty { throw SheetError.invalidWorkbook("a pivot table needs a name") }
+        if cache.fields.isEmpty { throw SheetError.invalidWorkbook("pivot table \"\(name)\" has no source fields") }
         if fields.count != cache.fields.count {
-            return "pivot table \"\(name)\" has \(fields.count) field(s) but its cache has \(cache.fields.count)"
+            throw SheetError.invalidWorkbook("pivot table \"\(name)\" has \(fields.count) field(s) but its cache has \(cache.fields.count)")
         }
         for i in rowFields + columnFields where !fields.indices.contains(i) && i != PivotTable.valuesField {
-            return "pivot table \"\(name)\" places a field (\(i)) it does not have"
+            throw SheetError.invalidWorkbook("pivot table \"\(name)\" places a field (\(i)) it does not have")
         }
         for d in dataFields where !fields.indices.contains(d.field) {
-            return "pivot table \"\(name)\" summarises a field (\(d.field)) it does not have"
+            throw SheetError.invalidWorkbook("pivot table \"\(name)\" summarises a field (\(d.field)) it does not have")
         }
         for p in pageFields where !fields.indices.contains(p.field) {
-            return "pivot table \"\(name)\" filters on a field (\(p.field)) it does not have"
+            throw SheetError.invalidWorkbook("pivot table \"\(name)\" filters on a field (\(p.field)) it does not have")
         }
         if dataFields.isEmpty && rowFields.isEmpty && columnFields.isEmpty {
-            return "pivot table \"\(name)\" places no fields at all"
+            throw SheetError.invalidWorkbook("pivot table \"\(name)\" places no fields at all")
         }
-        return nil
     }
 
     /// A pivot table over `source`, laid out at `anchor`, whose header row names the fields.

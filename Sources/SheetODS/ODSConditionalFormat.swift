@@ -62,13 +62,13 @@ enum ODSCondition {
     }
 
     /// `<calcext:date-is calcext:date>` for an XLSX `timePeriod`; nil when the period has no ODF spelling.
-    static func dateIs(_ period: String) -> String? { periodToODF[period] }
-    static func timePeriod(_ dateIs: String) -> String? { periodToODF.first { $0.value == dateIs }?.key }
+    static func dateIs(_ period: ConditionalFormattingRule.TimePeriod) -> String? { periodToODF[period] }
+    static func timePeriod(_ dateIs: String) -> ConditionalFormattingRule.TimePeriod? { periodToODF.first { $0.value == dateIs }?.key }
 
-    private static let periodToODF: [String: String] = [
-        "today": "today", "yesterday": "yesterday", "tomorrow": "tomorrow",
-        "last7Days": "last-7-days", "thisWeek": "this-week", "lastWeek": "last-week", "nextWeek": "next-week",
-        "thisMonth": "this-month", "lastMonth": "last-month", "nextMonth": "next-month",
+    private static let periodToODF: [ConditionalFormattingRule.TimePeriod: String] = [
+        .today: "today", .yesterday: "yesterday", .tomorrow: "tomorrow",
+        .last7Days: "last-7-days", .thisWeek: "this-week", .lastWeek: "last-week", .nextWeek: "next-week",
+        .thisMonth: "this-month", .lastMonth: "last-month", .nextMonth: "next-month",
     ]
 
     /// `ConditionalValue.Kind` ⇄ `calcext:type`.
@@ -288,7 +288,7 @@ enum ODSConditionalFormatWriter {
                     }
                 case .timePeriod:
                     guard let period = rule.timePeriod, let odf = ODSCondition.dateIs(period) else {
-                        sink.add(.dropped, subject: .formatting, sheet: sheet.name, "date rule \"\(rule.timePeriod ?? "?")\" dropped: ODF has no such period")
+                        sink.add(.dropped, subject: .formatting, sheet: sheet.name, "date rule \"\(rule.timePeriod?.rawValue ?? "?")\" dropped: ODF has no such period")
                         break
                     }
                     let name = rule.style.flatMap { styles.name(for: $0) }

@@ -46,13 +46,13 @@ public struct DifferentialFont: Hashable, Sendable {
     public var underline: Font.Underline?
     public var color: Color?
     /// Superscript / subscript, verbatim ("superscript", "subscript", "baseline").
-    public var vertAlign: String?
+    public var verticalAlignment: Font.VerticalAlignment?
 
     public init(name: String? = nil, size: Double? = nil, bold: Bool? = nil, italic: Bool? = nil,
                 strikethrough: Bool? = nil, underline: Font.Underline? = nil, color: Color? = nil,
-                vertAlign: String? = nil) {
+                verticalAlignment: Font.VerticalAlignment? = nil) {
         self.name = name; self.size = size; self.bold = bold; self.italic = italic
-        self.strikethrough = strikethrough; self.underline = underline; self.color = color; self.vertAlign = vertAlign
+        self.strikethrough = strikethrough; self.underline = underline; self.color = color; self.verticalAlignment = verticalAlignment
     }
 
     public var isEmpty: Bool { self == DifferentialFont() }

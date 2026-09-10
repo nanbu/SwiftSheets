@@ -128,7 +128,7 @@ import Testing
     @Test func timedelta() {
         var cell = dummyCell()
         cell.value = .duration(.seconds(86400 + 3 * 3600))
-        #expect(ExcelDate.toSerial(cell.value!) == 1.125 && cell.openpyxlDataType == "d" && cell.isDate && cell.numberFormat == "[hh]:mm:ss")
+        #expect(cell.value!.serial() == 1.125 && cell.openpyxlDataType == "d" && cell.isDate && cell.numberFormat == "[hh]:mm:ss")
     }
 
     // openpyxl: cell/tests/test_cell.py::<module>::test_repr

@@ -183,6 +183,6 @@ import SwiftSheets
         #expect(pivot.rowFields == wb.sheets["Pivot"]!.pivotTables[0].rowFields)
         #expect(pivot.columnFields == wb.sheets["Pivot"]!.pivotTables[0].columnFields)
         #expect(pivot.dataFields.map(\.function) == [.sum])
-        #expect(pivot.validationError() == nil)
+        #expect(throws: Never.self) { try pivot.validate() }
     }
 }

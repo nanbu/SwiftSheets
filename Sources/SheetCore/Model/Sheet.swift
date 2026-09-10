@@ -164,7 +164,7 @@ public struct Sheet: Equatable, Sendable {
                                        filters: [String] = []) -> Bool {
         guard let pivot = PivotTable.summarizing(source, on: sourceSheet, headerRow: headerRow, named: name,
                                                  at: anchor, rows: rows, columns: columns, values: values,
-                                                 filters: filters), pivot.validationError() == nil else { return false }
+                                                 filters: filters), (try? pivot.validate()) != nil else { return false }
         pivotTables.append(pivot)
         return true
     }

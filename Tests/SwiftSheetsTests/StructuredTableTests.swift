@@ -63,7 +63,7 @@ import SwiftSheets
         wb.sheets[0] = ws
         wb.sheets[0].addStructuredTable(named: "T", over: CellRange("A1:C2")!)
         #expect(wb.sheets[0].structuredTables[0].columns.map(\.name) == ["Item", "Column2", "Item2"])
-        #expect(wb.sheets[0].structuredTables[0].validationError() == nil)
+        #expect(throws: Never.self) { try wb.sheets[0].structuredTables[0].validate() }
     }
 
     /// Totals rows, calculated columns and banding.
@@ -76,8 +76,8 @@ import SwiftSheets
         wb.sheets[0].append([.text("合計"), nil, nil])
         var table = StructuredTable(name: "Sales", ref: CellRange("A1:C4")!,
                                columns: [StructuredTableColumn(id: 1, name: "Item", totalsRowLabel: "合計"),
-                                         StructuredTableColumn(id: 2, name: "Qty", totalsRowFunction: "sum"),
-                                         StructuredTableColumn(id: 3, name: "Price", totalsRowFunction: "custom",
+                                         StructuredTableColumn(id: 2, name: "Qty", totalsRowFunction: .sum),
+                                         StructuredTableColumn(id: 3, name: "Price", totalsRowFunction: .custom,
                                                           totalsRowFormula: "SUBTOTAL(109,Sales[Price])",
                                                           calculatedColumnFormula: "Sales[[#This Row],[Qty]]*2")],
                                totalsRowCount: 1,

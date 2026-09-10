@@ -244,7 +244,7 @@ import SwiftSheets
         ws.addConditionalFormatting(.duplicates(paint: paint, unique: true, priority: 10), over: "A1:A9")
         ws.addConditionalFormatting(ConditionalFormattingRule(kind: .containsBlanks, priority: 11, style: paint), over: "A1:A9")
         ws.addConditionalFormatting(ConditionalFormattingRule(kind: .containsErrors, priority: 12, style: paint), over: "A1:A9")
-        ws.addConditionalFormatting(ConditionalFormattingRule(kind: .timePeriod, priority: 13, style: paint, timePeriod: "lastWeek"), over: "A1:A9")
+        ws.addConditionalFormatting(ConditionalFormattingRule(kind: .timePeriod, priority: 13, style: paint, timePeriod: .lastWeek), over: "A1:A9")
         ws.addConditionalFormatting(.colorScale(.threeColor(from: .white, through: Color(hex: "FFEB84"), to: Color(hex: "63BE7B")), priority: 14), over: "A1:A9")
         ws.addConditionalFormatting(.dataBar(DataBar(color: Color(hex: "638EC6")), priority: 15), over: "A1:A9")
         ws.addConditionalFormatting(.iconSet(.threeBand(), priority: 16), over: "A1:A9")

@@ -123,13 +123,13 @@ import Testing
     // openpyxl: utils/tests/test_datetime.py::test_to_iso
     @Test(arguments: toISOCases)
     func toISO(_ value: CellValue, _ expected: String) {
-        #expect(ExcelDate.toISO8601(value) == expected)
+        #expect(value.iso8601 == expected)
     }
 
     // openpyxl: utils/tests/test_datetime.py::test_iso_regex
     @Test(arguments: [("2011-06-30", "date"), ("12:19", "time"), ("12:19:01", "time"), ("12:19:01.123", "time"), ("12:19:01.2", "time")])
     func isoRegex(_ value: String, _ group: String) {
-        let parsed = ExcelDate.fromISO8601(value)
+        let parsed = CellValue(iso8601: value)
         #expect(parsed?.openpyxlDataType == "d")
         if group == "date" { #expect(parsed?.dateValue != nil) } else { if case .time? = parsed {} else { Issue.record("expected a time for \(value)") } }
     }
@@ -146,7 +146,7 @@ import Testing
     // openpyxl: utils/tests/test_datetime.py::test_from_iso
     @Test(arguments: fromISOCases)
     func fromISO(_ value: String, _ expected: CellValue) {
-        #expect(ExcelDate.fromISO8601(value) == expected)
+        #expect(CellValue(iso8601: value) == expected)
     }
 
     static let toExcelCases: [(CellValue, Double)] = [
@@ -157,7 +157,7 @@ import Testing
     // openpyxl: utils/tests/test_datetime.py::test_to_excel
     @Test(arguments: toExcelCases)
     func toExcel(_ value: CellValue, _ expected: Double) {
-        #expect(abs(ExcelDate.toSerial(value)! - expected) < 1e-7)
+        #expect(abs(value.serial()! - expected) < 1e-7)
     }
 
     static let toExcelMacCases: [(CellValue, Double)] = [
@@ -167,7 +167,7 @@ import Testing
     // openpyxl: utils/tests/test_datetime.py::test_to_excel_mac
     @Test(arguments: toExcelMacCases)
     func toExcelMac(_ value: CellValue, _ expected: Double) {
-        #expect(abs(ExcelDate.toSerial(value, epoch: .mac1904)! - expected) < 1e-7)
+        #expect(abs(value.serial(epoch: .mac1904)! - expected) < 1e-7)
     }
 
     static let fromExcelCases: [(Double, CellValue)] = [
@@ -179,7 +179,7 @@ import Testing
     // openpyxl: utils/tests/test_datetime.py::test_from_excel
     @Test(arguments: fromExcelCases)
     func fromExcel(_ value: Double, _ expected: CellValue) {
-        #expect(ExcelDate.fromSerial(value) == expected)
+        #expect(CellValue(serial: value) == expected)
     }
 
     static let fromExcelTimedeltaCases: [(Double, Duration)] = [
@@ -191,14 +191,14 @@ import Testing
     // openpyxl: utils/tests/test_datetime.py::test_from_excel_timedelta
     @Test(arguments: fromExcelTimedeltaCases)
     func fromExcelTimedelta(_ value: Double, _ expected: Duration) {
-        #expect(ExcelDate.durationFromSerial(value) == expected)
+        #expect(Duration(serialDays: value) == expected)
     }
 
     static let fromExcelMacCases: [(Double, CellValue)] = [(39385, dt(2011, 10, 31)), (21980, dt(1964, 3, 6)), (0, time(0, 0)), (-25063, dt(1835, 5, 19)), (0.75, time(18, 0)), (-0.25, dt(1903, 12, 31, 18, 0, 0))]
     // openpyxl: utils/tests/test_datetime.py::test_from_excel_mac
     @Test(arguments: fromExcelMacCases)
     func fromExcelMac(_ value: Double, _ expected: CellValue) {
-        #expect(ExcelDate.fromSerial(value, epoch: .mac1904) == expected)
+        #expect(CellValue(serial: value, epoch: .mac1904) == expected)
     }
 
     static let timeToDaysCases: [(CellValue, Double)] = [(time(13, 55, 12, micro: 36), 0.5800000004166667), (time(3, 0, 0), 0.125), (dt(2021, 3, 19, 13, 55, 12, micro: 36), 0.5800000004166667), (dt(1536, 12, 24, 3, 0, 0), 0.125)]
@@ -212,7 +212,7 @@ import Testing
 
     // openpyxl: utils/tests/test_datetime.py::test_timedelta_to_days
     @Test func timedeltaToDays() {
-        #expect(ExcelDate.toSerial(Duration.seconds(86400 + 3 * 3600)) == 1.125)
+        #expect(Duration.seconds(86400 + 3 * 3600).serialDays == 1.125)
     }
 
     // openpyxl: utils/tests/test_datetime.py::test_days_to_time

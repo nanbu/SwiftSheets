@@ -39,6 +39,18 @@ writes, so the constant, the README's status line and the tag always name the sa
   `setPrintArea(_:)` → `printAreaFormula: String?` (nil when unset, where it was `""`); `setPrintTitleRows(_:)` and
   `setPrintTitleColumns(_:)` are gone — assign `printTitleRows` / `printTitleColumns` or the formula.
 
+- **What Swift can say with a type is said with a type** (B.66). `hashValue: String?` on `SheetProtection`,
+  `WorkbookProtection` and `ProtectedRange` — the name `Hashable` owns — is `saltedHash`. `validationError() -> String?`
+  on `StructuredTable` and `PivotTable` is `validate() throws` (`SheetError.invalidWorkbook` carries the reason). The
+  `ExcelDate` namespace is gone: `CellValue(serial:epoch:)`, `cellValue.serial(epoch:)`, `CellValue(iso8601:)`,
+  `cellValue.iso8601`, `civilDateTime.serial(epoch:)`, `civilDate.serial(epoch:)`, `Duration(serialDays:)` and
+  `duration.serialDays` replace `fromSerial` / `toSerial` / `durationFromSerial` / `fromISO8601` / `toISO8601`. Five
+  properties whose schema closes the set are enumerations instead of strings: `Font.vertAlign` →
+  `verticalAlignment: Font.VerticalAlignment?` (also on `DifferentialFont`), `Font.scheme: Font.Scheme?`,
+  `ConditionalFormattingRule.timePeriod: TimePeriod?`, `StructuredTableColumn.totalsRowFunction: TotalsRowFunction?`,
+  `DynamicFilter.kind: Kind`. Files are written with the same values; a value outside the schema is dropped on read
+  with the sheet's unmodelled flag set, never guessed at.
+
 ### Fixed
 
 - `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that

@@ -68,7 +68,7 @@ final class WorkbookXMLParser: SAXHandler {
             protection.locksRevision = XMLBool.isTrue(a["lockRevision"])
             protection.passwordHash = a["workbookPassword"]
             protection.revisionsPasswordHash = a["revisionsPassword"]
-            protection.algorithmName = a["workbookAlgorithmName"]; protection.hashValue = a["workbookHashValue"]
+            protection.algorithmName = a["workbookAlgorithmName"]; protection.saltedHash = a["workbookHashValue"]
             protection.saltValue = a["workbookSaltValue"]; protection.spinCount = Int(a["workbookSpinCount"] ?? "")
         case "pivotCache":
             let rId = a["r:id"] ?? a.first { $0.key.hasSuffix(":id") }?.value ?? ""
@@ -149,8 +149,8 @@ struct FontAttributes {
         case "sz": font.size = Double(a["val"] ?? "")
         case "name", "rFont": font.name = a["val"]
         case "family": font.family = Int(a["val"] ?? "")
-        case "scheme": font.scheme = a["val"] == "none" ? nil : a["val"]
-        case "vertAlign": font.vertAlign = a["val"] == "none" ? nil : a["val"]
+        case "scheme": font.scheme = a["val"].flatMap(Font.Scheme.init(rawValue:))
+        case "vertAlign": font.verticalAlignment = a["val"].flatMap(Font.VerticalAlignment.init(rawValue:))
         case "charset": font.charset = Int(a["val"] ?? "")
         case "color": font.color = StylesParser.color(a)
         default: break
@@ -285,7 +285,7 @@ final class StylesParser: SAXHandler {
             dxfFont!.underline = v == "none" ? nil : (Font.Underline(rawValue: v) ?? .single)
         case "sz" where dxfFont != nil: dxfFont!.size = Double(a["val"] ?? "")
         case "name" where dxfFont != nil: dxfFont!.name = a["val"]
-        case "vertAlign" where dxfFont != nil: dxfFont!.vertAlign = a["val"]
+        case "vertAlign" where dxfFont != nil: dxfFont!.verticalAlignment = a["val"].flatMap(Font.VerticalAlignment.init(rawValue:))
         case "color" where dxfFont != nil && side.isEmpty && gradientStop == nil: dxfFont!.color = StylesParser.color(a)
         case "numFmt": dxf!.numberFormat = a["formatCode"]
         case "patternFill": pattern.patternType = PatternFill.PatternType(rawValue: a["patternType"] ?? "none") ?? .none
@@ -571,9 +571,13 @@ final class SheetParser: SAXHandler {
             filterColumn!.rank = RankFilter(count: Double(a["val"] ?? "") ?? 10, top: XMLBool.isNotFalse(a["top"]),
                                               percent: XMLBool.isTrue(a["percent"]), boundary: Double(a["filterVal"] ?? ""))
         case "dynamicFilter" where filterColumn != nil:
-            filterColumn!.dynamicFilter = DynamicFilter(kind: a["type"] ?? "null", value: Double(a["val"] ?? ""),
-                                                        maxValue: Double(a["maxVal"] ?? ""),
-                                                        valueISO: a["valIso"], maxValueISO: a["maxValIso"])
+            if let kind = DynamicFilter.Kind(rawValue: a["type"] ?? "null") {
+                filterColumn!.dynamicFilter = DynamicFilter(kind: kind, value: Double(a["val"] ?? ""),
+                                                            maxValue: Double(a["maxVal"] ?? ""),
+                                                            valueISO: a["valIso"], maxValueISO: a["maxValIso"])
+            } else {
+                sheet.hasUnmodelledFilters = true   // a name outside the schema's list: not guessed at
+            }
         case "colorFilter" where filterColumn != nil:
             filterColumn!.colorFilter = ColorFilter(differentialStyleID: Int(a["dxfId"] ?? ""),
                                                     byCellColor: XMLBool.isNotFalse(a["cellColor"]))
@@ -588,7 +592,7 @@ final class SheetParser: SAXHandler {
             var p = SheetProtection()
             p.enabled = XMLBool.isTrue(a["sheet"])
             p.passwordHash = a["password"]
-            p.algorithmName = a["algorithmName"]; p.hashValue = a["hashValue"]
+            p.algorithmName = a["algorithmName"]; p.saltedHash = a["hashValue"]
             p.saltValue = a["saltValue"]; p.spinCount = Int(a["spinCount"] ?? "")
             // the file's booleans say what is *forbidden*; the model says what is allowed
             p.allowsSelectingLockedCells = !XMLBool.isTrue(a["selectLockedCells"])
@@ -610,7 +614,7 @@ final class SheetParser: SAXHandler {
         case "protectedRange":
             guard let ranges = a["sqref"].flatMap(MultiCellRange.init) else { return }
             var r = ProtectedRange(name: a["name"] ?? "", ranges: ranges, securityDescriptor: a["securityDescriptor"])
-            r.passwordHash = a["password"]; r.algorithmName = a["algorithmName"]; r.hashValue = a["hashValue"]
+            r.passwordHash = a["password"]; r.algorithmName = a["algorithmName"]; r.saltedHash = a["hashValue"]
             r.saltValue = a["saltValue"]; r.spinCount = Int(a["spinCount"] ?? "")
             sheet.protectedRanges.append(r)
         case "scenarios":
@@ -640,7 +644,8 @@ final class SheetParser: SAXHandler {
             var rule = ConditionalFormattingRule(kind: kind, priority: Int(a["priority"] ?? "1") ?? 1,
                                                  stopIfTrue: XMLBool.isTrue(a["stopIfTrue"]))
             rule.operator = a["operator"].flatMap(ConditionalFormattingRule.Operator.init(rawValue:))
-            rule.text = a["text"]; rule.timePeriod = a["timePeriod"]
+            rule.text = a["text"]; rule.timePeriod = a["timePeriod"].flatMap(ConditionalFormattingRule.TimePeriod.init(rawValue:))
+            if a["timePeriod"] != nil, rule.timePeriod == nil { sheet.hasUnmodelledConditionalFormats = true }
             rule.rank = Int(a["rank"] ?? ""); rule.bottom = XMLBool.isTrue(a["bottom"])
             rule.percent = XMLBool.isTrue(a["percent"])
             rule.aboveAverage = XMLBool.isNotFalse(a["aboveAverage"]); rule.equalAverage = XMLBool.isTrue(a["equalAverage"])
@@ -872,13 +877,13 @@ final class SheetParser: SAXHandler {
         case "str": return .text(vText)
         case "b": return .bool(vText.trimmingCharacters(in: .whitespaces) == "1")
         case "e": return .error(vText)
-        case "d": return ExcelDate.fromISO8601(vText)
+        case "d": return CellValue(iso8601: vText)
         default:
             let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty, let d = Double(raw) else { return nil }
             switch styles.numericKind(cellStyle) {
-            case .duration: return ExcelDate.durationFromSerial(d).map { .duration($0) }
-            case .date: return ExcelDate.fromSerial(d, epoch: epoch)
+            case .duration: return Duration(serialDays: d).map { .duration($0) }
+            case .date: return CellValue(serial: d, epoch: epoch)
             case .plain: break
             }
             if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
@@ -982,7 +987,8 @@ final class TablePartParser: SAXHandler {
                                               percent: XMLBool.isTrue(a["percent"]), boundary: Double(a["filterVal"] ?? ""))
         case "tableColumn":
             column = StructuredTableColumn(id: Int(a["id"] ?? "0") ?? 0, name: OOXMLEscape.unescape(a["name"] ?? ""),
-                                      totalsRowLabel: a["totalsRowLabel"], totalsRowFunction: a["totalsRowFunction"])
+                                      totalsRowLabel: a["totalsRowLabel"],
+                                      totalsRowFunction: a["totalsRowFunction"].flatMap(StructuredTableColumn.TotalsRowFunction.init(rawValue:)))
         case "calculatedColumnFormula", "totalsRowFormula": inFormula = name; formulaText = ""
         case "tableStyleInfo":
             table?.styleInfo = TableStyleInfo(name: a["name"], showsFirstColumn: XMLBool.isTrue(a["showFirstColumn"]),

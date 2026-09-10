@@ -160,7 +160,7 @@ import SwiftSheets
             FilterColumn(columnOffset: 0, colorFilter: ColorFilter(differentialStyleID: 0)),
             FilterColumn(columnOffset: 1, iconFilter: IconFilter(iconSet: "3TrafficLights1", iconID: 2)),
             FilterColumn(columnOffset: 2, rank: RankFilter(count: 5, top: false, percent: true, boundary: 3)),
-            FilterColumn(columnOffset: 3, dynamicFilter: DynamicFilter(kind: "aboveAverage", value: 2.5)),
+            FilterColumn(columnOffset: 3, dynamicFilter: DynamicFilter(kind: .aboveAverage, value: 2.5)),
             FilterColumn(columnOffset: 4, dateGroups: [DateGroup(grouping: .month, year: 2026, month: 3)], calendarType: "japan"),
             FilterColumn(columnOffset: 5, values: ["x"], buttonShown: false),
         ]

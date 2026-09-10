@@ -87,12 +87,12 @@ func fixture(_ name: String) throws -> Data {
     }
 
     @Test func excelDates() {
-        #expect(ExcelDate.fromSerial(46266)?.dateValue?.date.description == "2026-09-01")
-        #expect(ExcelDate.fromSerial(60)?.dateValue?.date.description == "1900-02-28")
-        #expect(ExcelDate.fromSerial(61)?.dateValue?.date.description == "1900-03-01")
-        #expect(ExcelDate.fromSerial(0.5) == .time(TimeOfDay(hour: 12, minute: 0)))
-        #expect(ExcelDate.toSerial(CivilDate(year: 2026, month: 9, day: 1)!) == 46266)
-        #expect(ExcelDate.toSerial(CivilDate(year: 2026, month: 9, day: 1)!, epoch: .mac1904) == 44804)
+        #expect(CellValue(serial: 46266)?.dateValue?.date.description == "2026-09-01")
+        #expect(CellValue(serial: 60)?.dateValue?.date.description == "1900-02-28")
+        #expect(CellValue(serial: 61)?.dateValue?.date.description == "1900-03-01")
+        #expect(CellValue(serial: 0.5) == .time(TimeOfDay(hour: 12, minute: 0)))
+        #expect(CivilDate(year: 2026, month: 9, day: 1)!.serial() == 46266)
+        #expect(CivilDate(year: 2026, month: 9, day: 1)!.serial(epoch: .mac1904) == 44804)
         #expect(CivilDate(year: 2026, month: 2, day: 30) == nil)
         #expect(CivilDate(iso: "2026-09-06")?.isoWeekday == 7)
     }

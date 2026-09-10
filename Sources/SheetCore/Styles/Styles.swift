@@ -26,11 +26,15 @@ public struct Font: Hashable, Sendable {
     public var strikethrough = false
     public var color: Color?
     public var family: Int?
-    public var scheme: String?
-    public var vertAlign: String?
+    /// `<scheme>`: which theme font this is. Nil — the file's "none" — is a font named on its own.
+    public var scheme: Scheme?
+    /// `<vertAlign>`: where the glyphs sit. Nil is the baseline.
+    public var verticalAlignment: VerticalAlignment?
     public var charset: Int?
 
     public enum Underline: String, Sendable { case single, double, singleAccounting, doubleAccounting }
+    public enum Scheme: String, Sendable, CaseIterable { case major, minor }
+    public enum VerticalAlignment: String, Sendable, CaseIterable { case baseline, superscript, `subscript` }
 
     public init(name: String? = nil, size: Double? = nil, bold: Bool = false, italic: Bool = false, underline: Underline? = nil,
                 strikethrough: Bool = false, color: Color? = nil) {
@@ -39,7 +43,7 @@ public struct Font: Hashable, Sendable {
     }
 
     /// The default font Excel assumes when none is set (openpyxl's DEFAULT_FONT: Calibri 11, family 2, theme color 1, minor scheme).
-    public static let `default`: Font = { var f = Font(name: "Calibri", size: 11, color: .theme(1)); f.family = 2; f.scheme = "minor"; return f }()
+    public static let `default`: Font = { var f = Font(name: "Calibri", size: 11, color: .theme(1)); f.family = 2; f.scheme = .minor; return f }()
 }
 
 public struct PatternFill: Hashable, Sendable {

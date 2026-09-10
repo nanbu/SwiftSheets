@@ -15,10 +15,10 @@ public struct SheetProtection: Hashable, Sendable {
 
     /// The legacy hash of the password (`password`), as four hexadecimal digits. Set it through `setPassword(_:)`.
     public package(set) var passwordHash: String?
-    /// The modern hash Excel 2010 and later write (`algorithmName` / `hashValue` / `saltValue` / `spinCount`).
+    /// The modern hash Excel 2010 and later write (`algorithmName` / `saltedHash` / `saltValue` / `spinCount`).
     /// A file that has one keeps it verbatim; `setModernPassword(_:)` computes a fresh one (Appendix B.31).
     public var algorithmName: String?
-    public var hashValue: String?
+    public var saltedHash: String?
     public var saltValue: String?
     public var spinCount: Int?
 
@@ -81,16 +81,16 @@ public struct SheetProtection: Hashable, Sendable {
         return LegacyPasswordHash.hash(password) == passwordHash
     }
 
-    /// Sets — or with nil clears — the modern (SHA-512) password, filling `algorithmName` / `hashValue` /
+    /// Sets — or with nil clears — the modern (SHA-512) password, filling `algorithmName` / `saltedHash` /
     /// `saltValue` / `spinCount`. The legacy hash is separate and unchanged. Omit `salt` for 16 random bytes.
     public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
                                            salt: Data? = nil) {
-        (algorithmName, hashValue, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
+        (algorithmName, saltedHash, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
     }
 
     /// True when `password` matches the stored modern hash. False when no modern hash is stored.
     public func modernPasswordMatches(_ password: String) -> Bool {
-        ModernPasswordHash.matches(password, algorithmName: algorithmName, hashValue: hashValue,
+        ModernPasswordHash.matches(password, algorithmName: algorithmName, saltedHash: saltedHash,
                                    saltValue: saltValue, spinCount: spinCount)
     }
 
@@ -111,7 +111,7 @@ public struct WorkbookProtection: Hashable, Sendable {
     public package(set) var revisionsPasswordHash: String?
     /// The modern hashes, carried verbatim.
     public var algorithmName: String?
-    public var hashValue: String?
+    public var saltedHash: String?
     public var saltValue: String?
     public var spinCount: Int?
 
@@ -124,11 +124,11 @@ public struct WorkbookProtection: Hashable, Sendable {
     /// Sets — or with nil clears — the modern (SHA-512) password (Appendix B.31).
     public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
                                            salt: Data? = nil) {
-        (algorithmName, hashValue, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
+        (algorithmName, saltedHash, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
     }
     /// True when `password` matches the stored modern hash. False when no modern hash is stored.
     public func modernPasswordMatches(_ password: String) -> Bool {
-        ModernPasswordHash.matches(password, algorithmName: algorithmName, hashValue: hashValue,
+        ModernPasswordHash.matches(password, algorithmName: algorithmName, saltedHash: saltedHash,
                                    saltValue: saltValue, spinCount: spinCount)
     }
     public func passwordMatches(_ password: String) -> Bool {
@@ -145,7 +145,7 @@ public struct ProtectedRange: Hashable, Sendable {
     public var ranges: MultiCellRange
     public package(set) var passwordHash: String?
     public var algorithmName: String?
-    public var hashValue: String?
+    public var saltedHash: String?
     public var saltValue: String?
     public var spinCount: Int?
     /// The Windows security descriptor naming who may edit, verbatim.
@@ -162,11 +162,11 @@ public struct ProtectedRange: Hashable, Sendable {
     /// Sets — or with nil clears — the modern (SHA-512) password (Appendix B.31).
     public mutating func setModernPassword(_ password: String?, spinCount: Int = ModernPasswordHash.defaultSpinCount,
                                            salt: Data? = nil) {
-        (algorithmName, hashValue, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
+        (algorithmName, saltedHash, saltValue, self.spinCount) = ModernPasswordHash.fields(password, spinCount: spinCount, salt: salt)
     }
     /// True when `password` matches the stored modern hash. False when no modern hash is stored.
     public func modernPasswordMatches(_ password: String) -> Bool {
-        ModernPasswordHash.matches(password, algorithmName: algorithmName, hashValue: hashValue,
+        ModernPasswordHash.matches(password, algorithmName: algorithmName, saltedHash: saltedHash,
                                    saltValue: saltValue, spinCount: spinCount)
     }
 }
@@ -303,19 +303,19 @@ public enum ModernPasswordHash {
 
     /// The four attribute values for a protection element — or four nils when `plaintext` is nil.
     static func fields(_ plaintext: String?, spinCount: Int, salt: Data?)
-        -> (algorithmName: String?, hashValue: String?, saltValue: String?, spinCount: Int?) {
+        -> (algorithmName: String?, saltedHash: String?, saltValue: String?, spinCount: Int?) {
         guard let plaintext else { return (nil, nil, nil, nil) }
         let salt = salt ?? randomSalt()
         let key = hash(plaintext, salt: salt, spinCount: spinCount)
         return (algorithmName, key.base64EncodedString(), salt.base64EncodedString(), spinCount)
     }
 
-    /// True when `plaintext` reproduces `hashValue` under the stored salt and count. Only the scheme this type
+    /// True when `plaintext` reproduces `saltedHash` under the stored salt and count. Only the scheme this type
     /// writes (`SHA-512`) can be checked; any other `algorithmName` answers false.
-    static func matches(_ plaintext: String, algorithmName: String?, hashValue: String?,
+    static func matches(_ plaintext: String, algorithmName: String?, saltedHash: String?,
                         saltValue: String?, spinCount: Int?) -> Bool {
-        guard algorithmName == Self.algorithmName, let hashValue, let saltValue, let spinCount, spinCount > 0,
-              let salt = Data(base64Encoded: saltValue), let stored = Data(base64Encoded: hashValue) else { return false }
+        guard algorithmName == Self.algorithmName, let saltedHash, let saltValue, let spinCount, spinCount > 0,
+              let salt = Data(base64Encoded: saltValue), let stored = Data(base64Encoded: saltedHash) else { return false }
         return hash(plaintext, salt: salt, spinCount: spinCount) == stored
     }
 }

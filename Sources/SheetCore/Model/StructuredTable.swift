@@ -105,20 +105,20 @@ public struct StructuredTable: Hashable, Sendable {
     }
 
     /// Column names must be unique and non-empty; the reference must be at least as wide as the column list, and
-    /// tall enough for the header and totals rows it declares. Nil when the table is acceptable, else the reason.
-    public func validationError() -> String? {
-        if name.isEmpty { return "a table needs a name" }
-        if columns.isEmpty { return "table \"\(name)\" has no columns" }
+    /// tall enough for the header and totals rows it declares. Throws `SheetError.invalidWorkbook` with the reason
+    /// when the table is not one a file could hold; a writer drops such a table with that reason as a warning.
+    public func validate() throws {
+        if name.isEmpty { throw SheetError.invalidWorkbook("a table needs a name") }
+        if columns.isEmpty { throw SheetError.invalidWorkbook("table \"\(name)\" has no columns") }
         let width = ref.bottomRight.column - ref.topLeft.column + 1
-        if columns.count != width { return "table \"\(name)\" covers \(width) column(s) but names \(columns.count)" }
+        if columns.count != width { throw SheetError.invalidWorkbook("table \"\(name)\" covers \(width) column(s) but names \(columns.count)") }
         let height = ref.bottomRight.row - ref.topLeft.row + 1
-        if height < headerRowCount + totalsRowCount { return "table \"\(name)\" is too short for its header and totals rows" }
+        if height < headerRowCount + totalsRowCount { throw SheetError.invalidWorkbook("table \"\(name)\" is too short for its header and totals rows") }
         var seen = Set<String>()
         for c in columns {
-            if c.name.isEmpty { return "table \"\(name)\" has an unnamed column" }
-            if !seen.insert(c.name.lowercased()).inserted { return "table \"\(name)\" names the column \"\(c.name)\" twice" }
+            if c.name.isEmpty { throw SheetError.invalidWorkbook("table \"\(name)\" has an unnamed column") }
+            if !seen.insert(c.name.lowercased()).inserted { throw SheetError.invalidWorkbook("table \"\(name)\" names the column \"\(c.name)\" twice") }
         }
-        return nil
     }
 
     /// A name Excel accepts: no spaces, no punctuation it reserves, and not starting with a digit.
@@ -135,6 +135,14 @@ public struct StructuredTable: Hashable, Sendable {
 
 /// One column of an `StructuredTable` (`<tableColumn>`). `name` is what the header cell shows and what formulas use.
 public struct StructuredTableColumn: Hashable, Sendable {
+    /// What the totals row shows under this column. Nil — the file's "none" — shows nothing.
+    public enum TotalsRowFunction: String, Hashable, Sendable, CaseIterable {
+        case sum, min, max, average, count
+        case countNumbers = "countNums"
+        case standardDeviation = "stdDev"
+        case variance = "var"
+        case custom
+    }
     /// Unique within the table, and never renumbered — Excel's calculated columns refer to it.
     public var id: Int
     public var name: String
@@ -142,13 +150,13 @@ public struct StructuredTableColumn: Hashable, Sendable {
     public var totalsRowLabel: String?
     /// The function the totals row applies: "sum", "count", "countNums", "average", "max", "min", "stdDev", "var",
     /// or "custom" together with `totalsRowFormula`.
-    public var totalsRowFunction: String?
-    /// The totals-row formula, when `totalsRowFunction` is "custom".
+    public var totalsRowFunction: TotalsRowFunction?
+    /// The totals-row formula, when `totalsRowFunction` is `.custom`.
     public var totalsRowFormula: String?
     /// The formula Excel fills the whole column with (`<calculatedColumnFormula>`), as text without the `=`.
     public var calculatedColumnFormula: String?
 
-    public init(id: Int, name: String, totalsRowLabel: String? = nil, totalsRowFunction: String? = nil,
+    public init(id: Int, name: String, totalsRowLabel: String? = nil, totalsRowFunction: TotalsRowFunction? = nil,
                 totalsRowFormula: String? = nil, calculatedColumnFormula: String? = nil) {
         self.id = id; self.name = name; self.totalsRowLabel = totalsRowLabel
         self.totalsRowFunction = totalsRowFunction; self.totalsRowFormula = totalsRowFormula

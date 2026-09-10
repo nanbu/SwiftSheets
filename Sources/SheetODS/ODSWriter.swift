@@ -358,7 +358,7 @@ enum ODSWriter {
         var unsaid: [String] = []
         if wb.protection.locksWindows { unsaid.append("the window lock") }
         if wb.protection.locksRevision { unsaid.append("the revision lock") }
-        if wb.protection.passwordHash != nil || wb.protection.hashValue != nil { unsaid.append("the password") }
+        if wb.protection.passwordHash != nil || wb.protection.saltedHash != nil { unsaid.append("the password") }
         if wb.protection.revisionsPasswordHash != nil { unsaid.append("the revisions password") }
         if !unsaid.isEmpty {
             sink.add(.dropped, subject: .other, "workbook protection: \(unsaid.joined(separator: ", ")) dropped — ODF has the structure lock only" + (wb.protection.locksStructure ? ", which is written" : ""))

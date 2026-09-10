@@ -174,7 +174,7 @@ final class StyleRegistry {
             if let v = f.italic { s += "<i val=\"\(v ? 1 : 0)\"/>" }
             if let v = f.strikethrough { s += "<strike val=\"\(v ? 1 : 0)\"/>" }
             if let v = f.underline { s += "<u val=\"\(v.rawValue)\"/>" }
-            if let v = f.vertAlign { s += "<vertAlign val=\"\(XML.esc(v))\"/>" }
+            if let v = f.verticalAlignment { s += "<vertAlign val=\"\(v.rawValue)\"/>" }
             if let v = f.size { s += "<sz val=\"\(XML.num(v))\"/>" }
             s += colorXML("color", f.color)
             if let v = f.name { s += "<name val=\"\(XML.esc(v))\"/>" }
@@ -215,7 +215,7 @@ final class StyleRegistry {
         }
     }
 
-    /// CT_Font's children in the order the schema lists them (b, i, strike, u, vertAlign, sz, color, name, family,
+    /// CT_Font's children in the order the schema lists them (b, i, strike, u, verticalAlignment, sz, color, name, family,
     /// charset, scheme) — Excel accepts nothing else without offering to repair the file.
     static func fontXML(_ f: Font, tag: String = "font", nameTag: String = "name") -> String {
         var s = "<\(tag)>"
@@ -223,13 +223,13 @@ final class StyleRegistry {
         if f.italic { s += "<i val=\"1\"/>" }
         if f.strikethrough { s += "<strike val=\"1\"/>" }
         if let u = f.underline { s += "<u val=\"\(u.rawValue)\"/>" }
-        if let v = f.vertAlign { s += "<vertAlign val=\"\(v)\"/>" }
+        if let v = f.verticalAlignment { s += "<vertAlign val=\"\(v.rawValue)\"/>" }
         if let sz = f.size { s += "<sz val=\"\(XML.num(sz))\"/>" }
         s += colorXML("color", f.color)
         if let n = f.name { s += "<\(nameTag) val=\"\(XML.esc(n))\"/>" }
         if let fam = f.family { s += "<family val=\"\(fam)\"/>" }
         if let cs = f.charset { s += "<charset val=\"\(cs)\"/>" }
-        if let sch = f.scheme { s += "<scheme val=\"\(sch)\"/>" }
+        if let sch = f.scheme { s += "<scheme val=\"\(sch.rawValue)\"/>" }
         return s + "</\(tag)>"
     }
 

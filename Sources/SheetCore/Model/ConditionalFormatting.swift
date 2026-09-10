@@ -58,6 +58,10 @@ public struct ConditionalFormattingRule: Hashable, Sendable {
     }
 
     /// How `formulas` bound the cell's value for a `.cellIs` rule.
+    /// The period a `.timePeriod` rule matches (`timePeriod` in the file) — relative to the day the file is opened.
+    public enum TimePeriod: String, Hashable, Sendable, CaseIterable {
+        case today, yesterday, tomorrow, last7Days, thisMonth, lastMonth, nextMonth, thisWeek, lastWeek, nextWeek
+    }
     public enum Operator: String, Hashable, Sendable, CaseIterable {
         case lessThan, lessThanOrEqual, equal, notEqual, greaterThanOrEqual, greaterThan, between, notBetween,
              containsText, notContains, beginsWith, endsWith
@@ -79,7 +83,7 @@ public struct ConditionalFormattingRule: Hashable, Sendable {
     /// The text a `.containsText` / `.beginsWith` / `.endsWith` rule looks for.
     public var text: String?
     /// A `.timePeriod` rule's period, verbatim: "today", "yesterday", "last7Days", "thisMonth", "lastWeek", …
-    public var timePeriod: String?
+    public var timePeriod: TimePeriod?
     /// How many values a `.top10` rule takes.
     public var rank: Int?
     /// `.top10`: from the bottom instead of the top.
@@ -97,7 +101,7 @@ public struct ConditionalFormattingRule: Hashable, Sendable {
     public var iconSet: IconSet?
 
     public init(kind: Kind, priority: Int = 1, stopIfTrue: Bool = false, style: DifferentialStyle? = nil,
-                formulas: [String] = [], operator: Operator? = nil, text: String? = nil, timePeriod: String? = nil,
+                formulas: [String] = [], operator: Operator? = nil, text: String? = nil, timePeriod: TimePeriod? = nil,
                 rank: Int? = nil, bottom: Bool = false, percent: Bool = false, aboveAverage: Bool = true,
                 equalAverage: Bool = false, standardDeviation: Int? = nil, colorScale: ColorScale? = nil,
                 dataBar: DataBar? = nil, iconSet: IconSet? = nil) {

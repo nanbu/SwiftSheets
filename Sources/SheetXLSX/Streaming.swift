@@ -257,13 +257,13 @@ final class StreamingSheetParser: StreamingRowParser {
         case "str": return .text(vText)
         case "b": return .bool(vText.trimmingCharacters(in: .whitespaces) == "1")
         case "e": return .error(vText)
-        case "d": return ExcelDate.fromISO8601(vText)
+        case "d": return CellValue(iso8601: vText)
         default:
             let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty, let d = Double(raw) else { return nil }
             switch styles.numericKind(cellStyle) {
-            case .duration: return ExcelDate.durationFromSerial(d).map { .duration($0) }
-            case .date: return ExcelDate.fromSerial(d, epoch: epoch)
+            case .duration: return Duration(serialDays: d).map { .duration($0) }
+            case .date: return CellValue(serial: d, epoch: epoch)
             case .plain: break
             }
             if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
@@ -448,9 +448,9 @@ package final class XLSXStreamingWriter: StreamingRowSink {
         case .integer(let i): ("", "<v>\(i)</v>")
         case .number(let d): ("", "<v>\(XMLWriter.num(d))</v>")
         case .bool(let b): (" t=\"b\"", "<v>\(b ? 1 : 0)</v>")
-        case .date(let dt): ("", "<v>\(XML.num(ExcelDate.toSerial(dt, epoch: epoch)))</v>")
+        case .date(let dt): ("", "<v>\(XML.num(dt.serial(epoch: epoch)))</v>")
         case .time(let t): ("", "<v>\(t.dayFraction)</v>")
-        case .duration(let d): ("", "<v>\(XML.num(ExcelDate.toSerial(d)))</v>")
+        case .duration(let d): ("", "<v>\(XML.num(d.serialDays))</v>")
         case .error(let e): (" t=\"e\"", "<v>\(XML.esc(e))</v>")
         case .text(let s): (" t=\"inlineStr\"", "<is><t\(preserveSpace(s))>\(XML.esc(s))</t></is>")
         case .richText(let runs):

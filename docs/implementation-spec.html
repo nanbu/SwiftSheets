@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.56 Draft</td><td>2026-09-11</td><td>Swift の型で言えるものを型で言う。<code>hashValue: String?</code>（保護 3 型・<code>Hashable</code> の要件と同名）→ <code>saltedHash</code>。<code>validationError() -> String?</code>（2 型）→ <code>validate() throws</code>。<code>ExcelDate</code> の from/to 関数を <code>CellValue(serial:epoch:)</code>・<code>serial(epoch:)</code>・<code>CellValue(iso8601:)</code>・<code>iso8601</code>・<code>CivilDateTime.serial</code>・<code>CivilDate.serial</code>・<code>Duration(serialDays:)</code>・<code>serialDays</code> へ。仕様で閉じた列挙 5 つ（<code>Font.verticalAlignment</code>（旧 <code>vertAlign</code>）・<code>Font.scheme</code>・<code>ConditionalFormattingRule.timePeriod</code>・<code>StructuredTableColumn.totalsRowFunction</code>・<code>DynamicFilter.kind</code>）を String から enum に（B.66）。</td></tr>
     <tr><td>4.55 Draft</td><td>2026-09-11</td><td>同じ物の別名を 1 つに。<code>values(in:)</code>（= <code>rows(in:)</code>）と <code>Sheets.names</code>（= <code>Workbook.sheetNames</code>）を削除。<code>freezePanes(at:)</code> を削除し <code>freezePanesA1</code> の setter に一本化（"A1" も解除）。印刷の文字列の双子を settable な <code>printTitlesFormula</code>・<code>printAreaFormula</code>（どちらも <code>String?</code>）にし、<code>setPrintArea</code>・<code>setPrintTitles</code>・<code>setPrintTitleRows</code>・<code>setPrintTitleColumns</code> を削除（B.65）。</td></tr>
     <tr><td>4.54 Draft</td><td>2026-09-11</td><td>Bool のプロパティの綴りを叙述形に統一。命令形だった 28 語（<code>includeStyles</code>・<code>allowBlank</code>・<code>showGridLines</code>・<code>lockStructure</code>・<code>refreshOnLoad</code> …）を <code>includesStyles</code>・<code>allowsBlank</code>・<code>showsGridLines</code>・<code>locksStructure</code>・<code>refreshesOnLoad</code> に。ファイルの属性名は変えない（B.64）。</td></tr>
     <tr><td>4.53 Draft</td><td>2026-09-11</td><td>同じ動作は同じ語・同じラベルに。<code>CellRef.offset(rows:columns:)</code> → <code>shifted(rows:columns:)</code>（<code>CellRange.shifted</code> と同じ語）、<code>CellRange.shrunk(right:bottom:left:top:)</code> → <code>shrunk(right:down:left:up:)</code>（<code>expanded</code> と同じラベル）、<code>streamingWriter(url:format:)</code> と <code>StreamingWriter(url:format:)</code> → <code>(to:as:)</code>（<code>write(to:as:)</code>・<code>withStreamingWriter(to:as:)</code> と同じ）、<code>streamingReader(data:)</code> → <code>streamingReader(_:)</code>（<code>read(_:)</code> と同じ）、<code>SheetFormat.detect</code> の 4 宣言を <code>detect(_:filename:)</code>・<code>detect(contentsOf:)</code> の 2 つに（<code>probe</code> と同じ形。<code>detect(in:)</code> は package へ）（B.63）。</td></tr>
@@ -2461,7 +2462,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>名前つきの表（Excel の「テーブル」・ODF のデータベース範囲）</td><td><code>Sheet.structuredTables</code>（<code>StructuredTable</code>・Rev 4.45 まで <code>ExcelTable</code>）。パーツ・コンテンツタイプ・関係・<code>&lt;tableParts&gt;</code> の 4 点セットを生成</td>
       <td>グリッドを表す <code>Table</code> と名前が衝突するので別名にする。Excel 固有ではない（ODS へも書き、読み戻す）ので Excel を名乗らない（B.56）。列名の重複・空欄は Excel と同じ直し方（<code>Column2</code>・<code>Item2</code>）をする。形式が受け付けない表は書かずに <code>dropped</code> 警告。モデルに無い属性・子要素は verbatim で往復</td></tr>
     <tr><td>保護・シナリオ</td><td><code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code></td>
-      <td>形式の真偽値は「<strong>禁止</strong>されている」向きだが、モデルは <code>allows…</code> と<strong>許可の向きで名づけて</strong>、コーデックが反転する（<code>hidesDropDown</code> と同じ方針）。合鍵は旧来の 16 ビット式のみ生成し、Excel 2010 以降の <code>hashValue</code> / <code>saltValue</code> は<strong>読んで書き戻すだけ</strong>（openpyxl も同じ）。これは事故を防ぐ錠であって秘密を守る錠ではない、と型の説明に書いた</td></tr>
+      <td>形式の真偽値は「<strong>禁止</strong>されている」向きだが、モデルは <code>allows…</code> と<strong>許可の向きで名づけて</strong>、コーデックが反転する（<code>hidesDropDown</code> と同じ方針）。合鍵は旧来の 16 ビット式のみ生成し、Excel 2010 以降の <code>saltedHash</code>（Rev 4.56 までは <code>hashValue</code>）/ <code>saltValue</code> は<strong>読んで書き戻すだけ</strong>（openpyxl も同じ）。これは事故を防ぐ錠であって秘密を守る錠ではない、と型の説明に書いた</td></tr>
     <tr><td>ピボット表</td><td><code>Sheet.pivotTables</code>（<code>PivotTable</code> ＋ <code>PivotCache</code>）。配置パーツ・キャッシュ定義・関係・<code>&lt;pivotCaches&gt;</code> を生成し、範囲から作る <code>Workbook.addPivotTable</code> も用意</td>
       <td><strong>集計はしない</strong>。新しく作るキャッシュは <code>saveData="0" refreshOnLoad="1"</code> を立て、レコードのパーツを持たない — 開いた側が元の範囲を読んで計算する。計算していない数字を書かない、が理由。<strong>審判は openpyxl の読み戻しと LibreOffice</strong>（変換後の値が正しく集計されていることまで確認した）。<strong>Excel 実機では開いていない</strong> — Numbers と同じく MAINTENANCE.md のリリース確認項目に置く</td></tr>
     <tr><td>逐次読み書き</td><td><code>StreamingReader</code>（openpyxl の <code>read_only</code>）・<code>StreamingWriter</code>（<code>write_only</code>）。書き出しは <code>ZipFileWriter</code> で 1 行ずつ圧縮しながらファイルへ流す</td>
@@ -4294,7 +4295,7 @@ and at 1930 there; only OpenDocument keeps it in the file</pre>
     2026-08-28。MIT ライセンスを保てる先行ライブラリの実地調査に基づく機能採用計画
     （保護の鍵 → 画像 → 列幅の自動調整 → グラフ、の 4 段）の第 1 段。
     これまでシート・ブック・保護範囲の「新方式の鍵」（<code>algorithmName</code> /
-    <code>hashValue</code> / <code>saltValue</code> / <code>spinCount</code>、Excel 2010 以降）は
+    <code>saltedHash</code>（当時の名は <code>hashValue</code>）/ <code>saltValue</code> / <code>spinCount</code>、Excel 2010 以降）は
     <strong>運ぶだけ</strong>で、作れるのは 1990 年代の 16 ビット鍵だけだった。
     生成を実装し、この非対称を閉じる。
   </p>
@@ -6477,6 +6478,48 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>rows(in:)</code> / <code>columns(in:)</code> / <code>cells(in:)</code> / <code>range(_:)</code>、<code>StreamingReader.sheetNames</code>。</p>
   <p><strong>利用側。</strong>Stream: <code>sheetNames</code> 3 か所は <code>Workbook.sheetNames</code> なので変わらない。LeftRight: 同じく 4 か所とも変わらない。<code>values(in:)</code>・<code>freezePanes(at:)</code>・
   <code>setPrint…</code> はどちらのアプリも 0。</p>
+
+  <h3>B.66 Swift の型で言えるものは型で言う——<code>saltedHash</code>・<code>validate()</code>・<code>CellValue(serial:)</code>・閉じた列挙（Rev 4.56）</h3>
+  <p>2026-09-11 決定。1.0 前の一貫性の見直し（群 5）。4 種類の直しをまとめる。ファイルに書く値はどれも変えない。互換の別名は残さない（B.53）。</p>
+  <p><strong>1. <code>hashValue</code> → <code>saltedHash</code>。</strong>①<code>SheetProtection</code>・<code>WorkbookProtection</code>・<code>ProtectedRange</code> は <code>Hashable</code> で、
+  Swift の <code>Hashable</code> には <code>hashValue: Int</code> がある。②同じ型に <code>public var hashValue: String?</code> を置いていたので、<code>protection.hashValue</code> と書くと
+  <code>Int</code> ではなく <code>String?</code> が返り、コンパイラは何も言わない。③ファイルの属性名（<code>hashValue</code>）はそのまま、Swift の名だけを <code>saltValue</code> と対になる
+  <code>saltedHash</code> にする。今日の時点で取り違えた呼び出しは無い（本体・検査の 11 か所はすべて文字列の意図）。</p>
+  <p><strong>2. <code>validationError() -> String?</code> → <code>validate() throws</code>。</strong><code>StructuredTable</code> と <code>PivotTable</code>。理由の文字列を返す関数は
+  Swift では <code>throws</code> の形で、投げるのは <code>SheetError.invalidWorkbook(理由)</code>。書き手は今までどおり、通らない表を理由つきの警告で落とす（<code>dropped</code>・文言は同じ）。
+  <code>addPivotTable(named:…)</code> の戻り値 <code>Bool</code> は変えない。</p>
+  <p><strong>3. <code>ExcelDate</code> の from/to → 型のメンバー。</strong>B.58 が消した Python の癖（<code>from_excel</code> / <code>to_excel</code> の写し）が、日付の換算にだけ残っていた。
+  名前空間 <code>ExcelDate</code> は消え、換算は値の型に付く。</p>
+  <table>
+    <thead><tr><th>Rev 4.55 まで</th><th>Rev 4.56 から</th></tr></thead>
+    <tbody>
+      <tr><td><code>ExcelDate.fromSerial(46266, epoch: .windows1900)</code></td><td><code>CellValue(serial: 46266, epoch: .windows1900)</code>（失敗可能）</td></tr>
+      <tr><td><code>ExcelDate.toSerial(cellValue, epoch:)</code></td><td><code>cellValue.serial(epoch:)</code>（<code>Double?</code>）</td></tr>
+      <tr><td><code>ExcelDate.toSerial(civilDateTime, epoch:)</code>・<code>toSerial(civilDate, epoch:)</code></td><td><code>civilDateTime.serial(epoch:)</code>（<code>Double</code>）・<code>civilDate.serial(epoch:)</code>（<code>Int</code>）</td></tr>
+      <tr><td><code>ExcelDate.durationFromSerial(1.125)</code>・<code>toSerial(duration)</code></td><td><code>Duration(serialDays: 1.125)</code>・<code>duration.serialDays</code></td></tr>
+      <tr><td><code>ExcelDate.fromISO8601("2011-12-25T14:23:55")</code>・<code>toISO8601(cellValue)</code></td><td><code>CellValue(iso8601: "2011-12-25T14:23:55")</code>・<code>cellValue.iso8601</code></td></tr>
+      <tr><td><code>SheetProtection.hashValue</code>（3 型）</td><td><code>saltedHash</code></td></tr>
+      <tr><td><code>table.validationError() == nil</code></td><td><code>try table.validate()</code></td></tr>
+    </tbody>
+  </table>
+  <p><strong>4. 仕様で閉じた列挙は enum。</strong>OOXML のスキーマが値の集合を閉じている 5 つを String から <code>rawValue</code> つきの enum にする。綴り違いがコンパイルで止まり、補完が効く。
+  ファイルには <code>rawValue</code> をそのまま書くので出力は同じ。読む側は、スキーマ外の値に出会ったら黙って別の値にせず、シートの <code>hasUnmodelledFilters</code> /
+  <code>hasUnmodelledConditionalFormats</code> を立てて落とす（<code>totalsRowFunction</code> の未知の値は nil——「何も出さない」——になる）。</p>
+  <table>
+    <thead><tr><th>プロパティ</th><th>Rev 4.55 まで</th><th>Rev 4.56 から</th><th>ファイルの "none"</th></tr></thead>
+    <tbody>
+      <tr><td><code>Font.vertAlign</code>・<code>DifferentialFont.vertAlign</code></td><td><code>String?</code>（"superscript"）</td><td><code>verticalAlignment: Font.VerticalAlignment?</code>（<code>.baseline</code> / <code>.superscript</code> / <code>.subscript</code>）——略語も語に</td><td>nil（従来どおり）</td></tr>
+      <tr><td><code>Font.scheme</code></td><td><code>String?</code>（"minor"）</td><td><code>Font.Scheme?</code>（<code>.major</code> / <code>.minor</code>）</td><td>nil（従来どおり——テーマのフォントではない）</td></tr>
+      <tr><td><code>ConditionalFormattingRule.timePeriod</code></td><td><code>String?</code>（"lastWeek"）</td><td><code>TimePeriod?</code>（10 値）</td><td>—</td></tr>
+      <tr><td><code>StructuredTableColumn.totalsRowFunction</code></td><td><code>String?</code>（"sum"・"countNums"・"stdDev"・"var"）</td><td><code>TotalsRowFunction?</code>（<code>.sum</code>・<code>.countNumbers</code>・<code>.standardDeviation</code>・<code>.variance</code>・<code>.custom</code> …）</td><td>nil</td></tr>
+      <tr><td><code>DynamicFilter.kind</code></td><td><code>String</code>（"aboveAverage"・"Q1"・"M3"）</td><td><code>Kind</code>（36 値・<code>.quarter1</code>・<code>.month3</code> …）</td><td>—（<code>.null</code> は値の 1 つ）</td></tr>
+    </tbody>
+  </table>
+  <p><strong>String のままにするもの（値の集合が開いている）。</strong><code>IconSet.name</code>・<code>Chart.Series.values</code>（参照式）・<code>PivotFieldItem.itemType</code>・
+  <code>FilterColumn.calendarType</code>・<code>PivotDataField.showDataAs</code>・<code>StructuredTable.tableType</code>・<code>Sheet.definedNames</code> / <code>Workbook.definedNames</code>（式の文字列）・
+  <code>SheetView.activeCell</code> / <code>selectedRanges</code>（B.60）。1.0 で列挙を固定すると足せないので、1.x で enum を足すか判断する。<code>numberFormatID</code>（3 型）は
+  ピボットのキャッシュがファイルに持つ番号で、名前を持たせない（B.57 の <code>builtinCode(_:)</code> と同じ扱い）。</p>
+  <p><strong>利用側。</strong>Stream: <code>ExcelDate</code> 1 か所。LeftRight: 0。</p>
 </section>
 
 </div><!-- /.container -->

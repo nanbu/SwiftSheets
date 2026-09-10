@@ -275,7 +275,7 @@ final class PivotCacheParser: SAXHandler {
         case "e" where inSharedItems: cacheField!.sharedItems.append(.error(a["v"] ?? ""))
         case "m" where inSharedItems: cacheField!.sharedItems.append(.missing)
         case "d" where inSharedItems:
-            if case .date(let dt)? = ExcelDate.fromISO8601(a["v"] ?? "") { cacheField!.sharedItems.append(.date(dt)) }
+            if case .date(let dt)? = CellValue(iso8601: a["v"] ?? "") { cacheField!.sharedItems.append(.date(dt)) }
             else { cacheField!.sharedItems.append(.text(a["v"] ?? "")) }
         default: break
         }

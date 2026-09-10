@@ -70,7 +70,7 @@ import SwiftSheets
         p.setPassword("legacy")                      // both schemes may coexist, as in Excel's own files
         p.setModernPassword("secret", spinCount: 10) // small count keeps the test fast
         wb.sheets[0].protection = p
-        #expect(p.algorithmName == "SHA-512" && p.spinCount == 10 && p.saltValue != nil && p.hashValue != nil)
+        #expect(p.algorithmName == "SHA-512" && p.spinCount == 10 && p.saltValue != nil && p.saltedHash != nil)
 
         let again = try Workbook(data: try wb.write(as: .xlsx).data).sheets[0].protection
         #expect(again == p)
@@ -79,7 +79,7 @@ import SwiftSheets
 
         var cleared = p
         cleared.setModernPassword(nil)
-        #expect(cleared.algorithmName == nil && cleared.hashValue == nil && cleared.saltValue == nil && cleared.spinCount == nil)
+        #expect(cleared.algorithmName == nil && cleared.saltedHash == nil && cleared.saltValue == nil && cleared.spinCount == nil)
     }
 
     /// Two calls draw two different salts, so equal passwords produce unequal files — and both still verify.
@@ -87,7 +87,7 @@ import SwiftSheets
         var a = SheetProtection.on, b = SheetProtection.on
         a.setModernPassword("same", spinCount: 10)
         b.setModernPassword("same", spinCount: 10)
-        #expect(a.saltValue != b.saltValue && a.hashValue != b.hashValue)
+        #expect(a.saltValue != b.saltValue && a.saltedHash != b.saltedHash)
         #expect(a.modernPasswordMatches("same") && b.modernPasswordMatches("same"))
     }
 
@@ -193,7 +193,7 @@ import SwiftSheets
         wb.sheets[0]["A1"] = 1
         var p = SheetProtection.on
         p.algorithmName = "SHA-512"
-        p.hashValue = "Zm9vYmFy"
+        p.saltedHash = "Zm9vYmFy"
         p.saltValue = "c2FsdA=="
         p.spinCount = 100_000
         wb.sheets[0].protection = p

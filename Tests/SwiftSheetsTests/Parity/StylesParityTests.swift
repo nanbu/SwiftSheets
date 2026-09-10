@@ -177,7 +177,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
     // openpyxl: styles/tests/test_fonts.py::test_ctor
     @Test func ctor() {
         let f = Font()
-        #expect(f.name == nil && f.size == nil && !f.bold && !f.italic && f.underline == nil && !f.strikethrough && f.color == nil && f.vertAlign == nil && f.charset == nil)
+        #expect(f.name == nil && f.size == nil && !f.bold && !f.italic && f.underline == nil && !f.strikethrough && f.color == nil && f.verticalAlignment == nil && f.charset == nil)
     }
 
     // openpyxl: styles/tests/test_fonts.py::test_serialise
@@ -196,7 +196,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
         </font></fonts>
         """)
         var expected = Font(name: "Calibri", size: 11, underline: .single, color: .rgb("FF3300FF"))
-        expected.charset = 204; expected.family = 2; expected.vertAlign = "superscript"
+        expected.charset = 204; expected.family = 2; expected.verticalAlignment = .superscript
         #expect(p.fonts == [expected])
     }
 
@@ -363,7 +363,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
     // openpyxl: styles/tests/test_stylesheet.py::test_none_values
     @Test func noneValues() throws {
         let p = try parseStyles(try openpyxlFixtureText("styles/none_value_styles.xml"))
-        #expect(p.fonts[0].scheme == nil && p.fonts[0].vertAlign == nil && p.fonts[1].underline == nil)
+        #expect(p.fonts[0].scheme == nil && p.fonts[0].verticalAlignment == nil && p.fonts[1].underline == nil)
     }
 
     // openpyxl: styles/tests/test_stylesheet.py::test_alignment

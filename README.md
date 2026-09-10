@@ -273,7 +273,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `cell.value = '=SUM(A1:B2)'` | `sheet["C1"] = .formula("=SUM(A1:B2)")`; `value.formula?.rendered(as: .ods)` |
 | `wb.defined_names`, `wb.properties` | `wb.definedNames`, `wb.metadata` |
 | `get_column_letter(3)`, `column_index_from_string('C')` | `CellRef.columnName(3)`, `CellRef.columnIndex("C")` (1 = A) |
-| `openpyxl.utils.datetime`, `units`, `escape`, `is_date_format` | `ExcelDate`, `Units`, `OOXMLEscape`, `NumberFormat` |
+| `openpyxl.utils.datetime`, `is_date_format` | `CellValue(serial:epoch:)` / `.serial(epoch:)` / `CellValue(iso8601:)` / `.iso8601`, `NumberFormat` |
 | `cell.comment = Comment(text, author)` | `sheet[cell: "A1"].note = CellNote(text, author:)` — written as the comments part plus its legacy VML |
 | `ws.add_data_validation(DataValidation(...))` | `sheet.dataValidations = [.list("'Choices'!$A$2:$A$4", over: MultiCellRange("C4:C99")!)]`, or `.list(choices: ["Todo", "Doing", "Done"], over:)` for the choices themselves (nil when they cannot be an inline list) — read and written both ways; a rule with an attribute outside the schema keeps the file's own block (`sheet.hasUnmodelledValidations`). `hidesDropDown` is named for what the inverted `showDropDown` attribute means |
 | `ws.conditional_formatting.add(range, Rule(...))` | `sheet.addConditionalFormatting(.cellIs(.greaterThan, "100", paint: .highlight(fill: red)), over: "B2:B99")` — 17 rule kinds plus colour scales, data bars and icon sets; priorities renumbered 1…n over the sheet |
