@@ -27,25 +27,25 @@ enum NumbersCells {
     /// The cell records of one tile row, by column. `cell_offsets` says where each column's record starts in
     /// `cell_storage_buffer` (−1 for no cell), and the next record's start is where this one ends. A record that
     /// will not decode is handed over as the error, for the caller to report or refuse.
-    static func forEachRecord(in rowInfo: ProtoMessage, cols: Int, _ body: (_ col: Int, _ record: Result<CellStorage, Error>) throws -> Void) rethrows {
+    static func forEachRecord(in rowInfo: ProtoMessage, columns: Int, _ body: (_ column: Int, _ record: Result<CellStorage, Error>) throws -> Void) rethrows {
         guard let storage = rowInfo.bytes("cell_storage_buffer"), let offsetsData = rowInfo.bytes("cell_offsets") else { return }
         let offsets = NumbersReader.offsets(offsetsData, wide: rowInfo.bool("has_wide_offsets") ?? false)
         try storage.withUnsafeBytes { raw in
             let b = raw.bindMemory(to: UInt8.self)
-            for col in 0..<Swift.max(0, Swift.min(cols, offsets.count)) {
-                let start = offsets[col]
+            for column in 0..<Swift.max(0, Swift.min(columns, offsets.count)) {
+                let start = offsets[column]
                 guard start >= 0, start < b.count else { continue }
                 var end = b.count
-                for k in (col + 1)..<offsets.count where offsets[k] >= 0 { end = offsets[k]; break }
+                for k in (column + 1)..<offsets.count where offsets[k] >= 0 { end = offsets[k]; break }
                 guard end > start, end <= b.count else { continue }
-                try body(col, Result { try CellStorage.decode(UnsafeBufferPointer(rebasing: b[start..<end])) })
+                try body(column, Result { try CellStorage.decode(UnsafeBufferPointer(rebasing: b[start..<end])) })
             }
         }
     }
 
     /// The value a record holds, as the model's word for it. The second answer is true when the record named a
     /// formula that could not be turned back into text — the cached value came back in its place.
-    static func value(_ s: CellStorage, row: Int, col: Int, strings: [Int: String], formulas: [Int: ProtoMessage],
+    static func value(_ s: CellStorage, row: Int, column: Int, strings: [Int: String], formulas: [Int: ProtoMessage],
                       richTexts: [Int: RichText], decoder: inout NumbersFormulaDecoder, dataOnly: Bool) -> (value: CellValue?, undecodedFormula: Bool) {
         var value: CellValue?
         switch s.cellType {
@@ -70,7 +70,7 @@ enum NumbersCells {
         case .formula: value = nil
         }
         if let fid = s.formulaID, !dataOnly, let archive = formulas[fid] {
-            if let text = decoder.text(for: archive, row: row, col: col) {
+            if let text = decoder.text(for: archive, row: row, column: column) {
                 return (.formula(FormulaExpr.parse(text, dialect: .xlsx), cached: value), false)
             }
             return (value, true)

@@ -287,7 +287,7 @@ public struct Workbook: Equatable, Sendable {
                                        values: [(String, PivotDataField.Function)] = [],
                                        filters: [String] = []) -> Bool {
         guard let target = sheets.index(of: sheet), let origin = sheets.index(of: sourceSheet) else { return false }
-        let header = (source.topLeft.col...source.bottomRight.col).map { sheets[origin][source.topLeft.row, $0] }
+        let header = (source.topLeft.column...source.bottomRight.column).map { sheets[origin][source.topLeft.row, $0] }
         return sheets[target].addPivotTable(named: name, summarizing: source, on: sourceSheet, headerRow: header,
                                             at: anchor, rows: rows, columns: columns, values: values, filters: filters)
     }

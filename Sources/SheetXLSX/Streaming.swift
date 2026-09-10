@@ -186,8 +186,8 @@ final class StreamingSheetParser: StreamingRowParser {
             cells = []
         case "c":
             if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
-            else { cellRef = CellRef(row: currentRow, col: lastColumn + 1) }
-            lastColumn = cellRef!.col
+            else { cellRef = CellRef(row: currentRow, column: lastColumn + 1) }
+            lastColumn = cellRef!.column
             cellType = a["t"] ?? "n"; cellStyle = Int(a["s"] ?? "0") ?? 0
             vText = ""; fText = ""; isText = ""; isRuns = []; isHasRuns = false
         case "v": inV = true
@@ -336,7 +336,7 @@ package final class XLSXStreamingWriter: StreamingRowSink {
         var xml = "<row r=\"\(row)\">"
         for (column, cell) in cells.enumerated() {
             guard cell.value != nil || cell.style != .default else { continue }
-            let ref = CellRef(row: row - 1, col: column).a1
+            let ref = CellRef(row: row - 1, column: column).a1
             let index = styles.index(for: cell)
             let style = index != 0 ? " s=\"\(index)\"" : ""
             switch cell.value {

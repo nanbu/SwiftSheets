@@ -903,7 +903,7 @@ pre .vr { color: var(--code-var); }
     <tr><td>数値</td><td><code>Decimal</code></td><td>Numbers は decimal128 で格納する。<code>Double</code> 経由は往復で精度を失う</td></tr>
     <tr><td>日付</td><td><code>Date</code>（+ 表示書式は CellStyle）</td><td>XLSX のシリアル値（1900系・1904系）、ODS の ISO 8601、Numbers のエポックを出口変換に押し込む</td></tr>
     <tr><td>数式</td><td>正規形 AST（第5章）</td><td>方言（区切り文字・参照記法）は表現であって意味ではない</td></tr>
-    <tr><td>座標</td><td>0-based の <code>CellRef(row:col:)</code></td><td>A1 記法との相互変換はユーティリティに隔離。bijective base-26 を単体テストで固める</td></tr>
+    <tr><td>座標</td><td>0-based の <code>CellRef(row:column:)</code>（Rev 4.49 まで <code>col:</code>）</td><td>A1 記法との相互変換はユーティリティに隔離。bijective base-26 を単体テストで固める</td></tr>
   </table></div>
 
   <div class="callout callout-pitfall">
@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.49 Draft</td><td>2026-09-10</td><td>略語を語に。<code>col</code> → <code>column</code>・<code>cols</code> → <code>columns</code>・<code>minCol</code>/<code>maxCol</code> → <code>minColumn</code>/<code>maxColumn</code>（<code>CellRef</code>・<code>CellRange</code>・<code>RangeBounds</code>・<code>offset</code>・<code>shift</code>・<code>moveRange</code>・<code>size</code>・<code>RangeView</code> の添字）、<code>SheetView.sqref</code> → <code>selectedRanges</code>。座標系・範囲端・既定値・保存形式は変えない（B.60）。</td></tr>
     <tr><td>4.48 Draft</td><td>2026-09-10</td><td><code>Sheet.tabColor</code> を <code>String?</code> から <code>Color?</code> へ。<code>SheetProperties.tabColor</code> と同じ値の表玄関にし、テーマ色・インデックス色が RGB 以外だからと nil に化けることをやめる（B.59）。</td></tr>
     <tr><td>4.47 Draft</td><td>2026-09-10</td><td>便利 API の整理。<code>dataType</code>（openpyxl の 1 文字）を廃止、<code>pythonString</code> を <code>stringValue</code> に統合（表現は変えない）、グローバル関数 <code>Formula(_:)</code> を <code>CellValue.formula(_:dialect:)</code> へ。A1 文字列の双子プロパティ（<code>freezePanesA1</code>・<code>autoFilterA1</code>・<code>dimensions</code>）は残す（B.58）。</td></tr>
     <tr><td>4.46 Draft</td><td>2026-09-10</td><td><code>NumberFormat</code> の定数を openpyxl の <code>FORMAT_*</code> の写し（<code>dateXLSX14</code>・<code>dateTime1</code>〜<code>8</code>・<code>number00</code> …34 個）から、意味を名乗る 18 個へ。ロケールで表示が変わる組み込み書式は名前を持たず <code>builtinCode(_:)</code> で引く。値の文字列は 1 つも変えない（B.57）。</td></tr>
@@ -6080,7 +6081,7 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   nilを返す」ことで実現されていたため、空（指定しない）と読めない（打ち間違い）の区別がついていなかった。この決定は
   その2つを分ける変更でもある。</p>
 
-  <p>動きが変わる入口は10。<code>Table</code>: <code>removeCell(_ a1:)</code>・<code>moveRange(_ a1:rows:cols:)</code>・
+  <p>動きが変わる入口は10。<code>Table</code>: <code>removeCell(_ a1:)</code>・<code>moveRange(_ a1:rows:columns:)</code>・
   <code>unmerge(_ a1:)</code>・<code>setColumnDimension(_ name:_:)</code>（<code>setWidth(_:ofColumn name:)</code>が従う）・
   <code>groupColumns(_:_:outlineLevel:hidden:)</code>。<code>Sheet</code>: <code>addStructuredTable(named:over a1:styleInfo:)</code>・
   <code>addConditionalFormatting(_:over sqref:)</code>・<code>freezePanes(at:)</code>・<code>freezePanesA1</code>のsetter・
@@ -6272,6 +6273,41 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong>既存の <code>ModelTests</code>・<code>FormatSupportTests</code>（タブ色の往復）と、
   <code>WorksheetPartsParityTests</code>（<code>&lt;tabColor rgb&gt;</code> の読み書き）が新しい型で通ること。テーマ色のタブが
   <code>Sheet.tabColor</code> からも見えることを 1 件足す。</p>
+
+  <h3>B.60 略語は語にする——<code>col</code> は <code>column</code>、<code>sqref</code> は選択範囲（Rev 4.49）</h3>
+  <p>2026-09-10。1.0 前の見直し（roadmap 項目 11、最後）。名前だけを変え、座標系（0-based）・範囲端の意味（両端を含む）・既定値・
+  ファイルの属性名（<code>sqref</code> はファイルでは <code>sqref</code> のまま）は変えない。互換の別名は残さない（B.53）。</p>
+  <p><strong>なぜ。</strong>①openpyxl は <code>cell.col_idx</code>・<code>min_col</code>・<code>ws.cell(row, column)</code> と、
+  <code>col</code> と <code>column</code> を混ぜて使う。②それを引き継いだこの library では <code>CellRef.col</code> の隣に
+  <code>columnName</code>・<code>columnDimension(_:)</code>・<code>FilterColumn.column</code> があり、同じ物を 2 通りに綴っていた。
+  補完で <code>col</code> と打つと両方が並ぶ。③Swift API Design Guidelines は「明確さを短さより優先する」。
+  <code>row</code> が略されていないのに <code>col</code> だけ略す理由は無い。</p>
+  <p><strong>移行表。</strong></p>
+  <table>
+    <thead><tr><th>Rev 4.48 まで</th><th>Rev 4.49 から</th></tr></thead>
+    <tbody>
+      <tr><td><code>CellRef(row:col:)</code>・<code>CellRef.col</code>・<code>CellRef.maxCol</code></td><td><code>CellRef(row:column:)</code>・<code>.column</code>・<code>.maxColumn</code></td></tr>
+      <tr><td><code>CellRef.offset(rows:cols:)</code></td><td><code>offset(rows:columns:)</code></td></tr>
+      <tr><td><code>CellRange(minRow:minCol:maxRow:maxCol:sheet:)</code>・<code>.minCol</code>・<code>.maxCol</code></td><td><code>CellRange(minRow:minColumn:maxRow:maxColumn:sheet:)</code>・<code>.minColumn</code>・<code>.maxColumn</code></td></tr>
+      <tr><td><code>CellRange.size.cols</code>・<code>.cols</code>（列ごとの列挙）</td><td><code>size.columns</code>・<code>.columns</code></td></tr>
+      <tr><td><code>CellRange.shifted(rows:cols:)</code>・<code>shift(rows:cols:)</code></td><td><code>shifted(rows:columns:)</code>・<code>shift(rows:columns:)</code></td></tr>
+      <tr><td><code>RangeBounds(minCol:minRow:maxCol:maxRow:)</code> と同名のプロパティ</td><td><code>RangeBounds(minColumn:minRow:maxColumn:maxRow:)</code></td></tr>
+      <tr><td><code>Sheet</code> / <code>Table</code> の <code>moveRange(_:rows:cols:)</code></td><td><code>moveRange(_:rows:columns:)</code></td></tr>
+      <tr><td><code>RangeView[row:col:]</code></td><td><code>RangeView[row:column:]</code></td></tr>
+      <tr><td><code>SheetView.sqref</code>（String）</td><td><code>SheetView.selectedRanges</code>（String のまま・空白区切りの A1）</td></tr>
+    </tbody>
+  </table>
+  <p><strong>変えないもの。</strong>ラベル無しの引数（<code>columnName(_:)</code>・<code>columnDimension(_:)</code>・
+  <code>autofitColumn(_:)</code>）は内部名が変わるだけで呼び出しは同じ。<code>sheet[row, col]</code> の添字もラベル無し。
+  <code>SheetView.activeCell</code> と <code>selectedRanges</code> は String のまま——型つき（<code>CellRef</code>・
+  <code>MultiCellRange</code>）に変えるかは「改名と型変更を分ける」の原則で別の判断にする。他の <code>sqref</code>
+  （<code>addConditionalFormatting(_:over:)</code>・<code>ProtectedRange.init(name:_:)</code>・<code>MultiCellRange.init(_:)</code>）は
+  ラベル無しか <code>over:</code> で、呼び出しに <code>sqref</code> は出ていない。</p>
+  <p><strong>利用側。</strong>LeftRight は <code>maxCol</code> を 19 か所・<code>.col</code> を 4 か所・<code>minCol</code> を 1 か所使う。
+  Stream は座標を A1 文字列で扱っており、この改名の影響は無い。どちらも <code>sed</code> 1 行の移行。</p>
+  <p><strong>検査。</strong>改名は呼び出し側がコンパイルで全部見つかる（本体・テストで約 500 行）。動きは変えていないので、
+  座標の検査（<code>CoordinateStringTests</code>・<code>CellParityTests</code>・<code>WorksheetParityTests</code>）と全形式の往復が
+  そのまま通ることを見る。</p>
 </section>
 
 </div><!-- /.container -->

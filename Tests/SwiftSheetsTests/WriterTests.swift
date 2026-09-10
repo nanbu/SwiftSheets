@@ -13,9 +13,9 @@ import Testing
         ws[0, 1] = 42
         ws[0, 2] = 3.5
         ws[0, 3] = true
-        ws[0, 4] = CellValue(CivilDate(year: 2026, month: 9, day: 1)!); ws[cell: CellRef(row: 0, col: 4)].numberFormat = "yyyy/m/d"
+        ws[0, 4] = CellValue(CivilDate(year: 2026, month: 9, day: 1)!); ws[cell: CellRef(row: 0, column: 4)].numberFormat = "yyyy/m/d"
         ws[0, 5] = .formula(FormulaExpr.parse("=B1*2"), cached: .integer(84))
-        ws[0, 6] = .number(0.25); ws[cell: CellRef(row: 0, col: 6)].numberFormat = "0%"
+        ws[0, 6] = .number(0.25); ws[cell: CellRef(row: 0, column: 6)].numberFormat = "0%"
         ws[1, 0] = "  padded  "
         ws["B2"] = "multi\nline"; ws[cell: "B2"].alignment = Alignment(horizontal: .center, vertical: .top, wrapText: true)
         ws[cell: "C2"].fill = .solid(.rgb("FFBFD7F5"))

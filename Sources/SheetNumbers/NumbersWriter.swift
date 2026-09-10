@@ -275,8 +275,8 @@ struct NumbersWriter {
                 // header rows / columns are Numbers' frozen panes
                 let fp = sheet.freezePanes!
                 doc.update(doc.object(infos[0])!.reference("tableModel")!) { m in
-                    m.set("number_of_header_rows", int: fp.row); m.set("number_of_header_columns", int: fp.col)
-                    m.set("header_rows_frozen", bool: fp.row > 0); m.set("header_columns_frozen", bool: fp.col > 0)
+                    m.set("number_of_header_rows", int: fp.row); m.set("number_of_header_columns", int: fp.column)
+                    m.set("header_rows_frozen", bool: fp.row > 0); m.set("header_columns_frozen", bool: fp.column > 0)
                 }
             }
         }
@@ -1125,7 +1125,7 @@ struct NumbersWriter {
                                                               formulaID: formulaKey(cell))
             default: continue
             }
-            byRow[cell.row, default: [:]][cell.col] = record
+            byRow[cell.row, default: [:]][cell.column] = record
         }
         if let sid = store.reference("stringTable") {
             let entries = stringEntries
@@ -1245,14 +1245,14 @@ struct NumbersWriter {
         // shape is a dropdown over a whole column, a million rows, and a table that answers it draws a million
         // rows. Anything reaching past 10,000 rows or 256 columns stops at the table's edge instead, the way
         // Numbers itself cuts a whole-column rule when it imports one (measured), and the cut is reported below.
-        let formRanges = popupRules.flatMap(\.rule.ranges.ranges).filter { $0.maxRow < 10_000 && $0.maxCol < 256 }
+        let formRanges = popupRules.flatMap(\.rule.ranges.ranges).filter { $0.maxRow < 10_000 && $0.maxColumn < 256 }
         let rows = Swift.max(1, Swift.max(table.rowCount, table.nextAppendRow, (table.rowDimensions.keys.max() ?? -1) + 1,
                                           (table.merges.map(\.maxRow).max() ?? -1) + 1, (formRanges.map(\.maxRow).max() ?? -1) + 1))
-        let cols = Swift.max(1, Swift.max(table.columnCount, (table.columnDimensions.keys.max() ?? -1) + 1,
-                                          (table.merges.map(\.maxCol).max() ?? -1) + 1, (formRanges.map(\.maxCol).max() ?? -1) + 1))
-        guard rows <= 1_000_000, cols <= 1000 else { throw SheetError.unsupportedFeature("Numbers tables are limited to 1,000,000 rows × 1,000 columns (\(rows)×\(cols) requested)") }
+        let columns = Swift.max(1, Swift.max(table.columnCount, (table.columnDimensions.keys.max() ?? -1) + 1,
+                                          (table.merges.map(\.maxColumn).max() ?? -1) + 1, (formRanges.map(\.maxColumn).max() ?? -1) + 1))
+        guard rows <= 1_000_000, columns <= 1000 else { throw SheetError.unsupportedFeature("Numbers tables are limited to 1,000,000 rows × 1,000 columns (\(rows)×\(columns) requested)") }
         model.set("number_of_rows", int: rows)
-        model.set("number_of_columns", int: cols)
+        model.set("number_of_columns", int: columns)
         model.set("table_name", string: name)
         model.set("table_name_enabled", bool: true)
         model.remove("base_column_row_uids")
@@ -1276,7 +1276,7 @@ struct NumbersWriter {
         }
 
         // cell records per row, with the styles and number formats they name
-        var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: cols), count: rows)
+        var records: [[Data?]] = Array(repeating: Array(repeating: nil, count: columns), count: rows)
         var styleWriter = NumbersStyleWriter(doc: doc, model: model)
 
         // formulas → the table's own formula list, the same shape as the string list. A formula the encoder has no
@@ -1343,8 +1343,8 @@ struct NumbersWriter {
             conditionalEntries.append(entry)
             for range in block.ranges.ranges {
                 for r in range.minRow...range.maxRow where r < rows {
-                    for c in range.minCol...range.maxCol where c < cols {
-                        conditionalKeys[CellRef(row: r, col: c)] = key
+                    for c in range.minColumn...range.maxColumn where c < columns {
+                        conditionalKeys[CellRef(row: r, column: c)] = key
                     }
                 }
             }
@@ -1365,7 +1365,7 @@ struct NumbersWriter {
         var controlEntries: [ProtoMessage] = []
         var controlKeys: [CellRef: Int] = [:]
         var clippedRules = 0
-        let controlledCells = table.cells.filter { $0.value.control != nil && $0.key.row < rows && $0.key.col < cols && !covered.contains($0.key) }
+        let controlledCells = table.cells.filter { $0.value.control != nil && $0.key.row < rows && $0.key.column < columns && !covered.contains($0.key) }
         if !popupRules.isEmpty || !controlledCells.isEmpty, controlList == nil {
             warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheetName,
                                               message: "\(popupRules.count + controlledCells.count) validation rule(s) / cell control(s) dropped: the template's table has no control list"))
@@ -1386,10 +1386,10 @@ struct NumbersWriter {
                 controlEntries.append(entry)
                 var clipped = false
                 for range in rule.ranges.ranges {
-                    if range.maxRow >= rows || range.maxCol >= cols { clipped = true }
+                    if range.maxRow >= rows || range.maxColumn >= columns { clipped = true }
                     for r in range.minRow...range.maxRow where r < rows {
-                        for c in range.minCol...range.maxCol where c < cols {
-                            controlKeys[CellRef(row: r, col: c)] = key
+                        for c in range.minColumn...range.maxColumn where c < columns {
+                            controlKeys[CellRef(row: r, column: c)] = key
                         }
                     }
                 }
@@ -1403,7 +1403,7 @@ struct NumbersWriter {
             var controlEntryKeys: [CellControl: Int] = [:]
             var overlappingControls = 0
             var mismatchedControls: [CellRef] = []
-            for (ref, cell) in controlledCells.sorted(by: { ($0.key.row, $0.key.col) < ($1.key.row, $1.key.col) }) {
+            for (ref, cell) in controlledCells.sorted(by: { ($0.key.row, $0.key.column) < ($1.key.row, $1.key.column) }) {
                 guard let control = cell.control else { continue }
                 let fits: Bool
                 switch cell.value {
@@ -1507,12 +1507,12 @@ struct NumbersWriter {
         // has a reason: a fill, a border, a note, a link. A sheet draws with exactly these — a Gantt bar, a
         // weekend column, a legend swatch are colour and nothing else — and skipping them here sent the drawing
         // out blank and unreported (Appendix B.20).
-        for (ref, cell) in table.cells where ref.row < rows && ref.col < cols && !covered.contains(ref) {
+        for (ref, cell) in table.cells where ref.row < rows && ref.column < columns && !covered.contains(ref) {
             var value: CellValue? = cell.value
             var formulaID: Int?
             if case .formula(let expr, let cached)? = cell.value {
                 let seen = formulaEncoder.problems.count
-                if let archive = formulaEncoder.archive(for: expr, row: ref.row, col: ref.col) {
+                if let archive = formulaEncoder.archive(for: expr, row: ref.row, column: ref.column) {
                     formulaID = formulaKey(for: archive)
                     value = cached
                 } else {
@@ -1561,7 +1561,7 @@ struct NumbersWriter {
                     }
                 }
             }
-            records[ref.row][ref.col] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
+            records[ref.row][ref.column] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
                                                formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
                                                conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref],
                                                richID: richID, commentID: commentID)
@@ -1573,8 +1573,8 @@ struct NumbersWriter {
         // an empty cell inside a rule's range still names the rule — otherwise the rule stops at the last cell
         // that happened to hold something. The same for a pop-up menu: an empty cell wearing one is what a
         // dropdown on an entry form is.
-        for ref in Set(conditionalKeys.keys).union(controlKeys.keys) where records[ref.row][ref.col] == nil {
-            records[ref.row][ref.col] = CellStorage.encode(type: .generic, conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref])
+        for ref in Set(conditionalKeys.keys).union(controlKeys.keys) where records[ref.row][ref.column] == nil {
+            records[ref.row][ref.column] = CellStorage.encode(type: .generic, conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref])
         }
         for code in styleWriter.unexpressibleFormats {
             warnings.append(ConversionWarning(.substituted, subject: .formatting, sheet: sheetName,
@@ -1693,7 +1693,7 @@ struct NumbersWriter {
         if let cb = store.reference("columnHeaders") {
             doc.update(cb) { b in
                 var headers: [ProtoMessage] = []
-                for c in 0..<cols {
+                for c in 0..<columns {
                     var h = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
                     let dim = table.columnDimensions[c]
                     h.set("index", int: c); h.set("size", float: Float(dim?.width.map { $0 * NumbersReader.pointsPerCharacter } ?? defaultColumnWidth)); h.set("hidingState", int: dim?.hidden == true ? 1 : 0)
@@ -1707,8 +1707,8 @@ struct NumbersWriter {
         var mergeMap = ProtoMessage(typeName: "TST.MergeRegionMapArchive")
         for m in table.merges {
             var range = ProtoMessage(typeName: "TST.CellRange")
-            var origin = ProtoMessage(typeName: "TST.CellID"); origin.set("packedData", int: (m.minCol << 16) | m.minRow)
-            var size = ProtoMessage(typeName: "TST.TableSize"); size.set("packedData", int: ((m.maxCol - m.minCol + 1) << 16) | (m.maxRow - m.minRow + 1))
+            var origin = ProtoMessage(typeName: "TST.CellID"); origin.set("packedData", int: (m.minColumn << 16) | m.minRow)
+            var size = ProtoMessage(typeName: "TST.TableSize"); size.set("packedData", int: ((m.maxColumn - m.minColumn + 1) << 16) | (m.maxRow - m.minRow + 1))
             range.set("origin", message: origin); range.set("size", message: size)
             mergeMap.append("cell_range", message: range)
         }
@@ -1732,8 +1732,8 @@ struct NumbersWriter {
             for r in rowStart..<rowEnd {
                 var info = ProtoMessage(typeName: "TST.TileRowInfo")
                 info.set("tile_row_index", int: r - rowStart)
-                var storage = Data(), offsets = [Int16](repeating: -1, count: cols), count = 0
-                for c in 0..<cols {
+                var storage = Data(), offsets = [Int16](repeating: -1, count: columns), count = 0
+                for c in 0..<columns {
                     guard let rec = records[r][c] else { continue }
                     offsets[c] = Int16(storage.count >> 2)
                     storage.append(rec)
@@ -1765,7 +1765,7 @@ struct NumbersWriter {
         model.set("base_data_store", message: store)
         doc.replace(modelID, with: model)
 
-        let width = (0..<cols).reduce(0.0) { $0 + (table.columnDimensions[$1]?.width.map { $0 * NumbersReader.pointsPerCharacter } ?? defaultColumnWidth) }
+        let width = (0..<columns).reduce(0.0) { $0 + (table.columnDimensions[$1]?.width.map { $0 * NumbersReader.pointsPerCharacter } ?? defaultColumnWidth) }
         let height = (0..<rows).reduce(0.0) { $0 + (table.rowDimensions[$1]?.height ?? defaultRowHeight) }
         return (width, height)
     }
@@ -1872,7 +1872,7 @@ extension NumbersWriter {
         var tileRefs: [ProtoMessage] = []
         var rows = 0
         /// The widest row so far; the width every packed tile was written at.
-        var cols = 0
+        var columns = 0
         var packedCols = 0
         var columnCells: [Int] = []
         /// The row headers, one per row, already on the wire: Numbers finds a row's storage through them, and a
@@ -1932,7 +1932,7 @@ extension NumbersWriter {
             if c >= t.columnCells.count { t.columnCells.append(contentsOf: repeatElement(0, count: c + 1 - t.columnCells.count)) }
             t.columnCells[c] += 1
         }
-        t.cols = Swift.max(t.cols, cells.count)
+        t.columns = Swift.max(t.columns, cells.count)
         t.tileRows.append((offsets, storage, count))
         var header = ProtoMessage(typeName: "TST.HeaderStorageBucket.Header")
         header.set("index", int: t.rows); header.set("size", float: Float(t.defaultRowHeight)); header.set("hidingState", int: 0)
@@ -1953,7 +1953,7 @@ extension NumbersWriter {
     /// The tile of the rows gathered so far, every row's offsets padded to the table's width, as its own IWA file.
     private mutating func streamPackTile(_ t: inout StreamedTable, output: (String, Data) throws -> Void) throws {
         guard !t.tileRows.isEmpty else { return }
-        let width = Swift.max(1, t.cols)
+        let width = Swift.max(1, t.columns)
         t.packedCols = width
         var tile = ProtoMessage(typeName: "TST.Tile")
         tile.set("maxColumn", int: 0); tile.set("maxRow", int: 0); tile.set("numCells", int: 0); tile.set("numrows", int: t.tileRows.count)
@@ -1996,7 +1996,7 @@ extension NumbersWriter {
             t.rows = 1
         }
         try streamPackTile(&t, output: output)
-        let rows = t.rows, cols = Swift.max(1, t.cols)
+        let rows = t.rows, cols = Swift.max(1, t.columns)
         t.model.set("number_of_rows", int: rows)
         t.model.set("number_of_columns", int: cols)
         t.model.set("table_name", string: "Table 1")

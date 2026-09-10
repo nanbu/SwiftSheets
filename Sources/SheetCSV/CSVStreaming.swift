@@ -277,7 +277,7 @@ package final class CSVStreamingWriter {
         var line: [String] = []
         for (c, value) in values.enumerated() {
             guard let value else { line.append(""); continue }
-            let ref = CellRef(row: row, col: c)
+            let ref = CellRef(row: row, column: c)
             let field = renderer.render(value, at: ref, sheet: "Sheet1", warnings: &warnings)
             line.append(CSVCodec.quoted(field, delimiter: options.dialect.delimiter, quote: options.dialect.quote))
         }
@@ -286,7 +286,7 @@ package final class CSVStreamingWriter {
             throw SheetError.unsupportedFeature("text in row \(row + 1) cannot be represented in \(String.localizedName(of: options.encoding))")
         }
         if text.data(using: options.encoding) == nil {
-            warnings.append(ConversionWarning(.degraded, sheet: "Sheet1", location: CellRef(row: row, col: 0), message: "text cannot be represented in \(String.localizedName(of: options.encoding)); unencodable characters replaced"))
+            warnings.append(ConversionWarning(.degraded, sheet: "Sheet1", location: CellRef(row: row, column: 0), message: "text cannot be represented in \(String.localizedName(of: options.encoding)); unencodable characters replaced"))
         }
         pending.append(bytes)
         row += 1
@@ -346,7 +346,7 @@ extension CSVStreamingReader: StreamingRowSource {
             while let record = try walk.next() {
                 defer { index += 1 }
                 let style: CellStyle? = options.includeStyles ? .default : nil
-                let row = StreamedRow(index: index, cells: record.enumerated().map { StreamedCell(ref: CellRef(row: index, col: $0), value: $1, style: style) })
+                let row = StreamedRow(index: index, cells: record.enumerated().map { StreamedCell(ref: CellRef(row: index, column: $0), value: $1, style: style) })
                 if options.includesEmptyRows || !row.isEmpty { return row }
             }
             return nil

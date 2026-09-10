@@ -117,7 +117,7 @@ import Testing
         s.groupColumns("F", "H")
         #expect(s.columnGroups == ["F:H"])
         s.freezePanes(at: "B2")
-        #expect(s.freezePanes == CellRef(row: 1, col: 1) && s.freezePanesA1 == "B2")
+        #expect(s.freezePanes == CellRef(row: 1, column: 1) && s.freezePanesA1 == "B2")
         s.freezePanes(at: "A1")
         #expect(s.freezePanes == nil)
         s.autoFilterA1 = "A1:D100"

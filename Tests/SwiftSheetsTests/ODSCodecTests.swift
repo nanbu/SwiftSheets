@@ -144,7 +144,7 @@ import SwiftSheets
         #expect(ws.columnDimension("C").hidden)
         #expect(ws.rowDimension(1).height == 30)
         #expect(ws.rowDimension(3).hidden)
-        #expect(ws.freezePanes == CellRef(row: 1, col: 1))
+        #expect(ws.freezePanes == CellRef(row: 1, column: 1))
         #expect(back.sheets[1].state == .hidden)
         #expect(back.sheets[1]["A1"] == .text("secret"))
         #expect(back.definedNames["MyRange"] == "Data!$A$1:$B$2")
@@ -499,7 +499,7 @@ import SwiftSheets
         #expect(ws.style("A2").font.bold && ws.style("A2").font.italic)
         #expect(ws.style("B2").numberFormat == "#,##0.00")
         #expect(ws.style("C2").numberFormat == "0%")
-        #expect(ws.freezePanes == CellRef(row: 1, col: 1))
+        #expect(ws.freezePanes == CellRef(row: 1, column: 1))
         // LibreOffice writes `hidden="true"` (xsd:boolean words); the XLSX reader accepts both spellings
         #expect(ws.columnDimension("C").hidden, "column C hidden")
         #expect(ws.rowDimension(3).hidden, "row 4 hidden")

@@ -18,7 +18,7 @@ import SwiftSheets
 
     struct Expected: Decodable {
         struct Cell: Decodable { let v: JSONValue?; let f: String? }
-        struct Table: Decodable { let name: String; let rows: Int; let cols: Int; let merges: [String]; let cells: [String: Cell] }
+        struct Table: Decodable { let name: String; let rows: Int; let columns: Int; let merges: [String]; let cells: [String: Cell] }
         struct Sheet: Decodable { let name: String; let tables: [Table] }
         let sheets: [Sheet]
     }
@@ -69,7 +69,7 @@ import SwiftSheets
                 #expect(ours.count == et.cells.count, "\(name)/\(et.name): cell count ours \(ours.count) vs \(et.cells.count)")
                 for (key, ec) in et.cells {
                     let parts = key.split(separator: ",").map { Int($0)! }
-                    let ref = CellRef(row: parts[0], col: parts[1])
+                    let ref = CellRef(row: parts[0], column: parts[1])
                     guard let value = table[ref] else { Issue.record("\(name)/\(et.name) \(ref.a1): missing (expected \(String(describing: ec.v)))"); continue }
                     cellChecks += 1
                     let plain = value.cachedValue
@@ -129,7 +129,7 @@ import SwiftSheets
         let data = try Data(contentsOf: Self.fixtures.appendingPathComponent("test-2.numbers"))
         let sheet = try NumbersCodec.read(data).workbook.sheets[0]
         let table = sheet.tables[0]
-        let header = table.style(at: CellRef(row: 0, col: 0))
+        let header = table.style(at: CellRef(row: 0, column: 0))
         #expect(header.font.bold, "a header row is bold")
         #expect(header.font.name == "Helvetica Neue")
         #expect(header.font.size == 10)

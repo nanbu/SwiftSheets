@@ -48,7 +48,7 @@ public struct SheetImage: Hashable, Sendable {
     public init(data: Data) throws {
         let bytes = [UInt8](data.prefix(32))
         self.data = data
-        self.anchor = .cell(CellRef(row: 0, col: 0), sizing: .original)
+        self.anchor = .cell(CellRef(row: 0, column: 0), sizing: .original)
         if bytes.count >= 8, bytes[0...3] == [0x89, 0x50, 0x4E, 0x47] {
             format = .png
             // IHDR is mandatory and first: width and height are big-endian at offsets 16 and 20

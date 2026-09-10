@@ -31,7 +31,7 @@ package enum XLSXInspector {
             try TagScanner.scan({ try stream.next() }, names: ["dimension", "sheetData"]) { tag in
                 if tag.localName == "dimension", let ref = tag.attribute("ref"), let range = CellRange(ref) {
                     summary.declaredRange = range
-                    summary.declaredCellCount = range.size.rows * range.size.cols
+                    summary.declaredCellCount = range.size.rows * range.size.columns
                 }
                 return false
             }

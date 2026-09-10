@@ -97,8 +97,8 @@ package enum CSVCodec: SpreadsheetCodec {
         if let extent = table.extent {
             for r in 0...extent.maxRow {
                 var line: [String] = []
-                for c in 0...extent.maxCol {
-                    let ref = CellRef(row: r, col: c)
+                for c in 0...extent.maxColumn {
+                    let ref = CellRef(row: r, column: c)
                     guard let value = table.cells[ref]?.value else { line.append(""); continue }
                     let field = renderer.render(value, at: ref, sheet: sheet.name, warnings: &warnings)
                     fields.append((ref, field))

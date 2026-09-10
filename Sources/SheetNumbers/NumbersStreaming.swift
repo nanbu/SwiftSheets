@@ -136,7 +136,7 @@ package struct NumbersStreamingReader: StreamingRowSource {
     final class TableWalk: StreamingRowWalk {
         private let index: NumbersObjectIndex
         private let options: StreamingReadOptions
-        private let cols: Int
+        private let columns: Int
         private let strings: [Int: String]
         private let formulas: [Int: ProtoMessage]
         private let richTexts: [Int: NumbersCells.RichText]
@@ -154,7 +154,7 @@ package struct NumbersStreamingReader: StreamingRowSource {
             }
             self.index = index
             self.options = options
-            cols = model.int("number_of_columns") ?? 0
+            columns = model.int("number_of_columns") ?? 0
             strings = NumbersCells.dataList(store.reference("stringTable"), doc: index) { $0.string("string") }
             // the formula list is only needed to spell formulas out; the cached values are in the cells themselves
             formulas = options.formulaCells == .cachedValues ? [:] : NumbersCells.dataList(store.reference("formula_table"), doc: index) { $0.message("formula") }
@@ -182,19 +182,19 @@ package struct NumbersStreamingReader: StreamingRowSource {
                 let (row, info) = rows[rowCursor]
                 rowCursor += 1
                 var cells: [StreamedCell] = []
-                try NumbersCells.forEachRecord(in: info, cols: cols) { col, record in
+                try NumbersCells.forEachRecord(in: info, columns: columns) { column, record in
                     let s = try record.get()
                     var storage = s
                     // a spill cell holds `337(anchor)`: the anchor's array formula showing one element here (B.26)
-                    if let fid = s.formulaID, let archive = formulas[fid], NumbersFormulaDecoder.spillAnchor(archive, row: row, col: col) != nil {
+                    if let fid = s.formulaID, let archive = formulas[fid], NumbersFormulaDecoder.spillAnchor(archive, row: row, column: column) != nil {
                         storage.formulaID = nil
                     }
-                    let (value, _) = NumbersCells.value(storage, row: row, col: col, strings: strings, formulas: formulas,
+                    let (value, _) = NumbersCells.value(storage, row: row, column: column, strings: strings, formulas: formulas,
                                                         richTexts: richTexts, decoder: &decoder, dataOnly: options.formulaCells == .cachedValues)
                     var style: CellStyle?
-                    if styles != nil { style = styles!.style(s, row: row, col: col) }
+                    if styles != nil { style = styles!.style(s, row: row, column: column) }
                     guard value != nil || (style != nil && style != .default) else { return }
-                    cells.append(StreamedCell(ref: CellRef(row: row, col: col), value: value, style: style))
+                    cells.append(StreamedCell(ref: CellRef(row: row, column: column), value: value, style: style))
                 }
                 let streamed = StreamedRow(index: row, cells: cells)
                 if options.includesEmptyRows || !streamed.isEmpty { return streamed }

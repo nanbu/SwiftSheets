@@ -898,12 +898,12 @@ enum WorkbookWriter {
         s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")>"
         if let f = ws.freezePanes {
             // Excel omits a zero split and makes the single remaining pane active
-            let active = f.col > 0 ? (f.row > 0 ? "bottomRight" : "topRight") : "bottomLeft"
+            let active = f.column > 0 ? (f.row > 0 ? "bottomRight" : "topRight") : "bottomLeft"
             s += "<pane"
-            if f.col > 0 { s += " xSplit=\"\(f.col)\"" }
+            if f.column > 0 { s += " xSplit=\"\(f.column)\"" }
             if f.row > 0 { s += " ySplit=\"\(f.row)\"" }
             s += " topLeftCell=\"\(f.a1)\" activePane=\"\(active)\" state=\"frozen\"/>"
-            if f.col > 0 && f.row > 0 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
+            if f.column > 0 && f.row > 0 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
             s += "<selection pane=\"\(active)\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
         } else {
             s += "<selection activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
@@ -947,7 +947,7 @@ enum WorkbookWriter {
                 s += XML.attr("thickTop", d.thickTop) + XML.attr("thickBot", d.thickBottom)
             }
             s += ">"
-            for ref in (byRow[r] ?? []).sorted(by: { $0.col < $1.col }) {
+            for ref in (byRow[r] ?? []).sorted(by: { $0.column < $1.column }) {
                 guard let c = table.cells[ref] else { continue }
                 let styleIndex = styles.index(for: c)
                 let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
@@ -1194,7 +1194,7 @@ enum WorkbookWriter {
             generated.append(("headerFooter", s + "</headerFooter>"))
         }
         for (element, breaks) in [("rowBreaks", ws.rowBreaks), ("colBreaks", ws.columnBreaks)] where !breaks.isEmpty {
-            let max = element == "rowBreaks" ? CellRef.maxCol : CellRef.maxRow
+            let max = element == "rowBreaks" ? CellRef.maxColumn : CellRef.maxRow
             generated.append((element, "<\(element) count=\"\(breaks.count)\" manualBreakCount=\"\(breaks.count)\">"
                 + breaks.sorted().map { "<brk id=\"\($0)\" max=\"\(max)\" man=\"1\"/>" }.joined() + "</\(element)>"))
         }

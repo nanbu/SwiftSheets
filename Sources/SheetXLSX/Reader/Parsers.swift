@@ -529,8 +529,8 @@ final class SheetParser: SAXHandler {
             if !d.isDefault { sheet.table.rowDimensions[currentRow] = d }
         case "c":
             if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
-            else { cellRef = CellRef(row: currentRow, col: lastColumn + 1) }
-            lastColumn = cellRef!.col
+            else { cellRef = CellRef(row: currentRow, column: lastColumn + 1) }
+            lastColumn = cellRef!.column
             cellType = a["t"] ?? "n"; cellStyle = Int(a["s"] ?? "0") ?? 0
             vText = ""; fText = ""; isText = ""; formulaType = nil; formulaRef = nil; sharedFormulaIndex = nil
             var cell = Cell()
@@ -851,9 +851,9 @@ final class SheetParser: SAXHandler {
         }
         if formulaType == "shared", let si = sharedFormulaIndex, let (master, origin) = sharedFormulas[si] {
             // a follower of a shared formula: the master's formula translated by the offset (what Excel shows)
-            let dr = ref.row - origin.row, dc = ref.col - origin.col
+            let dr = ref.row - origin.row, dc = ref.column - origin.column
             let translated = master.mapped { e in
-                if case .ref(let r, let s, let ar, let ac) = e, s == nil { return .ref(CellRef(row: ar ? r.row : r.row + dr, col: ac ? r.col : r.col + dc), sheet: s, absRow: ar, absCol: ac) }
+                if case .ref(let r, let s, let ar, let ac) = e, s == nil { return .ref(CellRef(row: ar ? r.row : r.row + dr, column: ac ? r.column : r.column + dc), sheet: s, absRow: ar, absCol: ac) }
                 return e
             }
             return .formula(translated, cached: cached)

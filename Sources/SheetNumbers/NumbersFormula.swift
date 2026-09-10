@@ -21,7 +21,7 @@ struct NumbersFormulaDecoder {
     /// The anchor a spill cell points at, when `formula` is exactly Numbers' spill shape — one cell reference
     /// into function 337 — or nil for any other formula. The reader turns the cells naming one anchor back into
     /// `Table.arrayFormulas`, the model's word for an array formula's range.
-    static func spillAnchor(_ formula: ProtoMessage, row: Int, col: Int) -> CellRef? {
+    static func spillAnchor(_ formula: ProtoMessage, row: Int, column: Int) -> CellRef? {
         guard let nodes = formula.message("AST_node_array")?.messages("AST_node"), nodes.count == 2 else { return nil }
         let types = NumbersSchema.shared.enums["TSCE.ASTNodeArrayArchive.ASTNodeType"] ?? [:]
         guard nodes[1].int("AST_node_type") == types["FUNCTION_NODE"],
@@ -29,12 +29,12 @@ struct NumbersFormulaDecoder {
               nodes[0].int("AST_node_type") == types["CELL_REFERENCE_NODE"],
               let rowNode = nodes[0].message("AST_row"), let colNode = nodes[0].message("AST_column") else { return nil }
         let r = (rowNode.bool("absolute") ?? false) ? (rowNode.int("row") ?? 0) : row + (rowNode.int("row") ?? 0)
-        let c = (colNode.bool("absolute") ?? false) ? (colNode.int("column") ?? 0) : col + (colNode.int("column") ?? 0)
-        guard r >= 0, c >= 0, r <= CellRef.maxRow, c <= CellRef.maxCol else { return nil }
-        return CellRef(row: r, col: c)
+        let c = (colNode.bool("absolute") ?? false) ? (colNode.int("column") ?? 0) : column + (colNode.int("column") ?? 0)
+        guard r >= 0, c >= 0, r <= CellRef.maxRow, c <= CellRef.maxColumn else { return nil }
+        return CellRef(row: r, column: c)
     }
 
-    mutating func text(for formula: ProtoMessage, row: Int, col: Int) -> String? {
+    mutating func text(for formula: ProtoMessage, row: Int, column: Int) -> String? {
         stack = []
         guard let array = formula.message("AST_node_array") else { return nil }
         let types = schema.enums["TSCE.ASTNodeArrayArchive.ASTNodeType"] ?? [:]
@@ -89,7 +89,7 @@ struct NumbersFormulaDecoder {
                 var lines: [String] = []
                 for _ in 0..<rows { lines.append(popN(Swift.min(cols, stack.count)).joined(separator: ",")) }
                 push("{" + lines.reversed().joined(separator: ";") + "}")
-            case "CELL_REFERENCE_NODE", "COLON_TRACT_NODE": push(reference(node, row: row, col: col))
+            case "CELL_REFERENCE_NODE", "COLON_TRACT_NODE": push(reference(node, row: row, column: column))
             case "COLON_NODE", "COLON_NODE_WITH_UIDS":
                 let b = pop(), a = pop()
                 push(a + ":" + b)
@@ -116,7 +116,7 @@ struct NumbersFormulaDecoder {
     }
 
     /// `A1`, `$B$2`, `A:B`, `3:5`, `'Sheet::Table'!A1` — relative coordinates are resolved against the host cell.
-    private func reference(_ node: ProtoMessage, row: Int, col: Int) -> String {
+    private func reference(_ node: ProtoMessage, row: Int, column: Int) -> String {
         var prefix = ""
         if let extra = node.message("AST_cross_table_reference_extra_info"), let hex = NumbersUUID.hex(extra.message("table_id")) {
             prefix = CellRef.formulaSheetName(tableName(hex) ?? "?") + "!"
@@ -134,8 +134,8 @@ struct NumbersFormulaDecoder {
             let absR = tract.messages("absolute_row"), relR = tract.messages("relative_row"), absC = tract.messages("absolute_column"), relC = tract.messages("relative_column")
             let r0 = resolve(sticky?.bool("begin_row_is_absolute") ?? false, absR, relR, row, 0x7FFF_FFFF, end: false)
             let r1 = resolve(sticky?.bool("end_row_is_absolute") ?? false, absR, relR, row, 0x7FFF_FFFF, end: true)
-            let c0 = resolve(sticky?.bool("begin_column_is_absolute") ?? false, absC, relC, col, 0x7FFF, end: false)
-            let c1 = resolve(sticky?.bool("end_column_is_absolute") ?? false, absC, relC, col, 0x7FFF, end: true)
+            let c0 = resolve(sticky?.bool("begin_column_is_absolute") ?? false, absC, relC, column, 0x7FFF, end: false)
+            let c1 = resolve(sticky?.bool("end_column_is_absolute") ?? false, absC, relC, column, 0x7FFF, end: true)
             let rowsOpen = r0 == 0x7FFF_FFFF, colsOpen = c0 == 0x7FFF
             let ar0 = sticky?.bool("begin_row_is_absolute") ?? false, ar1 = sticky?.bool("end_row_is_absolute") ?? false
             let ac0 = sticky?.bool("begin_column_is_absolute") ?? false, ac1 = sticky?.bool("end_column_is_absolute") ?? false
@@ -148,7 +148,7 @@ struct NumbersFormulaDecoder {
         let rowNode = node.message("AST_row"), colNode = node.message("AST_column")
         let absRow = rowNode?.bool("absolute") ?? false, absCol = colNode?.bool("absolute") ?? false
         let r = rowNode.map { absRow ? ($0.int("row") ?? 0) : row + ($0.int("row") ?? 0) }
-        let c = colNode.map { absCol ? ($0.int("column") ?? 0) : col + ($0.int("column") ?? 0) }
+        let c = colNode.map { absCol ? ($0.int("column") ?? 0) : column + ($0.int("column") ?? 0) }
         if let r, colNode == nil { return prefix + (absRow ? "$" : "") + String(r + 1) + ":" + (absRow ? "$" : "") + String(r + 1) }
         if let c, rowNode == nil { return prefix + (absCol ? "$" : "") + CellRef.columnName(c) + ":" + (absCol ? "$" : "") + CellRef.columnName(c) }
         return prefix + (absCol ? "$" : "") + CellRef.columnName(c ?? 0) + (absRow ? "$" : "") + String((r ?? 0) + 1)
@@ -181,9 +181,9 @@ struct NumbersFormulaEncoder {
 
     /// The archive for one cell's formula, or nil when some part of it has no Numbers spelling we have seen.
     /// `row` / `col` are the cell's own coordinates: Numbers stores a relative reference as the offset from them.
-    mutating func archive(for expr: FormulaExpr, row: Int, col: Int) -> ProtoMessage? {
+    mutating func archive(for expr: FormulaExpr, row: Int, column: Int) -> ProtoMessage? {
         var nodes: [ProtoMessage] = []
-        guard emit(expr, row: row, col: col, into: &nodes) else { return nil }
+        guard emit(expr, row: row, column: column, into: &nodes) else { return nil }
         var array = ProtoMessage(typeName: "TSCE.ASTNodeArrayArchive")
         array.set("AST_node", messages: nodes)
         var formula = ProtoMessage(typeName: "TSCE.FormulaArchive")
@@ -207,7 +207,7 @@ struct NumbersFormulaEncoder {
         return false
     }
 
-    private mutating func emit(_ expr: FormulaExpr, row: Int, col: Int, into nodes: inout [ProtoMessage]) -> Bool {
+    private mutating func emit(_ expr: FormulaExpr, row: Int, column: Int, into nodes: inout [ProtoMessage]) -> Bool {
         switch expr {
         case .number(let d):
             var n = node("NUMBER_NODE")
@@ -230,13 +230,13 @@ struct NumbersFormulaEncoder {
             guard let extra = crossTable(sheet) else { return fail("no table is named \(sheet ?? "?")") }
             var n = node("CELL_REFERENCE_NODE")
             n.set("AST_row", message: rowCoordinate(ref.row, absolute: absRow, host: row))
-            n.set("AST_column", message: columnCoordinate(ref.col, absolute: absCol, host: col))
+            n.set("AST_column", message: columnCoordinate(ref.column, absolute: absCol, host: column))
             if case .other(let info) = extra { n.set("AST_cross_table_reference_extra_info", message: info) }
             nodes.append(n)
         case .column(let index, let sheet, let abs):
             guard let extra = crossTable(sheet) else { return fail("no table is named \(sheet ?? "?")") }
             var n = node("CELL_REFERENCE_NODE")
-            n.set("AST_column", message: columnCoordinate(index, absolute: abs, host: col))
+            n.set("AST_column", message: columnCoordinate(index, absolute: abs, host: column))
             if case .other(let info) = extra { n.set("AST_cross_table_reference_extra_info", message: info) }
             nodes.append(n)
         case .row(let index, let sheet, let abs):
@@ -251,16 +251,16 @@ struct NumbersFormulaEncoder {
             // colon tract, whose shape no fixture shows, so it is refused rather than guessed at.
             if case .column(let i, let sheet, let abs) = a, case .column(let j, _, _) = b {
                 guard i == j else { return fail("a range over whole columns (A:C) has no shape we have seen in a Numbers document") }
-                return emit(.column(i, sheet: sheet, abs: abs), row: row, col: col, into: &nodes)
+                return emit(.column(i, sheet: sheet, abs: abs), row: row, column: column, into: &nodes)
             }
             if case .row(let i, let sheet, let abs) = a, case .row(let j, _, _) = b {
                 guard i == j else { return fail("a range over whole rows (1:3) has no shape we have seen in a Numbers document") }
-                return emit(.row(i, sheet: sheet, abs: abs), row: row, col: col, into: &nodes)
+                return emit(.row(i, sheet: sheet, abs: abs), row: row, column: column, into: &nodes)
             }
-            guard emit(a, row: row, col: col, into: &nodes), emit(b, row: row, col: col, into: &nodes) else { return false }
+            guard emit(a, row: row, column: column, into: &nodes), emit(b, row: row, column: column, into: &nodes) else { return false }
             nodes.append(node("COLON_NODE"))
         case .unary(let op, let e):
-            guard emit(e, row: row, col: col, into: &nodes) else { return false }
+            guard emit(e, row: row, column: column, into: &nodes) else { return false }
             switch op {
             case .negate: nodes.append(node("NEGATION_NODE"))
             case .plus: break                                   // Numbers drops a leading `+`, as the decoder does
@@ -272,13 +272,13 @@ struct NumbersFormulaEncoder {
                 return fail(op == .intersect ? "the intersection operator has no shape we have seen in a Numbers document"
                                              : "the union operator has no shape we have seen in a Numbers document")
             }
-            guard emit(a, row: row, col: col, into: &nodes), emit(b, row: row, col: col, into: &nodes) else { return false }
+            guard emit(a, row: row, column: column, into: &nodes), emit(b, row: row, column: column, into: &nodes) else { return false }
             nodes.append(node(type))
         case .call(let name, let args):
             let upper = name.uppercased()
             guard let index = schema.functionIndexes[upper] else { return fail("Numbers has no function \(upper)") }
             for a in args {
-                guard emit(a, row: row, col: col, into: &nodes) else { return false }
+                guard emit(a, row: row, column: column, into: &nodes) else { return false }
             }
             var n = node("FUNCTION_NODE")
             n.set("AST_function_node_index", int: index)
@@ -289,7 +289,7 @@ struct NumbersFormulaEncoder {
             guard rows.allSatisfy({ $0.count == width }) else { return fail("an array constant with rows of different lengths") }
             for line in rows {
                 for element in line {
-                    guard emit(element, row: row, col: col, into: &nodes) else { return false }
+                    guard emit(element, row: row, column: column, into: &nodes) else { return false }
                 }
             }
             var n = node("ARRAY_NODE")

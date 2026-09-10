@@ -25,10 +25,10 @@ public struct StreamedRow: Sendable {
 
     /// A dense array from column 0 to `width - 1` (or to the row's own last cell when `width` is nil).
     public func values(width: Int? = nil) -> [CellValue?] {
-        let last = width.map { $0 - 1 } ?? (cells.last?.ref.col ?? -1)
+        let last = width.map { $0 - 1 } ?? (cells.last?.ref.column ?? -1)
         guard last >= 0 else { return [] }
         var out = [CellValue?](repeating: nil, count: last + 1)
-        for c in cells where c.ref.col <= last { out[c.ref.col] = c.value }
+        for c in cells where c.ref.column <= last { out[c.ref.column] = c.value }
         return out
     }
     public var isEmpty: Bool { cells.allSatisfy { $0.value == nil } }

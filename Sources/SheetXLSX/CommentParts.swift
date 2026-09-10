@@ -72,7 +72,7 @@ enum CommentParts {
             s += "<v:fill color2=\"#ffffe1\"/><v:shadow color=\"black\" obscured=\"t\"/><v:path o:connecttype=\"none\"/>"
             s += "<v:textbox style=\"mso-direction-alt:auto\"><div style=\"text-align:left\"/></v:textbox>"
             s += "<x:ClientData ObjectType=\"Note\"><x:MoveWithCells/><x:SizeWithCells/><x:AutoFill>False</x:AutoFill>"
-            s += "<x:Row>\(entry.ref.row)</x:Row><x:Column>\(entry.ref.col)</x:Column></x:ClientData></v:shape>"
+            s += "<x:Row>\(entry.ref.row)</x:Row><x:Column>\(entry.ref.column)</x:Column></x:ClientData></v:shape>"
         }
         return s + "</xml>"
     }
@@ -96,7 +96,7 @@ final class CommentsParser: SAXHandler {
         switch name {
         case "author": inAuthor = true; author = ""
         case "comment":
-            ref = a["ref"].flatMap { CellRef($0) } ?? CellRange(a["ref"] ?? "").map { CellRef(row: $0.minRow, col: $0.minCol) }
+            ref = a["ref"].flatMap { CellRef($0) } ?? CellRange(a["ref"] ?? "").map { CellRef(row: $0.minRow, column: $0.minColumn) }
             authorID = Int(a["authorId"] ?? "0") ?? 0
             text = ""
         case "text": inText = true
@@ -137,7 +137,7 @@ enum VMLShapes {
             guard let row = integer(after: "Row>", in: anchor), let col = integer(after: "Column>", in: anchor) else {
                 out.append(Note(ref: nil, width: nil, height: nil)); continue
             }
-            out.append(Note(ref: CellRef(row: row, col: col), width: pixels("width:", in: style), height: pixels("height:", in: style)))
+            out.append(Note(ref: CellRef(row: row, column: col), width: pixels("width:", in: style), height: pixels("height:", in: style)))
         }
         return out
     }

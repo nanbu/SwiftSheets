@@ -235,7 +235,7 @@ is reported, never dropped in silence.
 Everything is a value type. `Workbook.sheets` is a collection addressable by index or name; a `Sheet` holds one or
 more `Table`s (exactly one for XLSX / ODS — the sheet forwards the whole cell API to it, so `tables` only matters for
 Numbers later). A `Cell` is a `CellValue?` plus `CellStyle`, hyperlink and note. Integer coordinates are **0-based**
-(`CellRef(row:col:)`, `sheet[0, 1]`); A1 strings are the only 1-based form. Values carry meaning, never representation:
+(`CellRef(row:column:)`, `sheet[0, 1]`); A1 strings are the only 1-based form. Values carry meaning, never representation:
 `.text`, `.integer`, `.number(Decimal)`, `.bool`, `.date(CivilDateTime)` (no time zone), `.time`, `.duration`,
 `.formula(FormulaExpr, cached:)`, `.error`, `.richText`.
 

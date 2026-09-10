@@ -244,7 +244,7 @@ enum ODSConditionalFormatWriter {
         }
         for block in blocks {
             let target = address(block.ranges, sheet: sheet.name)
-            let anchor = block.ranges.sorted.first?.topLeft ?? CellRef(row: 0, col: 0)
+            let anchor = block.ranges.sorted.first?.topLeft ?? CellRef(row: 0, column: 0)
             let base = "\(String(ODSWriter.odsSheetPrefix(sheet.name).dropFirst())).\(anchor.a1)"
             var conditions = ""
             var standalone = ""

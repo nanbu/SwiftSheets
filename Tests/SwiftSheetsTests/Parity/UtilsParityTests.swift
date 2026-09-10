@@ -58,7 +58,7 @@ import Testing
     // openpyxl: utils/tests/test_cell.py::test_coordinate_tuple
     @Test func coordinateTuple() {
         let r = CellRef("D15")!
-        #expect((r.row, r.col) == (14, 3))
+        #expect((r.row, r.column) == (14, 3))
     }
 
     static let rangeToTupleCases: [(String, String, [Int])] = [("Sheet1!$A$1:$A$12", "Sheet1", [0, 0, 0, 11]), ("'My Sheet'!A1:E6", "My Sheet", [0, 0, 4, 5]), ("'E,F'!$A$1:$B$3", "E,F", [0, 0, 1, 2])]
@@ -67,7 +67,7 @@ import Testing
     func rangeToTuple(_ rangeString: String, _ sheetname: String, _ boundaries: [Int]) {
         let r = CellRange(rangeString)
         #expect(r?.sheet == sheetname)
-        #expect(r.map { [$0.minCol, $0.minRow, $0.maxCol, $0.maxRow] } == boundaries)
+        #expect(r.map { [$0.minColumn, $0.minRow, $0.maxColumn, $0.maxRow] } == boundaries)
     }
 
     // openpyxl: utils/tests/test_cell.py::test_invalid_range
@@ -90,13 +90,13 @@ import Testing
 
     // openpyxl: utils/tests/test_cell.py::test_cols_from_range
     @Test func colsFromRange() {
-        let cols = CellRange("A1:D4")!.cols.map { $0.map(\.a1) }
+        let cols = CellRange("A1:D4")!.columns.map { $0.map(\.a1) }
         #expect(cols == [["A1", "A2", "A3", "A4"], ["B1", "B2", "B3", "B4"], ["C1", "C2", "C3", "C4"], ["D1", "D2", "D3", "D4"]])
     }
 
     static let boundsCases: [(String, RangeBounds)] = [
-        ("C1:C4", RangeBounds(minCol: 2, minRow: 0, maxCol: 2, maxRow: 3)), ("C1", RangeBounds(minCol: 2, minRow: 0, maxCol: 2, maxRow: 0)),
-        ("D:F", RangeBounds(minCol: 3, maxCol: 5)), ("A", RangeBounds(minCol: 0, maxCol: 0)),
+        ("C1:C4", RangeBounds(minColumn: 2, minRow: 0, maxColumn: 2, maxRow: 3)), ("C1", RangeBounds(minColumn: 2, minRow: 0, maxColumn: 2, maxRow: 0)),
+        ("D:F", RangeBounds(minColumn: 3, maxColumn: 5)), ("A", RangeBounds(minColumn: 0, maxColumn: 0)),
         ("1:10", RangeBounds(minRow: 0, maxRow: 9)), ("1", RangeBounds(minRow: 0, maxRow: 0)),
     ]
     // openpyxl: utils/tests/test_cell.py::test_bounds

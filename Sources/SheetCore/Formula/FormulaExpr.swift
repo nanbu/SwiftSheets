@@ -181,9 +181,9 @@ public indirect enum FormulaExpr: Hashable, Sendable {
         func shiftRef(_ e: FormulaExpr) -> FormulaExpr? {
             switch e {
             case .ref(let r, let s, let ar, let ac) where onSheet(s):
-                let v = axis == .rows ? r.row : r.col
+                let v = axis == .rows ? r.row : r.column
                 guard let m = moved(v) else { return nil }
-                return .ref(axis == .rows ? CellRef(row: m, col: r.col) : CellRef(row: r.row, col: m), sheet: s, absRow: ar, absCol: ac)
+                return .ref(axis == .rows ? CellRef(row: m, column: r.column) : CellRef(row: r.row, column: m), sheet: s, absRow: ar, absCol: ac)
             case .column(let c, let s, let a) where onSheet(s) && axis == .columns:
                 guard let m = moved(c) else { return nil }
                 return .column(m, sheet: s, abs: a)
@@ -222,7 +222,7 @@ public indirect enum FormulaExpr: Hashable, Sendable {
         func value(_ e: FormulaExpr) -> Int? {
             switch (e, axis) {
             case (.ref(let r, _, _, _), .rows): return r.row
-            case (.ref(let r, _, _, _), .columns): return r.col
+            case (.ref(let r, _, _, _), .columns): return r.column
             case (.row(let r, _, _), .rows): return r
             case (.column(let c, _, _), .columns): return c
             default: return nil
@@ -234,8 +234,8 @@ public indirect enum FormulaExpr: Hashable, Sendable {
 
     static func setting(_ e: FormulaExpr, axis: Axis, to v: Int) -> FormulaExpr {
         switch (e, axis) {
-        case (.ref(let r, let s, let ar, let ac), .rows): return .ref(CellRef(row: v, col: r.col), sheet: s, absRow: ar, absCol: ac)
-        case (.ref(let r, let s, let ar, let ac), .columns): return .ref(CellRef(row: r.row, col: v), sheet: s, absRow: ar, absCol: ac)
+        case (.ref(let r, let s, let ar, let ac), .rows): return .ref(CellRef(row: v, column: r.column), sheet: s, absRow: ar, absCol: ac)
+        case (.ref(let r, let s, let ar, let ac), .columns): return .ref(CellRef(row: r.row, column: v), sheet: s, absRow: ar, absCol: ac)
         case (.row(_, let s, let a), .rows): return .row(v, sheet: s, abs: a)
         case (.column(_, let s, let a), .columns): return .column(v, sheet: s, abs: a)
         default: return e

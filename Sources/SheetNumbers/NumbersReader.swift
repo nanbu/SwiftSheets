@@ -105,7 +105,7 @@ struct NumbersReader {
             if let tid = tableModels(inSheet: sid).first, let model = doc.object(tid) {
                 let rows = model.bool("header_rows_frozen") == true ? (model.int("number_of_header_rows") ?? 0) : 0
                 let cols = model.bool("header_columns_frozen") == true ? (model.int("number_of_header_columns") ?? 0) : 0
-                if rows > 0 || cols > 0 { sheet.freezePanes = CellRef(row: rows, col: cols) }
+                if rows > 0 || cols > 0 { sheet.freezePanes = CellRef(row: rows, column: cols) }
             }
             // A Numbers sheet is a canvas. Whatever else is standing on it cannot come into the model, and until
             // this was added it went without a word — the one thing the library promises never to do.
@@ -207,7 +207,7 @@ struct NumbersReader {
                                         formula1: "\"\(items.joined(separator: ","))\"",
                                         allowBlank: true, showInputMessage: true, showErrorMessage: true))
         }
-        return (rules, unreadable.sorted { ($0.row, $0.col) < ($1.row, $1.col) })
+        return (rules, unreadable.sorted { ($0.row, $0.column) < ($1.row, $1.column) })
     }
 
     /// The choices of a pop-up menu, spelt the way Numbers itself exports them: text as it is, a whole number
@@ -263,13 +263,13 @@ struct NumbersReader {
     /// cell, so a rule over one column comes back as eight cells; the model would rather say `A1:A8`.
     static func condense(_ refs: [CellRef]) -> MultiCellRange {
         var byColumn: [Int: [Int]] = [:]
-        for r in refs { byColumn[r.col, default: []].append(r.row) }
+        for r in refs { byColumn[r.column, default: []].append(r.row) }
         var ranges: [CellRange] = []
         for (col, rows) in byColumn {
             var run: [Int] = []
             func flush() {
                 guard let first = run.first, let last = run.last else { return }
-                ranges.append(CellRange(minRow: first, minCol: col, maxRow: last, maxCol: col))
+                ranges.append(CellRange(minRow: first, minColumn: col, maxRow: last, maxColumn: col))
                 run = []
             }
             for row in rows.sorted() {
@@ -280,9 +280,9 @@ struct NumbersReader {
         }
         // a rectangle spanning several columns is worth saying once
         var merged: [CellRange] = []
-        for range in ranges.sorted(by: { ($0.minCol, $0.minRow) < ($1.minCol, $1.minRow) }) {
-            if var last = merged.last, last.minRow == range.minRow, last.maxRow == range.maxRow, last.maxCol + 1 == range.minCol {
-                last = CellRange(minRow: last.minRow, minCol: last.minCol, maxRow: range.maxRow, maxCol: range.maxCol)
+        for range in ranges.sorted(by: { ($0.minColumn, $0.minRow) < ($1.minColumn, $1.minRow) }) {
+            if var last = merged.last, last.minRow == range.minRow, last.maxRow == range.maxRow, last.maxColumn + 1 == range.minColumn {
+                last = CellRange(minRow: last.minRow, minColumn: last.minColumn, maxRow: range.maxRow, maxColumn: range.maxColumn)
                 merged[merged.count - 1] = last
             } else {
                 merged.append(range)
@@ -316,7 +316,7 @@ struct NumbersReader {
         if let info = doc.identifiers(ofType: "TST.TableInfoArchive").first(where: { doc.object($0)?.reference("tableModel") == tid }),
            let geometry = doc.object(info)?.message("super")?.message("geometry"), let pos = geometry.message("position") {
             let x = Double(pos.float("x") ?? 0), y = Double(pos.float("y") ?? 0)
-            t.anchor = CellRef(row: Swift.max(0, Int(y / NumbersReader.defaultRowHeight)), col: Swift.max(0, Int(x / NumbersReader.defaultColumnWidth)))
+            t.anchor = CellRef(row: Swift.max(0, Int(y / NumbersReader.defaultRowHeight)), column: Swift.max(0, Int(x / NumbersReader.defaultColumnWidth)))
         }
         // row heights / column widths / hidden state
         let defaultRowHeight = model.double("default_row_height") ?? NumbersReader.defaultRowHeight
@@ -373,34 +373,34 @@ struct NumbersReader {
             }
             for rowInfo in tile.messages("rowInfos") {
                 let row = base + (rowInfo.int("tile_row_index") ?? 0)
-                NumbersCells.forEachRecord(in: rowInfo, cols: cols) { col, record in
+                NumbersCells.forEachRecord(in: rowInfo, columns: cols) { col, record in
                     let s: CellStorage
                     switch record {
                     case .success(let decoded): s = decoded
                     case .failure(let error):
-                        warnings.append(ConversionWarning(.dropped, sheet: sheetName, location: CellRef(row: row, col: col), message: "\(error)"))
+                        warnings.append(ConversionWarning(.dropped, sheet: sheetName, location: CellRef(row: row, column: col), message: "\(error)"))
                         return
                     }
-                    if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                    if let cid = s.conditionalStyleID { conditionalCells[cid, default: []].append(CellRef(row: row, column: col)) }
                     var control: CellControl?
                     if let cid = s.controlID {
                         if let modelled = modelledControls[cid] { control = modelled }
-                        else { controlledCells[cid, default: []].append(CellRef(row: row, col: col)) }
+                        else { controlledCells[cid, default: []].append(CellRef(row: row, column: col)) }
                     }
                     // a spill cell holds `337(anchor)`, which is not a formula of its own but the anchor's
                     // array formula showing one element here — read the value, remember the anchor
                     var storage = s
                     if let fid = s.formulaID, let archive = formulas[fid],
-                       let anchor = NumbersFormulaDecoder.spillAnchor(archive, row: row, col: col) {
-                        spillCells[anchor, default: []].append(CellRef(row: row, col: col))
+                       let anchor = NumbersFormulaDecoder.spillAnchor(archive, row: row, column: col) {
+                        spillCells[anchor, default: []].append(CellRef(row: row, column: col))
                         storage.formulaID = nil
                     }
-                    let (value, undecoded) = NumbersCells.value(storage, row: row, col: col, strings: strings, formulas: formulas,
+                    let (value, undecoded) = NumbersCells.value(storage, row: row, column: col, strings: strings, formulas: formulas,
                                                                 richTexts: richTexts, decoder: &decoder, dataOnly: options.formulaCells == .cachedValues)
                     if undecoded {
-                        warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: CellRef(row: row, col: col), message: "formula could not be decoded; cached value kept"))
+                        warnings.append(ConversionWarning(.degraded, sheet: sheetName, location: CellRef(row: row, column: col), message: "formula could not be decoded; cached value kept"))
                     }
-                    let (style, styleKey) = styles.resolve(s, row: row, col: col)
+                    let (style, styleKey) = styles.resolve(s, row: row, column: col)
                     let rich = s.richID.flatMap { richTexts[$0] }
                     let note = s.commentID.flatMap { comments[$0] }
                     if value != nil || style != .default || note != nil || control != nil {
@@ -410,7 +410,7 @@ struct NumbersReader {
                         if let first = rich?.links.first {
                             cell.hyperlink = Hyperlink(target: first)
                             if rich!.links.count > 1 {
-                                warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: CellRef(row: row, col: col),
+                                warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: CellRef(row: row, column: col),
                                                                   message: "the cell holds \(rich!.links.count) links; a cell carries one, so the first was kept"))
                             }
                         }
@@ -418,7 +418,7 @@ struct NumbersReader {
                             if let shared = sharedStyles[styleKey] { cell.sharedStyle = shared }
                             else { let shared = SharedStyle(style); sharedStyles[styleKey] = shared; cell.sharedStyle = shared }
                         }
-                        t.store(cell, at: CellRef(row: row, col: col))
+                        t.store(cell, at: CellRef(row: row, column: col))
                     }
                 }
             }
@@ -434,10 +434,10 @@ struct NumbersReader {
         }
         // the cells spilling one anchor, plus the anchor itself, are that array formula's range — the model's
         // own shape for one (the anchor keeps the formula, `arrayFormulas` the range, covered cells the values)
-        for (anchor, covered) in spillCells where anchor.row < rows && anchor.col < cols {
+        for (anchor, covered) in spillCells where anchor.row < rows && anchor.column < cols {
             let points = covered + [anchor]
-            t.arrayFormulas[anchor] = CellRange(minRow: points.map(\.row).min()!, minCol: points.map(\.col).min()!,
-                                                maxRow: points.map(\.row).max()!, maxCol: points.map(\.col).max()!)
+            t.arrayFormulas[anchor] = CellRange(minRow: points.map(\.row).min()!, minColumn: points.map(\.column).min()!,
+                                                maxRow: points.map(\.row).max()!, maxColumn: points.map(\.column).max()!)
         }
         conditionalFormats[tid] = conditionalFormatting(sets: conditionalSets, cells: conditionalCells, styles: styles, sheetName: sheetName)
         t.merges = merges(model, store: store)
@@ -519,7 +519,7 @@ struct NumbersReader {
         guard !rules.isEmpty else { return }
         let names = rules.map { rule -> String in
             guard let index = rule.int("index") else { return "a column" }
-            let heading = t[CellRef(row: 0, col: index)]?.stringValue
+            let heading = t[CellRef(row: 0, column: index)]?.stringValue
             return heading?.isEmpty == false ? heading! : "column \(index + 1)"
         }
         warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName,
@@ -544,7 +544,7 @@ struct NumbersReader {
             let enabled = gb.bool("is_enabled") != false
             for column in gb.messages("group_column") {
                 guard let hex = NumbersUUID.hex(column.message("column_uid")), let index = lanes[hex] else { continue }
-                let heading = t[CellRef(row: 0, col: index)]?.stringValue
+                let heading = t[CellRef(row: 0, column: index)]?.stringValue
                 let name = heading?.isEmpty == false ? heading! : "column \(index + 1)"
                 if enabled { names.append(name) } else { offNames.append(name) }
             }
@@ -587,14 +587,14 @@ struct NumbersReader {
                       let tract = node.message("AST_colon_tract"), let r = tract.messages("absolute_row").first, let c = tract.messages("absolute_column").first,
                       let r0 = r.int("range_begin"), let c0 = c.int("range_begin") else { continue }
                 let r1 = r.int("range_end") ?? r0, c1 = c.int("range_end") ?? c0
-                if r1 > r0 || c1 > c0 { out.append(CellRange(minRow: r0, minCol: c0, maxRow: r1, maxCol: c1)) }
+                if r1 > r0 || c1 > c0 { out.append(CellRange(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1)) }
             }
         }
         if out.isEmpty, let mapID = store.reference("merge_region_map"), let map = doc.object(mapID) {
             for range in map.messages("cell_range") {
                 guard let origin = range.message("origin")?.int("packedData"), let size = range.message("size")?.int("packedData") else { continue }
                 let c0 = origin >> 16, r0 = origin & 0xFFFF, nc = size >> 16, nr = size & 0xFFFF
-                if nr > 1 || nc > 1 { out.append(CellRange(minRow: r0, minCol: c0, maxRow: r0 + nr - 1, maxCol: c0 + nc - 1)) }
+                if nr > 1 || nc > 1 { out.append(CellRange(minRow: r0, minColumn: c0, maxRow: r0 + nr - 1, maxColumn: c0 + nc - 1)) }
             }
         }
         return out

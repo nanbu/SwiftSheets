@@ -39,13 +39,13 @@ struct ODSPicture {
     func size(in sheet: Sheet) -> (width: Double, height: Double) {
         switch image.anchor {
         case .cell(let ref, _):
-            let cell = (width: CellPixels.columnPixels(sheet.columnDimensions[ref.col]?.width ?? CellPixels.defaultColumnWidth),
+            let cell = (width: CellPixels.columnPixels(sheet.columnDimensions[ref.column]?.width ?? CellPixels.defaultColumnWidth),
                         height: CellPixels.rowPixels(sheet.rowDimensions[ref.row]?.height ?? CellPixels.defaultRowHeight))
             let shown = image.displaySize(cellSize: cell)
             return (shown.width * Self.centimetresPerPixel, shown.height * Self.centimetresPerPixel)
         case .span(let range):
             var width = 0.0, height = 0.0
-            for c in range.minCol...range.maxCol {
+            for c in range.minColumn...range.maxColumn {
                 width += (sheet.columnDimensions[c]?.width ?? CellPixels.defaultColumnWidth) * ODSLength.millimetresPerCharacter / 10
             }
             for r in range.minRow...range.maxRow {
@@ -66,7 +66,7 @@ struct ODSPicture {
             s += "<draw:frame draw:z-index=\"\(p.zIndex)\" draw:name=\"Image \(p.number)\""
                 + " svg:width=\"\(ODSLength.cmValue(size.width))\" svg:height=\"\(ODSLength.cmValue(size.height))\" svg:x=\"0cm\" svg:y=\"0cm\""
             if case .span(let range) = p.image.anchor {
-                let end = CellRef(row: range.maxRow + 1, col: range.maxCol + 1)
+                let end = CellRef(row: range.maxRow + 1, column: range.maxColumn + 1)
                 s += " table:end-cell-address=\"\(XML.esc(ODSFeatures.address(end, sheet: sheet.name)))\" table:end-x=\"0cm\" table:end-y=\"0cm\""
             }
             s += "><draw:image xlink:href=\"\(XML.esc(p.href))\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\""

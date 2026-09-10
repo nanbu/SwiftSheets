@@ -18,13 +18,13 @@ import Testing
         var rng = SeededGenerator(seed: seed)
         for _ in 0..<2_000 {
             let ref = CellRef(row: Int.random(in: 0...CellRef.maxRow, using: &rng),
-                              col: Int.random(in: 0...CellRef.maxCol, using: &rng))
-            #expect(CellRef(ref.a1) == ref, "\(ref.row),\(ref.col) → \(ref.a1)")
+                              column: Int.random(in: 0...CellRef.maxColumn, using: &rng))
+            #expect(CellRef(ref.a1) == ref, "\(ref.row),\(ref.column) → \(ref.a1)")
             #expect(CellRef(ref.absoluteA1) == ref, "\(ref.absoluteA1)")
             #expect(CellRef(ref.a1.lowercased()) == ref, "\(ref.a1.lowercased())")
-            #expect(CellRef.columnIndex(ref.columnName) == ref.col, "\(ref.columnName)")
+            #expect(CellRef.columnIndex(ref.columnName) == ref.column, "\(ref.columnName)")
             // and the other way round: the name is the *only* spelling of that column
-            #expect(CellRef.columnName(ref.col) == ref.columnName)
+            #expect(CellRef.columnName(ref.column) == ref.columnName)
         }
     }
 
@@ -61,8 +61,8 @@ import Testing
                         ? .integer(Int.random(in: -50...50, using: &rng))
                         : .text("v\(Int.random(in: 0...4, using: &rng))")
                     for i in 0..<run where col + i < 30 {
-                        let ref = CellRef(row: row, col: col + i)
-                        sheet[ref.row, ref.col] = value
+                        let ref = CellRef(row: row, column: col + i)
+                        sheet[ref.row, ref.column] = value
                         expected[ref] = value
                     }
                 }                                               // …or a run of blanks
@@ -77,8 +77,8 @@ import Testing
         var found: [CellRef: CellValue] = [:]
         let table = read.sheets[0].tables[0]
         for r in 0...(table.extent?.maxRow ?? 0) {
-            for c in 0...(table.extent?.maxCol ?? 0) {
-                if let v = table[r, c] { found[CellRef(row: r, col: c)] = v }
+            for c in 0...(table.extent?.maxColumn ?? 0) {
+                if let v = table[r, c] { found[CellRef(row: r, column: c)] = v }
             }
         }
         #expect(found == expected, "seed \(seed): \(found.count) cells back from \(expected.count)")
@@ -196,7 +196,7 @@ enum FormulaGenerator {
     }
 
     static func reference(using rng: inout SeededGenerator) -> FormulaExpr {
-        .ref(CellRef(row: Int.random(in: 0...CellRef.maxRow, using: &rng), col: Int.random(in: 0...CellRef.maxCol, using: &rng)),
+        .ref(CellRef(row: Int.random(in: 0...CellRef.maxRow, using: &rng), column: Int.random(in: 0...CellRef.maxColumn, using: &rng)),
              sheet: sheets.randomElement(using: &rng)!, absRow: Bool.random(using: &rng), absCol: Bool.random(using: &rng))
     }
 
@@ -205,9 +205,9 @@ enum FormulaGenerator {
         let sheet = sheets.randomElement(using: &rng)!
         func endpoint(_ kind: Int) -> FormulaExpr {
             switch kind {
-            case 0: return .column(Int.random(in: 0...CellRef.maxCol, using: &rng), sheet: sheet, abs: Bool.random(using: &rng))
+            case 0: return .column(Int.random(in: 0...CellRef.maxColumn, using: &rng), sheet: sheet, abs: Bool.random(using: &rng))
             case 1: return .row(Int.random(in: 0...CellRef.maxRow, using: &rng), sheet: sheet, abs: Bool.random(using: &rng))
-            default: return .ref(CellRef(row: Int.random(in: 0...CellRef.maxRow, using: &rng), col: Int.random(in: 0...CellRef.maxCol, using: &rng)),
+            default: return .ref(CellRef(row: Int.random(in: 0...CellRef.maxRow, using: &rng), column: Int.random(in: 0...CellRef.maxColumn, using: &rng)),
                                  sheet: sheet, absRow: Bool.random(using: &rng), absCol: Bool.random(using: &rng))
             }
         }

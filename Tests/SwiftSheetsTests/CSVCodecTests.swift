@@ -296,7 +296,7 @@ import SheetCore
         let result = try CSVCodec.write(wb, options: lossy)
         #expect(result.warnings.count == 1)
         #expect(result.warnings[0].kind == .degraded)
-        #expect(result.warnings[0].location == CellRef(row: 0, col: 1))
+        #expect(result.warnings[0].location == CellRef(row: 0, column: 1))
         #expect(result.warnings[0].sheet == "Data")
         let text = String(data: result.data, encoding: .shiftJIS)
         #expect(text?.hasPrefix("ok,?") == true && text?.hasSuffix("\r\n") == true)   // the emoji became "?" marks
@@ -349,8 +349,8 @@ import SheetCore
 
     @Test func styledCellsWarnExactlyOnce() throws {
         var sheet = Sheet(name: "S")
-        sheet[0, 0] = .text("a"); sheet.setStyle(at: CellRef(row: 0, col: 0)) { $0.font.bold = true }
-        sheet[0, 1] = .text("b"); sheet.setStyle(at: CellRef(row: 0, col: 1)) { $0.numberFormat = "0.00" }
+        sheet[0, 0] = .text("a"); sheet.setStyle(at: CellRef(row: 0, column: 0)) { $0.font.bold = true }
+        sheet[0, 1] = .text("b"); sheet.setStyle(at: CellRef(row: 0, column: 1)) { $0.numberFormat = "0.00" }
         sheet[1, 0] = .integer(1)
         let result = try CSVCodec.write(Workbook(sheets: [sheet]))
         #expect(result.warnings.count == 1)
@@ -373,7 +373,7 @@ import SheetCore
         #expect(text == "=SUM(A2:A3)\r\n")
         #expect(result.warnings.count == 2)
         let perCell = result.warnings.first { $0.location != nil }
-        #expect(perCell?.location == CellRef(row: 0, col: 0))
+        #expect(perCell?.location == CellRef(row: 0, column: 0))
         #expect(perCell?.sheet == "Data")
         #expect(perCell?.message == "formula without a cached value written as text")
     }

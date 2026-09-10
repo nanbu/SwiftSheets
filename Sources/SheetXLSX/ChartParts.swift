@@ -69,7 +69,7 @@ enum ChartParts {
     static func qualify(_ ref: String, sheet: String) -> String {
         if ref.contains("!") { return ref }
         let absolute = CellRange(ref).map { range in
-            "$\(CellRef.columnName(range.minCol))$\(range.minRow + 1):$\(CellRef.columnName(range.maxCol))$\(range.maxRow + 1)"
+            "$\(CellRef.columnName(range.minColumn))$\(range.minRow + 1):$\(CellRef.columnName(range.maxColumn))$\(range.maxRow + 1)"
         } ?? ref
         let needsQuotes = sheet.contains(where: { !$0.isLetter && !$0.isNumber && $0 != "_" })
         let name = needsQuotes ? "'\(sheet.replacingOccurrences(of: "'", with: "''"))'" : sheet
@@ -79,11 +79,11 @@ enum ChartParts {
     /// The chart's anchor on the drawing: a graphic frame over the range, both corners following their cells.
     static func anchorXML(over range: CellRange, shapeID: Int, relID: String) -> String {
         let ns = "xmlns:xdr=\"\(DrawingParts.nsSpreadsheetDrawing)\" xmlns:a=\"\(DrawingParts.nsDrawingMain)\""
-        func at(col: Int, row: Int) -> String {
-            "<xdr:col>\(col)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+        func at(column: Int, row: Int) -> String {
+            "<xdr:column>\(column)</xdr:column><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
-        return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(col: range.minCol, row: range.minRow))</xdr:from>"
-            + "<xdr:to>\(at(col: range.maxCol + 1, row: range.maxRow + 1))</xdr:to>"
+        return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
+            + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
             + "<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr>"
             + "<xdr:cNvPr id=\"\(shapeID)\" name=\"Chart \(shapeID)\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>"
             + "<xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm>"

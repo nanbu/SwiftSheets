@@ -15,7 +15,7 @@ enum ODSReader {
     /// The default lives on `ReadOptions.cellLimit`; a caller with a genuinely huge sheet (or a tight memory
     /// budget) chooses their own.
     static var maxCells: Int { ReadOptions().cellLimit }
-    static let maxColumns = CellRef.maxCol + 1
+    static let maxColumns = CellRef.maxColumn + 1
     static let maxRows = CellRef.maxRow + 1
 
     static func read(_ data: Data, options: ReadOptions) throws -> (Workbook, [ConversionWarning]) {
@@ -59,7 +59,7 @@ enum ODSReader {
                 sheetsRead[i].filterColumns = entry.filters
                 if !entry.sort.isEmpty { sheetsRead[i].sortState = SortState(range: range, conditions: entry.sort) }
             } else {
-                let header = (range.topLeft.col...range.bottomRight.col).map { sheetsRead[i][range.topLeft.row, $0] }
+                let header = (range.topLeft.column...range.bottomRight.column).map { sheetsRead[i][range.topLeft.row, $0] }
                 var table = StructuredTable(name: entry.name, ref: range, headerRow: header, styleInfo: nil)
                 if !entry.buttons { table.autoFilter = nil }
                 sheetsRead[i].structuredTables.append(table)
@@ -96,7 +96,7 @@ enum ODSReader {
                 let hMode = Int(items["HorizontalSplitMode"] ?? "0") ?? 0, vMode = Int(items["VerticalSplitMode"] ?? "0") ?? 0
                 let cols = hMode == 2 ? Int(items["HorizontalSplitPosition"] ?? "0") ?? 0 : 0
                 let rows = vMode == 2 ? Int(items["VerticalSplitPosition"] ?? "0") ?? 0 : 0
-                if rows > 0 || cols > 0 { wb.sheets[i].freezePanes = CellRef(row: rows, col: cols) }
+                if rows > 0 || cols > 0 { wb.sheets[i].freezePanes = CellRef(row: rows, column: cols) }
             }
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
@@ -230,10 +230,10 @@ final class ContentParser: SAXHandler {
     private var rowRepeat = 1
     private var rowStyle: String?
     private var rowHidden = false
-    private var rowCells: [(col: Int, cell: Cell)] = []
+    private var rowCells: [(column: Int, cell: Cell)] = []
     private var rowHasContent = false
-    private var rowMerges: [(col: Int, cols: Int, rows: Int)] = []
-    private var rowMatrices: [(col: Int, cols: Int, rows: Int)] = []
+    private var rowMerges: [(column: Int, columns: Int, rows: Int)] = []
+    private var rowMatrices: [(column: Int, columns: Int, rows: Int)] = []
     private var rowHasValidation = false
     private var cellCursor = 0
 
@@ -304,7 +304,7 @@ final class ContentParser: SAXHandler {
     var unmodelledODF: UnmodelledODFFeatures = []
     private var detective: CellDetective?
     private var reportedExtraLink = false
-    private var rowDetective: [(col: Int, detective: CellDetective)] = []
+    private var rowDetective: [(column: Int, detective: CellDetective)] = []
 
     // the table style of the sheet being read, so its master page can be applied afterwards
     var tableStyleNames: [String] = []
@@ -407,7 +407,7 @@ final class ContentParser: SAXHandler {
                 if usable.contains("print-range"), var r = CellRange(cells) { r.sheet = nil; sheet?.printArea.append(r) }
                 if let b = RangeBounds(cells) {
                     if usable.contains("repeat-row"), let lo = b.minRow, let hi = b.maxRow { sheet?.printTitleRows = lo...hi }
-                    if usable.contains("repeat-column"), let lo = b.minCol, let hi = b.maxCol { sheet?.printTitleColumns = lo...hi }
+                    if usable.contains("repeat-column"), let lo = b.minColumn, let hi = b.maxColumn { sheet?.printTitleColumns = lo...hi }
                 }
                 return
             }
@@ -553,8 +553,8 @@ final class ContentParser: SAXHandler {
             if v.isEmpty { dbFilters[i].includesBlanks = true } else { dbFilters[i].values.append(v) }
         case "sort-by":
             guard let field = ODSAttr.int(a, "table:field-number"), let range = dbRange else { return }
-            let col = range.minCol + field
-            dbSort.append(SortCondition(range: CellRange(minRow: range.minRow, minCol: col, maxRow: range.maxRow, maxCol: col),
+            let col = range.minColumn + field
+            dbSort.append(SortCondition(range: CellRange(minRow: range.minRow, minColumn: col, maxRow: range.maxRow, maxColumn: col),
                                         descending: ODSAttr.get(a, "table:order") == "descending"))
         case "data-pilot-table":
             var p = ODSPivot.Parsed()
@@ -688,7 +688,7 @@ final class ContentParser: SAXHandler {
         for (name, runs) in styleMapCells { byStyle[name] = ContentParser.ranges(of: runs) }
         for column in styleMapColumns {
             var ranges = byStyle[column.style] ?? MultiCellRange()
-            ranges.add(CellRange(minRow: 0, minCol: column.from, maxRow: lastRow, maxCol: column.to))
+            ranges.add(CellRange(minRow: 0, minColumn: column.from, maxRow: lastRow, maxColumn: column.to))
             byStyle[column.style] = ranges
         }
         var priority = 0
@@ -766,7 +766,7 @@ final class ContentParser: SAXHandler {
         }
 
         let material = cell.value != nil || cell.hyperlink != nil || cell.note != nil || matrixCols > 0
-            || rowDetective.contains { $0.col == cellCursor }
+            || rowDetective.contains { $0.column == cellCursor }
         guard material || (cell.style != .default && n < ODSReader.paddingRepeat) else { return }
         if material { rowHasContent = true }
         let count = Swift.min(n, ODSReader.maxColumns - cellCursor)
@@ -787,10 +787,10 @@ final class ContentParser: SAXHandler {
                     next.append((span.from, span.to, row, row))
                 }
             }
-            for done in open { out.add(CellRange(minRow: done.first, minCol: done.from, maxRow: done.last, maxCol: done.to)) }
+            for done in open { out.add(CellRange(minRow: done.first, minColumn: done.from, maxRow: done.last, maxColumn: done.to)) }
             open = next
         }
-        for done in open { out.add(CellRange(minRow: done.first, minCol: done.from, maxRow: done.last, maxCol: done.to)) }
+        for done in open { out.add(CellRange(minRow: done.first, minColumn: done.from, maxRow: done.last, maxColumn: done.to)) }
         return out
     }
 
@@ -903,17 +903,17 @@ final class ContentParser: SAXHandler {
             cellsMaterialised += expand * rowCells.count
         }
         for r in rowCursor..<(rowCursor + expand) {
-            for (c, cell) in rowCells { s.table.store(cell, at: CellRef(row: r, col: c)) }
+            for (c, cell) in rowCells { s.table.store(cell, at: CellRef(row: r, column: c)) }
             if hasDimension { s.table.rowDimensions[r] = RowDimension(height: height, hidden: rowHidden, outlineLevel: groupDepth) }
             for m in rowMerges {
-                s.table.merges.append(CellRange(minRow: r, minCol: m.col, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxCol: Swift.min(m.col + m.cols - 1, CellRef.maxCol)))
+                s.table.merges.append(CellRange(minRow: r, minColumn: m.column, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxColumn: Swift.min(m.column + m.columns - 1, CellRef.maxColumn)))
             }
             for m in rowMatrices {
-                s.table.arrayFormulas[CellRef(row: r, col: m.col)] = CellRange(minRow: r, minCol: m.col, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxCol: Swift.min(m.col + m.cols - 1, CellRef.maxCol))
+                s.table.arrayFormulas[CellRef(row: r, column: m.column)] = CellRange(minRow: r, minColumn: m.column, maxRow: Swift.min(r + m.rows - 1, CellRef.maxRow), maxColumn: Swift.min(m.column + m.columns - 1, CellRef.maxColumn))
             }
             for v in rowValidations { validationCells[v.name, default: []].append((r, v.from, v.to)) }
             for m in rowStyleMaps { styleMapCells[m.style, default: []].append((r, m.from, m.to)) }
-            for d in rowDetective { s.table.detective[CellRef(row: r, col: d.col)] = d.detective }
+            for d in rowDetective { s.table.detective[CellRef(row: r, column: d.column)] = d.detective }
         }
         if expand > 0 { s.table.nextAppendRow = Swift.max(s.table.nextAppendRow, rowCursor + expand) }
         rowCursor += rowRepeat

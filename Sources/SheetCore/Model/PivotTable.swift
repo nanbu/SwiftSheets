@@ -114,7 +114,7 @@ public struct PivotTable: Hashable, Sendable {
         let filterRows = filterIndices.count
         let width = Swift.max(1, rowIndices.count) + Swift.max(1, valueIndices.count)
         let ref = CellRange(from: anchor,
-                            to: CellRef(row: anchor.row + filterRows + 2, col: anchor.col + width - 1))
+                            to: CellRef(row: anchor.row + filterRows + 2, column: anchor.column + width - 1))
         let location = PivotLocation(ref: ref, firstHeaderRow: 1, firstDataRow: filterRows + 2,
                                      firstDataCol: Swift.max(1, rowIndices.count))
         return PivotTable(name: name, location: location, fields: fields, cache: cache,

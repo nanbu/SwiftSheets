@@ -109,7 +109,7 @@ public struct StructuredTable: Hashable, Sendable {
     public func validationError() -> String? {
         if name.isEmpty { return "a table needs a name" }
         if columns.isEmpty { return "table \"\(name)\" has no columns" }
-        let width = ref.bottomRight.col - ref.topLeft.col + 1
+        let width = ref.bottomRight.column - ref.topLeft.column + 1
         if columns.count != width { return "table \"\(name)\" covers \(width) column(s) but names \(columns.count)" }
         let height = ref.bottomRight.row - ref.topLeft.row + 1
         if height < headerRowCount + totalsRowCount { return "table \"\(name)\" is too short for its header and totals rows" }

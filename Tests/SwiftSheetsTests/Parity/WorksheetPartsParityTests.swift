@@ -608,7 +608,7 @@ func parseSheet(_ xml: String, name: String = "Sheet", styles: StylesParser = St
         let ws2 = wb.sheets[wb.duplicateSheet(named: "original_sheet")!]
         // PORT-NOTE: `column("A")` now yields values, so the cells of column A are fetched by reference to compare their parts.
         for r in 0..<ws1.rowCount {
-            let ref = CellRef(row: r, col: 0)
+            let ref = CellRef(row: r, column: 0)
             let c1 = ws1.cell(at: ref), c2 = ws2.cell(at: ref)
             #expect(c1?.value == c2?.value && c1?.openpyxlDataType == c2?.openpyxlDataType && c1?.note == c2?.note && c1?.hyperlink == c2?.hyperlink && c1?.style == c2?.style)
         }

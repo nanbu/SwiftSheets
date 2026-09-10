@@ -53,13 +53,13 @@ struct NumbersStyleResolver {
     var isEmpty: Bool { styles.isEmpty && formats.isEmpty }
 
     /// The style of one cell. `nil` ids fall back to the table's default for the region the cell sits in.
-    mutating func style(_ s: CellStorage, row: Int, col: Int) -> CellStyle { resolve(s, row: row, col: col).style }
+    mutating func style(_ s: CellStorage, row: Int, column: Int) -> CellStyle { resolve(s, row: row, column: column).style }
 
     /// The style and the key it was cached under — one key per (text style, cell style, format) triple, so a
     /// reader can share one `SharedStyle` per key without hashing the 384-byte style of every cell.
-    mutating func resolve(_ s: CellStorage, row: Int, col: Int) -> (style: CellStyle, key: Int) {
-        let textID = s.textStyleID.flatMap { styles[$0] } ?? defaultTextStyle(row: row, col: col)
-        let cellID = s.cellStyleID.flatMap { styles[$0] } ?? defaultCellStyle(row: row, col: col)
+    mutating func resolve(_ s: CellStorage, row: Int, column: Int) -> (style: CellStyle, key: Int) {
+        let textID = s.textStyleID.flatMap { styles[$0] } ?? defaultTextStyle(row: row, column: column)
+        let cellID = s.cellStyleID.flatMap { styles[$0] } ?? defaultCellStyle(row: row, column: column)
         let formatKey = s.numFormatID ?? s.currencyFormatID ?? s.dateFormatID ?? s.durationFormatID ?? s.textFormatID ?? s.boolFormatID
         let cacheKey = (textID ?? 0) &* 1_000_003 &+ (cellID ?? 0) &* 1009 &+ (formatKey ?? -1)
         if let hit = resolved[cacheKey] { return (hit, cacheKey) }
@@ -101,15 +101,15 @@ struct NumbersStyleResolver {
         return style.font == CellStyle.default.font ? nil : style.font
     }
 
-    private func defaultTextStyle(row: Int, col: Int) -> Int? {
+    private func defaultTextStyle(row: Int, column: Int) -> Int? {
         if row < headerRows { return headerRowText }
-        if col < headerColumns { return headerColumnText }
+        if column < headerColumns { return headerColumnText }
         if footerRows > 0, row >= rowCount - footerRows { return footerRowText }
         return bodyText
     }
-    private func defaultCellStyle(row: Int, col: Int) -> Int? {
+    private func defaultCellStyle(row: Int, column: Int) -> Int? {
         if row < headerRows { return headerRowCell }
-        if col < headerColumns { return headerColumnCell }
+        if column < headerColumns { return headerColumnCell }
         if footerRows > 0, row >= rowCount - footerRows { return footerRowCell }
         return bodyCell
     }

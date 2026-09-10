@@ -11,7 +11,7 @@ public struct Sheet: Equatable, Sendable {
     public var tables: [Table] = [Table()]
     /// Freeze rows above and columns left of this cell ("B2" freezes row 1 and column A). A1 / nil means no freeze.
     public var freezePanes: CellRef? {
-        didSet { if freezePanes == CellRef(row: 0, col: 0) { freezePanes = nil } }
+        didSet { if freezePanes == CellRef(row: 0, column: 0) { freezePanes = nil } }
     }
     public var autoFilter: CellRange?
     /// What each filtered column lets through. Only meaningful together with `autoFilter`.
@@ -120,7 +120,7 @@ public struct Sheet: Equatable, Sendable {
 
     /// Adds a table (Numbers: several per sheet). Returns its index.
     @discardableResult
-    public mutating func addTable(named name: String? = nil, anchor: CellRef = CellRef(row: 0, col: 0)) -> Int {
+    public mutating func addTable(named name: String? = nil, anchor: CellRef = CellRef(row: 0, column: 0)) -> Int {
         var t = Table(name: name); t.anchor = anchor
         tables.append(t)
         return tables.count - 1
@@ -138,7 +138,7 @@ public struct Sheet: Equatable, Sendable {
             while taken.contains((final + String(n)).lowercased()) { n += 1 }
             final += String(n)
         }
-        let header = (ref.topLeft.col...ref.bottomRight.col).map { self[ref.topLeft.row, $0] }
+        let header = (ref.topLeft.column...ref.bottomRight.column).map { self[ref.topLeft.row, $0] }
         structuredTables.append(StructuredTable(name: final, ref: ref, headerRow: header, styleInfo: styleInfo))
         return final
     }
@@ -222,9 +222,9 @@ public struct Sheet: Equatable, Sendable {
         get { table[a1] }
         set { table[a1] = newValue }
     }
-    public subscript(_ row: Int, _ col: Int) -> CellValue? {
-        get { table[row, col] }
-        set { table[row, col] = newValue }
+    public subscript(_ row: Int, _ column: Int) -> CellValue? {
+        get { table[row, column] }
+        set { table[row, column] = newValue }
     }
     public subscript(_ ref: CellRef) -> CellValue? {
         get { table[ref] }
@@ -288,9 +288,9 @@ public struct Sheet: Equatable, Sendable {
     public mutating func deleteRows(at index: Int, count: Int = 1) { table.deleteRows(at: index, count: count, sheetName: name) }
     public mutating func deleteColumns(at index: Int, count: Int = 1) { table.deleteColumns(at: index, count: count, sheetName: name) }
     @discardableResult
-    public mutating func moveRange(_ range: CellRange, rows: Int = 0, cols: Int = 0) -> CellRange? { table.moveRange(range, rows: rows, cols: cols) }
+    public mutating func moveRange(_ range: CellRange, rows: Int = 0, columns: Int = 0) -> CellRange? { table.moveRange(range, rows: rows, columns: columns) }
     @discardableResult
-    public mutating func moveRange(_ a1: String, rows: Int = 0, cols: Int = 0) -> CellRange? { table.moveRange(a1, rows: rows, cols: cols) }
+    public mutating func moveRange(_ a1: String, rows: Int = 0, columns: Int = 0) -> CellRange? { table.moveRange(a1, rows: rows, columns: columns) }
 
     public var merges: [CellRange] {
         get { table.merges }
@@ -314,11 +314,11 @@ public struct Sheet: Equatable, Sendable {
     }
     public func rowDimension(_ row: Int) -> RowDimension { table.rowDimension(row) }
     public mutating func setRowDimension(_ row: Int, _ update: (inout RowDimension) -> Void) { table.setRowDimension(row, update) }
-    public func columnDimension(_ col: Int) -> ColumnDimension { table.columnDimension(col) }
+    public func columnDimension(_ column: Int) -> ColumnDimension { table.columnDimension(column) }
     public func columnDimension(_ name: String) -> ColumnDimension { table.columnDimension(name) }
-    public mutating func setColumnDimension(_ col: Int, _ update: (inout ColumnDimension) -> Void) { table.setColumnDimension(col, update) }
+    public mutating func setColumnDimension(_ column: Int, _ update: (inout ColumnDimension) -> Void) { table.setColumnDimension(column, update) }
     public mutating func setColumnDimension(_ name: String, _ update: (inout ColumnDimension) -> Void) { table.setColumnDimension(name, update) }
-    public mutating func setWidth(_ width: Double?, ofColumn col: Int) { table.setWidth(width, ofColumn: col) }
+    public mutating func setWidth(_ width: Double?, ofColumn column: Int) { table.setWidth(width, ofColumn: column) }
     public mutating func setWidth(_ width: Double?, ofColumn name: String) { table.setWidth(width, ofColumn: name) }
     public mutating func setHeight(_ height: Double?, ofRow row: Int) { table.setHeight(height, ofRow: row) }
     /// Places a picture at one cell (spec Appendix B.32). `.resizeCellToFit` grows the column and row to the
@@ -331,7 +331,7 @@ public struct Sheet: Equatable, Sendable {
         case .scaled(let w, let h): img.anchor = .cell(ref, sizing: .scaled(width: w, height: h))
         case .fitCell: img.anchor = .cell(ref, sizing: .fitCell)
         case .resizeCellToFit:
-            setWidth(CellPixels.columnWidth(forPixels: Double(image.pixelWidth)), ofColumn: ref.col)
+            setWidth(CellPixels.columnWidth(forPixels: Double(image.pixelWidth)), ofColumn: ref.column)
             setHeight(CellPixels.rowHeight(forPixels: Double(image.pixelHeight)), ofRow: ref.row)
             img.anchor = .cell(ref, sizing: .fitCell)
         }
@@ -424,19 +424,19 @@ public struct Sheet: Equatable, Sendable {
         for part in formula.split(separator: ",") {
             let cells = CellRange.splitSheetName(String(part))?.cells ?? String(part)
             guard let b = RangeBounds(cells) else { continue }
-            if b.minCol == nil, let lo = b.minRow, let hi = b.maxRow { printTitleRows = lo...hi }
-            else if b.minRow == nil, let lo = b.minCol, let hi = b.maxCol { printTitleColumns = lo...hi }
+            if b.minColumn == nil, let lo = b.minRow, let hi = b.maxRow { printTitleRows = lo...hi }
+            else if b.minRow == nil, let lo = b.minColumn, let hi = b.maxColumn { printTitleColumns = lo...hi }
         }
     }
 
     /// Parses "1:4" into `printTitleRows` and "A:F" into `printTitleColumns`. Lenient for the same reason as
     /// `setPrintArea`: this is the shape a `_xlnm.Print_Titles` formula arrives in from a file.
     public mutating func setPrintTitleRows(_ text: String?) {
-        guard let text, let b = RangeBounds(text), let lo = b.minRow, let hi = b.maxRow, b.minCol == nil else { printTitleRows = nil; return }
+        guard let text, let b = RangeBounds(text), let lo = b.minRow, let hi = b.maxRow, b.minColumn == nil else { printTitleRows = nil; return }
         printTitleRows = lo...hi
     }
     public mutating func setPrintTitleColumns(_ text: String?) {
-        guard let text, let b = RangeBounds(text), let lo = b.minCol, let hi = b.maxCol, b.minRow == nil else { printTitleColumns = nil; return }
+        guard let text, let b = RangeBounds(text), let lo = b.minColumn, let hi = b.maxColumn, b.minRow == nil else { printTitleColumns = nil; return }
         printTitleColumns = lo...hi
     }
 }

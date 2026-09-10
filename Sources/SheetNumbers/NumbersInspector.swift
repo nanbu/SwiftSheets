@@ -36,7 +36,7 @@ package enum NumbersInspector {
                 guard let model = doc.object(tid) else { continue }
                 let rows = model.int("number_of_rows") ?? 0, cols = model.int("number_of_columns") ?? 0
                 total += rows * cols
-                if rows > 0, cols > 0 { ranges.append(CellRange(minRow: 0, minCol: 0, maxRow: rows - 1, maxCol: cols - 1)) }
+                if rows > 0, cols > 0 { ranges.append(CellRange(minRow: 0, minColumn: 0, maxRow: rows - 1, maxColumn: cols - 1)) }
             }
             summary.declaredCellCount = total
             if ranges.count == 1 { summary.declaredRange = ranges[0]; summary.rowCount = ranges[0].size.rows }

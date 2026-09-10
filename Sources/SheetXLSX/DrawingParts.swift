@@ -21,8 +21,8 @@ enum DrawingParts {
     static func anchorXML(_ image: SheetImage, shapeID: Int, relID: String,
                           cellSize: (width: Double, height: Double)) -> String {
         let ns = "xmlns:xdr=\"\(nsSpreadsheetDrawing)\" xmlns:a=\"\(nsDrawingMain)\""
-        func at(col: Int, row: Int) -> String {
-            "<xdr:col>\(col)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+        func at(column: Int, row: Int) -> String {
+            "<xdr:column>\(column)</xdr:column><xdr:colOff>0</xdr:colOff><xdr:row>\(row)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
         let pic = """
             <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="\(shapeID)" name="Picture \(shapeID)"/>\
@@ -34,11 +34,11 @@ enum DrawingParts {
         case .cell(let ref, _):
             let size = image.displaySize(cellSize: cellSize)
             let cx = Units.pixelsToEMU(size.width), cy = Units.pixelsToEMU(size.height)
-            return "<xdr:oneCellAnchor \(ns)><xdr:from>\(at(col: ref.col, row: ref.row))</xdr:from>"
+            return "<xdr:oneCellAnchor \(ns)><xdr:from>\(at(column: ref.column, row: ref.row))</xdr:from>"
                 + "<xdr:ext cx=\"\(cx)\" cy=\"\(cy)\"/>" + pic + "<xdr:clientData/></xdr:oneCellAnchor>"
         case .span(let range):
-            return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(col: range.minCol, row: range.minRow))</xdr:from>"
-                + "<xdr:to>\(at(col: range.maxCol + 1, row: range.maxRow + 1))</xdr:to>"
+            return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
+                + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
                 + pic + "<xdr:clientData/></xdr:twoCellAnchor>"
         }
     }
@@ -78,7 +78,7 @@ enum DrawingParts {
     /// The anchor cell's current pixel size, for `.fitCell`.
     static func cellSize(of sheet: Sheet, at anchor: SheetImage.Anchor) -> (width: Double, height: Double) {
         guard case .cell(let ref, _) = anchor else { return (0, 0) }
-        let width = sheet.columnDimensions[ref.col]?.width ?? CellPixels.defaultColumnWidth
+        let width = sheet.columnDimensions[ref.column]?.width ?? CellPixels.defaultColumnWidth
         let height = sheet.rowDimensions[ref.row]?.height ?? CellPixels.defaultRowHeight
         return (CellPixels.columnPixels(width), CellPixels.rowPixels(height))
     }

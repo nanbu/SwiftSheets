@@ -1,18 +1,18 @@
 import Foundation
 
-/// A cell position. Integers are **0-based** (`row: 0, col: 0` is A1); the only 1-based form is the A1 string.
+/// A cell position. Integers are **0-based** (`row: 0, column: 0` is A1); the only 1-based form is the A1 string.
 /// Mixing the two systems is the classic off-by-one, so there is no 1-based integer API at all.
 public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, Codable {
     public var row: Int
-    public var col: Int
+    public var column: Int
 
     /// Excel's limits: columns A…XFD (16,384), rows 1…1,048,576.
-    public static let maxCol = 16_383
+    public static let maxColumn = 16_383
     public static let maxRow = 1_048_575
     /// The largest column index the A1 parser accepts (three letters: ZZZ).
     static let maxParsedCol = 18_277
 
-    public init(row: Int, col: Int) { self.row = row; self.col = col }
+    public init(row: Int, column: Int) { self.row = row; self.column = column }
 
     /// Parses "A1", "$B$2", "AB12". Nil when malformed (no row, row 0, more than three letters, a row number past
     /// the sheet's last row). Every bound is checked *while* scanning: a hostile file must not be able to overflow
@@ -34,35 +34,35 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
             else { return nil }
         }
         guard col > 0, row > 0 else { return nil }
-        self.row = row - 1; self.col = col - 1
+        self.row = row - 1; self.column = col - 1
     }
 
     /// "A1".
     public var a1: String { columnName + String(row + 1) }
     public var description: String { a1 }
     /// "A".
-    public var columnName: String { CellRef.columnName(col) }
+    public var columnName: String { CellRef.columnName(column) }
     /// The 1-based row number as it appears on screen and in messages.
     public var rowNumber: Int { row + 1 }
     /// "$A$1".
     public var absoluteA1: String { "$" + columnName + "$" + String(row + 1) }
 
-    public static func < (a: CellRef, b: CellRef) -> Bool { a.row != b.row ? a.row < b.row : a.col < b.col }
+    public static func < (a: CellRef, b: CellRef) -> Bool { a.row != b.row ? a.row < b.row : a.column < b.column }
 
     /// The cell `rows` below and `cols` to the right.
-    public func offset(rows: Int = 0, cols: Int = 0) -> CellRef { CellRef(row: row + rows, col: col + cols) }
+    public func offset(rows: Int = 0, columns: Int = 0) -> CellRef { CellRef(row: row + rows, column: column + columns) }
 
     // MARK: - Column names (bijective base-26)
 
     /// 0 → "A", 27 → "AB". Negative indices give "".
-    public static func columnName(_ col: Int) -> String {
-        var n = col + 1, s = ""
+    public static func columnName(_ column: Int) -> String {
+        var n = column + 1, s = ""
         while n > 0 { let r = (n - 1) % 26; s = String(UnicodeScalar(UInt8(65 + r))) + s; n = (n - 1) / 26 }
         return s
     }
 
     /// Like `columnName(_:)` but nil outside 0…maxParsedCol (openpyxl raises `ValueError`).
-    public static func columnName(validating col: Int) -> String? { (0...maxParsedCol).contains(col) ? columnName(col) : nil }
+    public static func columnName(validating column: Int) -> String? { (0...maxParsedCol).contains(column) ? columnName(column) : nil }
 
     /// "AB" → 27. Case-insensitive; nil for more than three letters or non-letters. The length is checked while
     /// scanning so that a long run of letters cannot overflow `n`.
@@ -112,10 +112,10 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
 /// The four (possibly open) boundaries of a range string: "C1:C4", "D:F", "1:10", "A", "1". 0-based.
 /// Whole-column and whole-row ranges leave the other axis nil.
 public struct RangeBounds: Hashable, Sendable {
-    public var minCol: Int?, minRow: Int?, maxCol: Int?, maxRow: Int?
+    public var minColumn: Int?, minRow: Int?, maxColumn: Int?, maxRow: Int?
 
-    public init(minCol: Int? = nil, minRow: Int? = nil, maxCol: Int? = nil, maxRow: Int? = nil) {
-        self.minCol = minCol; self.minRow = minRow; self.maxCol = maxCol; self.maxRow = maxRow
+    public init(minColumn: Int? = nil, minRow: Int? = nil, maxColumn: Int? = nil, maxRow: Int? = nil) {
+        self.minColumn = minColumn; self.minRow = minRow; self.maxColumn = maxColumn; self.maxRow = maxRow
     }
 
     struct Match { let letters: String?; let digits: String? }
@@ -155,39 +155,39 @@ public struct RangeBounds: Hashable, Sendable {
         var c0: Int? = nil, c1: Int? = nil
         if let l = a.letters { guard let i = CellRef.columnIndex(l) else { return nil }; c0 = i }
         if let l = b?.letters { guard let i = CellRef.columnIndex(l) else { return nil }; c1 = i }
-        minCol = c0; minRow = a.digits.flatMap { Int($0) }.map { $0 - 1 }
+        minColumn = c0; minRow = a.digits.flatMap { Int($0) }.map { $0 - 1 }
         if let b {
-            maxCol = b.letters == nil ? minCol : c1
+            maxColumn = b.letters == nil ? minColumn : c1
             maxRow = b.digits == nil ? minRow : b.digits.flatMap { Int($0) }.map { $0 - 1 }
-        } else { maxCol = minCol; maxRow = minRow }
+        } else { maxColumn = minColumn; maxRow = minRow }
         if minRow == -1 || maxRow == -1 { return nil }
     }
 }
 
 /// A rectangular range such as "A1:C3", optionally qualified with a sheet name ("'My Sheet'!A1:C3"). 0-based bounds.
 public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
-    public var minRow: Int, minCol: Int, maxRow: Int, maxCol: Int
+    public var minRow: Int, minColumn: Int, maxRow: Int, maxColumn: Int
     /// Sheet name when the range was given as "Sheet!A1:B2".
     public var sheet: String?
 
-    public init(minRow: Int, minCol: Int, maxRow: Int, maxCol: Int, sheet: String? = nil) {
-        self.minRow = minRow; self.minCol = minCol; self.maxRow = maxRow; self.maxCol = maxCol; self.sheet = sheet
+    public init(minRow: Int, minColumn: Int, maxRow: Int, maxColumn: Int, sheet: String? = nil) {
+        self.minRow = minRow; self.minColumn = minColumn; self.maxRow = maxRow; self.maxColumn = maxColumn; self.sheet = sheet
     }
 
     public init(from a: CellRef, to b: CellRef, sheet: String? = nil) {
-        self.init(minRow: Swift.min(a.row, b.row), minCol: Swift.min(a.col, b.col), maxRow: Swift.max(a.row, b.row), maxCol: Swift.max(a.col, b.col), sheet: sheet)
+        self.init(minRow: Swift.min(a.row, b.row), minColumn: Swift.min(a.column, b.column), maxRow: Swift.max(a.row, b.row), maxColumn: Swift.max(a.column, b.column), sheet: sheet)
     }
 
-    public init(_ ref: CellRef) { self.init(minRow: ref.row, minCol: ref.col, maxRow: ref.row, maxCol: ref.col) }
+    public init(_ ref: CellRef) { self.init(minRow: ref.row, minColumn: ref.column, maxRow: ref.row, maxColumn: ref.column) }
 
     /// Parses "A1:C3", "A1", "Sheet1!$A$1:B4", "'My Sheet'!A1:E6". Nil when malformed or when the end precedes the
     /// start ("A4:B1").
     public init?(_ a1: String) {
         var body = a1, sheet: String? = nil
         if let bang = CellRange.splitSheetName(a1) { sheet = bang.sheet; body = bang.cells }
-        guard let b = RangeBounds(body), let c0 = b.minCol, let r0 = b.minRow, let c1 = b.maxCol, let r1 = b.maxRow else { return nil }
+        guard let b = RangeBounds(body), let c0 = b.minColumn, let r0 = b.minRow, let c1 = b.maxColumn, let r1 = b.maxRow else { return nil }
         guard c1 >= c0, r1 >= r0 else { return nil }
-        self.init(minRow: r0, minCol: c0, maxRow: r1, maxCol: c1, sheet: sheet)
+        self.init(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1, sheet: sheet)
     }
 
     /// "Sheet1!A1:B2" → ("Sheet1", "A1:B2"); "'E,F'!A1" → ("E,F", "A1"). Nil without a "!".
@@ -214,44 +214,44 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
 
     /// "A1:C3", or "A1" for a single cell.
     public var a1: String {
-        let a = CellRef.columnName(minCol) + String(minRow + 1)
-        if minCol == maxCol, minRow == maxRow { return a }
-        return a + ":" + CellRef.columnName(maxCol) + String(maxRow + 1)
+        let a = CellRef.columnName(minColumn) + String(minRow + 1)
+        if minColumn == maxColumn, minRow == maxRow { return a }
+        return a + ":" + CellRef.columnName(maxColumn) + String(maxRow + 1)
     }
     public var description: String { a1 }
     /// "'Sheet 1'!A1:B4" when a sheet is set, else the plain A1 form.
     public var qualifiedA1: String { sheet.map { CellRef.quoteSheetName($0) + "!" + a1 } ?? a1 }
     /// "$A$1:$C$3".
     public var absoluteA1: String { topLeft.absoluteA1 + (isSingleCell ? "" : ":" + bottomRight.absoluteA1) }
-    public var isSingleCell: Bool { minCol == maxCol && minRow == maxRow }
-    public var size: (rows: Int, cols: Int) { (maxRow - minRow + 1, maxCol - minCol + 1) }
-    public var topLeft: CellRef { CellRef(row: minRow, col: minCol) }
-    public var bottomRight: CellRef { CellRef(row: maxRow, col: maxCol) }
+    public var isSingleCell: Bool { minColumn == maxColumn && minRow == maxRow }
+    public var size: (rows: Int, columns: Int) { (maxRow - minRow + 1, maxColumn - minColumn + 1) }
+    public var topLeft: CellRef { CellRef(row: minRow, column: minColumn) }
+    public var bottomRight: CellRef { CellRef(row: maxRow, column: maxColumn) }
 
-    public func contains(_ ref: CellRef) -> Bool { (minCol...maxCol).contains(ref.col) && (minRow...maxRow).contains(ref.row) }
+    public func contains(_ ref: CellRef) -> Bool { (minColumn...maxColumn).contains(ref.column) && (minRow...maxRow).contains(ref.row) }
     public func contains(_ a1: String) -> Bool { CellRef(a1).map(contains) ?? false }
 
     // MARK: - Geometry
 
     /// Moved by the given offsets; nil when a boundary would go negative.
-    public func shifted(rows: Int = 0, cols: Int = 0) -> CellRange? {
-        guard minCol + cols >= 0, minRow + rows >= 0 else { return nil }
-        return CellRange(minRow: minRow + rows, minCol: minCol + cols, maxRow: maxRow + rows, maxCol: maxCol + cols, sheet: sheet)
+    public func shifted(rows: Int = 0, columns: Int = 0) -> CellRange? {
+        guard minColumn + columns >= 0, minRow + rows >= 0 else { return nil }
+        return CellRange(minRow: minRow + rows, minColumn: minColumn + columns, maxRow: maxRow + rows, maxColumn: maxColumn + columns, sheet: sheet)
     }
-    public mutating func shift(rows: Int = 0, cols: Int = 0) {
-        guard let s = shifted(rows: rows, cols: cols) else { preconditionFailure("shift would move \(a1) off the sheet") }
+    public mutating func shift(rows: Int = 0, columns: Int = 0) {
+        guard let s = shifted(rows: rows, columns: columns) else { preconditionFailure("shift would move \(a1) off the sheet") }
         self = s
     }
 
     /// Grown on each side; stays ≥ 0.
     public func expanded(right: Int = 0, down: Int = 0, left: Int = 0, up: Int = 0) -> CellRange {
-        CellRange(minRow: Swift.max(0, minRow - up), minCol: Swift.max(0, minCol - left), maxRow: maxRow + down, maxCol: maxCol + right, sheet: sheet)
+        CellRange(minRow: Swift.max(0, minRow - up), minColumn: Swift.max(0, minColumn - left), maxRow: maxRow + down, maxColumn: maxColumn + right, sheet: sheet)
     }
     /// Shrunk on each side; nil when nothing would remain.
     public func shrunk(right: Int = 0, bottom: Int = 0, left: Int = 0, top: Int = 0) -> CellRange? {
-        let c0 = minCol + left, r0 = minRow + top, c1 = maxCol - right, r1 = maxRow - bottom
+        let c0 = minColumn + left, r0 = minRow + top, c1 = maxColumn - right, r1 = maxRow - bottom
         guard c1 >= c0, r1 >= r0 else { return nil }
-        return CellRange(minRow: r0, minCol: c0, maxRow: r1, maxCol: c1, sheet: sheet)
+        return CellRange(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1, sheet: sheet)
     }
 
     /// True when `other` names a sheet and it is not this range's sheet (an unqualified `other` is always compatible).
@@ -263,20 +263,20 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
     /// The smallest range containing both; nil when the sheets differ.
     public func union(_ other: CellRange) -> CellRange? {
         guard !isOnDifferentSheet(from: other) else { return nil }
-        return CellRange(minRow: Swift.min(minRow, other.minRow), minCol: Swift.min(minCol, other.minCol),
-                         maxRow: Swift.max(maxRow, other.maxRow), maxCol: Swift.max(maxCol, other.maxCol), sheet: sheet)
+        return CellRange(minRow: Swift.min(minRow, other.minRow), minColumn: Swift.min(minColumn, other.minColumn),
+                         maxRow: Swift.max(maxRow, other.maxRow), maxColumn: Swift.max(maxColumn, other.maxColumn), sheet: sheet)
     }
     /// The overlap; nil when disjoint or on different sheets.
     public func intersection(_ other: CellRange) -> CellRange? {
         guard !isOnDifferentSheet(from: other), !isDisjoint(with: other) else { return nil }
-        return CellRange(minRow: Swift.max(minRow, other.minRow), minCol: Swift.max(minCol, other.minCol),
-                         maxRow: Swift.min(maxRow, other.maxRow), maxCol: Swift.min(maxCol, other.maxCol), sheet: sheet)
+        return CellRange(minRow: Swift.max(minRow, other.minRow), minColumn: Swift.max(minColumn, other.minColumn),
+                         maxRow: Swift.min(maxRow, other.maxRow), maxColumn: Swift.min(maxColumn, other.maxColumn), sheet: sheet)
     }
     public func isDisjoint(with other: CellRange) -> Bool {
-        minCol > other.maxCol || other.minCol > maxCol || minRow > other.maxRow || other.minRow > maxRow
+        minColumn > other.maxColumn || other.minColumn > maxColumn || minRow > other.maxRow || other.minRow > maxRow
     }
     public func isSubset(of other: CellRange) -> Bool {
-        other.minCol <= minCol && maxCol <= other.maxCol && other.minRow <= minRow && maxRow <= other.maxRow
+        other.minColumn <= minColumn && maxColumn <= other.maxColumn && other.minRow <= minRow && maxRow <= other.maxRow
     }
     public func isSuperset(of other: CellRange) -> Bool { other.isSubset(of: self) }
     /// Strict subset ordering.
@@ -285,14 +285,14 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
 
     // MARK: - Enumeration
 
-    public var top: [CellRef] { (minCol...maxCol).map { CellRef(row: minRow, col: $0) } }
-    public var bottom: [CellRef] { (minCol...maxCol).map { CellRef(row: maxRow, col: $0) } }
-    public var left: [CellRef] { (minRow...maxRow).map { CellRef(row: $0, col: minCol) } }
-    public var right: [CellRef] { (minRow...maxRow).map { CellRef(row: $0, col: maxCol) } }
+    public var top: [CellRef] { (minColumn...maxColumn).map { CellRef(row: minRow, column: $0) } }
+    public var bottom: [CellRef] { (minColumn...maxColumn).map { CellRef(row: maxRow, column: $0) } }
+    public var left: [CellRef] { (minRow...maxRow).map { CellRef(row: $0, column: minColumn) } }
+    public var right: [CellRef] { (minRow...maxRow).map { CellRef(row: $0, column: maxColumn) } }
     /// Row by row.
-    public var rows: [[CellRef]] { (minRow...maxRow).map { r in (minCol...maxCol).map { CellRef(row: r, col: $0) } } }
+    public var rows: [[CellRef]] { (minRow...maxRow).map { r in (minColumn...maxColumn).map { CellRef(row: r, column: $0) } } }
     /// Column by column.
-    public var cols: [[CellRef]] { (minCol...maxCol).map { c in (minRow...maxRow).map { CellRef(row: $0, col: c) } } }
+    public var columns: [[CellRef]] { (minColumn...maxColumn).map { c in (minRow...maxRow).map { CellRef(row: $0, column: c) } } }
     /// Every cell, row-major.
     public var cells: [CellRef] { rows.flatMap { $0 } }
 }

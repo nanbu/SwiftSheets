@@ -57,8 +57,8 @@ import SwiftSheets
         var wb = Workbook()
         var sheet = wb.sheets[0]
         for r in 0..<3 {
-            sheet[CellRef(row: r, col: 0)] = .text("row \(r)")
-            sheet[cell: CellRef(row: r, col: 0)].note = CellNote("note \(r)", author: "One Person")
+            sheet[CellRef(row: r, column: 0)] = .text("row \(r)")
+            sheet[cell: CellRef(row: r, column: 0)].note = CellNote("note \(r)", author: "One Person")
         }
         wb.sheets[0] = sheet
         let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)

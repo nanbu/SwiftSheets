@@ -78,7 +78,7 @@ func fixture(_ name: String) throws -> Data {
 
 @Suite struct UtilityTests {
     @Test func references() {
-        #expect(CellRef("AB12") == CellRef(row: 11, col: 27))
+        #expect(CellRef("AB12") == CellRef(row: 11, column: 27))
         #expect(CellRef("$A$1")?.a1 == "A1")
         #expect(CellRef.columnName(702) == "AAA" && CellRef.columnIndex("AAA") == 702)
         #expect(CellRange("C3:A1") == nil)   // openpyxl raises for a reversed range

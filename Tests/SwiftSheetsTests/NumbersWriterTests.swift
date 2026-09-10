@@ -26,7 +26,7 @@ import SwiftSheets
         s["G1"] = .formula("=SUM(B2:B3)"); s[cell: "G1"].value = .formula(FormulaExpr.parse("SUM(B2:B3)"), cached: .number(Decimal(string: "1249996.5")!))
         s["H1"] = "quote \"q\" & <tag>\nline2"
         s.setWidth(30, ofColumn: "A"); s.setHeight(40, ofRow: 0)
-        s.freezePanes = CellRef(row: 1, col: 0)
+        s.freezePanes = CellRef(row: 1, column: 0)
         let t2 = s.addTable(named: "Second", anchor: CellRef("A12")!)
         s.tables[t2]["A1"] = "second table"; s.tables[t2]["B2"] = 42
         wb.sheets[0] = s
@@ -61,7 +61,7 @@ import SwiftSheets
         #expect(s.merges == [CellRange("A5:C6")!] && s["A5"] == .text("merged") && s["B5"] == nil)
         #expect(s.columnDimension("A").width.map { abs($0 - 30) < 0.5 } == true)
         #expect(s.rowDimension(0).height == 40)
-        #expect(s.freezePanes == CellRef(row: 1, col: 0))
+        #expect(s.freezePanes == CellRef(row: 1, column: 0))
         #expect(s.tables[1]["A1"] == .text("second table") && s.tables[1]["B2"] == .integer(42))
         #expect(s.tables[1].anchor.row > 0)
         #expect(back.sheets[1]["A1"] == .text("second sheet") && back.sheets[1]["B1"] == .integer(7))
@@ -230,12 +230,12 @@ import SwiftSheets
     static func formulaWorkbook() -> Workbook {
         var wb = Workbook()
         var sheet = wb.sheets[0]
-        for (r, v) in [1, 2, 3].enumerated() { sheet[CellRef(row: r, col: 0)] = .integer(v) }
-        for (r, v) in [10, 20].enumerated() { sheet[CellRef(row: r, col: 1)] = .integer(v) }
+        for (r, v) in [1, 2, 3].enumerated() { sheet[CellRef(row: r, column: 0)] = .integer(v) }
+        for (r, v) in [10, 20].enumerated() { sheet[CellRef(row: r, column: 1)] = .integer(v) }
         for (i, c) in formulaCases.enumerated() {
-            sheet[CellRef(row: i, col: 3)] = .text(c.formula)
-            sheet[cell: CellRef(row: i, col: 4)].value = .formula(FormulaExpr.parse(c.formula), cached: nil)
-            sheet[CellRef(row: i, col: 5)] = .text(c.answer)
+            sheet[CellRef(row: i, column: 3)] = .text(c.formula)
+            sheet[cell: CellRef(row: i, column: 4)].value = .formula(FormulaExpr.parse(c.formula), cached: nil)
+            sheet[CellRef(row: i, column: 5)] = .text(c.answer)
         }
         wb.sheets[0] = sheet
         return wb
@@ -247,7 +247,7 @@ import SwiftSheets
         try result.data.write(to: Self.outDir.appendingPathComponent("formulas.numbers"))
         let back = try NumbersCodec.read(result.data).workbook.sheets[0]
         for (i, c) in Self.formulaCases.enumerated() {
-            let value = back[CellRef(row: i, col: 4)]
+            let value = back[CellRef(row: i, column: 4)]
             guard case .formula(let expr, _) = value else {
                 Issue.record("\(c.formula) came back as \(String(describing: value))")
                 continue
@@ -297,7 +297,7 @@ import SwiftSheets
     @Test func repeatedFormulasShareOneEntry() throws {
         var wb = Workbook()
         var sheet = wb.sheets[0]
-        for r in 0..<5 { sheet[cell: CellRef(row: r, col: 1)].value = .formula(FormulaExpr.parse("$A$1+1"), cached: .integer(1)) }
+        for r in 0..<5 { sheet[cell: CellRef(row: r, column: 1)].value = .formula(FormulaExpr.parse("$A$1+1"), cached: .integer(1)) }
         wb.sheets[0] = sheet
         let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
         let lists = doc.identifiers(ofType: "TST.TableDataList").compactMap { doc.object($0) }

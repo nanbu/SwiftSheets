@@ -386,7 +386,7 @@ struct FormulaLexer {
         let followedByIdent = j < chars.count && (FormulaLexer.isIdentChar(chars[j]) || chars[j] == "(")
         if !digits.isEmpty, !followedByIdent, let col = CellRef.columnIndex(letters), let row = Int(digits), row >= 1, col <= CellRef.maxParsedCol {
             i = j
-            return .ref(CellRef(row: row - 1, col: col), sheet: sheet, absRow: absRow, absCol: absCol)
+            return .ref(CellRef(row: row - 1, column: col), sheet: sheet, absRow: absRow, absCol: absCol)
         }
         if digits.isEmpty, !absRow, closesRange({ if case .column = $0 { return true }; return false }), !followedByIdent, let col = CellRef.columnIndex(letters) {
             i = j

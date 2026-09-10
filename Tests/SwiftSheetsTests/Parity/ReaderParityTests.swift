@@ -60,7 +60,7 @@ private enum ReaderParity {
         #expect((ws["A1"]?.openpyxlDataType == "n"))
     }
 
-    static let dimensionCases: [(String, CellRange?)] = [("dimension.xml", CellRange(minRow: 0, minCol: 3, maxRow: 29, maxCol: 26)), ("no_dimension.xml", nil), ("invalid_dimension.xml", nil)]
+    static let dimensionCases: [(String, CellRange?)] = [("dimension.xml", CellRange(minRow: 0, minColumn: 3, maxRow: 29, maxColumn: 26)), ("no_dimension.xml", nil), ("invalid_dimension.xml", nil)]
     // openpyxl: worksheet/tests/test_reader.py::test_read_dimension
     @Test(arguments: dimensionCases)
     func readDimension(_ filename: String, _ expected: CellRange?) throws {
@@ -522,9 +522,9 @@ private enum ReaderParity {
         // PORT-NOTE: openpyxl checks that `ws[row][col] is ws["A1"]` (object identity). Cells are values now, so the
         // nearest equivalent is equality of the whole Cell reached through both paths; coordinates come from the
         // range's refs because cells no longer know their position.
-        #expect(ws.cells(in: CellRange(minRow: 0, minCol: 0, maxRow: 0, maxCol: 0))[0][0] == ws[cell: "A1"])
-        #expect(CellRange(minRow: 0, minCol: 0, maxRow: 29, maxCol: 3).rows.map { $0.map(\.a1) } == CellRange("A1:D30")!.rows.map { $0.map(\.a1) })
-        #expect(ws.cells(in: CellRange(minRow: 0, minCol: 0, maxRow: 29, maxCol: 3)) == ws.cells(in: CellRange("A1:D30")!))
+        #expect(ws.cells(in: CellRange(minRow: 0, minColumn: 0, maxRow: 0, maxColumn: 0))[0][0] == ws[cell: "A1"])
+        #expect(CellRange(minRow: 0, minColumn: 0, maxRow: 29, maxColumn: 3).rows.map { $0.map(\.a1) } == CellRange("A1:D30")!.rows.map { $0.map(\.a1) })
+        #expect(ws.cells(in: CellRange(minRow: 0, minColumn: 0, maxRow: 29, maxColumn: 3)) == ws.cells(in: CellRange("A1:D30")!))
     }
 
     // openpyxl: tests/test_iter.py::test_max_row
@@ -534,8 +534,8 @@ private enum ReaderParity {
 
     // openpyxl: tests/test_iter.py::test_max_column
     @Test(arguments: [("Sheet1 - Text", 7), ("Sheet2 - Numbers", 27), ("Sheet3 - Formulas", 4), ("Sheet4 - Dates", 3)])
-    func maxColumn(_ sheetname: String, _ col: Int) throws {
-        #expect(try sample().sheets[sheetname]!.columnCount == col)
+    func maxColumn(_ sheetname: String, _ column: Int) throws {
+        #expect(try sample().sheets[sheetname]!.columnCount == column)
     }
 
     // openpyxl: tests/test_iter.py::test_read_fast_integrated_text

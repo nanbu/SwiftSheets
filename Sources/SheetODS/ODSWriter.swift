@@ -491,7 +491,7 @@ enum ODSWriter {
         s += "<config:config-item-map-named config:name=\"Tables\">"
         for sheet in wb.sheets {
             let f = sheet.freezePanes
-            let cols = f?.col ?? 0, rows = f?.row ?? 0
+            let cols = f?.column ?? 0, rows = f?.row ?? 0
             s += "<config:config-item-map-entry config:name=\"\(XML.esc(sheet.name))\">"
             s += item("CursorPositionX", "int", "0") + item("CursorPositionY", "int", "0")
             s += item("HorizontalSplitMode", "short", cols > 0 ? "2" : "0") + item("VerticalSplitMode", "short", rows > 0 ? "2" : "0")
@@ -619,7 +619,7 @@ enum ODSWriter {
         guard let state = sheet.sortState, !state.conditions.isEmpty, let filter = sheet.autoFilter else { return "" }
         var s = "<table:sort table:bind-styles-to-content=\"false\">"
         for c in state.conditions {
-            let field = (state.byColumn ? c.range.minRow - filter.minRow : c.range.minCol - filter.minCol)
+            let field = (state.byColumn ? c.range.minRow - filter.minRow : c.range.minColumn - filter.minColumn)
             s += "<table:sort-by table:field-number=\"\(Swift.max(0, field))\" table:order=\"\(c.descending ? "descending" : "ascending")\"/>"
         }
         return s + "</table:sort>"
@@ -666,17 +666,17 @@ enum ODSWriter {
         for m in t.merges {
             anchors[m.topLeft] = m
             anchorRows.insert(m.minRow)
-            let rows = m.maxRow - m.minRow + 1, cols = m.maxCol - m.minCol + 1
+            let rows = m.maxRow - m.minRow + 1, cols = m.maxColumn - m.minColumn + 1
             if rows > 0, cols > 0, rows <= Table.maxMaterialisedMergeCells / Swift.max(cols, 1) {
                 for ref in m.cells where ref != m.topLeft { covered.insert(ref); coveredRows.insert(ref.row) }
-                mergeMaxCol = Swift.max(mergeMaxCol, m.maxCol); mergeMaxRow = Swift.max(mergeMaxRow, m.maxRow)
+                mergeMaxCol = Swift.max(mergeMaxCol, m.maxColumn); mergeMaxRow = Swift.max(mergeMaxRow, m.maxRow)
             } else {
                 wideMerges.append(m)
             }
         }
         // a picture's frame lives in its anchor cell, so that cell — and its row — are written even when empty
         for ref in frames.keys { anchorRows.insert(ref.row) }
-        let frameMaxCol = frames.keys.map(\.col).max() ?? -1, frameMaxRow = frames.keys.map(\.row).max() ?? -1
+        let frameMaxCol = frames.keys.map(\.column).max() ?? -1, frameMaxRow = frames.keys.map(\.row).max() ?? -1
         func isCovered(_ ref: CellRef) -> Bool {
             covered.contains(ref) || wideMerges.contains { $0.contains(ref) && $0.topLeft != ref }
         }
@@ -687,8 +687,8 @@ enum ODSWriter {
         // it is a rectangle and not a description of the whole sheet
         var validationMaxCol = -1, validationMaxRow = -1
         for (ranges, _) in validations {
-            for r in ranges.sorted where r.size.rows * r.size.cols <= Table.maxMaterialisedMergeCells {
-                validationMaxCol = Swift.max(validationMaxCol, r.maxCol); validationMaxRow = Swift.max(validationMaxRow, r.maxRow)
+            for r in ranges.sorted where r.size.rows * r.size.columns <= Table.maxMaterialisedMergeCells {
+                validationMaxCol = Swift.max(validationMaxCol, r.maxColumn); validationMaxRow = Swift.max(validationMaxRow, r.maxRow)
             }
         }
         func validationName(_ ref: CellRef) -> String? { validations.first { $0.ranges.contains(ref) }?.name }
@@ -761,10 +761,10 @@ enum ODSWriter {
             s += ">"
             var c = 0
             while c < ncols {
-                let ref = CellRef(row: r, col: c)
+                let ref = CellRef(row: r, column: c)
                 if isCovered(ref) {
                     var n = 1
-                    while c + n < ncols, isCovered(CellRef(row: r, col: c + n)), t.cells[CellRef(row: r, col: c + n)] == nil { n += 1 }
+                    while c + n < ncols, isCovered(CellRef(row: r, column: c + n)), t.cells[CellRef(row: r, column: c + n)] == nil { n += 1 }
                     s += "<table:covered-table-cell\(n > 1 ? " table:number-columns-repeated=\"\(n)\"" : "")/>"
                     c += n
                 } else if let cell = t.cells[ref] ?? (anchors[ref] != nil || frames[ref] != nil ? Cell() : nil) {
@@ -776,9 +776,9 @@ enum ODSWriter {
                 } else {
                     let rule = validationName(ref)
                     var n = 1
-                    while c + n < ncols, t.cells[CellRef(row: r, col: c + n)] == nil, anchors[CellRef(row: r, col: c + n)] == nil,
-                          frames[CellRef(row: r, col: c + n)] == nil,
-                          !isCovered(CellRef(row: r, col: c + n)), validationName(CellRef(row: r, col: c + n)) == rule { n += 1 }
+                    while c + n < ncols, t.cells[CellRef(row: r, column: c + n)] == nil, anchors[CellRef(row: r, column: c + n)] == nil,
+                          frames[CellRef(row: r, column: c + n)] == nil,
+                          !isCovered(CellRef(row: r, column: c + n)), validationName(CellRef(row: r, column: c + n)) == rule { n += 1 }
                     s += "<table:table-cell"
                     if let rule { s += " table:content-validation-name=\"\(rule)\"" }
                     s += n > 1 ? " table:number-columns-repeated=\"\(n)\"/>" : "/>"
@@ -802,9 +802,9 @@ enum ODSWriter {
         var attrs = ""
         if let n = styles.cell(of: cell) { attrs += " table:style-name=\"\(n)\"" }
         if let v = validation { attrs += " table:content-validation-name=\"\(v)\"" }
-        if let m = merge, !m.isSingleCell { attrs += " table:number-columns-spanned=\"\(m.size.cols)\" table:number-rows-spanned=\"\(m.size.rows)\"" }
+        if let m = merge, !m.isSingleCell { attrs += " table:number-columns-spanned=\"\(m.size.columns)\" table:number-rows-spanned=\"\(m.size.rows)\"" }
         // an array formula: ODF puts the span on the cell that holds it (`table:number-matrix-*-spanned`)
-        if let m = matrix { attrs += " table:number-matrix-columns-spanned=\"\(m.size.cols)\" table:number-matrix-rows-spanned=\"\(m.size.rows)\"" }
+        if let m = matrix { attrs += " table:number-matrix-columns-spanned=\"\(m.size.columns)\" table:number-matrix-rows-spanned=\"\(m.size.rows)\"" }
         var valueAttrs = ""
         var paragraphs: [String] = []
         let percent = NumberFormat.isPercentFormat(cell.style.numberFormat)

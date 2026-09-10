@@ -53,18 +53,18 @@ public enum TextWidth {
 extension Sheet {
     /// Sizes one column to its content, the way Excel's own double-click does — approximately (Appendix B.33).
     /// A column the caller already made wider keeps its width; the fit only ever grows it.
-    public mutating func autofitColumn(_ col: Int, maxWidth: Double = 255) {
+    public mutating func autofitColumn(_ column: Int, maxWidth: Double = 255) {
         guard let extent else { return }
         var maxPixels = 0
         for row in extent.minRow...extent.maxRow {
-            guard let cell = table.cells[CellRef(row: row, col: col)] else { continue }
+            guard let cell = table.cells[CellRef(row: row, column: column)] else { continue }
             maxPixels = max(maxPixels, Self.contentPixels(cell))
         }
         guard maxPixels > 0 else { return }
-        if let filter = autoFilter, (filter.minCol...filter.maxCol).contains(col) { maxPixels += 16 }
+        if let filter = autoFilter, (filter.minColumn...filter.maxColumn).contains(column) { maxPixels += 16 }
         let width = min(CellPixels.columnWidth(forPixels: Double(maxPixels + 7)), maxWidth)
-        let existing = columnDimensions[col]?.width
-        if existing == nil || width > existing! { setWidth(width, ofColumn: col) }
+        let existing = columnDimensions[column]?.width
+        if existing == nil || width > existing! { setWidth(width, ofColumn: column) }
     }
 
     /// A1 form of `autofitColumn(_:maxWidth:)`. An unparseable column name is a programmer error, as with subscripts.
@@ -75,7 +75,7 @@ extension Sheet {
     /// Sizes every column that holds anything.
     public mutating func autofitColumns(maxWidth: Double = 255) {
         guard let extent else { return }
-        for col in extent.minCol...extent.maxCol { autofitColumn(col, maxWidth: maxWidth) }
+        for col in extent.minColumn...extent.maxColumn { autofitColumn(col, maxWidth: maxWidth) }
     }
 
     /// XlsxWriter's per-type measurements: text by the width table, numbers seven pixels a digit, dates a fixed

@@ -63,10 +63,10 @@ enum NumbersPivot {
         let ref = pivot.cache.sourceRef
         guard ref.maxRow > ref.minRow else { return nil }          // a header row and nothing under it is not a source
         var columns: [SourceColumn] = []
-        for col in ref.minCol...ref.maxCol {
-            let heading = sheet[CellRef(row: ref.minRow, col: col)]?.stringValue ?? ""
+        for col in ref.minColumn...ref.maxColumn {
+            let heading = sheet[CellRef(row: ref.minRow, column: col)]?.stringValue ?? ""
             var values: [CellValue?] = []
-            for row in (ref.minRow + 1)...ref.maxRow { values.append(sheet[CellRef(row: row, col: col)]) }
+            for row in (ref.minRow + 1)...ref.maxRow { values.append(sheet[CellRef(row: row, column: col)]) }
             columns.append(SourceColumn(name: heading, values: values))
         }
         return columns
@@ -184,7 +184,7 @@ enum NumbersPivot {
     /// One cell of the summary model's store, in **displayed** coordinates — the grid's lanes with the subtotal
     /// lanes interleaved (each group's own lane right after its members) and the grand-total lanes last.
     struct SummaryCell {
-        var row: Int; var col: Int
+        var row: Int; var column: Int
         var value: CellValue
         var formula: FormulaSpec?
     }
@@ -420,17 +420,17 @@ enum NumbersPivot {
         // summary lane gets its caption when several values share the axis
         for lane in colLanes where lane.isSummary && !hidden(lane, isRow: false) {
             if lane.value == 0 {
-                out.cells.append(SummaryCell(row: lane.path.isEmpty ? 0 : lane.path.count - 1, col: lane.index,
+                out.cells.append(SummaryCell(row: lane.path.isEmpty ? 0 : lane.path.count - 1, column: lane.index,
                                              value: lane.path.isEmpty ? .text("総計") : label(lane.path)))
             }
             if !rowFields.isEmpty, V > 1 {
-                out.cells.append(SummaryCell(row: columnFields.count, col: lane.index, value: .text(caption(lane.value))))
+                out.cells.append(SummaryCell(row: columnFields.count, column: lane.index, value: .text(caption(lane.value))))
             }
         }
         // labels beside the summary row lanes: the group’s bare label in the label column of its depth,
         // 総計 in the first for the grand-total row
         for lane in rowLanes where lane.isSummary && !hidden(lane, isRow: true) {
-            out.cells.append(SummaryCell(row: lane.index, col: lane.path.isEmpty ? 0 : lane.path.count - 1,
+            out.cells.append(SummaryCell(row: lane.index, column: lane.path.isEmpty ? 0 : lane.path.count - 1,
                                          value: lane.path.isEmpty ? .text("総計") : label(lane.path)))
         }
         // the values: every lane pair at least one side of which is the summary’s
@@ -439,7 +439,7 @@ enum NumbersPivot {
             let field = valuesOnColumns ? colLane.value : rowLane.value
             guard let v = bodyValue(rowRows: rowLane.rows, columnRows: colLane.rows, field: field) else { return }
             let path = colLane.path + rowLane.path
-            out.cells.append(SummaryCell(row: rowLane.index, col: colLane.index, value: v,
+            out.cells.append(SummaryCell(row: rowLane.index, column: colLane.index, value: v,
                                          formula: FormulaSpec(gbOffset: columnFields.count - colLane.depth,
                                                               level: colLane.depth + rowLane.depth,
                                                               pathKey: path.isEmpty ? nil : PathUIDs.key(path),

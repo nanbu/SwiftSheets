@@ -42,7 +42,7 @@ public struct RangeView: Sendable, Sequence {
         /// The value at the i-th position of the row, counted from the left edge of the range.
         public subscript(i: Int) -> CellValue? { table[ref(i)] }
         /// Where the i-th position of the row actually is.
-        public func ref(_ i: Int) -> CellRef { CellRef(row: row, col: firstColumn + i) }
+        public func ref(_ i: Int) -> CellRef { CellRef(row: row, column: firstColumn + i) }
         /// The whole cell (style, link and note included), or nil when the sheet has none there.
         public func cell(_ i: Int) -> Cell? { table.cell(at: ref(i)) }
     }
@@ -65,7 +65,7 @@ public struct RangeView: Sendable, Sequence {
     /// The row at an absolute row index. Reading outside the range is a programming error.
     public func row(at index: Int) -> Row {
         precondition(range.minRow...range.maxRow ~= index, "row \(index) is outside \(range.a1)")
-        return Row(table: table, row: index, firstColumn: range.minCol, width: range.size.cols)
+        return Row(table: table, row: index, firstColumn: range.minColumn, width: range.size.columns)
     }
 
     /// The value at an absolute reference; nil when it falls outside the range.
@@ -73,8 +73,8 @@ public struct RangeView: Sendable, Sequence {
     /// The value at an absolute A1 coordinate ("B2"); nil when it falls outside the range.
     public subscript(_ a1: String) -> CellValue? { CellRef(a1).flatMap { self[$0] } }
     /// The value at a position relative to the top-left of the range (`view[0, 0]` is its first cell).
-    public subscript(row: Int, col: Int) -> CellValue? {
-        self[CellRef(row: range.minRow + row, col: range.minCol + col)]
+    public subscript(row: Int, column: Int) -> CellValue? {
+        self[CellRef(row: range.minRow + row, column: range.minColumn + column)]
     }
 
     /// Rows × columns, materialised — the same array `Sheet.values(in:)` returns.

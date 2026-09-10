@@ -40,15 +40,15 @@ import SwiftSheets
     }
 
     /// The rows of the whole-workbook reader, in the streaming reader's shape, to compare against.
-    static func rows(of sheet: Sheet, includeStyles: Bool = false) -> [(index: Int, cells: [(col: Int, value: CellValue?)])] {
+    static func rows(of sheet: Sheet, includeStyles: Bool = false) -> [(index: Int, cells: [(column: Int, value: CellValue?)])] {
         var byRow: [Int: [(Int, CellValue?)]] = [:]
         for (ref, cell) in sheet.table.cells where cell.value != nil || (includeStyles && cell.style != .default) {
-            byRow[ref.row, default: []].append((ref.col, cell.value))
+            byRow[ref.row, default: []].append((ref.column, cell.value))
         }
         return byRow.keys.sorted().compactMap { r in
             let cells = byRow[r]!.sorted { $0.0 < $1.0 }
             guard cells.contains(where: { $0.1 != nil }) else { return nil }
-            return (r, cells.map { (col: $0.0, value: $0.1) })
+            return (r, cells.map { (column: $0.0, value: $0.1) })
         }
     }
 
@@ -64,9 +64,9 @@ import SwiftSheets
             let expected = Self.rows(of: sheet)
             #expect(streamed.map(\.index) == expected.map(\.index), "\(format) \(sheet.name): the rows delivered are the rows that hold something")
             for (s, e) in zip(streamed, expected) {
-                let got = s.cells.filter { $0.value != nil }.map { ($0.ref.col, $0.value) }
+                let got = s.cells.filter { $0.value != nil }.map { ($0.ref.column, $0.value) }
                 let want = e.cells.filter { $0.value != nil }
-                #expect(got.map(\.0) == want.map(\.col), "\(format) \(sheet.name) row \(s.index): columns")
+                #expect(got.map(\.0) == want.map(\.column), "\(format) \(sheet.name) row \(s.index): columns")
                 for (g, w) in zip(got, want) { #expect(g.1 == w.value, "\(format) \(sheet.name) row \(s.index) col \(g.0)") }
                 #expect(s.cells.allSatisfy { $0.ref.row == s.index })
             }
@@ -89,8 +89,8 @@ import SwiftSheets
         #expect(plain == nil && styled?.font.bold == true, "\(format): the heading is bold when styles are asked for")
         // formulas and .cachedValues
         var formula: CellValue?, cached: CellValue?
-        try reader.forEachRow(inSheet: "Data") { if $0.index == 4 { formula = $0.cells.first { $0.ref.col == 5 }?.value } }
-        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(formulaCells: .cachedValues)) { if $0.index == 4 { cached = $0.cells.first { $0.ref.col == 5 }?.value } }
+        try reader.forEachRow(inSheet: "Data") { if $0.index == 4 { formula = $0.cells.first { $0.ref.column == 5 }?.value } }
+        try reader.forEachRow(inSheet: "Data", options: StreamingReadOptions(formulaCells: .cachedValues)) { if $0.index == 4 { cached = $0.cells.first { $0.ref.column == 5 }?.value } }
         #expect(formula?.formula != nil, "\(format): the formula comes as a formula")
         #expect(cached == .number(1.25), "\(format): .cachedValues yields the cached value")
         // a second table does not exist on a one-grid sheet, and the reader says so rather than walking nothing
@@ -161,12 +161,12 @@ import SwiftSheets
         var rows: [StreamedRow] = []
         try reader.forEachRow(inSheet: "First") { rows.append($0) }
         #expect(rows.map(\.index) == [0, 1, 2, 3, 9], "three repeats of the content row, the empty run skipped, then the row after it")
-        #expect(rows[1].cells.map(\.ref.col) == [0, 1], "the repeated value cell is two cells; the empty and the styled-empty cell are not values")
+        #expect(rows[1].cells.map(\.ref.column) == [0, 1], "the repeated value cell is two cells; the empty and the styled-empty cell are not values")
         #expect(rows[1].cells.map(\.value) == [.integer(7), .integer(7)])
         #expect(rows[4].cells.first?.value == .text("after the gap\nsecond    para"), "ODF white space collapses; text:s is literal")
         var styled: [StreamedRow] = []
         try reader.forEachRow(inSheet: "First", options: StreamingReadOptions(includeStyles: true)) { styled.append($0) }
-        #expect(styled[1].cells.map(\.ref.col) == [0, 1, 3], "with styles, the styled empty cell is delivered as a cell holding nothing")
+        #expect(styled[1].cells.map(\.ref.column) == [0, 1, 3], "with styles, the styled empty cell is delivered as a cell holding nothing")
         #expect(styled[1].cells[2].style?.font.bold == true)
         var withEmpty: [Int] = []
         try reader.forEachRow(inSheet: "First", options: StreamingReadOptions(includesEmptyRows: true)) { withEmpty.append($0.index) }
@@ -300,7 +300,7 @@ import SwiftSheets
         rowInfo.set("cell_offsets", bytes: Data([0, 0]))
         rowInfo.set("cell_storage_buffer", bytes: Data([0x05, 0, 0, 0]))
         var visited = 0
-        NumbersCells.forEachRecord(in: rowInfo, cols: -1) { _, _ in visited += 1 }
+        NumbersCells.forEachRecord(in: rowInfo, columns: -1) { _, _ in visited += 1 }
         #expect(visited == 0)
     }
 

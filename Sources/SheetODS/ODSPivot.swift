@@ -69,10 +69,10 @@ enum ODSPivot {
         var buttons: [String] = []
         let headerRow = ref.minRow + pivot.location.firstHeaderRow
         for (i, _) in pivot.rowFields.enumerated() where pivot.rowFields[i] != PivotTable.valuesField {
-            buttons.append("\(prefix).\(CellRef(row: headerRow + 1, col: ref.minCol + i).a1)")
+            buttons.append("\(prefix).\(CellRef(row: headerRow + 1, column: ref.minColumn + i).a1)")
         }
         for (i, _) in pivot.columnFields.enumerated() where pivot.columnFields[i] != PivotTable.valuesField {
-            buttons.append("\(prefix).\(CellRef(row: headerRow, col: ref.minCol + pivot.location.firstDataCol + i - 1).a1)")
+            buttons.append("\(prefix).\(CellRef(row: headerRow, column: ref.minColumn + pivot.location.firstDataCol + i - 1).a1)")
         }
 
         var s = "<table:data-pilot-table table:name=\"\(XML.esc(pivot.name))\" table:application-data=\"\""

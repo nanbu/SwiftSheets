@@ -138,7 +138,7 @@ final class ODSStreamingParser: StreamingRowParser {
 
     private var inRow = false
     private var rowRepeat = 1
-    private var rowCells: [(col: Int, value: CellValue?, style: CellStyle?)] = []
+    private var rowCells: [(column: Int, value: CellValue?, style: CellStyle?)] = []
     private var rowHasContent = false
     private var cellCursor = 0
 
@@ -257,7 +257,7 @@ final class ODSStreamingParser: StreamingRowParser {
         else { expand = 0 }
         guard expand > 0 else { return }
         for r in rowCursor..<(rowCursor + expand) {
-            let row = StreamedRow(index: r, cells: rowCells.map { StreamedCell(ref: CellRef(row: r, col: $0.col), value: $0.value, style: $0.style) })
+            let row = StreamedRow(index: r, cells: rowCells.map { StreamedCell(ref: CellRef(row: r, column: $0.column), value: $0.value, style: $0.style) })
             guard options.includesEmptyRows || !row.isEmpty else { continue }
             do { try body(row) } catch {
                 thrown = error
