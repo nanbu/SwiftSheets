@@ -6303,8 +6303,8 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>MultiCellRange</code>）に変えるかは「改名と型変更を分ける」の原則で別の判断にする。他の <code>sqref</code>
   （<code>addConditionalFormatting(_:over:)</code>・<code>ProtectedRange.init(name:_:)</code>・<code>MultiCellRange.init(_:)</code>）は
   ラベル無しか <code>over:</code> で、呼び出しに <code>sqref</code> は出ていない。</p>
-  <p><strong>利用側。</strong>LeftRight は <code>maxCol</code> を 19 か所・<code>.col</code> を 4 か所・<code>minCol</code> を 1 か所使う。
-  Stream は座標を A1 文字列で扱っており、この改名の影響は無い。どちらも <code>sed</code> 1 行の移行。</p>
+  <p><strong>利用側（実測）。</strong>Stream を新しい library でコンパイルすると <code>CellRef(row:col:)</code> が 5 か所で止まる（他は A1 文字列）。
+  LeftRight はアプリ本体で <code>.ref.col</code> と <code>CellRef(row:col:)</code> が 4 か所、計測用スクリプト（scripts/perf/table-probe）で <code>.col</code> が 2 か所。どちらも一括置換 1 行の移行。</p>
   <p><strong>検査。</strong>改名は呼び出し側がコンパイルで全部見つかる（本体・テストで約 500 行）。動きは変えていないので、
   座標の検査（<code>CoordinateStringTests</code>・<code>CellParityTests</code>・<code>WorksheetParityTests</code>）と全形式の往復が
   そのまま通ることを見る。</p>
