@@ -7,6 +7,45 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+The last seven items of the 1.0 API review, each its own commit and spec appendix (B.54–B.60). No compatibility
+aliases: a name that stays at 1.0 stays for good, so the old ones go now. Every change is a rename or a typed
+replacement; no file output changes.
+
+### Changed
+
+- **How a formula cell is read is an enum, not a Bool** (B.54). `ReadOptions(dataOnly: true)` →
+  `ReadOptions(formulaCells: .cachedValues)`; the same on `StreamingReadOptions` and `Workbook`. The default is
+  `.formulas`. Under `.cachedValues` a formula the file never computed reads as an empty cell — the readers already
+  did this; it is now written down and tested.
+- **Three model names** (B.56): `ExcelTable` → `StructuredTable` (`structuredTables`, `addStructuredTable`,
+  `structuredTable(containing:)`, `StructuredTableColumn`) because the ODS codec writes and reads it too;
+  `Cell.comment` → `Cell.note` (the type stays `CellNote`, the list stays `Sheet.notes`), leaving "comment" to
+  Excel's threaded comments; `Top10Filter` → `RankFilter` and `FilterColumn.top10` → `rank`.
+- **Number-format constants say what they are** (B.57). Thirty-four openpyxl-style names become eighteen:
+  `number`, `numberTwoDecimals`, `numberThousands`, `numberThousandsTwoDecimals`, `percent`, `percentTwoDecimals`,
+  `scientific`, `isoDate`, `isoDateTime`, `time24`, `time24Seconds`, `time12`, `time12Seconds`, `minutesSeconds`,
+  `elapsed`, plus `general` and `text`. No surviving string changed. The locale-shown builtins (`dateXLSX14` …) are
+  reached by `builtinCode(14)`; the currency and locale-flavoured ones are written as codes.
+- **One name per value** (B.58): `CellValue.dataType` / `Cell.dataType` (openpyxl's letter) are removed — switch on
+  the case; `pythonString` folds into `stringValue` with identical output; the global `Formula("=…")` becomes
+  `.formula("=…")` on `CellValue`.
+- **`Sheet.tabColor` is a `Color?`** (B.59), not a hex `String?`: `Color(hex: "1072BA")`, and a theme or indexed tab
+  colour from a file no longer reads as nil.
+- **Abbreviations are words** (B.60): `CellRef(row:column:)`, `.column`, `.maxColumn`, `offset(rows:columns:)`,
+  `CellRange(minRow:minColumn:maxRow:maxColumn:)`, `.minColumn` / `.maxColumn`, `size.columns`, `.columns`,
+  `shifted` / `shift` / `moveRange(…columns:)`, `RangeBounds(minColumn:…)`, `RangeView[row:column:]`;
+  `SheetView.sqref` → `selectedRanges` (still a String).
+
+### Added
+
+- `DataValidation.list(choices:over:allowBlank:rejects:)` builds a dropdown from the choices themselves, and
+  `listChoices` reads them back (B.55). It returns nil for what an inline list cannot hold — a comma or a double
+  quote in a choice, no choices, or more than `inlineListLimit` characters — and the range-sourced `list(_:over:)`
+  is the way round that. The ODS and Numbers writers now take the inline spelling from the model instead of parsing
+  it themselves.
+
 ## [0.22.0] — 2026-09-10
 
 ### Changed
