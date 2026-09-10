@@ -273,6 +273,37 @@ import SwiftSheets
         #expect(checked >= 3, "the documents that name a version should still be naming it")
     }
 
+    /// Every rename the CHANGELOG's newest section announces (`` `old` → `new` ``) must exist in the code. 0.23.0
+    /// announced `SheetView.sqref` → `selectedRanges`, the spec and the commit message said the same, and the
+    /// property stayed `sqref` — the test that covered it expected the old name, so the suite was green. A
+    /// document that promises a name the library does not have is caught here, before the tag. Each identifier
+    /// in the new name must occur as a word somewhere under Sources/ (a declaration, a label, a case).
+    @Test func everyRenameTheChangelogAnnouncesExistsInTheCode() throws {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let changelog = try String(contentsOf: root.appending(path: "CHANGELOG.md"), encoding: .utf8)
+        let sections = changelog.components(separatedBy: "\n## [")
+        #expect(sections.count > 1, "the CHANGELOG has at least one release section")
+        let newest = sections.dropFirst().first ?? ""
+        var sources = ""
+        let walker = FileManager.default.enumerator(at: root.appending(path: "Sources"), includingPropertiesForKeys: nil)
+        while let file = walker?.nextObject() as? URL {
+            guard file.pathExtension == "swift" else { continue }
+            sources += try String(contentsOf: file, encoding: .utf8) + "\n"
+        }
+        var words: Set<Substring> = []
+        for m in sources.matches(of: #/[A-Za-z_][A-Za-z0-9_]*/#) { words.insert(m.output) }
+        var checked = 0
+        for m in newest.matches(of: #/`([^`]+)`\s*→\s*`([^`]+)`/#) {
+            for ident in m.output.2.matches(of: #/[A-Za-z_][A-Za-z0-9_]*/#) {
+                checked += 1
+                let found = words.contains(ident.output)
+                #expect(found,
+                        Comment(rawValue: "the CHANGELOG announces `\(m.output.1)` → `\(m.output.2)`, but nothing under Sources/ is named \(ident.output)"))
+            }
+        }
+        #expect(checked > 0 || !newest.contains("→"), "a section with arrows should have yielded rename pairs")
+    }
+
     /// The README's test count is a floor ("800+ tests"), and the floor cannot drift: it must equal the number of
     /// `@Test` declarations under `Tests/`, rounded down to the nearest hundred. Counting declarations in source
     /// stands in for counting at run time (a suite cannot ask the runner for its own total mid-run), and it counts

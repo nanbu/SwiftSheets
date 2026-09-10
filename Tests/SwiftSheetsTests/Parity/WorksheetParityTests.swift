@@ -363,7 +363,7 @@ import Testing
     // openpyxl: worksheet/tests/test_worksheet.py::test_selected_cell
     @Test func selectedCell() {
         let ws = Self.freshSheet()
-        #expect(ws.view.sqref == "A1")
+        #expect(ws.view.selectedRanges == "A1")
     }
 
     // openpyxl: worksheet/tests/test_worksheet.py::test_gridlines

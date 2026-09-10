@@ -7,6 +7,16 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Fixed
+
+- `SheetView.sqref` is now really `selectedRanges`. 0.23.0's notes, the spec (Appendix B.60) and the commit that
+  renamed the other abbreviations all said `SheetView.sqref` → `selectedRanges`; the property itself stayed `sqref`,
+  and the one test that looked at it expected the old name. A new contract test
+  (`APIContractTests.everyRenameTheChangelogAnnouncesExistsInTheCode`) checks every `old` → `new` rename in the
+  newest CHANGELOG section against the code, so a promised name that does not exist fails before the tag.
+
 ## [0.23.0] — 2026-09-10
 
 The last seven items of the 1.0 API review, each its own commit and spec appendix (B.54–B.60), and the change of

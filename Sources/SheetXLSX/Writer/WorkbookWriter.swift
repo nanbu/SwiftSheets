@@ -904,9 +904,9 @@ enum WorkbookWriter {
             if f.row > 1 { s += " ySplit=\"\(f.row - 1)\"" }
             s += " topLeftCell=\"\(f.a1)\" activePane=\"\(active)\" state=\"frozen\"/>"
             if f.column > 1 && f.row > 1 { s += "<selection pane=\"topRight\"/><selection pane=\"bottomLeft\"/>" }
-            s += "<selection pane=\"\(active)\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
+            s += "<selection pane=\"\(active)\" activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.selectedRanges))\"/>"
         } else {
-            s += "<selection activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.sqref))\"/>"
+            s += "<selection activeCell=\"\(XML.esc(ws.view.activeCell))\" sqref=\"\(XML.esc(ws.view.selectedRanges))\"/>"
         }
         generated.append(("sheetViews", s + "</sheetView></sheetViews>"))
         let sf = ws.sheetFormat

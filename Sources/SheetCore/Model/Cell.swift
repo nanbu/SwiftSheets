@@ -239,7 +239,7 @@ public struct SheetView: Hashable, Sendable {
     /// The cursor cell of the (last) selection.
     public var activeCell = "A1"
     /// The selected ranges, space separated ("A1" / "A1:B2 D4").
-    public var sqref = "A1"
+    public var selectedRanges = "A1"
     public init() {}
 }
 
