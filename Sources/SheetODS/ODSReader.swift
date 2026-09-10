@@ -834,7 +834,7 @@ final class ContentParser: SAXHandler {
             cell.sharedStyle = catalog.sharedCellStyle(named: d.name)
         }
         var value = cellText.value(from: a, lenient: lenient)
-        if case .text? = value, cellText.hasStyledRuns { value = cellText.richText { catalog.cellStyle(named: $0).font } }
+        if case .text? = value, cellText.hasStyledRuns || cellText.hasRunLinks { value = cellText.richText { catalog.cellStyle(named: $0).font } }
         if let formula = attr(a, "table:formula"), !dataOnly {
             cell.value = .formula(FormulaExpr.parse(formula, dialect: .ods), cached: value)
         } else {
@@ -842,8 +842,11 @@ final class ContentParser: SAXHandler {
         }
         if let h = cellText.hyperlinks.first {
             cell.hyperlink = h
-            // ODF hangs a link on a run of text, so a cell may hold several; the model has one, as Excel does
-            if cellText.hyperlinks.count > 1, !reportedExtraLink {
+            // ODF hangs a link on a run of text, so a cell may hold several: rich text carries them run by run
+            // (B.81); a cell whose value is not text cannot, and keeps the first
+            var carried = false
+            if case .richText(let runs)? = value { carried = runs.contains { $0.hyperlink != nil } }
+            if cellText.hyperlinks.count > 1, !carried, !reportedExtraLink {
                 reportedExtraLink = true
                 warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheet?.name,
                                                   message: "a cell holds more than one hyperlink; the first was kept"))

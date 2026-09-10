@@ -31,7 +31,7 @@ enum NumbersRichText {
     ///   - runs: where each run of its own formatting starts, and the character style it uses (nil = back to plain).
     ///   - fields: where a smart field starts, and the object it points at (a hyperlink).
     static func storage(text: String, stylesheet: Int?, paragraphStyle: Int?, listStyle: Int?,
-                        runs: [(index: Int, style: Int?)], fields: [(index: Int, object: Int)]) -> ProtoMessage {
+                        runs: [(index: Int, style: Int?)], fields: [(index: Int, object: Int?)]) -> ProtoMessage {
         var storage = ProtoMessage(typeName: "TSWP.StorageArchive")
         storage.set("kind", int: NumbersSchema.shared.enums["TSWP.StorageArchive.KindType"]?["CELL"] ?? 5)
         if let stylesheet { storage.set("style_sheet", reference: stylesheet) }
@@ -43,7 +43,7 @@ enum NumbersRichText {
         if let listStyle { storage.set("table_list_style", message: attributeTable([(0, listStyle)])) }
         if !runs.isEmpty { storage.set("table_char_style", message: attributeTable(runs.map { ($0.index, $0.style) })) }
         storage.set("in_document", bool: true)
-        if !fields.isEmpty { storage.set("table_smartfield", message: attributeTable(fields.map { ($0.index, Optional($0.object)) })) }
+        if !fields.isEmpty { storage.set("table_smartfield", message: attributeTable(fields.map { ($0.index, $0.object) })) }
         storage.set("table_para_starts", message: paragraphData())
         return storage
     }

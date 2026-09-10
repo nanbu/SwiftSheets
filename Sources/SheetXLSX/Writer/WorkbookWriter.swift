@@ -1034,7 +1034,19 @@ enum WorkbookWriter {
         }
         // hyperlinks are collected before the rows are written, since the rows are written last
         var hyperlinks: [(String, Hyperlink)] = []
-        for (ref, c) in table.cells where c.hyperlink != nil { hyperlinks.append((ref.address, c.hyperlink!)) }
+        var runLinksDropped = 0
+        for (ref, c) in table.cells {
+            // links on runs of the text (B.81): Excel holds one link per cell — the cell's own, else the first run's
+            var runLinks: [Hyperlink] = []
+            if case .richText(let runs)? = c.value { runLinks = runs.compactMap(\.hyperlink) }
+            if let link = c.hyperlink ?? runLinks.first {
+                hyperlinks.append((ref.address, link))
+                runLinksDropped += runLinks.filter { $0 != link }.count
+            }
+        }
+        if runLinksDropped > 0 {
+            sink.add(.degraded, subject: .other, sheet: ws.name, "\(runLinksDropped) link(s) on parts of a cell's text dropped: Excel holds one link per cell, and the first was kept")
+        }
         hyperlinks.sort { CellRef($0.0)! < CellRef($1.0)! }
         let sheetName = ws.name
         let rows: (PieceBuffer) throws -> Void = { out in

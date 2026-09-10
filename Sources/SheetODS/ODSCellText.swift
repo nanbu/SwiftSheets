@@ -8,8 +8,8 @@ import SheetCore
 /// (spec Appendix B.40.2).
 struct ODSCellText {
     private(set) var paragraphs: [String] = []
-    /// The runs of the cell's text, when a paragraph carried `text:span` children; empty otherwise.
-    private(set) var runs: [(text: String, style: String?)] = []
+    /// The runs of the cell's text, when a paragraph carried `text:span` children or links on part of it; empty otherwise.
+    private(set) var runs: [(text: String, style: String?, link: Hyperlink?)] = []
     /// Every `xlink:href` in the cell, in document order. The model keeps one per cell; the reader reports the rest.
     private(set) var hyperlinks: [Hyperlink] = []
     private(set) var noteParagraphs: [String] = []
@@ -19,6 +19,7 @@ struct ODSCellText {
 
     private var spanStyle: String?
     private var spanDepth = 0
+    private var currentLink: Hyperlink?   // inside a `text:a` (B.81)
     private var runStart = 0
     private var paragraph = ""
     private var inParagraph = false
@@ -35,6 +36,8 @@ struct ODSCellText {
     var isEmpty: Bool { paragraphs.isEmpty }
     /// True when any run names a style — the cell's text is formatted in parts.
     var hasStyledRuns: Bool { runs.contains { $0.style != nil } }
+    /// True when the links sit on parts of the text and there is more than one: only rich text can carry them (B.81).
+    var hasRunLinks: Bool { hyperlinks.count > 1 && runs.contains { $0.link != nil } }
 
     /// Takes a start tag inside a cell; false when the element is not part of the cell's text (a sub-table, a
     /// frame, the detective) and the caller should handle it.
@@ -42,13 +45,13 @@ struct ODSCellText {
         switch name {
         case "p":
             inParagraph = true; paragraph = ""; lastWasCollapsibleSpace = true
-            if !runs.isEmpty { runs.append(("\n", nil)) }
+            if !runs.isEmpty { runs.append(("\n", nil, nil)) }
             runStart = runs.count
         case "span":
             guard inParagraph, !inAnnotation else { return true }
             spanDepth += 1
             if spanDepth == 1 {
-                if !paragraph.isEmpty { runs.append((paragraph, nil)); paragraph = "" }
+                if !paragraph.isEmpty { runs.append((paragraph, nil, currentLink)); paragraph = "" }
                 spanStyle = ODSAttr.get(a, "text:style-name")
             }
         case "s":
@@ -58,11 +61,11 @@ struct ODSCellText {
         case "line-break": if inParagraph { appendLiteral("\n") }
         case "a":
             guard inParagraph, !inAnnotation, let href = ODSAttr.get(a, "xlink:href") else { return true }
-            if href.hasPrefix("#") {
-                hyperlinks.append(Hyperlink(target: ContentParser.internalTarget(String(href.dropFirst())), isInternal: true))
-            } else {
-                hyperlinks.append(Hyperlink(target: href))
-            }
+            let link = href.hasPrefix("#") ? Hyperlink(target: ContentParser.internalTarget(String(href.dropFirst())), isInternal: true) : Hyperlink(target: href)
+            hyperlinks.append(link)
+            // a link's edges are run edges: the text before it is a run of its own (B.81)
+            if !paragraph.isEmpty { runs.append((paragraph, spanDepth > 0 ? spanStyle : nil, currentLink)); paragraph = "" }
+            currentLink = link
         case "annotation": inAnnotation = true; hasNote = true
         case "creator":
             guard inAnnotation else { return true }
@@ -102,7 +105,7 @@ struct ODSCellText {
             inParagraph = false
             if inAnnotation { noteParagraphs.append(paragraph); return true }
             if !runs.isEmpty {
-                if !paragraph.isEmpty { runs.append((paragraph, nil)) }
+                if !paragraph.isEmpty { runs.append((paragraph, nil, currentLink)) }
                 paragraphs.append(runs[runStart...].reduce("") { $0 + $1.text })
                 paragraph = ""
                 return true
@@ -111,10 +114,14 @@ struct ODSCellText {
         case "span":
             guard inParagraph, spanDepth > 0 else { return true }
             spanDepth -= 1
-            if spanDepth == 0 { runs.append((paragraph, spanStyle)); paragraph = ""; spanStyle = nil }
+            if spanDepth == 0 { runs.append((paragraph, spanStyle, currentLink)); paragraph = ""; spanStyle = nil }
+        case "a":
+            guard inParagraph, currentLink != nil else { return true }
+            if !paragraph.isEmpty { runs.append((paragraph, spanDepth > 0 ? spanStyle : nil, currentLink)); paragraph = "" }
+            currentLink = nil
         case "creator": inCreator = false
         case "annotation": inAnnotation = false
-        case "s", "tab", "line-break", "a": break
+        case "s", "tab", "line-break": break
         default: return false
         }
         return true
@@ -123,8 +130,7 @@ struct ODSCellText {
     /// The runs as rich text, each run's font taken from the style it names.
     func richText(font: (String) -> Font?) -> CellValue {
         .richText(runs.map { run in
-            guard let name = run.style else { return TextRun(run.text) }
-            return TextRun(run.text, font: font(name))
+            TextRun(run.text, font: run.style.flatMap(font), hyperlink: hyperlinks.count > 1 ? run.link : nil)
         })
     }
 

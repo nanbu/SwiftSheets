@@ -109,7 +109,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
 <div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○53 △10 ▣11 ×1 ／ 書き ○53 △9 ▣12 ×1<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○39 △13 ▣0 ×2 ／ 書き ○35 △11 ▣0 ×11<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○39 △13 ▣0 ×2 ／ 書き ○36 △10 ▣0 ×11<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △9 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
@@ -192,7 +192,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">53</td><td class="m">10</td><td class="m">11</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">53</td><td class="m">9</td><td class="m">12</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">39</td><td class="m">13</td><td class="m">0</td><td class="m">2</td><td class="m">5</td><td class="m">0</td><td class="m">59</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">35</td><td class="m">11</td><td class="m">0</td><td class="m">11</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">36</td><td class="m">10</td><td class="m">0</td><td class="m">11</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">9</td><td class="m">0</td><td class="m">28</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
 </tbody></table></div>
@@ -322,7 +322,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>通貨のセル種別（どの通貨かをデータとして持つ）</td><td class="m y">○</td><td class="m y">○</td><td><code>office:value-type=&quot;currency&quot;, office:currency</code></td><td><code>CellStyle.numberFormat</code></td><td><strong>言うこと</strong>: 他形式へは「only OpenDocument has it」の dropped ODF だけが持つ 6 つのうちの 1 つ。Excel と Numbers では表示形式の中にしか無いので、記号は残っても「これは金額だ」という区別は残らない。 <span class="chip">実測</span></td></tr>
 <tr><td>セルの結合</td><td class="m y">○</td><td class="m y">○</td><td><code>table:number-columns-spanned / -rows-spanned</code></td><td><code>merge(_:)</code> <code>sheet.merges</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td><code>text:p / text:span</code></td><td><code>CellValue.richText</code> <code>TextRun</code></td><td><span class="chip">実測</span></td></tr>
-<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m h">△</td><td><code>text:a xlink:href</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><strong>言うこと</strong>: 1 セルに複数あると「a cell holds more than one hyperlink; the first was kept」 ODF はリンクを文字の範囲に付けられる。読むときは先頭を採り、そう言う。 <span class="chip">実測</span></td></tr>
+<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td><code>text:a xlink:href</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><strong>言うこと</strong>: 文字でない値のセルに複数あると「a cell holds more than one hyperlink; the first was kept」 ODF はリンクを文字の範囲に付けられる。複数あれば richText の run ごとに読み書きし（TextRun.hyperlink・B.81）、Cell.hyperlink は先頭。 <span class="chip">実測</span></td></tr>
 <tr><td>メモ（注釈）</td><td class="m y">○</td><td class="m y">○</td><td><code>office:annotation</code></td><td><code>sheet[cell: &quot;A1&quot;].comment</code> <code>CellNote</code></td><td><span class="chip">実測</span></td></tr>
 <tr><td>セルの中の操作子（チェックボックスなど）</td><td class="m n">×</td><td class="m n">×</td><td><code>office:forms / form:control</code></td><td><code>Cell.control</code> <code>CellControl</code></td><td><strong>言うこと</strong>: 「N cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has …」 読み込みでは office:forms の中を読み飛ばす。Numbers から来た制御は値だけ残して落とす。 <span class="chip">実測</span></td></tr>
 <tr class="group"><td colspan="6">数式（OpenFormula）</td></tr>
@@ -410,7 +410,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr class="group"><td colspan="6">セルと値</td></tr>
 <tr><td>セルの値（数値・文字・日付・真偽・経過時間・エラー）</td><td class="m y">○</td><td class="m y">○</td><td><code>TST.Tile / TST.TileRowInfo のセル格納</code></td><td><code>sheet[&quot;A1&quot;]</code> <code>CellValue</code></td><td>Numbers の数値は decimal128。Decimal で受けるので桁が落ちない。 <span class="chip">実測</span></td></tr>
 <tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td><code>TSWP.StorageArchive, TSWP.CharacterStyleArchive</code></td><td><code>CellValue.richText</code> <code>TextRun</code></td><td>Numbers は文字スタイルの変わり目として持つ。 <span class="chip">実測</span></td></tr>
-<tr><td>ハイパーリンク</td><td class="m h">△</td><td class="m h">△</td><td><code>TSWP.HyperlinkFieldArchive</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><strong>言うこと</strong>: 1 セルに複数あると「the cell holds N links; a cell carries one, so the first was kept」 Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。読むときは先頭を採り、そう言う。 <span class="chip">実測</span></td></tr>
+<tr><td>ハイパーリンク</td><td class="m h">△</td><td class="m h">△</td><td><code>TSWP.HyperlinkFieldArchive</code></td><td><code>sheet[cell: &quot;A1&quot;].hyperlink</code> <code>Hyperlink</code></td><td><strong>言うこと</strong>: 文字でない値のセルに複数あると「the cell holds N links; a cell carries one, so the first was kept」 Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。複数あれば richText の run ごとに読み書きし（TextRun.hyperlink・B.81）、Cell.hyperlink は先頭。Numbers 本体が run ごとのリンクを開くかは手動一覧の確認。 <span class="chip">実測</span></td></tr>
 <tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td><code>TSD.CommentStorageArchive, TSK.AnnotationAuthorArchive</code></td><td><code>sheet[cell: &quot;A1&quot;].comment</code> <code>CellNote</code></td><td>表のコメント一覧に置き、書いた人ごとに 1 つの「作成者」を共有する。 <span class="chip">実測</span></td></tr>
 <tr><td>株価セル（現行 Numbers では STOCK 数式）</td><td class="m y">○</td><td class="m y">○</td><td>—</td><td><code>FormulaExpr.remoteDataFunction</code></td><td>Numbers.app で手作りした見本で確認。いまの Numbers では株価セルは普通の STOCK 数式で、そう読める（付録 B.29）。 <span class="chip">実機の審判</span></td></tr>
 <tr class="group"><td colspan="6">数式</td></tr>

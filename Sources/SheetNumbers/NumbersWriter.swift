@@ -1503,8 +1503,21 @@ struct NumbersWriter {
                 attributes.append((index, style))
                 index += run.text.count
             }
-            var fields: [(index: Int, object: Int)] = []
-            if let link {
+            var fields: [(index: Int, object: Int?)] = []
+            if runs.contains(where: { $0.hyperlink != nil }) {
+                // links on runs (B.81): each starts a smart field where its run starts and ends it where the run
+                // ends; a linked run without a font of its own wears the link style
+                var at = 0
+                for (i, run) in runs.enumerated() {
+                    let n = run.text.count
+                    if let h = run.hyperlink {
+                        fields.append((at, try doc.add(NumbersRichText.hyperlink(h.target), file: richFile)))
+                        if i + 1 == runs.count || runs[i + 1].hyperlink == nil { fields.append((at + n, nil)) }
+                        if run.font == nil, let linkRun, let j = attributes.firstIndex(where: { $0.index == at }) { attributes[j].style = linkRun }
+                    }
+                    at += n
+                }
+            } else if let link {
                 let field = try doc.add(NumbersRichText.hyperlink(link), file: richFile)
                 fields.append((0, field))
                 if attributes.isEmpty, let linkRun { attributes.append((0, linkRun)) }

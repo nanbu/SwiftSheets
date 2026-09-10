@@ -19,6 +19,10 @@ writes, so the constant, the README's status line and the tag always name the sa
   and groups of shapes are not modelled: they stay bytes, and are named when a rebuild drops them. Numbers reports
   shapes as dropped (spec Appendix B.75).
 
+- **A link on part of a cell's text.** `TextRun.hyperlink` carries the links ODS and Numbers hang on runs of
+  text, so a cell with several links reads as rich text with each link on its run (the cell's own `hyperlink` is
+  still the first); both formats write them back run by run. Excel holds one link per cell: its writer keeps the
+  cell's own or the first run's and reports the rest (spec Appendix B.81).
 - **Threaded comments.** `cell.thread` holds a `CommentThread` — the opening comment, its replies, whether it is
   resolved, and when — beside the note. XLSX reads Excel's threadedComments and persons parts (hiding the
   "[Threaded comment]" mirror note older readers see), keeps them byte for byte until a change, and then

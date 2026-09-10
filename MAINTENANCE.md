@@ -222,6 +222,10 @@ per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maint
   no note; add a reply here, save, and confirm Excel shows the thread and its people. The synthetic
   `threaded-comments.xlsx` fixture is written from the published part layout; what only Excel can judge is its own
   ids and the mirror text it expects.
+- **Links on runs of text (Appendix B.81).** Open a workbook written here with two links in one cell in Numbers
+  and confirm both open their targets; put two links into one cell in Numbers, save, and confirm
+  `sheet["A1"]` reads as rich text with a link on each run. `RunHyperlinkTests` covers the round trip through
+  this library's own writer and reader.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

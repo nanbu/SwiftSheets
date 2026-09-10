@@ -102,7 +102,10 @@ public indirect enum CellValue: Hashable, Sendable {
 public struct TextRun: Hashable, Sendable {
     public var text: String
     public var font: Font?
-    public init(_ text: String, font: Font? = nil) { self.text = text; self.font = font }
+    /// A link on this run of the text (spec Appendix B.81) — what ODS and Numbers can hang on part of a cell's
+    /// text. Excel holds one link per cell: its writer uses the first run's and reports the rest.
+    public var hyperlink: Hyperlink?
+    public init(_ text: String, font: Font? = nil, hyperlink: Hyperlink? = nil) { self.text = text; self.font = font; self.hyperlink = hyperlink }
 }
 
 // MARK: - Literal and value conversions

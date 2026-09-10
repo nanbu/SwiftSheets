@@ -6,6 +6,8 @@ import SheetCore
 /// of rich text. Written against `NumbersObjectStore`, so either document store serves.
 enum NumbersCells {
     typealias RichText = (text: String, links: [String], runs: [TextRun])
+    /// A link over a stretch of the text: from the smart field's start to the next field entry (or the end).
+    typealias LinkRun = (start: Int, end: Int, url: String)
 
     /// TableModelArchive ids of the tables drawn on a sheet, in canvas order.
     static func tableModels(inSheet sid: Int, doc: any NumbersObjectStore) -> [Int] {
@@ -84,13 +86,41 @@ enum NumbersCells {
         dataList(store.reference("rich_text_table"), doc: doc) { entry -> RichText? in
             guard let payload = entry.reference("rich_text_payload"), let storageID = doc.object(payload)?.reference("storage"),
                   let storage = doc.object(storageID) else { return nil }
-            let links = storage.message("table_smartfield")?.messages("entries").compactMap { field -> String? in
-                guard let id = field.reference("object"), doc.typeName(id) == "TSWP.HyperlinkFieldArchive" else { return nil }
-                return doc.object(id)?.string("url_ref")
-            } ?? []
             let text = storage.strings("text").joined()
-            return (text, links, runs(in: text, of: storage, styles: styles, doc: doc))
+            let entries = storage.message("table_smartfield")?.messages("entries") ?? []
+            var linkRuns: [LinkRun] = []
+            for (i, field) in entries.enumerated() {
+                guard let id = field.reference("object"), doc.typeName(id) == "TSWP.HyperlinkFieldArchive",
+                      let url = doc.object(id)?.string("url_ref") else { continue }
+                let start = field.int("character_index") ?? 0
+                let end = i + 1 < entries.count ? (entries[i + 1].int("character_index") ?? text.count) : text.count
+                linkRuns.append((start, end, url))
+            }
+            let links = linkRuns.map(\.url)
+            var runs = runs(in: text, of: storage, styles: styles, doc: doc)
+            // several links: the text becomes rich, each run carrying the link that covers it (B.81)
+            if links.count > 1 { runs = applyingLinks(linkRuns, to: runs, text: text) }
+            return (text, links, runs)
         }
+    }
+
+    /// The runs cut again at every link's edges, each piece keeping its font and gaining the link over it.
+    static func applyingLinks(_ links: [LinkRun], to runs: [TextRun], text: String) -> [TextRun] {
+        let characters = Array(text)
+        var edges = Set([0, characters.count])
+        var fontRuns: [(start: Int, end: Int, font: Font?)] = []
+        var cursor = 0
+        for r in runs { let n = r.text.count; fontRuns.append((cursor, cursor + n, r.font)); cursor += n; edges.insert(cursor) }
+        if runs.isEmpty { fontRuns = [(0, characters.count, nil)] }
+        for l in links { edges.insert(Swift.min(l.start, characters.count)); edges.insert(Swift.min(l.end, characters.count)) }
+        let sorted = edges.sorted()
+        var out: [TextRun] = []
+        for (a, b) in zip(sorted, sorted.dropFirst()) where b > a {
+            let font = fontRuns.first { $0.start <= a && a < $0.end }?.font
+            let link = links.first { $0.start <= a && a < $0.end }.map { Hyperlink(target: $0.url) }
+            out.append(TextRun(String(characters[a..<b]), font: font, hyperlink: link))
+        }
+        return out
     }
 
     /// The runs of a cell's text that carry formatting of their own. Numbers records where each run starts and

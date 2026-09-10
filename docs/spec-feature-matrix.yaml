@@ -1007,7 +1007,7 @@ formats:
       note: "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
     totals:
       read: {full: 39, partial: 13, preserved: 0, none: 2, na: 5, unverified: 0}
-      write: {full: 35, partial: 11, preserved: 0, none: 11, na: 2, unverified: 0}
+      write: {full: 36, partial: 10, preserved: 0, none: 11, na: 2, unverified: 0}
       rows: 59
     areas:
       - id: "package"
@@ -1192,13 +1192,13 @@ formats:
             name: "ハイパーリンク"
             spec_anchor: "text:a xlink:href"
             read: "full"
-            write: "partial"
+            write: "full"
             api:
               - "sheet[cell: \"A1\"].hyperlink"
               - "Hyperlink"
-            warning: "1 セルに複数あると「a cell holds more than one hyperlink; the first was kept」"
+            warning: "文字でない値のセルに複数あると「a cell holds more than one hyperlink; the first was kept」"
             evidence: "measured"
-            note: "ODF はリンクを文字の範囲に付けられる。読むときは先頭を採り、そう言う。"
+            note: "ODF はリンクを文字の範囲に付けられる。複数あれば richText の run ごとに読み書きし（TextRun.hyperlink・B.81）、Cell.hyperlink は先頭。"
           - id: "ods.cell.note"
             name: "メモ（注釈）"
             spec_anchor: "office:annotation"
@@ -1951,9 +1951,9 @@ formats:
             api:
               - "sheet[cell: \"A1\"].hyperlink"
               - "Hyperlink"
-            warning: "1 セルに複数あると「the cell holds N links; a cell carries one, so the first was kept」"
+            warning: "文字でない値のセルに複数あると「the cell holds N links; a cell carries one, so the first was kept」"
             evidence: "measured"
-            note: "Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。読むときは先頭を採り、そう言う。"
+            note: "Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。複数あれば richText の run ごとに読み書きし（TextRun.hyperlink・B.81）、Cell.hyperlink は先頭。Numbers 本体が run ごとのリンクを開くかは手動一覧の確認。"
           - id: "num.cell.note"
             name: "メモ（セルのコメント）"
             spec_anchor: "TSD.CommentStorageArchive, TSK.AnnotationAuthorArchive"

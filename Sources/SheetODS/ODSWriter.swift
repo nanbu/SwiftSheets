@@ -944,11 +944,16 @@ enum ODSWriter {
             for run in runs {
                 let inner = paragraphsXML(run.text).map { $0.dropFirst("<text:p>".count).dropLast("</text:p>".count) }
                                                   .joined(separator: "<text:line-break/>")
+                var piece = inner
                 if let font = run.font, font != Font.default {
-                    body += "<text:span text:style-name=\"\(styles.text(font))\">\(inner)</text:span>"
-                } else {
-                    body += inner
+                    piece = "<text:span text:style-name=\"\(styles.text(font))\">\(inner)</text:span>"
                 }
+                // a link on the run (B.81): ODF hangs it on exactly this stretch of text
+                if let h = run.hyperlink {
+                    let href = h.isInternal ? "#" + h.target.replacingOccurrences(of: "!", with: ".") : h.target
+                    piece = "<text:a xlink:href=\"\(XML.esc(href))\" xlink:type=\"simple\">\(piece)</text:a>"
+                }
+                body += piece
             }
             paragraphs = ["<text:p>\(body)</text:p>"]
         case .formula(let f, let cached)?:
@@ -969,7 +974,9 @@ enum ODSWriter {
             valueAttrs = valueAttrs.replacingOccurrences(of: "office:value-type=\"float\"",
                                                          with: "office:value-type=\"currency\" office:currency=\"\(XML.esc(currency))\"")
         }
-        if let h = cell.hyperlink, !paragraphs.isEmpty {
+        var runsCarryLinks = false
+        if case .richText(let runs)? = cell.value { runsCarryLinks = runs.contains { $0.hyperlink != nil } }
+        if let h = cell.hyperlink, !paragraphs.isEmpty, !runsCarryLinks {
             let href = h.isInternal ? "#" + h.target.replacingOccurrences(of: "!", with: ".") : h.target
             let first = paragraphs[0].dropFirst("<text:p>".count).dropLast("</text:p>".count)
             paragraphs[0] = "<text:p><text:a xlink:href=\"\(XML.esc(href))\" xlink:type=\"simple\">\(first)</text:a></text:p>"

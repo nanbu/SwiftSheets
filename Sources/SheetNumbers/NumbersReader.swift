@@ -410,7 +410,9 @@ struct NumbersReader {
                         cell.control = control
                         if let first = rich?.links.first {
                             cell.hyperlink = Hyperlink(target: first)
-                            if rich!.links.count > 1 {
+                            var carried = false
+                            if case .richText(let runs)? = cell.value { carried = runs.contains { $0.hyperlink != nil } }
+                            if rich!.links.count > 1, !carried {
                                 warnings.append(ConversionWarning(.degraded, subject: .other, sheet: sheetName, location: ref,
                                                                   message: "the cell holds \(rich!.links.count) links; a cell carries one, so the first was kept"))
                             }
