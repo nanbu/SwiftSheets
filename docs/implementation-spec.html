@@ -1916,6 +1916,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
     <tr><td>4.59 Draft</td><td>2026-09-11</td><td>「A1」を名前から外す。<code>freezePanesA1</code>・<code>autoFilterA1</code> を削除（型つきの <code>freezePanes = CellRef("B2")</code>・<code>autoFilter = CellRange("A1:D9")</code> で書く）。A1 記法を作る getter を address 系に: <code>CellRef.a1</code> / <code>CellRange.a1</code> → <code>address</code>、<code>absoluteA1</code> → <code>absoluteAddress</code>、<code>qualifiedA1</code> → <code>qualifiedAddress</code>、<code>Sheet.dimensions</code> / <code>Table.dimensions</code> → <code>extentAddress</code>。ISO 8601 の初期化子を <code>iso8601:</code> に統一（<code>CivilDate</code>・<code>TimeOfDay</code>・<code>CivilDateTime</code> の <code>iso:</code> を改名）（B.68）。</td></tr>
     <tr><td>4.58 Draft</td><td>2026-09-11</td><td>B.62 の一部を戻す。<code>style(at:)</code>・<code>setStyle(at:_:)</code> の型つきの側は <code>at:</code> を残す（メソッド名がセルを言わないため）。<code>cell(_:)</code>・<code>removeCell(_:)</code> はラベル無しのまま。</td></tr>
+    <tr><td>4.63 Draft</td><td>2026-09-11</td><td>ODS の絵とグラフを読み、グラフを書く。セルと table:shapes の draw:frame を <code>sheet.images</code> に、Object N/ のグラフ文書を <code>sheet.charts</code> に読み、両方を新しい部品として書き戻す。<code>addChart</code> は ODS にも書ける（B.72）。</td></tr>
     <tr><td>4.62 Draft</td><td>2026-09-11</td><td>XLSX の絵とグラフを読む。drawing 部品の錨と media・chart 部品を <code>sheet.images</code> / <code>sheet.charts</code> に。触らなければバイトのまま・足せば継ぎ足し・変えれば作り直して言う。<code>SheetImage.Anchor.absolute</code>・<code>Chart.Series.nameReference</code> を追加（B.71）。</td></tr>
     <tr><td>4.61 Draft</td><td>2026-09-11</td><td>テーマを読む。<code>Workbook.theme: Theme?</code>（12 色・2 書体）と <code>wb.rgb(of:)</code>（テーマ色の濃淡・索引色の解決）。触らないテーマ部品はバイトのまま、変えれば同じパスに作り直す。ODS・Numbers の書き手は解決した RGB を書く（B.70）。</td></tr>
     <tr><td>4.60 Draft</td><td>2026-09-11</td><td>ふりがなを運ぶ。<code>Cell.phonetic: PhoneticText?</code>（読みの区間・変換の種類・配置・書体）を共有文字列と inline 文字列の <code>&lt;rPh&gt;</code> / <code>&lt;phoneticPr&gt;</code> から読み、共有文字列表へ書き戻す。openpyxl の「読み飛ばし」から意図して離れた唯一の点（B.69）。</td></tr>
@@ -6676,6 +6677,38 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>theSecondSaveChangesNothing</code> は「読み戻すと空」の 1 行を「読み戻すと 1 つ」に反転し、バイト同一の主張は据え置き。検体
   <code>Tests/SwiftSheetsTests/Fixtures/drawings/openpyxl-four-charts.xlsx</code>（openpyxl 3.1.5 製）と LibreOffice 26.2.3 がそれを .ods にした
   <code>libreoffice-four-charts.ods</code>（B.72 で使う）を足した。</p>
+</section>
+
+<section>
+  <h3>B.72 ODS の絵とグラフを読み、グラフを書く（Rev 4.63）</h3>
+  <p>2026-09-11 決定。B.43 で ODS に絵を書けるようにしたが、読みは <code>draw:frame</code> を読み飛ばし、書き出しは content.xml を作り直すので元の絵と
+  オブジェクトの参照を張り直せず、「not re-linked」と言うだけだった。読めるようにすれば、読んだ物を新しい部品として書き直せて、この警告はグラフでない
+  埋め込み（数式オブジェクトなど）だけに残る。あわせて <code>addChart</code> のグラフを ODF のグラフ文書として書く——XLSX（B.34）と同じ 4 種。</p>
+  <p><strong>読み。</strong><code>ContentParser</code> は <code>draw:frame</code> を（セルの中でも <code>table:shapes</code> の中でも）読み飛ばさず、寸法
+  （<code>svg:x</code> / <code>svg:y</code> / <code>svg:width</code> / <code>svg:height</code>・cm）と <code>table:end-cell-address</code>（＋end-x / end-y）と、中の
+  <code>draw:image@xlink:href</code> / <code>draw:object@xlink:href</code> を控える（<code>ODSFrame</code>）。文書を読み終えてから <code>ODSDrawing.resolve</code> が
+  パッケージに当てる: <code>draw:object</code> があればそれが本体で、隣の <code>draw:image</code> は LibreOffice の見本（ObjectReplacements）なので無視する。
+  <code>Object N/content.xml</code> を <code>ODFChartParser</code> が読む——<code>chart:class</code>（<code>chart:bar</code> は plot-area の様式の
+  <code>chart:vertical</code> で column / bar を分ける・<code>chart:line</code>・<code>chart:circle</code> → pie・他は class を raw のまま <code>Chart.Kind</code> に・B.68）、
+  <code>chart:title</code> の文、<code>chart:legend</code> の有無、x 軸の <code>chart:categories</code>、<code>chart:series</code> の
+  <code>values-cell-range-address</code> と <code>label-cell-address</code>（<code>Series.nameReference</code>）。ODF のアドレス（<code>Data.B2:Data.B4</code>）は
+  <code>ContentParser.excelAddress</code> で Excel の書き方に直す。絵は <code>Pictures/</code> の部品を <code>SheetImage(data:)</code> に通す（持てない形式は
+  degraded で言って部品のまま）。読んだ部品（絵・<code>Object N/</code> 一式・<code>ObjectReplacements/Object N</code>）は保全の掃き集めから外す。</p>
+  <p><strong>錨。</strong>セルの中の枠は、<code>end-cell-address</code> があれば <code>.span</code>（end-x / end-y が 0 なら終端は排他的——この書き手の形。
+  0 でなければそのセルまで届く）、無ければ <code>.cell</code>（cm を 96 dpi の画素に直し、絵の画素と同じなら <code>.original</code>、違えば <code>.scaled</code>）。
+  <code>table:shapes</code> の中の枠は <code>.absolute</code>（cm → pt）。グラフの範囲は終端セルか、無ければ寸法をシートの列幅・行高で割って届く範囲
+  （LibreOffice はグラフに end-cell-address を付けない）。</p>
+  <p><strong>書き。</strong>グラフは <code>Object N/content.xml</code>（<code>office:document-content</code> の中の <code>office:chart</code>: class・題・凡例・x 軸の
+  categories・y 軸・series の values / label のアドレス。横棒は plot-area の様式に <code>chart:vertical="true"</code>）を作り、manifest に
+  <code>Object N/</code>（media-type <code>application/vnd.oasis.opendocument.chart</code>）と content.xml を登録し、錨のセルに
+  <code>draw:frame</code>＋<code>draw:object xlink:href="./Object N"</code>（寸法は範囲の列幅・行高から、終端は <code>end-cell-address</code>）を置く。番号は元の ODS が
+  持ってきた <code>Object N/</code> を飛ばす（B.43 の絵と同じ）。絶対位置の絵は A1 のセルではなく <code>table:shapes</code> に書く（ODF 1.3 §9.1.2: 列の前）。
+  描けない種類（4 種と <code>chart:</code> 接頭辞の class 以外）は名指しで落とす。Numbers の書き手は従来どおりグラフを落として言う。</p>
+  <p><strong>検査。</strong><code>ODSDrawingTests</code> 4 件: LibreOffice 26.2.3 が作った 4 種のグラフ（検体 <code>libreoffice-four-charts.ods</code>・文書順に
+  column / pie / line / <code>chart:scatter</code>・系列の参照・部品が保全から外れ「not re-linked」が消える）・<code>addChart</code> が chart 文書になり往復する・
+  絵 3 種の錨の往復と部品の帰属・<strong>LibreOffice が書いたグラフを XLSX へ運ぶ</strong>（gated）。<code>ODSCodecTests</code> の Object 1 の主張と
+  <code>ODSImageTests.namesStepPastThePartsASourceODSBroughtAlong</code>、<code>ChartTests.emptyChartsAndOtherFormatsSpeakUp</code> は新しい契約
+  （絵とグラフは模型の物・ODS はグラフを書く）に書き換えた。</p>
 </section>
 
 </div><!-- /.container -->

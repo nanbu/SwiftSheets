@@ -11,6 +11,12 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ### Added
 
+- **ODS pictures and charts are read, and charts are written** (B.72). A source ODS's pictures (`draw:frame` in a
+  cell, or among the sheet's `table:shapes` for a fixed position) fill `sheet.images`, and its chart objects
+  (`Object N/`) fill `sheet.charts` — every class read, the four the writers draw by name; both are written back as
+  fresh parts, so the "not re-linked" warning is left for embedded objects that are not charts. `addChart` now
+  writes a chart document into ODS instead of dropping the chart; LibreOffice carries it into XLSX.
+
 - **Pictures and charts are read** (B.71). An opened XLSX file's drawing fills `sheet.images` and `sheet.charts`:
   one-cell, two-cell and absolute anchors (`SheetImage.Anchor.absolute`, in points), PNG / JPEG / GIF media,
   every chart kind (the four the writers draw by name, the rest by their element as `Chart.Kind(rawValue:)`),

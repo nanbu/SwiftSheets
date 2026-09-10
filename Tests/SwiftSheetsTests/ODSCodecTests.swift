@@ -465,12 +465,13 @@ import SwiftSheets
         }
         #expect(charts.sheets[0].style("A1").font.bold)
         #expect(charts.sheets[0].cell("A1")?.note?.text == "first column")
-        #expect(charts.preserved.opaqueParts.keys.contains("Object 1/content.xml"))
-        #expect(charts.preserved.contentTypeOverrides["Object 1/content.xml"] == "text/xml")
+        // the chart object is read into the model (B.72), so its parts are no longer opaque
+        #expect(charts.sheets[0].charts.count == 1 && charts.sheets[0].charts[0].kind == .column)
+        #expect(!charts.preserved.opaqueParts.keys.contains("Object 1/content.xml"))
         #expect(!charts.preserved.opaqueParts.keys.contains { $0.hasPrefix("Thumbnails/") })
-        // writing back re-registers the parts and says they are no longer linked
+        // writing back makes a fresh chart document under the same name, and nothing is left "not re-linked"
         let rewritten = try ODSCodec.write(charts)
-        #expect(rewritten.warnings.contains { $0.kind == .dropped && $0.message.contains("not re-linked") })
+        #expect(!rewritten.warnings.contains { $0.message.contains("not re-linked") }, "\(rewritten.warnings.map(\.message))")
         let manifest = String(decoding: try ZipInspection(data: rewritten.data).entry(named: "META-INF/manifest.xml")!, as: UTF8.self)
         #expect(manifest.contains("manifest:full-path=\"Object 1/content.xml\" manifest:media-type=\"text/xml\""))
     }

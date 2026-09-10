@@ -989,8 +989,8 @@ formats:
       public: true
       note: "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
     totals:
-      read: {full: 37, partial: 11, preserved: 1, none: 4, na: 6, unverified: 0}
-      write: {full: 34, partial: 9, preserved: 0, none: 14, na: 2, unverified: 0}
+      read: {full: 38, partial: 13, preserved: 0, none: 2, na: 6, unverified: 0}
+      write: {full: 34, partial: 11, preserved: 0, none: 12, na: 2, unverified: 0}
       rows: 59
     areas:
       - id: "package"
@@ -1034,24 +1034,28 @@ formats:
           - id: "ods.package.opaque"
             name: "埋め込みオブジェクト・画像のパート"
             spec_anchor: "Pictures/, Object N/, ObjectReplacements/"
-            read: "preserved"
-            write: "none"
-            api: []
-            warning: "「N embedded object(s)/picture(s) of the source ODS are not re-linked」"
-            evidence: "code"
-            note: "ODS の書き出しは content.xml を作り直すので、元の絵や図の参照は張り直せない。持ってはいるが繋がらない、と正直に言う。"
+            read: "partial"
+            write: "partial"
+            api:
+              - "sheet.images"
+              - "sheet.charts"
+            warning: "グラフでない埋め込みオブジェクトが残ると「N embedded object(s)/picture(s) of the source ODS are not re-linked」"
+            evidence: "measured"
+            note: "絵（Pictures/）とグラフ（Object N/）は模型に読み、書き出しで新しい部品として作り直す（B.72）。数式オブジェクトなどグラフでない埋め込みは持ってはいるが繋がらない、と正直に言う。"
           - id: "ods.draw.image"
             name: "画像の埋め込み（マスに置く・範囲に合わせる）"
             spec_anchor: "Pictures/, draw:frame, draw:image, table:end-cell-address"
-            read: "none"
+            read: "full"
             write: "full"
             api:
               - "sheet.addImage(try SheetImage(data:), at: \"B2\", sizing: .resizeCellToFit)"
               - "addImage(_:over:)"
               - "SheetImage"
-            warning: "読みは draw:frame を読み飛ばす — 書いた絵はこの読み手では戻らない（XLSX は preserved に持つ）"
-            evidence: "judge"
-            note: "PNG / JPEG / GIF を Pictures/ の部品（manifest に media-type）と、錨のセルの中の draw:frame / draw:image で書く（付録 B.43）。寸法は 96 dpi で cm。範囲に合わせる絵は table:end-cell-address を添え、LibreOffice は範囲いっぱいに広げる。元の ODS の Pictures/ とは番号がぶつからない。"
+              - "sheet.images"
+              - "SheetImage.Anchor.absolute"
+            warning: "模型に持てない形式の絵は「a picture in a format the model cannot hold (…) is carried as a part only」"
+            evidence: "measured"
+            note: "PNG / JPEG / GIF を Pictures/ の部品（manifest に media-type）と、錨のセルの中の draw:frame / draw:image で書く（付録 B.43）。寸法は 96 dpi で cm。範囲に合わせる絵は table:end-cell-address を添え、LibreOffice は範囲いっぱいに広げる。元の ODS の Pictures/ とは番号がぶつからない。 読み: セルの中の draw:frame（end-cell-address があれば範囲、無ければ 1 セル）と table:shapes の中の draw:frame（絶対位置）を sheet.images に読む（B.72）。"
       - id: "table"
         name: "表・行・列"
         features:
@@ -1619,13 +1623,15 @@ formats:
           - id: "ods.un.draw"
             name: "描画オブジェクト（グラフ・図形・テキストボックス）"
             spec_anchor: "draw:frame, draw:object, draw:custom-shape"
-            read: "none"
-            write: "none"
+            read: "partial"
+            write: "partial"
             api:
+              - "sheet.charts"
               - "sheet.addChart(_:over:)"
-            warning: "「N chart(s) added by addChart dropped: writing charts into ODS is not implemented yet」ほか"
-            evidence: "code"
-            note: "読み込みは draw:frame の中を読み飛ばす。addChart で作ったグラフは ODS には書けない（.xlsx なら書ける）。addImage の絵は書ける（ods.draw.image・付録 B.43）が、読みは同じく読み飛ばす。"
+              - "Chart.Kind"
+            warning: "描けない種類のグラフは「a … chart was not written: the writer draws column, bar, line and pie charts」／図形・テキストボックスは読まない"
+            evidence: "measured"
+            note: "グラフ: draw:object が指す Object N/content.xml（ODF のグラフ文書）を全種読み（chart:bar＋chart:vertical → column / bar、chart:line、chart:circle → pie、他は class を raw に）、4 種を chart 文書として書く（B.72）。LibreOffice は書いたグラフを XLSX へ運ぶ（gated テスト）。図形・テキストボックスは読み飛ばしたまま。"
           - id: "ods.un.scenario"
             name: "シナリオ"
             spec_anchor: "table:scenario"

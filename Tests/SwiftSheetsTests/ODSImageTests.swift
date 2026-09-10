@@ -125,25 +125,26 @@ import SwiftSheets
         #expect(names == ["Pictures/image1.png", "Pictures/image2.gif"])
     }
 
-    /// A source ODS brings its own `Pictures/` along (unlinked, as before); a picture added afterwards takes the
-    /// next free name, and the manifest lists both.
+    /// A source ODS's own picture is read into the model (B.72) and written afresh beside a picture added
+    /// afterwards; the parts are numbered in order and the manifest lists both.
     @Test func namesStepPastThePartsASourceODSBroughtAlong() throws {
         var first = Workbook()
         first.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
         var again = try Workbook(data: try first.write(as: .ods).data)
-        #expect(again.preserved.parts.keys.contains("Pictures/image1.png"))
+        #expect(!again.preserved.parts.keys.contains("Pictures/image1.png"), "the picture is the model's, not an opaque part")
+        #expect(again.sheets[0].images.count == 1)
         let gif = try Self.image("tiny.gif")
         again.sheets[0].addImage(gif, at: "C3")
         let url = Self.tmp.appendingPathComponent("again.ods")
         let result = try again.write(to: url, as: .ods)
-        #expect(result.warnings.contains { $0.message.contains("not re-linked") })
+        #expect(!result.warnings.contains { $0.message.contains("not re-linked") })
         let data = try Data(contentsOf: url)
         let zip = try ZipInspection(data: data)
         #expect(zip.entryNames.filter { $0.hasPrefix("Pictures/") } == ["Pictures/image1.png", "Pictures/image2.gif"])
         #expect(zip.entry(named: "Pictures/image2.gif") == gif.data)
         let manifest = try Self.part("META-INF/manifest.xml", of: data)
         #expect(manifest.contains("manifest:full-path=\"Pictures/image1.png\"") && manifest.contains("manifest:full-path=\"Pictures/image2.gif\" manifest:media-type=\"image/gif\""))
-        #expect(Self.frames(in: try Self.part("content.xml", of: data)).count == 1, "the source picture's frame is not re-linked; the new one is there")
+        #expect(Self.frames(in: try Self.part("content.xml", of: data)).count == 2, "the source picture and the new one both have frames")
     }
 
     // MARK: - LibreOffice as the judge

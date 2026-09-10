@@ -126,10 +126,14 @@ import SwiftSheets
         var chart = Chart(.pie)
         chart.addSeries(values: "A1:A2")
         full.sheets[0].addChart(chart, over: "C1:H10")
-        for format in [SheetFormat.ods, .numbers, .csv] {
+        for format in [SheetFormat.numbers, .csv] {
             let r = try full.write(to: URL(filePath: NSTemporaryDirectory() + "chart-drop.\(format.rawValue)"), as: format)
             #expect(r.warnings.contains { $0.kind == .dropped && $0.message.contains("1 chart(s)") },
                     "\(format.rawValue) must count the chart out loud")
         }
+        // ODS writes it as a chart document (B.72)
+        let ods = try full.write(as: .ods)
+        #expect(!ods.warnings.contains { $0.message.contains("chart") })
+        #expect(try ZipInspection(data: ods.data).entry(named: "Object 1/content.xml") != nil)
     }
 }

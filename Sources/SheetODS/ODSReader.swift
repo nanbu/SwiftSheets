@@ -101,15 +101,22 @@ enum ODSReader {
             if let active = settings.activeTable, let i = wb.sheets.index(of: active) { wb.activeIndex = i }
         }
 
+        // pictures and chart objects the frames named, into the model (B.72); their parts are not kept opaque
+        let drawn = try ODSDrawing.resolve(content.frames, sheets: Array(wb.sheets),
+                                           read: { try zip.read($0) }, exists: { zip.contains($0) }, allNames: Array(zip.entries.keys))
+        for i in wb.sheets.indices {
+            wb.sheets[i].images = drawn.images[i] + wb.sheets[i].images
+            wb.sheets[i].charts = drawn.charts[i] + wb.sheets[i].charts
+        }
         if options.preservesUnknownParts {
-            for name in zip.entries.keys where !interpretedParts.contains(name) && !name.hasSuffix("/") && !name.hasPrefix("Thumbnails/") {
+            for name in zip.entries.keys where !interpretedParts.contains(name) && !name.hasSuffix("/") && !name.hasPrefix("Thumbnails/") && !drawn.consumed.contains(name) {
                 let (payload, entry) = try zip.compressed(name)
                 wb.preserved.parts[name] = .compressed(payload: payload, method: entry.method, crc32: entry.crc32, uncompressedSize: entry.uncompressedSize)
                 if let mt = manifest.mediaTypes[name] { wb.preserved.contentTypeOverrides[name] = mt }
             }
         }
 
-        var warnings = content.warnings
+        var warnings = content.warnings + drawn.warnings
         for ds in catalog.unmappedDataStyles {
             warnings.append(ConversionWarning(.degraded, message: "data style \(ds) has no Excel number-format equivalent; General used"))
         }
@@ -237,6 +244,12 @@ final class ContentParser: SAXHandler {
     private var rowHasValidation = false
     private var cellCursor = 1
 
+    // drawing frames (B.72): collected as content.xml names them, resolved against the package afterwards
+    var frames: [ODSFrame] = []
+    private var frame: ODSFrame?
+    private var frameDepth = 0
+    private var inShapes = false
+
     // cell state
     private var inCell = false
     private var cellAttrs: [String: String] = [:]
@@ -324,9 +337,25 @@ final class ContentParser: SAXHandler {
         if sectionDepth > 0 { sectionDepth += 1; catalog.start(name, a); return }
         if depth == 2, ContentParser.sections.contains(name) { sectionDepth = 1; return }
         if skipDepth > 0 { skipDepth += 1; return }
+        if frameDepth > 0 {
+            // inside a draw:frame: the picture or the object it holds, and nothing else
+            frameDepth += 1
+            if name == "image", frame?.imageHref == nil { frame?.imageHref = ODSAttr.get(a, "xlink:href") }
+            if name == "object", frame?.objectHref == nil { frame?.objectHref = ODSAttr.get(a, "xlink:href") }
+            return
+        }
+        if name == "frame", inTable, inCell || inShapes {
+            let cm = { (key: String) -> Double? in ODSAttr.get(a, key).flatMap(ODSLength.millimetres).map { $0 / 10 } }
+            frame = ODSFrame(sheetIndex: sheets.count, cell: inCell ? CellRef(row: rowCursor, column: cellCursor) : nil,
+                             width: cm("svg:width"), height: cm("svg:height"), x: cm("svg:x"), y: cm("svg:y"),
+                             endCell: ODSAttr.get(a, "table:end-cell-address"), endX: cm("table:end-x"), endY: cm("table:end-y"))
+            frameDepth = 1
+            return
+        }
         if inCell, cellText.start(name, a) { return }
 
         switch name {
+        case "shapes" where inTable: inShapes = true
         case "spreadsheet":
             if ODSAttr.bool(a, "table:structure-protected") == true { structureProtected = true }
         case "table":
@@ -578,7 +607,7 @@ final class ContentParser: SAXHandler {
             unmodelledODF.insert(.trackedChanges); skipDepth = 1
         case "dde-links":
             unmodelledODF.insert(.ddeLinks); skipDepth = 1
-        case "frame", "shapes", "forms", "custom-shape", "control", "g":
+        case "frame", "forms", "custom-shape", "control", "g":
             skipDepth = 1
         case _ where ContentParser.transparent.contains(name):
             if name == "table-row-group" { groupDepth += 1 }
@@ -588,7 +617,7 @@ final class ContentParser: SAXHandler {
 
     func text(_ s: String) {
         if sectionDepth > 1 { catalog.text(s); return }
-        guard skipDepth == 0 else { return }
+        guard skipDepth == 0, frameDepth == 0 else { return }
         if validationMessage != nil, inValidationParagraph { messageText += s; return }
         if inCell { cellText.text(s) }
     }
@@ -597,6 +626,12 @@ final class ContentParser: SAXHandler {
         defer { depth -= 1 }
         if sectionDepth > 0 { sectionDepth -= 1; if sectionDepth > 0 { catalog.end(name) }; return }
         if skipDepth > 0 { skipDepth -= 1; return }
+        if frameDepth > 0 {
+            frameDepth -= 1
+            if frameDepth == 0, let frame { frames.append(frame); self.frame = nil }
+            return
+        }
+        if name == "shapes", inShapes { inShapes = false; return }
         if inCell, cellText.end(name) { return }
         switch name {
         case "p":

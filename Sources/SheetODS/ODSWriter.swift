@@ -244,6 +244,7 @@ enum ODSWriter {
         "calcext": "urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0",
         "loext": "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0",
         "tableooo": "http://openoffice.org/2009/table",
+        "chart": "urn:oasis:names:tc:opendocument:xmlns:chart:1.0",
     ]
     static func ns(_ prefixes: [String]) -> String { prefixes.map { " xmlns:\($0)=\"\(namespaces[$0]!)\"" }.joined() }
 
@@ -276,10 +277,31 @@ enum ODSWriter {
         // because the cells name the parts
         let taken: Set<String> = wb.preserved.sourceFormat == .ods ? Set(wb.preserved.parts.keys) : []
         var pictures: [ODSPicture] = []
-        var framesBySheet: [[CellRef: [ODSPicture]]] = []
-        var pictureNumber = 0
+        var chartObjects: [ODSDrawing.ChartObject] = []
+        var framesBySheet: [[CellRef: String]] = []
+        var shapesBySheet: [String] = []
+        var pictureNumber = 0, objectNumber = 0
         for sheet in wb.sheets {
-            var frames: [CellRef: [ODSPicture]] = [:]
+            var pictureFrames: [CellRef: [ODSPicture]] = [:]
+            var frames: [CellRef: String] = [:]
+            var shapes: [ODSPicture] = []
+            // charts become chart documents under Object N/ (B.72), numbered past whatever a source ODS brought
+            for (z, chart) in sheet.charts.enumerated() {
+                guard chart.kind.isDrawable || chart.kind.rawValue.hasPrefix("chart:") else {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart was not written: the writer draws column, bar, line and pie charts")
+                    continue
+                }
+                guard !chart.series.isEmpty, chart.anchor != nil else {
+                    sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart with no series was not written")
+                    continue
+                }
+                repeat { objectNumber += 1 } while taken.contains { $0.hasPrefix("Object \(objectNumber)/") }
+                let object = ODSDrawing.ChartObject(chart: chart, directory: "Object \(objectNumber)", number: objectNumber, zIndex: sheet.images.count + z)
+                chartObjects.append(object)
+                var anchor = object.anchor
+                if let merge = sheet.table.merges.first(where: { $0.contains(anchor) && $0.topLeft != anchor }) { anchor = merge.topLeft }
+                frames[anchor, default: ""] += ODSDrawing.frameXML(object, in: sheet)
+            }
             for (z, image) in sheet.images.enumerated() {
                 // the number steps past any Pictures/imageN.* the source brought, whatever its extension
                 repeat { pictureNumber += 1 } while taken.contains { $0.hasPrefix("Pictures/image\(pictureNumber).") }
@@ -288,18 +310,22 @@ enum ODSWriter {
                 pictures.append(picture)
                 // a cell inside a merge is written as a covered cell, which holds nothing: a picture anchored there
                 // moves to the merge's first cell, as LibreOffice moves it
+                // a picture at a fixed position is one of the sheet's shapes (table:shapes), not a cell's (B.72)
+                if case .absolute = image.anchor { shapes.append(picture); continue }
                 var anchor = picture.anchor
                 if let merge = sheet.table.merges.first(where: { $0.contains(anchor) && $0.topLeft != anchor }) { anchor = merge.topLeft }
-                frames[anchor, default: []].append(picture)
+                pictureFrames[anchor, default: []].append(picture)
             }
+            for (anchor, list) in pictureFrames { frames[anchor, default: ""] += ODSPicture.framesXML(list, in: sheet) }
             framesBySheet.append(frames)
+            shapesBySheet.append(shapes.isEmpty ? "" : "<table:shapes>" + ODSPicture.framesXML(shapes, in: sheet) + "</table:shapes>")
         }
         let body = TextSpill()
         body.write(ODSFeatures.calculationSettingsXML(wb))
         body.write(ODSValidation.xml(wb, names: &validationNames, sink: sink))
         body.write(ODSFeatures.labelRangesXML(wb, sink: sink))
         for (i, sheet) in wb.sheets.enumerated() {
-            tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [], frames: framesBySheet[i],
+            tableXML(sheet, masterPage: pageNames[i], validations: validationNames[i] ?? [], frames: framesBySheet[i], shapes: shapesBySheet[i],
                      styles: styles, conditionalStyles: conditionalStyles, sink: sink, into: body)
         }
         body.write(namedExpressionsXML(wb.definedNames, baseSheet: wb.sheets[0].name))
@@ -340,9 +366,6 @@ enum ODSWriter {
             }
             if sheet.hasUnmodelledValidations {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name, "a data validation the model could not read is dropped: ODS is regenerated, not patched")
-            }
-            if !sheet.charts.isEmpty {
-                sink.add(.dropped, subject: .objects, sheet: sheet.name, "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into ODS is not implemented yet (write .xlsx to keep them)")
             }
             let controls = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.control != nil }.count }
             if controls > 0 {
@@ -393,7 +416,7 @@ enum ODSWriter {
 
         let archive = ZipWriter()
         archive.add("mimetype", Data(mimeType.utf8), stored: true)
-        archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides, pictures: pictures).utf8))
+        archive.add("META-INF/manifest.xml", Data(manifestXML(opaque: opaque, mediaTypes: preserved.contentTypeOverrides, pictures: pictures, charts: chartObjects).utf8))
         // the body — most of the document — goes to the compressor in slices rather than as one more copy
         try archive.beginEntry("content.xml")
         try archive.write(contentHead)
@@ -410,6 +433,11 @@ enum ODSWriter {
         archive.add("settings.xml", Data(settingsXML(wb).utf8))
         for name in opaque.keys.sorted() { archive.add(name, part: opaque[name]!) }
         for picture in pictures { archive.add(picture.href, picture.image.data) }
+        for object in chartObjects {
+            let sheet = wb.sheets.first { $0.charts.contains(object.chart) }
+            let size = ODSDrawing.rangeSize(object.chart.anchor ?? CellRange(object.anchor), in: sheet ?? wb.sheets[0])
+            archive.add(object.contentPath, Data(ODSDrawing.contentXML(object.chart, sheetName: sheet?.name ?? wb.sheets[0].name, size: size).utf8))
+        }
 
         let warnings = sink.warnings
         return WriteResult(data: archive.finish(), warnings: warnings, suggestion: WriteResult.suggest(from: warnings, target: .ods, options: options))
@@ -423,12 +451,17 @@ enum ODSWriter {
         return names.map { "<style:font-face style:name=\"\(XML.esc($0))\" svg:font-family=\"\(XML.esc($0.contains(" ") ? "'" + $0 + "'" : $0))\"/>" }.joined()
     }
 
-    static func manifestXML(opaque: [String: OpaquePart], mediaTypes: [String: String], pictures: [ODSPicture] = []) -> String {
+    static func manifestXML(opaque: [String: OpaquePart], mediaTypes: [String: String], pictures: [ODSPicture] = [],
+                            charts: [ODSDrawing.ChartObject] = []) -> String {
         var s = xmlHeader + "<manifest:manifest" + ns(["manifest"]) + " manifest:version=\"1.3\">"
         s += "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.3\" manifest:media-type=\"\(mimeType)\"/>"
         for p in ["content.xml", "styles.xml", "meta.xml", "settings.xml"] { s += "<manifest:file-entry manifest:full-path=\"\(p)\" manifest:media-type=\"text/xml\"/>" }
         for name in opaque.keys.sorted() {
             s += "<manifest:file-entry manifest:full-path=\"\(XML.esc(name))\" manifest:media-type=\"\(XML.esc(mediaTypes[name] ?? ""))\"/>"
+        }
+        for object in charts {
+            s += "<manifest:file-entry manifest:full-path=\"\(XML.esc(object.directory))/\" manifest:media-type=\"\(ODSDrawing.chartMediaType)\"/>"
+            s += "<manifest:file-entry manifest:full-path=\"\(XML.esc(object.contentPath))\" manifest:media-type=\"text/xml\"/>"
         }
         for p in pictures {
             s += "<manifest:file-entry manifest:full-path=\"\(XML.esc(p.href))\" manifest:media-type=\"\(p.image.format.contentType)\"/>"
@@ -650,7 +683,7 @@ enum ODSWriter {
     // MARK: - Tables
 
     static func tableXML(_ sheet: Sheet, masterPage: String, validations: [(ranges: MultiCellRange, name: String)],
-                         frames: [CellRef: [ODSPicture]] = [:],
+                         frames: [CellRef: String] = [:], shapes: String = "",
                          styles: ODSStyleRegistry, conditionalStyles: ODSConditionalStyleRegistry,
                          sink: ODSWarningSink, into out: TextSpill) {
         let t = sheet.table
@@ -709,7 +742,7 @@ enum ODSWriter {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
             s += " table:print-ranges=\"\(XML.esc(sheet.printArea.map { "\(prefix).\($0.topLeft.address):\(prefix).\($0.bottomRight.address)" }.joined(separator: " ")))\""
         }
-        s += ">"
+        s += ">" + shapes   // the sheet's own shapes come first (ODF 1.3 §9.1.2: table:shapes precedes the columns)
         if sheet.protection.enabled {
             s += "<loext:table-protection loext:select-protected-cells=\"\(sheet.protection.allowsSelectingLockedCells)\""
             s += " loext:select-unprotected-cells=\"\(sheet.protection.allowsSelectingUnlockedCells)\"/>"
@@ -776,7 +809,7 @@ enum ODSWriter {
                     // an anchor with no cell of its own still has to be written: the span, or the picture, hangs on it
                     s += cellXML(cell, at: ref, merge: anchors[ref], matrix: t.arrayFormulas[ref], validation: validationName(ref),
                                  detective: t.detective[ref], sheet: sheet.name, styles: styles, sink: sink,
-                                 frames: frames[ref].map { ODSPicture.framesXML($0, in: sheet) } ?? "")
+                                 frames: frames[ref] ?? "")
                     c += 1
                 } else {
                     let rule = validationName(ref)

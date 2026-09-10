@@ -54,8 +54,8 @@ public struct Chart: Hashable, Sendable {
         self.kind = kind; self.title = title
     }
 
-    public mutating func addSeries(values: String, categories: String? = nil, name: String? = nil) {
-        series.append(Series(values: values, categories: categories, name: name))
+    public mutating func addSeries(values: String, categories: String? = nil, name: String? = nil, nameReference: String? = nil) {
+        series.append(Series(values: values, categories: categories, name: name, nameReference: nameReference))
     }
 }
 
