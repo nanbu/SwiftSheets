@@ -109,7 +109,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <p>「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。</p>
 <div class="grid">
 <div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○50 △9 ▣15 ×1 ／ 書き ○50 △9 ▣15 ×1<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○38 △13 ▣0 ×2 ／ 書き ○34 △11 ▣0 ×12<br>公開仕様あり</div></div>
+<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○39 △13 ▣0 ×2 ／ 書き ○35 △11 ▣0 ×11<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○21 △12 ▣0 ×10 ／ 書き ○18 △9 ▣0 ×28<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
@@ -166,7 +166,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td class="m">—</td><td>その形式に概念がない</td></tr>
 <tr><td class="m h">?</td><td>実測していない。推測で ○ × を書かないための欄</td></tr>
 </tbody></table></div>
-<p>「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 10 件 / numbers 23 件）。</p>
+<p>「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 8 件 / numbers 23 件）。</p>
 </section>
 <section>
 <h2>各行の根拠</h2>
@@ -191,8 +191,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <thead><tr><th>形式</th><th>向き</th><th class="m">○</th><th class="m">△</th><th class="m">▣</th><th class="m">×</th><th class="m">—</th><th class="m">?</th><th class="m">行数</th></tr></thead><tbody>
 <tr><td>Excel（.xlsx / .xlsm）</td><td>読み</td><td class="m">50</td><td class="m">9</td><td class="m">15</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">50</td><td class="m">9</td><td class="m">15</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">38</td><td class="m">13</td><td class="m">0</td><td class="m">2</td><td class="m">6</td><td class="m">0</td><td class="m">59</td></tr>
-<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">34</td><td class="m">11</td><td class="m">0</td><td class="m">12</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">39</td><td class="m">13</td><td class="m">0</td><td class="m">2</td><td class="m">5</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">35</td><td class="m">11</td><td class="m">0</td><td class="m">11</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">21</td><td class="m">12</td><td class="m">0</td><td class="m">10</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">18</td><td class="m">9</td><td class="m">0</td><td class="m">28</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
 </tbody></table></div>
@@ -373,7 +373,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>別の文書から取り込んだ範囲</td><td class="m h">△</td><td class="m n">×</td><td><code>table:cell-range-source</code></td><td><code>UnmodelledODFFeatures.linkedRange</code></td><td><strong>言うこと</strong>: 同上 <span class="chip">コード確認</span></td></tr>
 <tr><td>描画オブジェクト（グラフ・図形・テキストボックス）</td><td class="m h">△</td><td class="m h">△</td><td><code>draw:frame, draw:object, draw:custom-shape</code></td><td><code>sheet.charts</code> <code>sheet.addChart(_:over:)</code> <code>Chart.Kind</code></td><td><strong>言うこと</strong>: 描けない種類のグラフは「a … chart was not written: the writer draws column, bar, line and pie charts」／図形・テキストボックスは読まない グラフ: draw:object が指す Object N/content.xml（ODF のグラフ文書）を全種読み（chart:bar＋chart:vertical → column / bar、chart:line、chart:circle → pie、他は class を raw に）、4 種を chart 文書として書く（B.73）。LibreOffice は書いたグラフを XLSX へ運ぶ（gated テスト）。図形・テキストボックスは読み飛ばしたまま。 <span class="chip">実測</span></td></tr>
 <tr><td>シナリオ</td><td class="m n">×</td><td class="m n">×</td><td><code>table:scenario</code></td><td><code>sheet.scenarios</code></td><td><strong>言うこと</strong>: 「N scenario(s) dropped: an ODF scenario is a whole shadow sheet …」 ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増えてしまうので書かない。 <span class="chip">実測</span></td></tr>
-<tr><td>タブの色</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.tabColor</code></td><td><strong>言うこと</strong>: 「the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」 <span class="chip">実測</span></td></tr>
+<tr><td>タブの色</td><td class="m y">○</td><td class="m y">○</td><td><code>style:table-properties@table:tab-color</code></td><td><code>sheet.tabColor</code></td><td>ODF 1.3 の table:tab-color（LibreOffice 26.2 が書く物と同じ属性。古い tableooo:tab-color も読む）。テーマ色・indexed 色は書く前に RGB へ解決する（B.74）。 <span class="chip">実測</span></td></tr>
 <tr class="group"><td colspan="6">大きなファイル</td></tr>
 <tr><td>行ごとの読み出し（全体をメモリに載せない）</td><td class="m h">△</td><td class="m">—</td><td><code>content.xml の逐次解析</code></td><td><code>StreamingReader(contentsOf:)</code> <code>ODSStreamingReader</code> <code>forEachRow(inSheet:)</code> <code>rows(inSheet:)</code></td><td><strong>言うこと</strong>: なし（値と書式だけと明記） 本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。 <span class="chip">実測</span></td></tr>
 <tr><td>行ごとの書き出し</td><td class="m">—</td><td class="m h">△</td><td><code>content.xml（office:automatic-styles が表より前）</code></td><td><code>StreamingWriter(to:)</code> <code>ODSStreamingWriter</code> <code>append(_:)</code> <code>close()</code> <code>warnings</code></td><td><strong>言うこと</strong>: ODF に無い書式・色は全載せの書き手と同じ警告 行は来るたびに XML にして退避し（8 MiB までメモリ・超えたら一時ファイル）、close で様式の後ろに流す。メモリは行数によらず数 MB、ディスクに本文 1 回分。値と書式だけ。付録 B.42。 <span class="chip">実測</span></td></tr>

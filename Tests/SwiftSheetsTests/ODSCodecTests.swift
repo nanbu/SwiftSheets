@@ -752,4 +752,41 @@ import SwiftSheets
         #expect(back.rowDimension(4).hidden)
         #expect(back.rowDimension(6).outlineLevel == 0)
     }
+
+    // MARK: - tab colour (spec Appendix B.74)
+
+    /// The tab colour is `table:tab-color` on the table style — the attribute LibreOffice writes — and a theme
+    /// colour is resolved to RGB before it is written, so nothing about the tab is reported any more.
+    @Test func theTabColourIsWrittenAndReadBack() throws {
+        var wb = Workbook()
+        wb.sheets[0].name = "Red"
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].tabColor = Color(hex: "FF0000")
+        wb.sheets.append(Sheet(name: "Themed"))
+        wb.sheets[1].tabColor = .theme(4)
+        let result = try wb.write(as: .ods)
+        #expect(!result.warnings.contains { $0.message.contains("tab colour") }, "\(result.warnings.map(\.message))")
+        let content = try Package.part("content.xml", of: result.data)
+        #expect(content.contains("table:tab-color=\"#ff0000\""))
+        #expect(content.contains("table:tab-color=\"#4472c4\""), "the theme colour is written resolved")
+        let back = try Workbook.read(result.data, format: .ods).workbook
+        #expect(back.sheets[0].tabColor == .rgb("FFFF0000"))
+        #expect(back.sheets[1].tabColor == .rgb("FF4472C4"))
+        #expect(back.sheets[0].name == "Red")
+    }
+
+    /// LibreOffice reads the attribute the writer produces: converting the ODS to XLSX puts a `<tabColor>` on the sheet.
+    @Test(.enabled(if: ODSCodecTests.hasLibreOffice, "LibreOffice is not installed at \(ODSCodecTests.soffice)"))
+    func libreOfficeCarriesTheTabColourToXLSX() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = 1
+        wb.sheets[0].tabColor = Color(hex: "00A0FF")
+        let file = Self.tmp.appendingPathComponent("tab-colour.ods")
+        try wb.write(to: file, as: .ods)
+        let (xlsx, _) = try convert(file, to: "xlsx")
+        let sheet = try Package.part("xl/worksheets/sheet1.xml", of: Data(contentsOf: xlsx))
+        #expect(sheet.contains("<tabColor rgb=\"FF00A0FF\""), "LibreOffice wrote: \(sheet.prefix(400))")
+        let back = try Workbook(contentsOf: xlsx)
+        #expect(back.sheets[0].tabColor == .rgb("FF00A0FF"))
+    }
 }

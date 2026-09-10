@@ -317,6 +317,15 @@ final class ODSStyleCatalog {
         return d.isEmpty ? nil : d
     }
 
+    /// The tab colour of a table style — `table:tab-color` (ODF 1.3) or the `tableooo:tab-color` LibreOffice wrote
+    /// before that name existed.
+    func tableTabColor(_ styleName: String?) -> Color? {
+        guard let n = styleName, let s = styles[n],
+              let v = ODSAttr.get(s.table, "table:tab-color") ?? ODSAttr.get(s.table, "tableooo:tab-color"),
+              v.hasPrefix("#") else { return nil }
+        return Color(hex: v)
+    }
+
     func isTableHidden(_ styleName: String?) -> Bool {
         guard let n = styleName, let s = styles[n] else { return false }
         return ODSAttr.bool(s.table, "table:display") == false

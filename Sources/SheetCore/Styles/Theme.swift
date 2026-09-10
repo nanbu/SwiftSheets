@@ -118,6 +118,7 @@ extension Workbook {
         wb.differentialStyles = differentialStyles.map(resolved)
         for si in wb.sheets.indices {
             var sheet = wb.sheets[si]
+            if let tab = sheet.tabColor, isUnresolved(tab) { sheet.tabColor = resolved(tab) }
             for ti in sheet.tables.indices {
                 var table = sheet.tables[ti]
                 for (ref, cell) in table.cells {

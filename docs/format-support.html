@@ -125,7 +125,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
     <div class="sub">表計算の仕掛けは全部通ります。通らない 7 件は、Numbers か OpenDocument にしか無い考え方です。</div>
   </div>
   <div class="card score">
-    <div class="num">42<small> / 48</small></div>
+    <div class="num">43<small> / 48</small></div>
     <div class="lab">ODS（OpenDocument）</div>
     <div class="sub">Excel より 1 つ多く通ります。落とす 6 件と拾う 7 件が違うだけで、優劣ではありません。</div>
   </div>
@@ -177,13 +177,13 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="345" y="150" width="210" height="200" rx="14" class="sv-card"/>
   <text x="450" y="178" class="sv-tb" text-anchor="middle">ODS</text>
   <rect x="365" y="192" width="170" height="18" rx="5" class="sv-soft"/>
-  <rect x="365" y="192" width="148" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="439" y="205" class="sv-inv" text-anchor="middle">42 / 48</text>
-  <text x="365" y="238" class="sv-t2">Excel より 1 つ多い（拾う物が違う）</text>
+  <rect x="365" y="192" width="152" height="18" rx="5" class="sv-accent" opacity="0.85"/>
+  <text x="441" y="205" class="sv-inv" text-anchor="middle">43 / 48</text>
+  <text x="365" y="238" class="sv-t2">Excel より 2 つ多い（拾う物が違う）</text>
   <text x="365" y="260" class="sv-t2">条件付き書式は拡張名前空間</text>
   <text x="365" y="282" class="sv-t2">ピボット表 = データパイロット</text>
   <text x="365" y="312" class="sv-t3">通らない: 保護範囲・シナリオ・</text>
-  <text x="365" y="332" class="sv-t3">タブ色・セルの制御</text>
+  <text x="365" y="332" class="sv-t3">セルの制御・複数の表</text>
 
   <!-- numbers -->
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
@@ -244,7 +244,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
   <td>ODF は階層を <code>table:table-row-group</code> の入れ子で表します</td></tr>
 <tr><td>ウィンドウ枠の固定</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers ではヘッダ行／ヘッダ列がそれに当たります</td></tr>
-<tr><td>タブ色</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td><td>ODF 1.3 に無く、LibreOffice も同じ変換で落とします</td></tr>
+<tr><td>タブ色</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF 1.3 の <code>table:tab-color</code>。LibreOffice が書く物と同じ属性で、テーマ色は RGB に解決して書きます</td></tr>
 
 <tr class="group"><td colspan="5">条件付き書式（この改訂の最優先）</td></tr>
 <tr><td>比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間</td>
@@ -523,7 +523,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>落としたものは、必ず言う</h2>
 <p>
   この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 7 件・ODS 9 件・Numbers 23 件です。
+  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 7 件・ODS 8 件・Numbers 23 件です。
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)

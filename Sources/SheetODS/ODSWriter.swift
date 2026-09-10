@@ -31,7 +31,7 @@ final class ODSStyleRegistry {
     private var texts: [Font: String] = [:]
     private(set) var textOrder: [(name: String, font: Font)] = []
     private var tables: [String: String] = [:]
-    private(set) var tableOrder: [(name: String, display: Bool, masterPage: String)] = []
+    private(set) var tableOrder: [(name: String, display: Bool, masterPage: String, tabColor: String?)] = []
 
     /// The automatic text style of one run of a rich-text cell (`style:family="text"`).
     func text(_ font: Font) -> String {
@@ -43,11 +43,11 @@ final class ODSStyleRegistry {
     }
 
     /// The automatic table style naming a sheet's master page (its print setup) and whether the sheet is shown.
-    func table(display: Bool, masterPage: String) -> String {
-        let key = "\(display)|\(masterPage)"
+    func table(display: Bool, masterPage: String, tabColor: String? = nil) -> String {
+        let key = "\(display)|\(masterPage)|\(tabColor ?? "")"
         if let n = tables[key] { return n }
         let n = "ta\(tableOrder.count + 1)"
-        tables[key] = n; tableOrder.append((n, display, masterPage))
+        tables[key] = n; tableOrder.append((n, display, masterPage, tabColor))
         return n
     }
 
@@ -122,7 +122,9 @@ final class ODSStyleRegistry {
         }
         for t in tableOrder {
             s += "<style:style style:name=\"\(t.name)\" style:family=\"table\" style:master-page-name=\"\(t.masterPage)\">"
-            s += "<style:table-properties table:display=\"\(t.display)\" style:writing-mode=\"lr-tb\"/></style:style>"
+            s += "<style:table-properties table:display=\"\(t.display)\" style:writing-mode=\"lr-tb\""
+            if let c = t.tabColor { s += " table:tab-color=\"\(c)\"" }
+            s += "/></style:style>"
         }
         for t in textOrder {
             s += "<style:style style:name=\"\(t.name)\" style:family=\"text\"><style:text-properties\(textPropertiesXML(t.font))/></style:style>"
@@ -354,9 +356,6 @@ enum ODSWriter {
             }
             if !sheet.protectedRanges.isEmpty {
                 sink.add(.dropped, subject: .other, sheet: sheet.name, "\(sheet.protectedRanges.count) protected range(s) dropped: ODF protects a whole table, with no windows left open in it")
-            }
-            if sheet.tabColor != nil {
-                sink.add(.dropped, subject: .formatting, sheet: sheet.name, "the tab colour is dropped: ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)")
             }
             for table in sheet.structuredTables where table.styleInfo != nil {
                 sink.add(.degraded, subject: .tables, sheet: sheet.name, "named table \(table.name) written as an ODF database range: its banded-row style is not carried")
@@ -736,7 +735,12 @@ enum ODSWriter {
                               sheet.columnBreaks.max() ?? 0, frameMaxCol)
         let nrows = Swift.max(1, t.rowCount, t.rowDimensions.keys.max() ?? 0, mergeMaxRow, validationMaxRow,
                               sheet.rowBreaks.max() ?? 0, frameMaxRow)
-        var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage))\""
+        var tabNonRGB = false
+        let tabColor = sheet.tabColor.map { ODSColor.hex($0, nonRGB: &tabNonRGB) }
+        if tabNonRGB {
+            sink.add(.degraded, subject: .formatting, sheet: sheet.name, "the tab colour is not an RGB colour the workbook's theme can resolve; it is written black")
+        }
+        var s = "<table:table table:name=\"\(XML.esc(sheet.name))\" table:style-name=\"\(styles.table(display: sheet.state == .visible, masterPage: masterPage, tabColor: tabColor))\""
         if sheet.protection.enabled { s += " table:protected=\"true\"" }
         if !sheet.printArea.isEmpty {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())

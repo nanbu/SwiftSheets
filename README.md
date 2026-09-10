@@ -160,7 +160,7 @@ kinds survive a write and a read back, and LibreOffice rebuilds every one of the
 XLSX. Alongside them: data validations, the print setup (margins, orientation, scaling, headers and footers, page
 breaks, print area and repeated title rows), sheet protection, array-formula ranges, named tables and what an
 auto-filter lets through, and pivot tables as ODF data pilots. What ODF cannot say — scenarios (an ODF scenario is
-a whole shadow sheet), unprotected windows inside a protected sheet, tab colours, formatting runs inside one cell —
+a whole shadow sheet), unprotected windows inside a protected sheet, formatting runs inside one cell —
 is reported, never dropped in silence.
 
 ### Numbers: what is and is not there

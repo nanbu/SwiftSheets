@@ -376,6 +376,7 @@ final class ContentParser: SAXHandler {
             var s = Sheet(name: tableName)
             let styleName = ODSAttr.get(a, "table:style-name")
             if catalog.isTableHidden(styleName) { s.state = .hidden }
+            s.tabColor = catalog.tableTabColor(styleName)
             tableStyleNames.append(styleName ?? "")
             if ODSAttr.bool(a, "table:protected") == true { s.protection.enabled = true }
             if let ranges = ODSAttr.get(a, "table:print-ranges") {

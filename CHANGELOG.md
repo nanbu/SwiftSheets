@@ -7,6 +7,15 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **ODS carries the tab colour.** `sheet.tabColor` is written as `table:tab-color` on the table style — the
+  attribute ODF 1.3 defines and LibreOffice writes — and read back; a theme colour is resolved to RGB first. The
+  "ODF 1.3 has no tab colour" warning is gone, and the all-features workbook now returns 8 warnings for ODS, not 9
+  (spec Appendix B.74).
+
 ## [0.25.0] — 2026-09-11
 
 What the model could not read from a file until now, it reads: an XLSX file's pictures, charts, theme and furigana,
@@ -1234,6 +1243,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...HEAD
 [0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/nanbu/SwiftSheets/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/nanbu/SwiftSheets/compare/0.22.0...0.23.0

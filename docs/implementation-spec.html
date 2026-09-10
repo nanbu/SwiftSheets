@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.65 Draft</td><td>2026-09-11</td><td>ODS のタブの色。<code>style:table-properties@table:tab-color</code>（ODF 1.3・LibreOffice が書く属性）を読み書きし、「ODF 1.3 has no tab colour」の警告を退ける。テーマ色は書く前に RGB へ解決する（B.74）。</td></tr>
     <tr><td>4.64 Draft</td><td>2026-09-11</td><td>ODS の絵とグラフを読み、グラフを書く。セルと table:shapes の draw:frame を <code>sheet.images</code> に、Object N/ のグラフ文書を <code>sheet.charts</code> に読み、両方を新しい部品として書き戻す。<code>addChart</code> は ODS にも書ける（B.73）。</td></tr>
     <tr><td>4.63 Draft</td><td>2026-09-11</td><td>XLSX の絵とグラフを読む。drawing 部品の錨と media・chart 部品を <code>sheet.images</code> / <code>sheet.charts</code> に。触らなければバイトのまま・足せば継ぎ足し・変えれば作り直して言う。<code>SheetImage.Anchor.absolute</code>・<code>Chart.Series.nameReference</code> を追加（B.72）。</td></tr>
     <tr><td>4.62 Draft</td><td>2026-09-11</td><td>テーマを読む。<code>Workbook.theme: Theme?</code>（12 色・2 書体）と <code>wb.rgb(of:)</code>（テーマ色の濃淡・索引色の解決）。触らないテーマ部品はバイトのまま、変えれば同じパスに作り直す。ODS・Numbers の書き手は解決した RGB を書く（B.71）。</td></tr>
@@ -6738,6 +6739,22 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   絵 3 種の錨の往復と部品の帰属・<strong>LibreOffice が書いたグラフを XLSX へ運ぶ</strong>（gated）。<code>ODSCodecTests</code> の Object 1 の主張と
   <code>ODSImageTests.namesStepPastThePartsASourceODSBroughtAlong</code>、<code>ChartTests.emptyChartsAndOtherFormatsSpeakUp</code> は新しい契約
   （絵とグラフは模型の物・ODS はグラフを書く）に書き換えた。</p>
+</section>
+
+<section>
+  <h3>B.74 ODS のタブの色（Rev 4.65）</h3>
+  <p>2026-09-11 決定。ODS の書き手は <code>sheet.tabColor</code> を「ODF 1.3 has no tab colour (LibreOffice drops it on the same conversion)」と落としていた。
+  これは古い実測で、ODF 1.3 §20.400 には <code>table:tab-color</code>（<code>style:table-properties</code> の属性）があり、LibreOffice 26.2.3 は
+  Excel の <code>&lt;tabColor rgb="FFFF0000"/&gt;</code> を <code>table:tab-color="#ff0000"</code> に変換し、その ODS を XLSX に戻すと同じ
+  <code>&lt;tabColor&gt;</code> が出る（2026-09-11 実測・B.17 の検体と同じ手順）。落とす理由が無いので読み書きする。</p>
+  <p><strong>読み。</strong><code>ODSStyleCatalog.tableTabColor</code> が表の様式の <code>table:tab-color</code>（無ければ、その名が入る前に LibreOffice が書いていた
+  <code>tableooo:tab-color</code>）を <code>#rrggbb</code> から <code>Color</code> にして <code>Sheet.tabColor</code> へ。<code>#</code> で始まらない値は読まない。</p>
+  <p><strong>書き。</strong>表の様式（<code>ta1</code>…）の鍵に色を加え、<code>table:tab-color="#rrggbb"</code> を書く。色は <code>write(_ source:)</code> の
+  <code>resolvingColors()</code>（B.71）が <code>sheet.tabColor</code> も解決するので、テーマ色・indexed 色は RGB で着地する。解決できない色（テーマの無い
+  indexed の範囲外など）だけ degraded で言い、黒を書く。落とす警告は退けたので、<code>FormatSupportTests</code> の ODS の件数は 9 から 8 になり、
+  <code>expectedLosses[.ods]</code> から「タブ色」が抜ける。Numbers は従来どおり落として言う（タブに色が無い）。</p>
+  <p><strong>検査。</strong><code>ODSCodecTests.theTabColourIsWrittenAndReadBack</code>（RGB とテーマ色の 2 シートを書いて属性を確かめ、読み戻す）と
+  <code>libreOfficeCarriesTheTabColourToXLSX</code>（gated: 書いた ODS を LibreOffice で XLSX にして <code>&lt;tabColor&gt;</code> が出る）。</p>
 </section>
 
 </div><!-- /.container -->
