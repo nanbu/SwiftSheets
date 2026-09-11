@@ -110,7 +110,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <div class="grid">
 <div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○53 △10 ▣11 ×1 ／ 書き ○53 △9 ▣12 ×1<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○39 △13 ▣0 ×2 ／ 書き ○36 △10 ▣0 ×11<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○22 △13 ▣0 ×8 ／ 書き ○19 △10 ▣0 ×26<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
+<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○22 △14 ▣0 ×8 ／ 書き ○19 △11 ▣0 ×25<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
 <section>
@@ -166,7 +166,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td class="m">—</td><td>その形式に概念がない</td></tr>
 <tr><td class="m h">?</td><td>実測していない。推測で ○ × を書かないための欄</td></tr>
 </tbody></table></div>
-<p>「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 8 件 / numbers 23 件）。</p>
+<p>「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 8 件 / numbers 24 件）。</p>
 </section>
 <section>
 <h2>各行の根拠</h2>
@@ -193,8 +193,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">53</td><td class="m">9</td><td class="m">12</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">39</td><td class="m">13</td><td class="m">0</td><td class="m">2</td><td class="m">5</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">36</td><td class="m">10</td><td class="m">0</td><td class="m">11</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">22</td><td class="m">13</td><td class="m">0</td><td class="m">8</td><td class="m">16</td><td class="m">0</td><td class="m">59</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">19</td><td class="m">10</td><td class="m">0</td><td class="m">26</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">22</td><td class="m">14</td><td class="m">0</td><td class="m">8</td><td class="m">15</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">19</td><td class="m">11</td><td class="m">0</td><td class="m">25</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
 </tbody></table></div>
 <p class="meta">「—」はその形式に概念が無い行です。Numbers に「—」が多いのは能力差ではなく、Excel・OpenDocument 側の機能を並べた行に Numbers 側の対応物が無い、という意味です。</p>
 </section>
@@ -448,7 +448,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr class="group"><td colspan="6">保護・印刷・その他</td></tr>
 <tr><td>書類のパスワード保護（書き出し側）</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.protection</code></td><td><strong>言うこと</strong>: 「workbook protection is dropped: Numbers locks a document with a password, which this writer does not set」 <span class="chip">実測</span></td></tr>
 <tr><td>シートの保護・保護範囲</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.protection</code> <code>sheet.protectedRanges</code></td><td><strong>言うこと</strong>: 「sheet protection is dropped: Numbers protects a whole document, not a sheet」ほか <span class="chip">実測</span></td></tr>
-<tr><td>印刷（用紙・向き・余白・ヘッダー／フッター・印刷範囲・改ページ）</td><td class="m">—</td><td class="m n">×</td><td><code>TN.CommandSetPrinterMarginsArchive ほか</code></td><td><code>sheet.pageSetup</code> <code>sheet.headerFooter</code> <code>sheet.printArea</code> <code>sheet.rowBreaks</code></td><td><strong>言うこと</strong>: 「the print setup (headers, page breaks, print area, orientation) is dropped: Numbers prints a canvas, not a page grid」 Numbers はキャンバスを印刷する。ページのグリッドという考え方が無い。 <span class="chip">実測</span></td></tr>
+<tr><td>印刷（用紙・向き・余白・ヘッダー／フッター・印刷範囲・改ページ）</td><td class="m h">△</td><td class="m h">△</td><td><code>B.84（TN.SheetArchive）</code></td><td><code>sheet.pageSetup</code> <code>sheet.headerFooter</code> <code>sheet.printArea</code> <code>sheet.rowBreaks</code></td><td><strong>言うこと</strong>: 用紙・印刷範囲・タイトル行／列・改ページは「… are dropped: Numbers prints a canvas, not a page grid」で名指し／&amp;P 以外の記号は「header / footer code(s) … dropped」（degraded） 向き・拡大率・余白・開始ページ番号・左中右のヘッダー／フッター（奇数ページ）を運ぶ。読みは Numbers が印刷する物をそのまま（フッター中央の &amp;P、72 %）。 <span class="chip">実測</span></td></tr>
 <tr><td>定義名</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.definedNames</code> <code>sheet.definedNames</code></td><td><strong>言うこと</strong>: 「N defined name(s) dropped: Numbers has no defined names」 <span class="chip">実測</span></td></tr>
 <tr><td>シナリオ</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>sheet.scenarios</code></td><td><strong>言うこと</strong>: 「N scenario(s) dropped: Numbers has no scenarios」 <span class="chip">実測</span></td></tr>
 <tr><td>1904 の日付原点</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>wb.epoch</code></td><td><strong>言うこと</strong>: 「the 1904 date origin is dropped: the template has no calculation engine to record it on」 <span class="chip">コード確認</span></td></tr>

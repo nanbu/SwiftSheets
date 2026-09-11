@@ -206,7 +206,8 @@ is reported, never dropped in silence.
   back as canvas objects at a point (a cell anchor is placed against the first table); a shape other than a
   rectangle is drawn as one and said so. Charts, movies and groups have no place in the model and are reported.
 - Everything else Numbers has no word for — range-sourced and numeric validations, named tables, auto-filters,
-  sheet protection, scenarios, print setup, defined names, tab colours, outline grouping — is reported as a
+  sheet protection, scenarios, the print area, title rows and page breaks (orientation, margins, scale and the
+  header / footer are carried), defined names, tab colours, outline grouping — is reported as a
   warning, and so is the second and every further summarised value of a pivot table (the value lanes of a rebuilt
   Numbers pivot share one placeholder id, so only the first survives the trip — spec Appendix B.28). Nothing is
   dropped in silence.

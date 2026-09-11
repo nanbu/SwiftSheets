@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.75 Draft</td><td>2026-09-11</td><td>Numbers の印刷設定。シートの archive が持つ向き・拡大率・余白・開始ページ番号と、左中右 3 つずつのヘッダー／フッターの保管庫を読み書きする。<code>&amp;P</code> は Numbers 自身のページ番号に、他の記号は落として名指す。用紙・印刷範囲・タイトル行・改ページは従来どおり落として言う（B.84）。</td></tr>
     <tr><td>4.74 Draft</td><td>2026-09-11</td><td>Numbers のキャンバスに絵と図形・テキストボックスを読み書きする。<code>TSD.ImageArchive</code> と <code>Data/</code> の実体、<code>TSWP.ShapeInfoArchive</code> と文の保管庫。錨はキャンバス上の点（<code>.absolute</code>）で読み、セル錨は最初の表の寸法で点に直して書く（B.83）。</td></tr>
     <tr><td>4.73 Draft</td><td>2026-09-11</td><td>拡張の条件付き書式。<code>DataBar</code> に負の色・軸の色と位置・向き・単色・枠、<code>IconSet</code> に <code>customIcons</code>。XLSX は x14 の拡張を規則に畳み込んで読み、規則と並べて作り直す。ODS は LibreOffice のデータバーが言える分を運ぶ（B.82）。</td></tr>
     <tr><td>4.72 Draft</td><td>2026-09-11</td><td>書式付き文字の区間ごとのリンク。<code>TextRun.hyperlink</code> を足し、ODS と Numbers は 1 セルの複数のリンクを run ごとに読み書きする。Excel は先頭を採って言う（B.81）。</td></tr>
@@ -6996,6 +6997,23 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>審判。</strong>書いた書類を Numbers 自身に開かせ・保存し直させ、戻った書類から絵の SHA-1 とテキストボックスの文を読み戻す gated テスト（<code>NumbersCanvasTests</code>）。
   Numbers が無い機械では理由つきで飛ぶ。MAINTENANCE の手動一覧にも 1 行。</p>
 
+  <h3>B.84 Numbers の印刷設定（Rev 4.75）</h3>
+  <p>2026-09-11 決定。今までは印刷に関わる物を 1 つでも持つシートに「the print setup … is dropped: Numbers prints a canvas, not a page grid」と 1 行で言って全部落としていた。
+  実際には <code>TN.SheetArchive</code> が印刷の設定を自分で持つ: <code>in_portrait_page_orientation</code>・<code>content_scale</code>（雛形は 0.72）・<code>print_margins</code>（pt の
+  <code>TSD.EdgeInsetsArchive</code>）・<code>page_header_inset</code> / <code>page_footer_inset</code>・<code>using_start_page_number</code> / <code>start_page_number</code>・<code>show_page_numbers</code>・
+  <code>is_autofit_on</code>、そして <code>headers</code> と <code>footers</code> に左・中・右の順で 3 つずつの <code>TSWP.StorageArchive</code>（kind HEADER。雛形のフッターの中央は
+  Numbers 自身のページ番号を <code>table_attachment</code> の U+FFFC で持つ）。持てる分は運び、持てない分だけを名指して落とす。</p>
+  <p><strong>書き。</strong><code>pageSetup.orientation</code> → 向き、<code>scale</code>（%）→ <code>content_scale</code>、<code>firstPageNumber</code> → 開始ページ番号、
+  <code>pageMargins</code>（インチ）→ 余白と上下の inset（× 72）。<code>oddHeader</code> / <code>oddFooter</code> は ODS と同じ規則で <code>&amp;L</code> / <code>&amp;C</code> / <code>&amp;R</code> に割り、
+  各領域の文をその保管庫の <code>text</code> に書く（中央フッターの attachment は外す）。<code>&amp;P</code> はどこにあっても <code>show_page_numbers</code> を立て、中央以外なら degraded で言う。
+  それ以外の記号（<code>&amp;N</code> <code>&amp;D</code> <code>&amp;T</code> <code>&amp;F</code> <code>&amp;A</code>、書体 <code>&amp;"…"</code>、サイズ <code>&amp;12</code> …）は落として一度に名指す。
+  偶数ページ・先頭ページの別文は dropped。<code>fitToWidth</code> / <code>fitToHeight</code> は Numbers の自動調整（1 ページ幅）にして degraded。用紙サイズ・印刷範囲・タイトル行／列・改ページは
+  1 行の dropped で名指す（何が落ちたかを並べる）。</p>
+  <p><strong>読み。</strong>向きは portrait でないときだけ <code>.landscape</code>、拡大率は <code>content_scale</code> × 100（雛形どおりなら 72）、開始ページ番号は使う印が立っているときだけ、
+  余白は pt ÷ 72。ヘッダーとフッターは 3 領域の文を Excel の記号に戻し（U+FFFC は除く）、<code>show_page_numbers</code> が立っていればフッターの中央に <code>&amp;P</code> を足す——
+  Numbers が印刷する物をそのまま言うので、何もしていない Numbers 書類でも <code>oddFooter</code> は <code>&amp;C&amp;P</code> になる。</p>
+  <p><strong>審判。</strong>横向きとヘッダーの文を持つ書類を Numbers に開かせ保存し直させ、読み戻す gated テスト（<code>NumbersPrintTests</code>）。全部入りブックの Numbers 列は
+  「印刷・向き」「印刷・ヘッダフッタ」が ○ になり、公開ページの数を追従させた。</p>
 </section>
 
 </div><!-- /.container -->

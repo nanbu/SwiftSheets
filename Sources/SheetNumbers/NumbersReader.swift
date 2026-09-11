@@ -86,6 +86,7 @@ struct NumbersReader {
             for tid in tableModels(inSheet: sid) {
                 if let t = table(tid, sheetName: sheet.name) { sheet.tables.append(t) }
             }
+            NumbersPrint.read(archive, into: &sheet, doc: doc)   // Appendix B.84
             if sheet.tables.isEmpty { sheet.tables = [Table()] }
             // conditional formats belong to a Numbers *table*; the model keeps them on the sheet, so the first
             // table's are the sheet's and any further table's are reported rather than silently merged into them

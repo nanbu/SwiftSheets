@@ -248,10 +248,9 @@ struct NumbersWriter {
             if !sheet.scenarios.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .other, sheet: sheet.name, message: "\(sheet.scenarios.count) scenario(s) dropped: Numbers has no scenarios"))
             }
-            if !sheet.headerFooter.isEmpty || sheet.pageSetup != PageSetup() || !sheet.printArea.isEmpty
-                || sheet.printTitleRows != nil || sheet.printTitleColumns != nil || !sheet.rowBreaks.isEmpty || !sheet.columnBreaks.isEmpty {
-                warnings.append(ConversionWarning(.dropped, subject: .formatting, sheet: sheet.name, message: "the print setup (headers, page breaks, print area, orientation) is dropped: Numbers prints a canvas, not a page grid"))
-            }
+            // the print setup the sheet archive can hold — orientation, scale, margins, first page number, the
+            // odd header and footer — and a report for the rest (Appendix B.84)
+            warnings += NumbersPrint.apply(sheet, to: sid, in: doc)
             if !sheet.definedNames.isEmpty {
                 warnings.append(ConversionWarning(.dropped, subject: .formulas, sheet: sheet.name, message: "\(sheet.definedNames.count) sheet-scoped name(s) dropped: Numbers has no defined names"))
             }

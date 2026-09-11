@@ -22,6 +22,12 @@ writes, so the constant, the README's status line and the tag always name the sa
   JPEG / GIF) is unchanged. ODS furigana was measured and stays reported: LibreOffice Calc discards `text:ruby`
   in a cell (spec Appendix B.70).
 
+- **The print setup in Numbers** (spec Appendix B.84). The sheet archive's own words are read and written:
+  orientation, scale, margins, the first page number and the odd header / footer in Numbers' three zones (`&L`,
+  `&C`, `&R`). `&P` becomes Numbers' page number — drawn in the centre of the footer, and said so when it was
+  asked for elsewhere; other codes are dropped and named; even / first-page variants are dropped. The paper
+  size, fit-to-pages, the print area, title rows and page breaks stay reported, now each by name. A Numbers
+  document reads back with the footer Numbers prints (`&C&P`) and its scale (72 %).
 
 ## [0.26.0] — 2026-09-11
 
