@@ -6,3 +6,6 @@ DerivedData/
 .DS_Store
 __pycache__/
 *.pyc
+
+# Written by Tests/OpenpyxlParity/check.py on every run; rebuilt from parity.json.
+Tests/OpenpyxlParity/report.json

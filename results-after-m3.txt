@@ -1,6 +1,0 @@
-
-# Stage 5 (the writers hold no whole output: parts stay compressed, rows go straight to the compressor, the ODS body to a temporary file) — against the previous binary, run at the same time
-after write    1.679 s / 258 MB    before 1.809 s / 360 MB
-after writeODS 3.244 s / 313 MB    before 3.957 s / 641 MB
-after edit     3.816 s / 288 MB    before 6.895 s / 397 MB   (synthetic data, not the sample with charts and pictures; its only part is the theme)
-# Note: delete Bench/.build and rebuild before measuring. An incremental build mixed in stale parts and made the ODS body look broken (2026-09-05).
