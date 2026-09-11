@@ -18,9 +18,9 @@ SWIFT_TEST_COUNT = 534   # `swift test` at the time of rendering (Tests/SwiftShe
 DATE = "2026-08-22"
 
 STATUS = {
-    "ported": ("移植", "#34c759"), "adapted": ("適応", "#0a84ff"), "na_api": ("API なし", "#c7c7cc"), "na_python": ("Python 固有", "#e5e5ea"),
+    "ported": ("ported", "#34c759"), "adapted": ("adapted", "#0a84ff"), "na_api": ("no API", "#c7c7cc"), "na_python": ("Python-only", "#e5e5ea"),
 }
-API_STATUS = {"ok": ("対応", "#34c759"), "partial": ("一部", "#ff9f0a"), "roadmap": ("ロードマップ", "#8e8e93")}
+API_STATUS = {"ok": ("Supported", "#34c759"), "partial": ("Partial", "#ff9f0a"), "roadmap": ("Roadmap", "#8e8e93")}
 
 
 def e(s):
@@ -32,178 +32,178 @@ def e(s):
 # tests: selectors "file::name", "file::Class::*", "file::*"
 # ---------------------------------------------------------------------------------------------
 AREAS = [
- {"id": "workbook", "title": "Workbook — ブックの生成・読み込み・保存", "apis": [
-  {"py": "Workbook()", "sw": "Workbook()", "status": "ok", "desc": "空のブック。openpyxl と同じく \"Sheet\" という名前のシートを 1 枚持って始まる。",
+ {"id": "workbook", "title": "Workbook — creating, loading and saving workbooks", "apis": [
+  {"py": "Workbook()", "sw": "Workbook()", "status": "ok", "desc": "An empty workbook. As in openpyxl, it starts with one sheet named \"Sheet\".",
    "pyx": "from openpyxl import Workbook\nwb = Workbook()\nws = wb.active", "swx": "import SwiftSheets\nlet wb = Workbook()\nlet ws = wb.active",
    "tests": ["workbook/tests/test_workbook.py::test_get_active_sheet", "workbook/tests/test_workbook.py::test_default_epoch", "workbook/tests/test_workbook.py::test_assign_epoch", "workbook/tests/test_workbook.py::TestCopy::*",
              "packaging/tests/test_workbook.py::*", "workbook/tests/test_properties.py::*", "workbook/tests/test_views.py::*"]},
   {"py": "load_workbook(path, data_only=)", "sw": "ReadOptions(formulaCells: .cachedValues)", "status": "ok",
-   "desc": ".xlsx を読む。formulaCells: .cachedValues では数式セルが計算済みの値になる（wb.formulaCells）。rels から workbook パートを辿るので非標準のパート名でも読める。",
+   "desc": "Reads an .xlsx. With formulaCells: .cachedValues, a formula cell reads as its cached calculated value (wb.formulaCells). The workbook part is found by following the rels, so non-standard part names are read too.",
    "pyx": "wb = load_workbook('book.xlsx', data_only=True)", "swx": "let wb = try Workbook(contentsOf: url, options: ReadOptions(formulaCells: .cachedValues))",
    "tests": ["reader/tests/test_excel.py::*", "reader/tests/test_workbook.py::*", "reader/tests/test_strings.py::*", "tests/test_read.py::*", "tests/test_iter.py::*", "tests/test_vba.py::*", "tests/test_read_write_custom_doc_props.py::*", "tests/test_backend.py::*"]},
   {"py": "wb.save(path)", "sw": "wb.save() -> Data / wb.save(to:)", "status": "ok",
-   "desc": "deflate 圧縮の .xlsx を書く。パーツ構成・要素順は openpyxl と同型。modified は設定値をそのまま書く（再現可能な出力）。",
+   "desc": "Writes a deflate-compressed .xlsx. The set of parts and the element order match openpyxl's. modified is written exactly as set (reproducible output).",
    "pyx": "wb.save('out.xlsx')", "swx": "try wb.save(to: url)\nlet bytes = try wb.save()",
    "tests": ["writer/tests/test_excel.py::*", "writer/tests/test_template.py::*", "workbook/tests/test_writer.py::*", "packaging/tests/test_core.py::*", "packaging/tests/test_relationship.py::*", "packaging/tests/test_manifest.py::*", "packaging/tests/test_extended.py::*", "packaging/tests/test_custom.py::*", "packaging/tests/test_interface.py::*", "packaging/tests/test_pivot.py::*"]},
   {"py": "wb.active / sheetnames / wb[name] / in / iter / index", "sw": "active / sheetNames / wb[name] / contains / Sequence / index(of:)", "status": "ok",
-   "desc": "シートの取得と列挙。active には可視シートだけ設定できる（openpyxl は例外、SwiftSheets は無視）。",
+   "desc": "Looking up and enumerating sheets. Only a visible sheet can be made active (openpyxl raises; SwiftSheets ignores the assignment).",
    "pyx": "ws = wb['Plan']\nfor ws in wb: ...", "swx": "let ws = wb[\"Plan\"]!\nfor ws in wb { ... }",
    "tests": ["workbook/tests/test_workbook.py::test_set_active_by_sheet", "workbook/tests/test_workbook.py::test_set_active_by_index", "workbook/tests/test_workbook.py::test_set_invalid_active_index", "workbook/tests/test_workbook.py::test_set_invalid_sheet_by_name",
              "workbook/tests/test_workbook.py::test_set_invalid_child_as_active", "workbook/tests/test_workbook.py::test_set_hidden_sheet_as_active", "workbook/tests/test_workbook.py::test_no_active", "workbook/tests/test_workbook.py::test_getitem", "workbook/tests/test_workbook.py::test_contains",
              "workbook/tests/test_workbook.py::test_iter", "workbook/tests/test_workbook.py::test_index", "workbook/tests/test_workbook.py::test_get_sheet_names", "workbook/tests/test_workbook.py::test_get_chartsheet", "workbook/tests/test_workbook.py::test_del_chartsheet"]},
   {"py": "create_sheet / remove / del wb[name] / move_sheet / copy_worksheet", "sw": "createSheet / removeSheet / removeSheet(named:) / moveSheet / copyWorksheet", "status": "ok",
-   "desc": "シートの追加・削除・並べ替え・複製。重複する名前は openpyxl と同じ規則で Sheet1, Sheet2… と採番。複製は値・スタイル・寸法・結合・印刷設定を持つ。",
+   "desc": "Adding, removing, reordering and copying sheets. A duplicate name is numbered Sheet1, Sheet2… by the same rule as openpyxl. A copy carries the values, styles, dimensions, merges and print settings.",
    "pyx": "ws2 = wb.create_sheet('Data', 0)\nwb.move_sheet(ws2, offset=1)\ncopy = wb.copy_worksheet(ws2)", "swx": "let ws2 = wb.createSheet(\"Data\", at: 0)\nwb.moveSheet(ws2, offset: 1)\nlet copy = wb.copyWorksheet(ws2)",
    "tests": ["workbook/tests/test_workbook.py::test_create_sheet", "workbook/tests/test_workbook.py::test_create_sheet_with_name", "workbook/tests/test_workbook.py::test_add_correct_sheet", "workbook/tests/test_workbook.py::test_add_sheetname", "workbook/tests/test_workbook.py::test_add_sheet_from_other_workbook",
              "workbook/tests/test_workbook.py::test_create_sheet_readonly", "workbook/tests/test_workbook.py::test_remove_sheet", "workbook/tests/test_workbook.py::test_move_sheet", "workbook/tests/test_workbook.py::test_del_worksheet", "workbook/tests/test_workbook.py::test_add_invalid_worksheet_class_instance",
              "worksheet/tests/test_worksheet_copy.py::*", "workbook/tests/test_child.py::*"]},
   {"py": "wb.properties / wb.epoch / wb.code_name / wb.defined_names", "sw": "properties / epoch / codeName / definedNames", "status": "ok",
-   "desc": "docProps/core.xml の全項目、1900 / 1904 日付系、VBA コード名、ブック範囲の定義名（名前 → 数式文字列）。",
+   "desc": "Every field of docProps/core.xml, the 1900 / 1904 date system, the VBA code name, and workbook-scope defined names (name → formula string).",
    "pyx": "wb.properties.creator = 'me'\nwb.defined_names['Plan'] = DefinedName('Plan', attr_text='Sheet!$A$1')", "swx": "wb.properties.creator = \"me\"\nwb.definedNames[\"Plan\"] = \"Sheet!$A$1\"",
    "tests": ["workbook/tests/test_defined_name.py::*", "workbook/tests/test_workbook.py::test_duplicate_defined_name", "workbook/tests/test_workbook.py::test_named_styles", "workbook/tests/test_workbook.py::test_immutable_builtins", "workbook/tests/test_workbook.py::test_duplicate_table_name", "workbook/tests/test_workbook.py::test_template",
              "workbook/tests/test_protection.py::*", "workbook/tests/test_function_group.py::*", "workbook/tests/test_smart_tags.py::*", "workbook/tests/test_web.py::*", "workbook/tests/test_external_reference.py::*", "workbook/external_link/tests/test_external.py::*"]},
  ]},
- {"id": "worksheet", "title": "Worksheet — セルの読み書きと行列の操作", "apis": [
+ {"id": "worksheet", "title": "Worksheet — reading and writing cells, editing rows and columns", "apis": [
   {"py": "ws.title / ws.sheet_state", "sw": "title / state", "status": "ok",
-   "desc": "タブ名の検証（\\ * ? : / [ ] と空は不可、重複は採番）と表示状態（visible / hidden / veryHidden）。不正な名前は以前の名前を維持（openpyxl は例外）。",
+   "desc": "Tab-name validation (\\ * ? : / [ ] and the empty name are rejected; a duplicate is numbered) and the visibility state (visible / hidden / veryHidden). An invalid name leaves the previous name in place (openpyxl raises).",
    "pyx": "ws.title = 'Plan'\nws.sheet_state = 'hidden'", "swx": "ws.title = \"Plan\"\nws.state = .hidden",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_path", "worksheet/tests/test_worksheet.py::TestWorksheet::test_new_worksheet"]},
   {"py": "ws['A1'] / ws.cell(row, column, value) / ws['A1:B2'] / ws['C'] / ws[2] / del ws['A1']", "sw": "ws[\"A1\"] / cell(row:column:value:) / ws[range:] / column(_:) / row(_:) / removeCell", "status": "ok",
-   "desc": "セルは初回アクセスで作られる参照型（openpyxl と同じ）。範囲・列・行の取り出しも同じ形。",
+   "desc": "A cell is a reference type created on first access (as in openpyxl). Ranges, columns and rows are fetched in the same shapes.",
    "pyx": "ws['A1'] = 'Task'\nc = ws.cell(row=2, column=3, value=5)\nrows = ws['A1:C2']", "swx": "ws[\"A1\"].value = \"Task\"\nlet c = ws.cell(row: 2, column: 3, value: 5)\nlet rows = ws[range: \"A1:C2\"]!",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_get_cell", "worksheet/tests/test_worksheet.py::TestWorksheet::test_invalid_cell", "worksheet/tests/test_worksheet.py::TestWorksheet::test_cell_alternate_coordinates", "worksheet/tests/test_worksheet.py::TestWorksheet::test_cell_insufficient_coordinates",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_getitem", "worksheet/tests/test_worksheet.py::TestWorksheet::test_getitem_invalid", "worksheet/tests/test_worksheet.py::TestWorksheet::test_setitem", "worksheet/tests/test_worksheet.py::TestWorksheet::test_delitem",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_getslice", "worksheet/tests/test_worksheet.py::TestWorksheet::test_get_single__column", "worksheet/tests/test_worksheet.py::TestWorksheet::test_get_row", "worksheet/tests/test_worksheet.py::TestWorksheet::test_hyperlink_value"]},
   {"py": "ws.append(list | dict) / ws._current_row", "sw": "append([...]) / append([Int: …]) / append([String: …]) / currentRow", "status": "ok",
-   "desc": "最後に追加・読み込んだ行の次に 1 行足す。空配列は行だけ進める（openpyxl と同じ）。",
+   "desc": "Adds one row after the last row appended or read. An empty array only advances the current row (as in openpyxl).",
    "pyx": "ws.append(['a', 1, 2.5])\nws.append({'A': 'x', 'C': 'y'})", "swx": "ws.append([\"a\", 1, 2.5])\nws.append([\"A\": \"x\", \"C\": \"y\"])",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_append", "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_list", "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_dict_letter", "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_dict_index",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_bad_append", "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_range", "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_iterator", "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_2d_list",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_append_cell", "worksheet/tests/test_worksheet.py::test_max_row"]},
   {"py": "iter_rows / iter_cols / ws.rows / ws.columns / ws.values / max_row / calculate_dimension", "sw": "rows(...) / columns(...) / values(...) / maxRow / dimensions", "status": "ok",
-   "desc": "矩形の走査。既定は A1 から最後に使ったセルまで（openpyxl と同じ）。セルが無ければ空。",
+   "desc": "Iterates over a rectangle. By default it runs from A1 to the last used cell (as in openpyxl); with no cells it yields nothing.",
    "pyx": "for row in ws.iter_rows(min_row=2, values_only=True): ...", "swx": "for row in ws.values(minRow: 2) { ... }",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_worksheet_dimension", "worksheet/tests/test_worksheet.py::TestWorksheet::test_fill_rows", "worksheet/tests/test_worksheet.py::TestWorksheet::test_iter_rows", "worksheet/tests/test_worksheet.py::TestWorksheet::test_rows",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_no_rows", "worksheet/tests/test_worksheet.py::TestWorksheet::test_no_cols", "worksheet/tests/test_worksheet.py::TestWorksheet::test_one_cell", "worksheet/tests/test_worksheet.py::TestWorksheet::test_by_col",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_cols", "worksheet/tests/test_worksheet.py::TestWorksheet::test_values", "worksheet/tests/test_worksheet.py::test_min_column", "worksheet/tests/test_worksheet.py::test_max_column", "worksheet/tests/test_worksheet.py::test_min_row"]},
   {"py": "insert_rows / insert_cols / delete_rows / delete_cols / move_range", "sw": "insertRows / insertColumns / deleteRows / deleteColumns / moveRange", "status": "partial",
-   "desc": "行・列の挿入と削除、範囲の移動。openpyxl と同じくセルだけが動く（行寸法・結合は動かない）。数式の参照の書き換え（translate=True）は未実装。",
+   "desc": "Inserting and deleting rows and columns, and moving a range. As in openpyxl, only cells move (row dimensions and merges stay put). Rewriting the references in formulas (translate=True) is not implemented.",
    "pyx": "ws.insert_rows(2, amount=2)\nws.delete_cols(5)\nws.move_range('B2:E5', rows=2)", "swx": "ws.insertRows(2, count: 2)\nws.deleteColumns(5)\nws.moveRange(\"B2:E5\", rows: 2)",
    "tests": ["worksheet/tests/test_worksheet.py::TestEditableWorksheet::*"]},
   {"py": "merge_cells / unmerge_cells / merged_cells / MergedCellRange", "sw": "mergeCells / unmergeCells / mergedCells / isMerged / mergedRange(containing:)", "status": "ok",
-   "desc": "結合。非アンカーのセルの値・リンク・注釈を消し、アンカーの罫線を結合範囲の縁へ配り、保護を全セルに写す（openpyxl の MergedCellRange.format と同じ）。",
+   "desc": "Merging. Clears the value, hyperlink and comment of every non-anchor cell, distributes the anchor's borders along the edges of the merged range, and copies its protection to every cell (as openpyxl's MergedCellRange.format does).",
    "pyx": "ws.merge_cells('A1:C1')\n'B1' in ws.merged_cells", "swx": "ws.mergeCells(\"A1:C1\")\nws.isMerged(\"B1\")",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_merged_cells_lookup", "worksheet/tests/test_worksheet.py::TestWorksheet::test_merged_cell_ranges", "worksheet/tests/test_worksheet.py::TestWorksheet::test_merge_range_string", "worksheet/tests/test_worksheet.py::TestWorksheet::test_merge_coordinate",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_merge_more_columns_than_rows", "worksheet/tests/test_worksheet.py::TestWorksheet::test_merge_more_rows_than_columns", "worksheet/tests/test_worksheet.py::TestWorksheet::test_unmerge_range_string", "worksheet/tests/test_worksheet.py::TestWorksheet::test_unmerge_coordinate",
              "worksheet/tests/test_merge.py::*", "cell/tests/test_cell.py::TestMergedCell::*"]},
   {"py": "row_dimensions / column_dimensions / group / column_groups", "sw": "rowDimension / columnDimension / setRowDimension / setColumnDimension / groupRows / groupColumns / columnGroups", "status": "ok",
-   "desc": "高さ・幅・非表示・アウトライン階層・折りたたみ・行/列の既定スタイル（<row s> / <col style>）。グループ化はアウトライン階層を範囲に付ける。",
+   "desc": "Height, width, hidden, outline level, collapsed, and a row's or column's default style (<row s> / <col style>). Grouping sets an outline level on a range.",
    "pyx": "ws.column_dimensions['A'].width = 20\nws.row_dimensions[4].hidden = True\nws.column_dimensions.group('F', 'K', hidden=True)", "swx": "ws.setColumnWidth(1, 20)\nws.setRowDimension(4) { $0.hidden = true }\nws.groupColumns(\"F\", \"K\", hidden: true)",
    "tests": ["worksheet/tests/test_dimensions.py::*", "worksheet/tests/test_worksheet.py::TestWorksheet::test_column_groups"]},
   {"py": "ws.freeze_panes / ws.sheet_view / ws.sheet_properties / ws.sheet_format", "sw": "freezePanes / view / properties / sheetFormat", "status": "ok",
-   "desc": "ウィンドウ枠の固定、表示（枠線・ズーム・選択セル）、シート属性（タブ色・アウトラインの集計位置・fitToPage・codeName）、既定の行高・列幅。",
+   "desc": "Frozen panes, the view (gridlines, zoom, selected cell), sheet properties (tab colour, outline summary position, fitToPage, codeName), and the default row height and column width.",
    "pyx": "ws.freeze_panes = 'B2'\nws.sheet_view.showGridLines = False\nws.sheet_properties.tabColor = 'FF0000'", "swx": "ws.freezePanes(at: \"B2\")\nws.view.showGridLines = false\nws.properties.tabColor = Color(hex: \"FF0000\")",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_freeze", "worksheet/tests/test_worksheet.py::test_freeze_panes_horiz", "worksheet/tests/test_worksheet.py::test_freeze_panes_vert", "worksheet/tests/test_worksheet.py::test_freeze_panes_both",
              "worksheet/tests/test_worksheet.py::TestWorksheet::test_active_cell", "worksheet/tests/test_worksheet.py::TestWorksheet::test_selected_cell", "worksheet/tests/test_worksheet.py::TestWorksheet::test_gridlines", "worksheet/tests/test_views.py::*", "worksheet/tests/test_properties.py::*"]},
   {"py": "auto_filter.ref / page_margins / page_setup / print_options / print_title_rows / print_area", "sw": "autoFilter / pageMargins / pageSetup / printOptions / printTitleRows / printTitleColumns / printArea / printTitles", "status": "partial",
-   "desc": "オートフィルタの範囲（_xlnm._FilterDatabase も書く）、印刷の余白・向き・用紙・中央寄せ、印刷タイトルと印刷範囲（_xlnm.Print_Titles / Print_Area として読み書き）。ヘッダー / フッター（&L / &C / &R の符号つき文字列のまま）と改ページも読み書きする。フィルタの条件（値の一覧・比較）と並べ替え状態も読み書きする。色 / アイコン / 動的 / 上位 10 のフィルタは保全のみ。",
+   "desc": "The autofilter range (_xlnm._FilterDatabase is written too); print margins, orientation, paper size and centring; print titles and the print area (read and written as _xlnm.Print_Titles / Print_Area). Headers / footers (kept as strings with their &L / &C / &R codes) and page breaks are read and written too, as are filter criteria (value lists, comparisons) and the sort state. Colour / icon / dynamic / top-10 filters are preserved only.",
    "pyx": "ws.auto_filter.ref = 'A1:H1'\nws.print_title_rows = '1:1'\nws.print_area = 'A1:H20'", "swx": "ws.autoFilter = CellRange(\"A1:H1\")\nws.printTitleRows = 1...1\nws.setPrintArea(\"A1:H20\")",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_auto_filter", "worksheet/tests/test_worksheet.py::TestWorksheet::test_print_titles", "worksheet/tests/test_worksheet.py::TestWorksheet::test_print_area", "worksheet/tests/test_page.py::*", "worksheet/tests/test_print_settings.py::*",
              "worksheet/tests/test_filters.py::*", "worksheet/tests/test_header.py::*", "worksheet/tests/test_pagebreak.py::*"]},
   {"py": "ws.add_table / add_chart / add_image / data_validations / conditional_formatting / protection / scenarios / controls", "sw": "—", "status": "roadmap",
-   "desc": "テーブル・グラフ・画像・データ検証・条件付き書式・シート保護・シナリオ・フォームコントロールは SwiftSheets に無い（新しい XML パートを要する機能）。",
+   "desc": "Tables, charts, images, data validation, conditional formatting, sheet protection, scenarios and form controls are absent from SwiftSheets (features that need new XML parts).",
    "pyx": "ws.add_table(Table(displayName='T1', ref='A1:D10'))", "swx": "// roadmap",
    "tests": ["worksheet/tests/test_worksheet.py::TestWorksheet::test_add_table", "worksheet/tests/test_worksheet.py::test_add_chart", "worksheet/tests/test_worksheet.py::test_add_image", "worksheet/tests/test_table.py::*", "worksheet/tests/test_datavalidation.py::*",
              "worksheet/tests/test_protection.py::*", "worksheet/tests/test_scenario.py::*", "worksheet/tests/test_controls.py::*", "worksheet/tests/test_ole.py::*", "worksheet/tests/test_related.py::*", "worksheet/tests/test_formula.py::*",
              "worksheet/tests/test_read_only.py::*", "worksheet/tests/test_write_only.py::*", "formatting/tests/test_rule.py::*", "formatting/tests/test_formatting.py::*"]},
  ]},
- {"id": "cell", "title": "Cell と CellValue — 値・型・日付", "apis": [
+ {"id": "cell", "title": "Cell and CellValue — values, types and dates", "apis": [
   {"py": "cell.value / data_type / coordinate / row / column / offset", "sw": "value / dataType / coordinate / row / column / offset(row:column:)", "status": "ok",
-   "desc": "値は CellValue 列挙（integer / number / string / bool / date / time / duration / formula / error / richText）。\"=…\" は数式、#N/A 等はエラー、日付を入れると書式が自動で付く — openpyxl の _bind_value と同じ推論。",
+   "desc": "The value is the CellValue enum (integer / number / string / bool / date / time / duration / formula / error / richText). \"=…\" is a formula, #N/A and the like are errors, and assigning a date sets a number format automatically — the same inference as openpyxl's _bind_value.",
    "pyx": "c.value = datetime.date(2026, 9, 1)\nc.number_format  # 'yyyy-mm-dd'\nc.offset(2, 1).coordinate  # 'B3'", "swx": "c.value = CellValue(CivilDate(year: 2026, month: 9, day: 1)!)\nc.numberFormat  // \"yyyy-mm-dd\"\nc.offset(row: 2, column: 1)?.coordinate  // \"B3\"",
    "tests": ["cell/tests/test_cell.py::test_ctor", "cell/tests/test_cell.py::test_null", "cell/tests/test_cell.py::test_string", "cell/tests/test_cell.py::test_formula", "cell/tests/test_cell.py::test_not_formula", "cell/tests/test_cell.py::test_boolean", "cell/tests/test_cell.py::test_error_codes",
              "cell/tests/test_cell.py::test_insert_date", "cell/tests/test_cell.py::test_timstamp", "cell/tests/test_cell.py::test_time_format_datetime_subclass", "cell/tests/test_cell.py::test_time_format_date_subclass", "cell/tests/test_cell.py::test_time_format_no_date_subclass",
              "cell/tests/test_cell.py::test_not_overwrite_time_format", "cell/tests/test_cell.py::test_cell_formatted_as_date", "cell/tests/test_cell.py::test_illegal_characters", "cell/tests/test_cell.py::test_timedelta", "cell/tests/test_cell.py::<module>::test_repr", "cell/tests/test_cell.py::test_repr_object",
              "cell/tests/test_cell.py::test_cell_offset", "cell/tests/test_cell.py::TestEncoding::*", "cell/tests/test_cell.py::test_write_numpy_to_cell", "cell/tests/test_read_only.py::*"]},
   {"py": "cell.font / fill / border / alignment / number_format / protection", "sw": "font / fill / border / alignment / numberFormat / protection / style", "status": "ok",
-   "desc": "セル書式はすべて値型。同じ書式は書き出し時に cellXfs へ重複なく登録される。",
+   "desc": "Every cell format is a value type. Identical formats are registered in cellXfs only once when writing.",
    "pyx": "c.font = Font(bold=True)\nc.fill = PatternFill('solid', fgColor='FFBFD7F5')", "swx": "c.font = Font(bold: true)\nc.fill = .solid(Color(hex: \"BFD7F5\"))",
    "tests": ["cell/tests/test_cell.py::test_font", "cell/tests/test_cell.py::test_fill", "cell/tests/test_cell.py::test_border", "cell/tests/test_cell.py::test_number_format", "cell/tests/test_cell.py::test_alignment", "cell/tests/test_cell.py::test_protection",
              "cell/tests/test_cell.py::test_pivot_button", "cell/tests/test_cell.py::test_quote_prefix"]},
   {"py": "cell.hyperlink / cell.comment", "sw": "hyperlink / comment", "status": "ok",
-   "desc": "リンク（外部 / ブック内、tooltip・display）は読み書きし、空セルに付けると値がターゲットになる。メモ CellNote(text, author:) は comments パートとレガシー VML の対で読み書きする（大きさも往復）。既存 VML にメモ以外の図形があるときは作り直しになるため警告を出す。",
+   "desc": "Hyperlinks (external / within the workbook, tooltip, display) are read and written; set on an empty cell, the target becomes the value. A note, CellNote(text, author:), is read and written as a comments part paired with legacy VML (its size round-trips too). When the existing VML holds shapes other than notes, a warning is reported, because that VML is rebuilt.",
    "pyx": "c.hyperlink = 'https://example.com/'\nc.comment = Comment('text', 'author')", "swx": "c.hyperlink = Hyperlink(target: \"https://example.com/\")\nc.comment = Comment(\"text\", author: \"author\")",
    "tests": ["cell/tests/test_cell.py::test_comment_assignment", "cell/tests/test_cell.py::test_only_one_cell_per_comment", "cell/tests/test_cell.py::test_remove_comment", "cell/tests/test_cell.py::test_remove_hyperlink", "worksheet/tests/test_hyperlink.py::*",
              "comments/tests/test_comment.py::*", "comments/tests/test_comment_reader.py::*", "comments/tests/test_comment_sheet.py::*", "comments/tests/test_shape_writer.py::*", "comments/tests/test_author.py::*"]},
   {"py": "CellRichText / TextBlock / InlineFont", "sw": ".richText([TextRun]) / TextRun(text, font:)", "status": "ok",
-   "desc": "書式付きランを持つ文字列。共有文字列とインライン文字列の両方から読み、共有文字列として書く。ふりがな（<rPh>）は openpyxl と同じく読み飛ばす。",
-   "pyx": "c.value = CellRichText(['設計 ', TextBlock(InlineFont(b=True), 'レビュー')])", "swx": "c.value = .richText([TextRun(\"設計 \"), TextRun(\"レビュー\", font: Font(bold: true))])",
+   "desc": "A string made of formatted runs. Read from both shared and inline strings; written as a shared string. Phonetic guides (<rPh>) are skipped, as in openpyxl.",
+   "pyx": "c.value = CellRichText(['Design ', TextBlock(InlineFont(b=True), 'review')])", "swx": "c.value = .richText([TextRun(\"Design \"), TextRun(\"review\", font: Font(bold: true))])",
    "tests": ["cell/tests/test_rich_text.py::*", "cell/tests/test_text.py::*"]},
-  {"py": "cell writer (etree_write_cell / lxml_write_cell)", "sw": "WorkbookWriter.sheetXML（<c> の書き出し）", "status": "ok",
-   "desc": "数値・真偽・文字列（共有文字列）・数式（キャッシュ値付き）・日付シリアル・時刻・経過時間・エラーの書き出し。配列数式は範囲（<f t="array" ref>）ごと読み書きする。ISO 日付（iso_dates）は未実装。",
+  {"py": "cell writer (etree_write_cell / lxml_write_cell)", "sw": "WorkbookWriter.sheetXML (writing <c>)", "status": "ok",
+   "desc": "Writes numbers, booleans, strings (as shared strings), formulas (with cached values), date serials, times, durations and errors. An array formula is read and written together with its range (<f t=\"array\" ref>). ISO dates (iso_dates) are not implemented.",
    "pyx": "# internal", "swx": "// internal — round-trip tested",
    "tests": ["cell/tests/test_writer.py::*"]},
  ]},
- {"id": "styles", "title": "Styles — フォント・塗り・罫線・配置・数値書式", "apis": [
+ {"id": "styles", "title": "Styles — fonts, fills, borders, alignment and number formats", "apis": [
   {"py": "Font / PatternFill / Border / Side / Alignment / Protection / Color", "sw": "Font / PatternFill / Border / Side / Alignment / Protection / Color", "status": "partial",
-   "desc": "openpyxl と同じ名前の値型。色は ARGB・テーマ（tint 付き）・indexed・auto。GradientFill は未実装。",
+   "desc": "Value types with the same names as openpyxl's. A colour is ARGB, theme (with tint), indexed or auto. GradientFill is not implemented.",
    "pyx": "Border(left=Side(style='thin', color='FF888888'))", "swx": "Border(left: Side(style: .thin, color: Color(hex: \"888888\")))",
    "tests": ["styles/tests/test_fonts.py::*", "styles/tests/test_fills.py::*", "styles/tests/test_borders.py::*", "styles/tests/test_alignments.py::*", "styles/tests/test_protection.py::*", "styles/tests/test_colors.py::*"]},
   {"py": "is_date_format / is_timedelta_format / is_datetime / BUILTIN_FORMATS", "sw": "NumberFormat.isDateFormat / isTimedeltaFormat / kind(of:) / builtin / builtinCode", "status": "ok",
-   "desc": "数値書式の判定は openpyxl と完全互換（引用・角括弧の除去、_ と \\ のエスケープ、[h] 系は経過時間）。組み込み書式 0–49（＋日本語環境の 27–58）。",
+   "desc": "Number-format classification is fully compatible with openpyxl (quoted text and bracketed sections are stripped, _ and \\ escapes are handled, [h]-style formats are durations). Built-in formats 0–49 (plus 27–58 for Japanese locales).",
    "pyx": "is_date_format('[h]:mm:ss')  # True", "swx": "NumberFormat.isDateFormat(\"[h]:mm:ss\")  // true",
    "tests": ["styles/tests/test_number_style.py::*"]},
-  {"py": "Stylesheet（styles.xml の読み書き）/ indexedColors", "sw": "StylesParser / StyleRegistry / wb.indexedColors", "status": "partial",
-   "desc": "cellXfs を解決済みの CellStyle に、fonts / fills / borders / numFmts / colors を読む。書き出しは重複なしの表。名前付きスタイル（cellStyles / cellStyleXfs とセルの xfId）は読み書きとも対応。dxf・テーブルスタイルは保全のみ（生成 API は無い）。",
+  {"py": "Stylesheet (reading and writing styles.xml) / indexedColors", "sw": "StylesParser / StyleRegistry / wb.indexedColors", "status": "partial",
+   "desc": "Reads cellXfs into resolved CellStyle values, along with fonts / fills / borders / numFmts / colors. Writing produces de-duplicated tables. Named styles (cellStyles / cellStyleXfs and a cell's xfId) are supported for both reading and writing. dxf and table styles are preserved only (there is no API to create them).",
    "pyx": "# internal", "swx": "// internal — fixtures from openpyxl",
    "tests": ["styles/tests/test_stylesheet.py::*", "styles/tests/test_cell_style.py::*", "styles/tests/test_named_style.py::*", "styles/tests/test_differential.py::*", "styles/tests/test_table.py::*", "styles/tests/test_proxy.py::*", "styles/tests/test_styleable.py::*"]},
  ]},
- {"id": "utils", "title": "Utils — 座標・範囲・日付・単位", "apis": [
-  {"py": "get_column_letter / column_index_from_string / absolute_coordinate / range_boundaries / quote_sheetname / get_column_interval / coordinate_from_string", "sw": "CellReference（init?, columnLetter, columnIndex, absolute, quoteSheetName, columnLetters）/ RangeBounds", "status": "ok",
-   "desc": "A1 形式の座標と列記号。openpyxl が ValueError を投げる入力は nil を返す。",
+ {"id": "utils", "title": "Utils — coordinates, ranges, dates and units", "apis": [
+  {"py": "get_column_letter / column_index_from_string / absolute_coordinate / range_boundaries / quote_sheetname / get_column_interval / coordinate_from_string", "sw": "CellReference (init?, columnLetter, columnIndex, absolute, quoteSheetName, columnLetters) / RangeBounds", "status": "ok",
+   "desc": "A1-style coordinates and column letters. An input for which openpyxl raises ValueError returns nil.",
    "pyx": "get_column_letter(28)  # 'AB'\nrange_boundaries('D:F')  # (4, None, 6, None)", "swx": "CellReference.columnLetter(28)  // \"AB\"\nRangeBounds(\"D:F\")  // minColumn 4, maxColumn 6, rows nil",
    "tests": ["utils/tests/test_cell.py::*"]},
   {"py": "CellRange / MultiCellRange", "sw": "CellRange / MultiCellRange", "status": "ok",
-   "desc": "矩形範囲の平行移動・和・積・拡大縮小・包含判定・縁と全セルの列挙、sqref 形式の複数範囲。",
+   "desc": "Shifting, union, intersection, expanding and shrinking of a rectangular range, containment tests, enumeration of its edges and of all its cells, and sqref-style multi-ranges.",
    "pyx": "cr = CellRange('E5:K10'); cr.expand(right=2)\ncr.issubset(CellRange('A1:Z20'))", "swx": "let cr = CellRange(\"E5:K10\")!.expanded(right: 2)\ncr.isSubset(of: CellRange(\"A1:Z20\")!)",
    "tests": ["worksheet/tests/test_cell_range.py::*"]},
   {"py": "from_excel / to_excel / from_ISO8601 / to_ISO8601 / timedelta", "sw": "ExcelDate.fromSerial / toSerial / fromISO8601 / toISO8601 / durationFromSerial", "status": "ok",
-   "desc": "Excel シリアル ⇄ 日付。負のシリアル・1900-02-29 の幻日・ミリ秒丸め・1904 系、ISO 8601（PT2H0M1S の経過時間を含む）。日付は CivilDate（TZ なし）。",
+   "desc": "Excel serial ⇄ date. Negative serials, the phantom 1900-02-29, millisecond rounding, the 1904 system, and ISO 8601 (including durations such as PT2H0M1S). A date is a CivilDate (no time zone).",
    "pyx": "from_excel(40196.5939815)  # datetime(2010,1,18,14,15,20,2000)", "swx": "ExcelDate.fromSerial(40196.5939815)  // 2010-01-18 14:15:20.002",
    "tests": ["utils/tests/test_datetime.py::*"]},
   {"py": "openpyxl.utils.units / escape", "sw": "Units / OOXMLEscape", "status": "ok",
-   "desc": "twips・ポイント・インチ・cm・EMU・ピクセル・角度の換算、_xHHHH_ エスケープ。",
+   "desc": "Conversions between twips, points, inches, cm, EMU, pixels and angles; _xHHHH_ escaping.",
    "pyx": "points_to_pixels(10)  # 14", "swx": "Units.pointsToPixels(10)  // 14",
    "tests": ["utils/tests/test_units.py::*", "utils/tests/test_escape.py::*"]},
   {"py": "inference / FORMULAE / protection hash / IndexedList / BoundDictionary / dataframe", "sw": "—", "status": "roadmap",
-   "desc": "文字列からの型推測、関数名一覧、保護パスワードのハッシュは未提供。IndexedList・BoundDictionary・pandas 連携は Python 固有。",
+   "desc": "Type inference from strings, the list of function names and protection-password hashing are not provided. IndexedList, BoundDictionary and the pandas integration are Python-specific.",
    "pyx": "cast_percentage('3.1%')", "swx": "// —",
    "tests": ["utils/tests/test_inference.py::*", "utils/tests/test_formulas.py::*", "utils/tests/test_protection.py::*", "utils/tests/test_indexed_list.py::*", "utils/tests/test_bound_dictionary.py::*", "utils/tests/test_dataframe.py::*"]},
  ]},
- {"id": "io", "title": "Reader / Writer — パーツの読み書き", "apis": [
-  {"py": "WorkSheetParser / WorksheetReader（worksheet XML）", "sw": "SheetParser", "status": "partial",
-   "desc": "座標の無い <c>/<row>、指数表記の行番号、inlineStr とリッチテキスト、t=\"d\" の ISO 日付、経過時間書式、結合セルへのリンクの正規化、列・行の寸法とスタイル、sheetPr / sheetFormatPr / sheetView / pageSetup。共有数式・配列数式・条件付き書式・テーブル・改ページ・シナリオ・保護は読まない。",
+ {"id": "io", "title": "Reader / Writer — reading and writing package parts", "apis": [
+  {"py": "WorkSheetParser / WorksheetReader (worksheet XML)", "sw": "SheetParser", "status": "partial",
+   "desc": "<c>/<row> without coordinates, row numbers in exponent notation, inlineStr and rich text, ISO dates with t=\"d\", duration formats, normalisation of hyperlinks on merged cells, column and row dimensions and styles, sheetPr / sheetFormatPr / sheetView / pageSetup. Shared formulas, array formulas, conditional formatting, tables, page breaks, scenarios and protection are not read.",
    "pyx": "# internal", "swx": "// internal",
    "tests": ["worksheet/tests/test_reader.py::*"]},
-  {"py": "WorksheetWriter（worksheet XML）", "sw": "WorkbookWriter.sheetXML", "status": "partial",
-   "desc": "schema 順の要素書き出し（sheetPr → dimension → sheetViews → sheetFormatPr → cols → sheetData → autoFilter → mergeCells → hyperlinks → printOptions → pageMargins → pageSetup）。",
+  {"py": "WorksheetWriter (worksheet XML)", "sw": "WorkbookWriter.sheetXML", "status": "partial",
+   "desc": "Writes elements in schema order (sheetPr → dimension → sheetViews → sheetFormatPr → cols → sheetData → autoFilter → mergeCells → hyperlinks → printOptions → pageMargins → pageSetup).",
    "pyx": "# internal", "swx": "// internal",
    "tests": ["worksheet/tests/test_writer.py::*"]},
-  {"py": "packaging（manifest / relationships / core / app / custom）", "sw": "ZipArchive / ZipWriter / RelsParser / CorePropertiesParser", "status": "partial",
-   "desc": "rels と core.xml の読み書き、相対ターゲット（../）の解決。[Content_Types].xml も解析する。拡張プロパティ・カスタムプロパティ・ピボットキャッシュは未実装（custom.xml は不透明保全）。",
+  {"py": "packaging (manifest / relationships / core / app / custom)", "sw": "ZipArchive / ZipWriter / RelsParser / CorePropertiesParser", "status": "partial",
+   "desc": "Reads and writes rels and core.xml, and resolves relative targets (../). [Content_Types].xml is parsed too. Extended properties, custom properties and pivot caches are not implemented (custom.xml is preserved as opaque bytes).",
    "pyx": "# internal", "swx": "// internal",
    "tests": []},
-  {"py": "xml / descriptors / compat", "sw": "XML（SAX）", "status": "roadmap",
-   "desc": "lxml / ElementTree の関数、属性ディスクリプタ、Python 互換層は Swift に概念が無い。",
+  {"py": "xml / descriptors / compat", "sw": "XML (SAX)", "status": "roadmap",
+   "desc": "lxml / ElementTree functions, attribute descriptors and the Python compatibility layer have no counterpart in Swift.",
    "pyx": "# —", "swx": "// —",
    "tests": ["xml/tests/test_functions.py::*", "descriptors/tests/test_base.py::*", "descriptors/tests/test_excel.py::*", "descriptors/tests/test_nested.py::*", "descriptors/tests/test_sequence.py::*", "descriptors/tests/test_serialisable.py::*", "descriptors/tests/test_container.py::*", "descriptors/tests/test_namespace.py::*", "compat/tests/test_compat.py::*"]},
  ]},
- {"id": "roadmap", "title": "未実装の領域（na_api）— ロードマップ", "apis": [
-  {"py": "openpyxl.chart / chartsheet / drawing", "sw": "sheet.charts / sheet.images（B.34・B.32・B.72）", "status": "roadmap", "desc": "グラフ（4 種を書き、全種を読む）と画像（読み書き）は対応。チャートシートは保全、図形は保全のみ（openpyxl の drawing オブジェクト模型は持たない）。", "pyx": "ws.add_chart(BarChart(), 'A1')", "swx": "sheet.addChart(Chart(.column), over: \"D2:K16\")",
+ {"id": "roadmap", "title": "Roadmap — areas not yet implemented (na_api)", "apis": [
+  {"py": "openpyxl.chart / chartsheet / drawing", "sw": "sheet.charts / sheet.images (B.34, B.32, B.72)", "status": "roadmap", "desc": "Charts (four kinds written, every kind read) and images (read and written) are supported. Chartsheets are preserved, and shapes are preserved only (there is no counterpart to openpyxl's drawing object model).", "pyx": "ws.add_chart(BarChart(), 'A1')", "swx": "sheet.addChart(Chart(.column), over: \"D2:K16\")",
    "tests": ["chart/tests/*", "chartsheet/tests/*", "drawing/tests/*", "reader/tests/test_drawings.py::*"]},
-  {"py": "openpyxl.pivot", "sw": "—", "status": "roadmap", "desc": "ピボットテーブルとキャッシュ。", "pyx": "ws._pivots", "swx": "// roadmap", "tests": ["pivot/tests/*"]},
-  {"py": "openpyxl.formula（Tokenizer / Translator）", "sw": "—", "status": "roadmap", "desc": "数式のトークン化と参照の平行移動。SwiftSheets は数式を文字列のまま保持する。", "pyx": "Translator('=A1', 'B1').translate_formula('C3')", "swx": "// roadmap", "tests": ["formula/tests/*"]},
-  {"py": "workbook external links / protection / VBA / templates", "sw": "—", "status": "roadmap", "desc": "外部リンク、ブック保護、VBA の保持、xltx / xltm テンプレート。", "pyx": "load_workbook(f, keep_vba=True)", "swx": "// roadmap", "tests": []},
+  {"py": "openpyxl.pivot", "sw": "—", "status": "roadmap", "desc": "Pivot tables and their caches.", "pyx": "ws._pivots", "swx": "// roadmap", "tests": ["pivot/tests/*"]},
+  {"py": "openpyxl.formula (Tokenizer / Translator)", "sw": "—", "status": "roadmap", "desc": "Tokenising formulas and shifting their references. SwiftSheets keeps a formula as a plain string.", "pyx": "Translator('=A1', 'B1').translate_formula('C3')", "swx": "// roadmap", "tests": ["formula/tests/*"]},
+  {"py": "workbook external links / protection / VBA / templates", "sw": "—", "status": "roadmap", "desc": "External links, workbook protection, keeping VBA, and xltx / xltm templates.", "pyx": "load_workbook(f, keep_vba=True)", "swx": "// roadmap", "tests": []},
  ]},
 ]
 
@@ -244,7 +244,7 @@ for area in AREAS:
 leftover = [t for t in TESTS if (t["file"], t["key"]) not in attributed]
 AREAS[-1]["apis"][-1]["rows"] = leftover
 if leftover:
-    AREAS[-1]["apis"][-1]["desc"] += f" （上の領域に割り当てていない残り {len(leftover)} テスト。）"
+    AREAS[-1]["apis"][-1]["desc"] += f" (The remaining {len(leftover)} tests not assigned to any area above.)"
 
 
 def tally(rows):
@@ -259,7 +259,7 @@ def donut(counts, size=220, stroke=26):
     total = sum(counts.get(s, 0) for s in STATUS) or 1
     r = (size - stroke) / 2
     circ = 2 * 3.141592653589793 * r
-    out = [f'<svg viewBox="0 0 {size} {size}" width="{size}" height="{size}" role="img" aria-label="テスト状態の内訳">']
+    out = [f'<svg viewBox="0 0 {size} {size}" width="{size}" height="{size}" role="img" aria-label="Breakdown of test statuses">']
     offset = 0.0
     for s, (label, color) in STATUS.items():
         n = counts.get(s, 0)
@@ -269,7 +269,7 @@ def donut(counts, size=220, stroke=26):
         offset += length
     verified = counts.get("ported", 0) + counts.get("adapted", 0)
     out.append(f'<text x="{size/2}" y="{size/2 - 6}" text-anchor="middle" font-size="30" font-weight="800" fill="currentColor">{verified}</text>')
-    out.append(f'<text x="{size/2}" y="{size/2 + 18}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">/ {total} Swift で検証</text>')
+    out.append(f'<text x="{size/2}" y="{size/2 + 18}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">/ {total} verified in Swift</text>')
     out.append("</svg>")
     return "".join(out)
 
@@ -281,7 +281,7 @@ def stacked_bars(modules):
     h = rowh * len(rows) + 40
     maxn = max(c["total"] for _, c in rows)
     scale = (w - left - right) / maxn
-    out = [f'<svg viewBox="0 0 {w} {h}" width="100%" role="img" aria-label="モジュール別のテスト状態" style="font-family:inherit">']
+    out = [f'<svg viewBox="0 0 {w} {h}" width="100%" role="img" aria-label="Test statuses by module" style="font-family:inherit">']
     y = 10
     for name, c in rows:
         x = left
@@ -305,19 +305,19 @@ def legend():
 
 
 def pipeline_svg():
-    return '''<svg viewBox="0 0 960 300" width="100%" role="img" aria-label="検証の仕組み" style="font-family:inherit;font-size:13px">
+    return '''<svg viewBox="0 0 960 300" width="100%" role="img" aria-label="How verification works" style="font-family:inherit;font-size:13px">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" opacity=".6"/></marker></defs>
 <g fill="none" stroke="currentColor" stroke-opacity=".18">
  <rect x="20" y="30" width="250" height="110" rx="14"/><rect x="355" y="30" width="250" height="110" rx="14"/><rect x="690" y="30" width="250" height="110" rx="14"/>
  <rect x="20" y="180" width="250" height="90" rx="14"/><rect x="355" y="180" width="250" height="90" rx="14"/><rect x="690" y="180" width="250" height="90" rx="14"/>
 </g>
 <g fill="currentColor">
- <text x="145" y="58" text-anchor="middle" font-weight="700">openpyxl 3.1.5 のテスト</text><text x="145" y="82" text-anchor="middle" opacity=".75">161 ファイル / 1,711 関数</text><text x="145" y="104" text-anchor="middle" opacity=".75">enumerate_openpyxl_tests.py で列挙</text><text x="145" y="124" text-anchor="middle" opacity=".6" font-size="11.5">openpyxl-3.1.5-tests.json（同梱）</text>
- <text x="480" y="58" text-anchor="middle" font-weight="700">台帳 parity.json</text><text x="480" y="82" text-anchor="middle" opacity=".75">1 テストに 1 状態＋理由</text><text x="480" y="104" text-anchor="middle" opacity=".75">ported / adapted / na_api / na_python</text><text x="480" y="124" text-anchor="middle" opacity=".6" font-size="11.5">check.py が双方向に照合 → report.json</text>
- <text x="815" y="58" text-anchor="middle" font-weight="700">Swift テスト（swift test）</text><text x="815" y="82" text-anchor="middle" opacity=".75">Tests/SwiftSheetsTests/Parity/*.swift</text><text x="815" y="104" text-anchor="middle" opacity=".75">// openpyxl: file::test の出典コメント</text><text x="815" y="124" text-anchor="middle" opacity=".6" font-size="11.5">openpyxl のフィクスチャ（MIT）をそのまま使用</text>
- <text x="145" y="212" text-anchor="middle" font-weight="700">SwiftSheets が書く</text><text x="145" y="236" text-anchor="middle" opacity=".75">swiftsheets.xlsx</text><text x="145" y="256" text-anchor="middle" opacity=".6" font-size="11.5">値・書式・寸法・結合・リンク・印刷設定</text>
- <text x="480" y="212" text-anchor="middle" font-weight="700">verify_with_openpyxl.py</text><text x="480" y="236" text-anchor="middle" opacity=".75">両方向の往復を 1 つの定義で検証</text><text x="480" y="256" text-anchor="middle" opacity=".6" font-size="11.5">web の venv（openpyxl 3.1.5）で実行</text>
- <text x="815" y="212" text-anchor="middle" font-weight="700">openpyxl が書く</text><text x="815" y="236" text-anchor="middle" opacity=".75">openpyxl.xlsx → SwiftSheets が読む</text><text x="815" y="256" text-anchor="middle" opacity=".6" font-size="11.5">さらに SwiftSheets で往復して再検証</text>
+ <text x="145" y="58" text-anchor="middle" font-weight="700">openpyxl 3.1.5 tests</text><text x="145" y="82" text-anchor="middle" opacity=".75">161 files / 1,711 functions</text><text x="145" y="104" text-anchor="middle" opacity=".75">via enumerate_openpyxl_tests.py</text><text x="145" y="124" text-anchor="middle" opacity=".6" font-size="11.5">openpyxl-3.1.5-tests.json (committed)</text>
+ <text x="480" y="58" text-anchor="middle" font-weight="700">Ledger: parity.json</text><text x="480" y="82" text-anchor="middle" opacity=".75">one status + reason per test</text><text x="480" y="104" text-anchor="middle" opacity=".75">ported / adapted / na_api / na_python</text><text x="480" y="124" text-anchor="middle" opacity=".6" font-size="11.5">check.py checks both ways → report.json</text>
+ <text x="815" y="58" text-anchor="middle" font-weight="700">Swift tests (swift test)</text><text x="815" y="82" text-anchor="middle" opacity=".75">Tests/SwiftSheetsTests/Parity/*.swift</text><text x="815" y="104" text-anchor="middle" opacity=".75">source comment // openpyxl: file::test</text><text x="815" y="124" text-anchor="middle" opacity=".6" font-size="11.5">openpyxl's fixtures (MIT) used as-is</text>
+ <text x="145" y="212" text-anchor="middle" font-weight="700">SwiftSheets writes</text><text x="145" y="236" text-anchor="middle" opacity=".75">swiftsheets.xlsx</text><text x="145" y="256" text-anchor="middle" opacity=".6" font-size="11.5">values, styles, sizes, merges, links, print</text>
+ <text x="480" y="212" text-anchor="middle" font-weight="700">verify_with_openpyxl.py</text><text x="480" y="236" text-anchor="middle" opacity=".75">both round trips from one definition</text><text x="480" y="256" text-anchor="middle" opacity=".6" font-size="11.5">runs in the web venv (openpyxl 3.1.5)</text>
+ <text x="815" y="212" text-anchor="middle" font-weight="700">openpyxl writes</text><text x="815" y="236" text-anchor="middle" opacity=".75">openpyxl.xlsx → SwiftSheets reads it</text><text x="815" y="256" text-anchor="middle" opacity=".6" font-size="11.5">re-checked after a SwiftSheets round trip</text>
 </g>
 <g stroke="currentColor" stroke-opacity=".5" stroke-width="1.5" fill="none" marker-end="url(#arr)">
  <path d="M270 85 H350"/><path d="M605 85 H685"/><path d="M270 225 H350"/><path d="M690 225 H610"/>
@@ -343,13 +343,13 @@ def api_card(api):
             reason = f' <span class="why">{e(r["reason"])}</span>' if r["status"] != "ported" and r["reason"] else ""
             swift = f' <span class="sw">{e(sw)}</span>' if sw else ""
             items.append(f'<li><i class="dot" style="background:{STATUS[r["status"]][1]}"></i><code>{e(r["file"].replace("/tests/", "/"))}::{e(r["key"])}</code>{swift}{reason}</li>')
-        tests_html = f'<details><summary>openpyxl のテスト {len(rows)} 件（Swift で検証 {verified}）</summary><ul class="tests">{"".join(items)}</ul></details>'
+        tests_html = f'<details><summary>openpyxl tests: {len(rows)} ({verified} verified in Swift)</summary><ul class="tests">{"".join(items)}</ul></details>'
     return f'''<article class="api">
   <header><div class="names"><div class="py"><span class="lang">openpyxl</span><code>{e(api["py"])}</code></div><div class="swn"><span class="lang">SwiftSheets</span><code>{e(api["sw"])}</code></div></div>
   <span class="status" style="--c:{color}">{label}</span></header>
   <p>{e(api["desc"])}</p>
   <div class="usage"><pre><span class="lang">Python</span>{e(api["pyx"])}</pre><pre><span class="lang">Swift</span>{e(api["swx"])}</pre></div>
-  <div class="teststatus">{bar}<div class="chips">{chips or '<span class="chip muted">対応する openpyxl テストなし</span>'}</div></div>
+  <div class="teststatus">{bar}<div class="chips">{chips or '<span class="chip muted">No corresponding openpyxl tests</span>'}</div></div>
   {tests_html}
 </article>'''
 
@@ -411,30 +411,30 @@ footer{margin-top:64px;color:var(--muted);font-size:13px;border-top:1px solid va
 parts = []
 parts.append(f'''<main>
 <p class="lead" style="margin:0 0 6px">SwiftSheets · {DATE}</p>
-<h1>openpyxl との API カバー率とテスト状況</h1>
-<p class="lead">SwiftSheets（Swift）が参照実装 openpyxl 3.1.5 のどの API をどこまで再現し、openpyxl 自身のテストのうちどれが Swift で通っているかを、台帳から生成したページです。</p>
-<div class="note"><b>前提:</b> 依頼は「openxlsx との比較」でしたが、SwiftSheets の README・<code>app/CLAUDE.md</code>・フィクスチャ生成器はいずれも <b>openpyxl</b>（Python）を参照実装と定めており、リポジトリに openxlsx（R パッケージ）への言及はありません。本書は openpyxl の typo と解釈して openpyxl 3.1.5 と比較しています。</div>
-<div class="toc">{"".join(f'<a href="#{a["id"]}">{e(a["title"].split(" — ")[0])}</a>' for a in AREAS)}<a href="#diff">意図的な差分</a><a href="#howto">再生成と再検証</a></div>
+<h1>API coverage and test parity with openpyxl</h1>
+<p class="lead">This page, generated from the ledger, shows how far SwiftSheets (Swift) reproduces each API of the reference implementation, openpyxl 3.1.5, and which of openpyxl's own tests pass in Swift.</p>
+<div class="note"><b>Premise:</b> The request was for "a comparison with openxlsx", but the SwiftSheets README, <code>app/CLAUDE.md</code> and the fixture generator all name <b>openpyxl</b> (Python) as the reference implementation, and the repository makes no mention of openxlsx (the R package). This document reads the request as a typo for openpyxl and compares against openpyxl 3.1.5.</div>
+<div class="toc">{"".join(f'<a href="#{a["id"]}">{e(a["title"].split(" — ")[0])}</a>' for a in AREAS)}<a href="#diff">Intentional differences</a><a href="#howto">Regenerating and re-verifying</a></div>
 
-<h2 id="summary">サマリー</h2>
+<h2 id="summary">Summary</h2>
 <div class="kpis">
- <div class="kpi"><b>{api_count["ok"]} / {sum(api_count.values())}</b><span>API 領域が「対応」（一部 {api_count["partial"]}・ロードマップ {api_count["roadmap"]}）</span></div>
- <div class="kpi"><b>{verified}</b><span>openpyxl のテスト関数を Swift で検証（移植 {totals["ported"]}・適応 {totals["adapted"]}）</span></div>
- <div class="kpi"><b>{totals["na_api"]}</b><span>対応 API が無いテスト（グラフ・ピボット・図形・条件付き書式 など）</span></div>
- <div class="kpi"><b>{totals["na_python"]}</b><span>Python 固有（ディスクリプタ・numpy・ファイル記述子）</span></div>
- <div class="kpi"><b>{SWIFT_TEST_COUNT}</b><span>Swift テスト（swift test）— すべて緑</span></div>
- <div class="kpi"><b>2 / 2</b><span>openpyxl との往復（書く→読む・読む→書く）合格</span></div>
+ <div class="kpi"><b>{api_count["ok"]} / {sum(api_count.values())}</b><span>API areas rated Supported ({api_count["partial"]} partial, {api_count["roadmap"]} roadmap)</span></div>
+ <div class="kpi"><b>{verified}</b><span>openpyxl test functions verified in Swift ({totals["ported"]} ported, {totals["adapted"]} adapted)</span></div>
+ <div class="kpi"><b>{totals["na_api"]}</b><span>Tests with no corresponding API (charts, pivots, shapes, conditional formatting and so on)</span></div>
+ <div class="kpi"><b>{totals["na_python"]}</b><span>Python-only (descriptors, numpy, file descriptors)</span></div>
+ <div class="kpi"><b>{SWIFT_TEST_COUNT}</b><span>Swift tests (swift test) — all green</span></div>
+ <div class="kpi"><b>2 / 2</b><span>Round trips with openpyxl passed (write → read, read → write)</span></div>
 </div>
 <div class="hero"><figure style="margin:0">{donut(totals)}</figure>
-<div><p>openpyxl 3.1.5 のテストは <b>{totals["total"]} 関数</b>（パラメータ展開で {totals["cases"]} ケース）。SwiftSheets に対応する API がある領域のテストは <b>{verified + totals["na_python"]}</b>（うち {totals["na_python"]} はディスクリプタや numpy など Python 固有の機構）。残る <b>{verified} 件はすべて Swift で通っています</b>。{totals["na_api"]} 件は API がまだ無い領域（下のロードマップ）です。</p>{legend()}
-<p style="font-size:13px;color:var(--muted)">移植 = 同じ入力・同じ期待値。適応 = 同じ振る舞いを Swift の形で検証（例外 → nil、XML 比較 → 読み戻し、など。理由は各テストに付記）。</p></div></div>
+<div><p>openpyxl 3.1.5 has <b>{totals["total"]} test functions</b> ({totals["cases"]} cases once parameters are expanded). <b>{verified + totals["na_python"]}</b> of them test areas where SwiftSheets has a corresponding API ({totals["na_python"]} of these exercise Python-only machinery such as descriptors and numpy). <b>The remaining {verified} all pass in Swift</b>. The other {totals["na_api"]} belong to areas with no API yet (the roadmap below).</p>{legend()}
+<p style="font-size:13px;color:var(--muted)">Ported = the same inputs and the same expected values. Adapted = the same behaviour, checked in Swift's form (an exception becomes nil, an XML comparison becomes a read-back, and so on; each test states its reason).</p></div></div>
 
-<h3>モジュール別</h3>
+<h3>By module</h3>
 <figure>{stacked_bars(report["modules"])}</figure>{legend()}
 
-<h3>検証の仕組み</h3>
+<h3>How verification works</h3>
 <figure>{pipeline_svg()}</figure>
-<p>判断を口約束にしないため、1,711 テスト全件に状態と理由を付けた台帳 <code>app/SwiftSheets/Tests/OpenpyxlParity/parity.json</code> を置き、<code>check.py</code> が「ported / adapted なのに Swift テストが無い」「Swift テストの出典が台帳に無い」「同名テストの曖昧さ」を赤にします。このページの数字はその <code>report.json</code> から生成しています。</p>
+<p>So that no judgement rests on an unchecked promise, the ledger <code>app/SwiftSheets/Tests/OpenpyxlParity/parity.json</code> gives every one of the 1,711 tests a status and a reason, and <code>check.py</code> turns red on a test marked ported / adapted that has no Swift test, on a Swift test whose cited source is not in the ledger, and on an ambiguity between tests of the same name. The numbers on this page are generated from its <code>report.json</code>.</p>
 ''')
 
 for area in AREAS:
@@ -448,49 +448,49 @@ for area in AREAS:
         parts.append(api_card(api))
 
 # intentional differences
-parts.append('''<h2 id="diff">意図的な差分（openpyxl と違う振る舞い）</h2>
-<div class="card"><div class="tablewrap"><table><thead><tr><th>場面</th><th>openpyxl</th><th>SwiftSheets</th><th>理由</th></tr></thead><tbody>
-<tr><td>不正な座標・範囲・列記号</td><td>ValueError</td><td>nil（失敗可能イニシャライザ）/ false</td><td>Swift の慣習。例外より型で表す</td></tr>
-<tr><td>不正なシート名（空・<code>\\ * ? : / [ ]</code>）</td><td>ValueError</td><td>以前の名前を維持。<code>Worksheet.validateTitle</code> が理由を返す</td><td>プロパティ代入は throw できない。クラッシュさせない</td></tr>
-<tr><td>非表示シート・他ブックのシートを active に</td><td>ValueError</td><td>無視</td><td>同上</td></tr>
-<tr><td><code>CellRange("C3:A1")</code>（終点が始点より前）</td><td>ValueError</td><td>nil（以前の SwiftSheets は正規化していた）</td><td>openpyxl に合わせた</td></tr>
-<tr><td><code>save()</code> の modified</td><td>現在時刻を書く</td><td>設定値をそのまま（未設定は 2026-01-01）</td><td>出力の再現性（conformance がバイト比較に使える）</td></tr>
-<tr><td>showGridLines の既定</td><td>未設定（偽）</td><td>true（Excel の既定表示）</td><td>書き出しでは省略され同じ XML になる</td></tr>
-<tr><td>6 桁の色 <code>Color("FF0000")</code></td><td>alpha 00 を補う</td><td>alpha FF を補う</td><td>Excel は alpha を無視。不透明の方が他ツールで安全</td></tr>
-<tr><td>結合セルの罫線の数（complex-styles.xlsx）</td><td>7 + 4（中間オブジェクトも数える）</td><td>7 + 1（最終状態だけ）</td><td>内部の IndexedList を持たない</td></tr>
-<tr><td>文字列の書き出し</td><td>inlineStr（単体テスト時）/ 共有文字列</td><td>常に共有文字列</td><td>Excel の既定と同じ。ファイルは小さい</td></tr>
-<tr><td>ISO 日付の書き出し（iso_dates）</td><td>オプションで <code>t="d"</code></td><td>未対応（読みは対応）</td><td>Excel は数値シリアルを期待する</td></tr>
-<tr><td>制御文字を含む文字列</td><td>IllegalCharacterError</td><td><code>containsIllegalCharacters</code> で検出、書き出し時に除去</td><td>列挙の初期化は throw しない</td></tr>
+parts.append('''<h2 id="diff">Intentional differences (where behaviour departs from openpyxl)</h2>
+<div class="card"><div class="tablewrap"><table><thead><tr><th>Case</th><th>openpyxl</th><th>SwiftSheets</th><th>Reason</th></tr></thead><tbody>
+<tr><td>Invalid coordinate, range or column letter</td><td>ValueError</td><td>nil (failable initializer) / false</td><td>Swift convention: failure is expressed in the type rather than by an exception</td></tr>
+<tr><td>Invalid sheet name (empty, <code>\\ * ? : / [ ]</code>)</td><td>ValueError</td><td>The previous name is kept; <code>Worksheet.validateTitle</code> returns the reason</td><td>A property assignment cannot throw, and it must not crash</td></tr>
+<tr><td>Making a hidden sheet, or a sheet from another workbook, active</td><td>ValueError</td><td>Ignored</td><td>As above</td></tr>
+<tr><td><code>CellRange("C3:A1")</code> (end before start)</td><td>ValueError</td><td>nil (earlier SwiftSheets normalised it)</td><td>Aligned with openpyxl</td></tr>
+<tr><td>modified on <code>save()</code></td><td>Writes the current time</td><td>The value as set (2026-01-01 when unset)</td><td>Reproducible output (conformance can compare bytes)</td></tr>
+<tr><td>Default of showGridLines</td><td>Unset (false)</td><td>true (Excel's default display)</td><td>Omitted on write, so the XML is the same</td></tr>
+<tr><td>Six-digit colour <code>Color("FF0000")</code></td><td>Fills in alpha 00</td><td>Fills in alpha FF</td><td>Excel ignores alpha; opaque is safer in other tools</td></tr>
+<tr><td>Number of borders with merged cells (complex-styles.xlsx)</td><td>7 + 4 (intermediate objects counted too)</td><td>7 + 1 (final state only)</td><td>No internal IndexedList</td></tr>
+<tr><td>Writing strings</td><td>inlineStr (in unit tests) / shared strings</td><td>Always shared strings</td><td>Same as Excel's default; smaller files</td></tr>
+<tr><td>Writing ISO dates (iso_dates)</td><td><code>t="d"</code> as an option</td><td>Not supported (reading is)</td><td>Excel expects numeric serials</td></tr>
+<tr><td>Strings containing control characters</td><td>IllegalCharacterError</td><td>Detected by <code>containsIllegalCharacters</code>, removed on write</td><td>Constructing an enum case cannot throw</td></tr>
 </tbody></table></div></div>
 ''')
 
 # na_api summary table
-parts.append('<h2 id="roadmap-table">対応 API が無いテストの内訳</h2><div class="card"><div class="tablewrap"><table><thead><tr><th>領域</th><th>テスト数</th></tr></thead><tbody>')
+parts.append('<h2 id="roadmap-table">Tests with no corresponding API, by area</h2><div class="card"><div class="tablewrap"><table><thead><tr><th>Area</th><th>Tests</th></tr></thead><tbody>')
 for k, n in na_api_reasons.most_common():
     parts.append(f'<tr><td>{e(k)}</td><td>{n}</td></tr>')
 parts.append('</tbody></table></div></div>')
 
-parts.append('''<h2 id="howto">再生成と再検証</h2>
+parts.append('''<h2 id="howto">Regenerating and re-verifying</h2>
 <div class="card">
-<p>SwiftSheets のテスト（openpyxl からの移植を含む）:</p><pre>cd app/SwiftSheets &amp;&amp; swift test</pre>
-<p style="margin-top:12px">台帳の照合と report.json の更新（Swift の出典コメントと突き合わせ、矛盾があれば失敗）:</p><pre>python3 Tests/OpenpyxlParity/check.py</pre>
-<p style="margin-top:12px">openpyxl との往復検証（Stream の web venv に openpyxl 3.1.5 がある）:</p><pre>uv run --project ../../web python Tests/OpenpyxlParity/verify_with_openpyxl.py</pre>
-<p style="margin-top:12px">このページの再生成:</p><pre>python3 Tests/OpenpyxlParity/render_report.py ../../docs/archive/2026-08-22-swiftsheets-openpyxl-parity.html</pre>
-<p style="margin-top:12px">新しい openpyxl に追従するとき: ソースアーカイブを取り、<code>enumerate_openpyxl_tests.py &lt;dir&gt;</code> で列挙を更新し、<code>check.py</code> が緑になるまで台帳を直す。</p>
+<p>SwiftSheets tests (including those ported from openpyxl):</p><pre>cd app/SwiftSheets &amp;&amp; swift test</pre>
+<p style="margin-top:12px">Check the ledger and update report.json (matched against the source comments in Swift; fails on any inconsistency):</p><pre>python3 Tests/OpenpyxlParity/check.py</pre>
+<p style="margin-top:12px">Round-trip verification with openpyxl (openpyxl 3.1.5 is installed in Stream's web venv):</p><pre>uv run --project ../../web python Tests/OpenpyxlParity/verify_with_openpyxl.py</pre>
+<p style="margin-top:12px">Regenerate this page:</p><pre>python3 Tests/OpenpyxlParity/render_report.py &lt;out.html&gt;</pre>
+<p style="margin-top:12px">To follow a newer openpyxl: fetch its source archive, refresh the enumeration with <code>enumerate_openpyxl_tests.py &lt;dir&gt;</code>, and fix the ledger until <code>check.py</code> is green.</p>
 </div>
-<footer>生成: render_report.py（report.json から）· openpyxl 3.1.5 のテストとフィクスチャは MIT License（© 2010-2024 openpyxl）· SwiftSheets は MIT License（© 2026 Shinichi Nambu）</footer>
+<footer>Generated by render_report.py (from report.json) · openpyxl 3.1.5's tests and fixtures: MIT License (© 2010-2024 openpyxl) · SwiftSheets: MIT License (© 2026 Shinichi Nambu)</footer>
 </main>''')
 
 body = "".join(parts)
-title = "SwiftSheets × openpyxl — API カバー率とテスト状況"
-full = f'<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title><style>{CSS}</style></head><body>{body}</body></html>'
+title = "SwiftSheets × openpyxl — API coverage and test parity"
+full = f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title><style>{CSS}</style></head><body>{body}</body></html>'
 
 out = pathlib.Path(sys.argv[1])
 out.write_text(full, encoding="utf-8")
 print(f"wrote {out} ({len(full)//1024} KB)")
 if "--fragment" in sys.argv:
     frag = pathlib.Path(sys.argv[sys.argv.index("--fragment") + 1])
-    frag.write_text(f'<title>SwiftSheets × openpyxl パリティ</title><style>{CSS}</style>{body}', encoding="utf-8")
+    frag.write_text(f'<title>SwiftSheets × openpyxl parity</title><style>{CSS}</style>{body}', encoding="utf-8")
     print(f"wrote {frag}")
 unattributed = len(leftover)
 print(f"tests attributed to API entries: {len(TESTS) - unattributed}; leftover shown under roadmap: {unattributed}")
