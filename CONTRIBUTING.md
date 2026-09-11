@@ -1,6 +1,7 @@
 # Contributing
 
 SwiftSheets is pre-1.0 and has a single maintainer. That shapes what is useful to send.
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Most useful right now
 
