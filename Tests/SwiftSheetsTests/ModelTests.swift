@@ -131,7 +131,7 @@ import Testing
     @Test func tablesOnASheet() {
         var s = Sheet(name: "Canvas")
         s["A1"] = "default table"
-        let t = s.addTable(named: "Second", anchor: CellRef("D10")!)
+        let t = s.addTable(named: "Second", at: CellRef("D10")!)
         s.tables[t]["A1"] = "second"
         #expect(s.tables.count == 2 && s.tables[1].name == "Second" && s.tables[1].anchor.address == "D10")
         #expect(s["A1"] == .text("default table") && s.tables[1]["A1"] == .text("second"))

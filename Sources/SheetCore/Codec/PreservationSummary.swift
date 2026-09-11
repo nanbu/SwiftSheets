@@ -2,7 +2,7 @@
 ///
 /// This is not a complete inventory or a promise that a target format can keep that material. A zero part
 /// count does not mean there are no preserved XML fragments. Reading a summary never expands opaque parts.
-public struct PreservationSummary: Sendable {
+public struct PreservationSummary: Hashable, Sendable {
     /// The format the preserved material came from; nil for a newly created workbook.
     public let sourceFormat: SheetFormat?
     /// The number of opaque package parts. Excludes XML fragments and objects represented by the model.
@@ -44,14 +44,17 @@ public struct PreservedPartKind: Hashable, Sendable, RawRepresentable, CustomStr
     public static let image = PreservedPartKind(rawValue: "image")
     /// A SmartArt diagram (the `dgm:` parts and its frame).
     public static let smartArt = PreservedPartKind(rawValue: "smartArt")
+    /// The VBA project of a macro-enabled workbook (a conversion also reports it on its own, as `.macros`).
     public static let vbaProject = PreservedPartKind(rawValue: "vbaProject")
     /// A Basic script library in an ODS package.
     public static let script = PreservedPartKind(rawValue: "script")
     /// A theme part the model did not read.
     public static let theme = PreservedPartKind(rawValue: "theme")
+    /// A slicer or a slicer cache.
     public static let slicer = PreservedPartKind(rawValue: "slicer")
     /// A data connection, query table or data model.
     public static let dataConnection = PreservedPartKind(rawValue: "dataConnection")
+    /// A custom XML data item (`customXml/item*.xml`).
     public static let customXML = PreservedPartKind(rawValue: "customXML")
     /// An OLE / ActiveX embedding, or an ODS embedded object that is not a chart.
     public static let embeddedObject = PreservedPartKind(rawValue: "embeddedObject")
@@ -61,7 +64,9 @@ public struct PreservedPartKind: Hashable, Sendable, RawRepresentable, CustomStr
     public static let pivot = PreservedPartKind(rawValue: "pivot")
     /// A named table part the model did not read.
     public static let table = PreservedPartKind(rawValue: "table")
+    /// A printer-settings part (the binary settings a printer driver saved for a sheet).
     public static let printerSettings = PreservedPartKind(rawValue: "printerSettings")
+    /// A part the model does not read that no other kind names.
     public static let other = PreservedPartKind(rawValue: "other")
     public var description: String { rawValue }
     public static func < (a: PreservedPartKind, b: PreservedPartKind) -> Bool { a.rawValue < b.rawValue }

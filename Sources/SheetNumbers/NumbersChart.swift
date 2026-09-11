@@ -208,7 +208,7 @@ extension NumbersWriter {
             }
             let frame: NumbersCanvas.Frame
             if let anchor = chart.anchor { frame = grid.frame(.span(anchor), pixelWidth: 0, pixelHeight: 0) }
-            else if let f = chart.frame { frame = NumbersCanvas.Frame(x: f.origin.x, y: f.origin.y, width: f.width, height: f.height) }
+            else if let f = chart.frame { frame = grid.frame(.absolute(f), pixelWidth: 0, pixelHeight: 0) }
             else { frame = NumbersCanvas.Frame(x: 0, y: grid.top(ofRow: grid.table.nextAppendRow + 2), width: 400, height: 250) }
 
             // the categories: the first series' category range, one label formula per cell

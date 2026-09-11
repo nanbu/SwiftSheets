@@ -187,7 +187,7 @@ struct NumbersReader {
                       let dataID = obj.message("data")?.int("identifier"),
                       let record = NumbersCanvas.data(dataID, in: doc),
                       var image = try? SheetImage(data: record.bytes) else { continue }
-                image.anchor = SheetImage.Anchor.absolute(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
+                image.anchor = SheetImage.Anchor.absolute(CanvasRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height))
                 sheet.images.append(image)
                 modelled.insert(did)
             case "TSWP.ShapeInfoArchive":
@@ -204,7 +204,7 @@ struct NumbersReader {
                     let look = NumbersCanvas.fillAndOutline(ofStyle: style, in: doc)
                     shape.fill = look.fill; shape.outline = look.outline
                 }
-                shape.anchor = .absolute(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
+                shape.anchor = .absolute(CanvasRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height))
                 sheet.shapes.append(shape)
                 modelled.insert(did)
             case "TSCH.ChartDrawableArchive":

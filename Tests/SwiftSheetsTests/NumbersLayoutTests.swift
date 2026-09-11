@@ -28,7 +28,7 @@ import SwiftSheets
     @Test func aNonDefaultAnchorIsPlacedOnTheDefaultGrid() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "first"
-        let i = wb.sheets[0].addTable(named: "Anchored", anchor: CellRef("D12")!)
+        let i = wb.sheets[0].addTable(named: "Anchored", at: CellRef("D12")!)
         wb.sheets[0].tables[i]["A1"] = "x"
         let back = try Workbook(data: try wb.write(as: .numbers).data).sheets[0]
         try #require(back.tables.count == 2)

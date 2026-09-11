@@ -471,7 +471,8 @@ enum ODSWriter {
             let drawn = opaque.keys.filter { $0.hasPrefix("Pictures/") || $0.hasPrefix("Object ") || $0.hasPrefix("ObjectReplacements/") || $0.hasPrefix("media/") }
             if !drawn.isEmpty { sink.add(.dropped, subject: .objects, "\(drawn.count) embedded object(s)/picture(s) of the source ODS are not re-linked: content.xml is regenerated") }
         } else if preserved.opaquePartCount > 0 {
-            sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) (charts, drawings, VBA…) cannot be carried into ODS")
+            sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into ODS"
+                     + preserved.heldKindsClause(sheets: Array(wb.sheets), themeRead: wb.theme != nil))
         }
         // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
         if preserved.hasVBAProject {

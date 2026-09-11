@@ -40,7 +40,7 @@ import SwiftSheets
         wb.sheets[0].addShape(line, over: "G8:J12")
         var ellipse = Shape(.ellipse, text: "free")
         ellipse.fill = Color(hex: "FFFF00")
-        ellipse.anchor = .absolute(x: 300, y: 20, width: 120, height: 60)
+        ellipse.anchor = .absolute(CanvasRect(x: 300, y: 20, width: 120, height: 60))
         wb.sheets[0].shapes.append(ellipse)
         return wb
     }
@@ -65,7 +65,7 @@ import SwiftSheets
         #expect(shapes[2].font?.italic == true && shapes[2].font?.size == 12, "\(label): \(String(describing: shapes[2].font))")
         #expect(shapes[3].geometry == .line && shapes[3].anchor == .span(CellRange("G8:J12")!), Comment(rawValue: label))
         #expect(shapes[4].geometry == .ellipse && shapes[4].text == "free", Comment(rawValue: label))
-        if case .absolute(let x, let y, let w, let h) = shapes[4].anchor {
+        if case .absolute(let frame) = shapes[4].anchor { let (x, y, w, h) = (frame.origin.x, frame.origin.y, frame.width, frame.height)
             #expect(abs(x - 300) < 0.5 && abs(y - 20) < 0.5 && abs(w - 120) < 0.5 && abs(h - 60) < 0.5, "\(label): \(shapes[4].anchor)")
         } else { Issue.record("\(label): \(shapes[4].anchor)") }
     }
@@ -100,7 +100,7 @@ import SwiftSheets
         let box = sheet.shapes[4]
         #expect(box.text == "Text box\nline 2" && box.fill == nil && box.outline == nil)
         #expect(sheet.shapes[6].text == "in cell" && sheet.shapes[6].anchor == .span(CellRange("A2:B3")!), "\(sheet.shapes[6].anchor)")
-        if case .absolute(let x, let y, let w, let h) = sheet.shapes[5].anchor {
+        if case .absolute(let frame) = sheet.shapes[5].anchor { let (x, y, w, h) = (frame.origin.x, frame.origin.y, frame.width, frame.height)
             #expect(abs(x - 1 / 2.54 * 72) < 0.1 && abs(y - 7 / 2.54 * 72) < 0.1 && abs(w - 4 / 2.54 * 72) < 0.1 && abs(h - 1 / 2.54 * 72) < 0.1, "a line's box is its two ends: \(sheet.shapes[5].anchor)")
         } else { Issue.record("\(sheet.shapes[5].anchor)") }
     }
@@ -208,7 +208,7 @@ import SwiftSheets
         #expect(back.map(\.text) == ["Hello\nWorld", nil, "A note\non two lines", nil, "free"])
         #expect(back[0].fill == Color(hex: "FFFF0000") && back[0].outline == Shape.Outline(color: Color(hex: "FF0000FF"), width: 2))
         #expect(back[1].fill == Color(hex: "FF4472C4"), "the theme colour is resolved before it is written")
-        #expect(back[4].anchor == .absolute(x: 300, y: 20, width: 120, height: 60))
+        #expect(back[4].anchor == .absolute(CanvasRect(x: 300, y: 20, width: 120, height: 60)))
     }
 
     @Test func shapesAreCarriedBetweenTheFormats() throws {

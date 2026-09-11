@@ -48,8 +48,8 @@ import SwiftSheets
 
     /// An anchor's frame rounded to whole points: the template's default row is 19.93 pt, not 20.
     static func points(_ anchor: SheetImage.Anchor) -> [Int] {
-        guard case .absolute(let x, let y, let w, let h) = anchor else { return [] }
-        return [x, y, w, h].map { Int($0.rounded()) }
+        guard case .absolute(let f) = anchor else { return [] }
+        return [f.origin.x, f.origin.y, f.width, f.height].map { Int($0.rounded()) }
     }
 
     // MARK: - Reading what Numbers wrote
@@ -61,7 +61,7 @@ import SwiftSheets
         let image = sheet.images[0]
         #expect(image.format == .png)
         #expect(image.pixelWidth == 40 && image.pixelHeight == 30)
-        #expect(image.anchor == .absolute(x: 200, y: 300, width: 40, height: 30))
+        #expect(image.anchor == .absolute(CanvasRect(x: 200, y: 300, width: 40, height: 30)))
         // the bytes are the ones under Data/, digest and all
         #expect(SHA1.hash(image.data).base64EncodedString() == "QegeKP5ZdX7ehfJLnpBV5A/9Fng=")
 
@@ -73,7 +73,7 @@ import SwiftSheets
         #expect(shape.geometry == .rectangle)
         #expect(shape.text == "Shape text")
         #expect(shape.fill == Color(hex: "FF000000"), "the shape style's fill is black")
-        #expect(shape.anchor == .absolute(x: 400, y: 500, width: 100, height: 100))
+        #expect(shape.anchor == .absolute(CanvasRect(x: 400, y: 500, width: 100, height: 100)))
         // nothing on the canvas is left to report: the image and both shapes came into the model
         #expect(!wb.readWarnings.contains { $0.message.contains("an image") || $0.message.contains("a shape") },
                 "\(wb.readWarnings.map(\.message))")
@@ -114,7 +114,7 @@ import SwiftSheets
         let back = try Workbook(data: try wb.write(as: .numbers).data)
         try #require(back.sheets[0].images.count == 2)
         #expect(Self.points(back.sheets[0].images[0].anchor) == [114, 50, 98, 20])
-        #expect(back.sheets[0].images[1].anchor == .absolute(x: 0, y: 0, width: 30, height: 12))
+        #expect(back.sheets[0].images[1].anchor == .absolute(CanvasRect(x: 0, y: 0, width: 30, height: 12)))
     }
 
     @Test func writesShapesAndTextBoxesAndReadsThemBack() throws {

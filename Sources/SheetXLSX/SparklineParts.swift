@@ -103,7 +103,7 @@ final class SparklineParser: SAXHandler {
         case "sqref" where field == "sqref": sqref = buffer; field = nil
         case "sparkline":
             if let formula, let ref = sqref.flatMap({ CellRef($0.trimmingCharacters(in: .whitespaces)) }) {
-                group?.sparklines.append(SparklineGroup.Sparkline(dataRange: formula, location: ref))
+                group?.sparklines.append(SparklineGroup.Sparkline(dataRange: formula, at: ref))
             }
         case "sparklineGroup": if let group { groups.append(group) }; group = nil
         case "sparklineGroups": inGroups = false

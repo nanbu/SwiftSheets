@@ -96,7 +96,8 @@ enum WorkbookWriter {
             }
         }
         if !sameFamily, preserved.opaquePartCount > 0 {
-            sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX")
+            sink.add(.dropped, subject: .objects, "\(preserved.opaquePartCount) part(s) preserved from the \(preserved.sourceFormat?.rawValue ?? "source") file cannot be carried into XLSX"
+                     + preserved.heldKindsClause(sheets: Array(wb.sheets), themeRead: wb.theme != nil))
         }
         // a sheet that was never read, from a source this writer cannot carry as bytes, goes out empty — and says so
         for sheet in wb.sheets where sheet.preserved.isUnread && !(sameFamily && sheet.preserved.foreignSheet != nil) {
@@ -1421,7 +1422,7 @@ final class SharedStringTable {
         guard let p = phonetic else { return "" }
         var s = ""
         for run in p.runs {
-            s += "<rPh sb=\"\(max(run.start, 0))\" eb=\"\(max(run.end, run.start, 0))\"><t\(preserveText(run.text))>\(XML.esc(run.text))</t></rPh>"
+            s += "<rPh sb=\"\(max(run.range.lowerBound, 0))\" eb=\"\(max(run.range.upperBound, 0))\"><t\(preserveText(run.text))>\(XML.esc(run.text))</t></rPh>"
         }
         let fontID = p.font.map { styles.fontID($0) } ?? 0   // nil is the workbook's default font, index 0
         s += "<phoneticPr fontId=\"\(fontID)\" type=\"\(p.kind.rawValue)\" alignment=\"\(p.alignment.rawValue)\"/>"

@@ -348,7 +348,7 @@ enum NumbersCanvas {
 
         func frame(_ anchor: SheetImage.Anchor, pixelWidth: Int, pixelHeight: Int) -> Frame {
             switch anchor {
-            case .absolute(let x, let y, let w, let h): return Frame(x: x, y: y, width: w, height: h)
+            case .absolute(let f): return Frame(x: f.origin.x, y: f.origin.y, width: f.width, height: f.height)
             case .span(let range):
                 let x = left(ofColumn: range.minColumn), y = top(ofRow: range.minRow)
                 return Frame(x: x, y: y, width: left(ofColumn: range.maxColumn + 1) - x, height: top(ofRow: range.maxRow + 1) - y)

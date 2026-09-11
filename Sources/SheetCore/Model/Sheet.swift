@@ -125,9 +125,9 @@ public struct Sheet: Equatable, Sendable {
         set { if tables.isEmpty { tables.append(newValue) } else { tables[0] = newValue } }
     }
 
-    /// Adds a table (Numbers: several per sheet). Returns its index.
+    /// Adds a table (Numbers: several per sheet) whose A1 sits at `anchor` on the default grid. Returns its index.
     @discardableResult
-    public mutating func addTable(named name: String? = nil, anchor: CellRef = CellRef(row: 1, column: 1)) -> Int {
+    public mutating func addTable(named name: String? = nil, at anchor: CellRef = CellRef(row: 1, column: 1)) -> Int {
         var t = Table(name: name); t.anchor = anchor
         tables.append(t)
         return tables.count - 1
@@ -268,8 +268,11 @@ public struct Sheet: Equatable, Sendable {
     public mutating func removeCell(_ ref: CellRef) { table.removeCell(ref) }
     public mutating func removeCell(_ a1: String) { table.removeCell(a1) }
 
+    /// The style of the cell at `ref`, or the default style when the cell holds none.
     public func style(at ref: CellRef) -> CellStyle { table.style(at: ref) }
+    /// The style of the cell at an A1 address; the default style for an address that does not parse.
     public func style(_ a1: String) -> CellStyle { table.style(a1) }
+    /// Changes the style of the cell at `ref` in place, creating the cell when it has none.
     public mutating func setStyle(at ref: CellRef, _ update: (inout CellStyle) -> Void) { table.setStyle(at: ref, update) }
     public mutating func setStyle(_ a1: String, _ update: (inout CellStyle) -> Void) { table.setStyle(a1, update) }
     public mutating func setStyle(_ range: CellRange, _ update: (inout CellStyle) -> Void) { table.setStyle(range, update) }
@@ -277,6 +280,7 @@ public struct Sheet: Equatable, Sendable {
     public var extent: CellRange? { table.extent }
     public var rowCount: Int { table.rowCount }
     public var columnCount: Int { table.columnCount }
+    /// "A1:J42", or "A1:A1" for an empty sheet (the `<dimension>` form).
     public var extentAddress: String { table.extentAddress }
 
     public func rows(in range: CellRange? = nil) -> [[CellValue?]] { table.rows(in: range) }

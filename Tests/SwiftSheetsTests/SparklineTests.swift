@@ -20,7 +20,7 @@ import SwiftSheets
         var wb = Workbook()
         wb.sheets[0].name = "Trend"
         for (c, v) in [3, 1, 4, 1, 5, 9, 2, 6].enumerated() { wb.sheets[0][CellRef(row: 1, column: c + 1)] = .integer(v); wb.sheets[0][CellRef(row: 2, column: c + 1)] = .integer(v - 4) }
-        wb.sheets[0].addSparkline(.line, data: "A1:H1", at: "I1")
+        wb.sheets[0].addSparkline(.line, dataRange: "A1:H1", at: "I1")
         var wins = SparklineGroup(.stacked, dataRange: "'Trend'!A2:H2", at: CellRef("I2")!)
         wins.color = .theme(4)
         wins.negativeColor = Color(hex: "FF0000")
@@ -44,7 +44,7 @@ import SwiftSheets
         let sheet = try Workbook(contentsOf: Self.xlsx).sheets[0]
         #expect(sheet.sparklines.map(\.kind) == [.line, .column])
         #expect(sheet.sparklines[0].color == .rgb("FF376092") && sheet.sparklines[0].negativeColor == .rgb("FFFF0000"))
-        #expect(sheet.sparklines[0].sparklines == [SparklineGroup.Sparkline(dataRange: "S!A1:H1", location: CellRef("I1")!)])
+        #expect(sheet.sparklines[0].sparklines == [SparklineGroup.Sparkline(dataRange: "S!A1:H1", at: CellRef("I1")!)])
         #expect(sheet.sparklines[1].showsHighPoint && sheet.sparklines[1].highColor == .rgb("FFFF0000") && sheet.sparklines[1].sparklines[0].location == CellRef("I2"))
         #expect(sheet.preserved.sparklines == sheet.sparklines)
     }
@@ -70,7 +70,7 @@ import SwiftSheets
         #expect(sameSheet.hasSuffix(String(sourceExt)), "the extension list travels as bytes")
         #endif
         wb.sheets[0].sparklines[0].color = Color(hex: "00FF00")
-        wb.sheets[0].addSparkline(.column, data: "A1:H1", at: "J1")
+        wb.sheets[0].addSparkline(.column, dataRange: "A1:H1", at: "J1")
         let changed = try wb.write(as: .xlsx)
         let sheet = try Package.part("xl/worksheets/sheet1.xml", of: changed.data)
         #expect(sheet.components(separatedBy: "<extLst").count == 2 && sheet.contains("<x14:colorSeries rgb=\"FF00FF00\"/>") && sheet.contains("<xm:f>Trend!A1:H1</xm:f>") == false)

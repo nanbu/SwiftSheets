@@ -22,7 +22,7 @@ public struct Chart: Hashable, Sendable {
         /// Drawn without axes, as the format defines it.
         public static let pie = Kind(rawValue: "pie")
         /// The kinds every writer can draw.
-        public static let drawable: [Kind] = [.column, .bar, .line, .pie]
+        package static let drawable: [Kind] = [.column, .bar, .line, .pie]
         /// Whether the writers can draw this kind (`column`, `bar`, `line`, `pie`).
         public var isDrawable: Bool { Kind.drawable.contains(self) }
         public var description: String { rawValue }
@@ -37,6 +37,7 @@ public struct Chart: Hashable, Sendable {
         /// The series' name as a reference to a cell (`'Data'!$B$1`), the way Excel usually records it; when
         /// both are set, the reference is what is written.
         public var nameReference: String?
+        /// A series whose numbers are `values`, a range as text; the other arguments are described on their properties.
         public init(values: String, categories: String? = nil, name: String? = nil, nameReference: String? = nil) {
             self.values = values; self.categories = categories; self.name = name; self.nameReference = nameReference
         }
@@ -58,6 +59,8 @@ public struct Chart: Hashable, Sendable {
         self.kind = kind; self.title = title
     }
 
+    /// Appends a series. `values` and `categories` are ranges as text (`'Data'!$B$2:$B$13`, or `B2:B13`, which is
+    /// qualified with the host sheet's name when the chart is added); `name` is literal text, `nameReference` a cell.
     public mutating func addSeries(values: String, categories: String? = nil, name: String? = nil, nameReference: String? = nil) {
         series.append(Series(values: values, categories: categories, name: name, nameReference: nameReference))
     }
@@ -66,7 +69,7 @@ public struct Chart: Hashable, Sendable {
 extension Chart {
     /// The cells a canvas frame covers on Numbers' default grid (98 pt columns, 20 pt rows): the anchor a writer
     /// that places charts by cells uses for a chart that only has a frame.
-    public var anchorOrFrameCells: CellRange? {
+    package var anchorOrFrameCells: CellRange? {
         if let anchor { return anchor }
         guard let f = frame else { return nil }
         let c0 = Int(f.origin.x / 98) + 1, r0 = Int(f.origin.y / 20) + 1

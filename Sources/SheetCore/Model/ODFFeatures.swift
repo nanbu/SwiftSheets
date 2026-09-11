@@ -41,6 +41,7 @@ public struct CalculationSettings: Hashable, Sendable {
     public enum CalcMode: String, Hashable, Sendable, CaseIterable {
         case auto, autoNoTable, manual
     }
+    /// When formulas are recalculated; nil is the application's default (automatic).
     public var calcMode: CalcMode?
 
     /// ODF's own defaults (§9.4.1): everything off except the wildcard and heading conveniences.

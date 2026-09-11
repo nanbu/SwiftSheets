@@ -41,7 +41,8 @@ enum DrawingParts {
             return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
                 + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
                 + pic + "<xdr:clientData/></xdr:twoCellAnchor>"
-        case .absolute(let x, let y, let w, let h):
+        case .absolute(let frame):
+            let (x, y, w, h) = (frame.origin.x, frame.origin.y, frame.width, frame.height)
             func emu(_ pt: Double) -> Int { Int((pt * 12700).rounded()) }
             return "<xdr:absoluteAnchor \(ns)><xdr:pos x=\"\(emu(x))\" y=\"\(emu(y))\"/><xdr:ext cx=\"\(emu(w))\" cy=\"\(emu(h))\"/>"
                 + pic + "<xdr:clientData/></xdr:absoluteAnchor>"
@@ -75,7 +76,7 @@ enum DrawingParts {
             for c in range.minColumn...range.maxColumn { w += CellPixels.columnPixels(sheet.columnDimensions[c]?.width ?? CellPixels.defaultColumnWidth) }
             for r in range.minRow...range.maxRow { h += CellPixels.rowPixels(sheet.rowDimensions[r]?.height ?? CellPixels.defaultRowHeight) }
             size = (Units.pixelsToEMU(w), Units.pixelsToEMU(h))
-        case .absolute(_, _, let w, let h): size = (emu(w), emu(h))
+        case .absolute(let frame): size = (emu(frame.width), emu(frame.height))
         }
         var sp = "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"\(shapeID)\" name=\"\(XML.esc(shape.name ?? (isTextBox ? "TextBox \(shapeID)" : "Shape \(shapeID)")))\"/>"
         sp += isTextBox ? "<xdr:cNvSpPr txBox=\"1\"/>" : "<xdr:cNvSpPr/>"
@@ -124,7 +125,8 @@ enum DrawingParts {
         case .span(let range):
             return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
                 + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>" + sp + "<xdr:clientData/></xdr:twoCellAnchor>"
-        case .absolute(let x, let y, _, _):
+        case .absolute(let frame):
+            let (x, y) = (frame.origin.x, frame.origin.y)
             return "<xdr:absoluteAnchor \(ns)><xdr:pos x=\"\(emu(x))\" y=\"\(emu(y))\"/><xdr:ext cx=\"\(size.cx)\" cy=\"\(size.cy)\"/>"
                 + sp + "<xdr:clientData/></xdr:absoluteAnchor>"
         }

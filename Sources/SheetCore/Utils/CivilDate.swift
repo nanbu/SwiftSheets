@@ -146,6 +146,7 @@ public struct CivilDateTime: Hashable, Sendable, CustomStringConvertible, Codabl
 public struct DateEpoch: Sendable, Hashable {
     /// The day serial 0 stands for.
     public let origin: CivilDate
+    /// An epoch whose serial 0 is `origin` (ODF's `table:null-date` may be any date).
     public init(origin: CivilDate) { self.origin = origin }
     /// Serial 0 is 1899-12-30, and serials 1…59 skip the phantom 1900-02-29 — the Windows Excel system.
     public static let windows1900 = DateEpoch(origin: CivilDate(year: 1899, month: 12, day: 30)!)

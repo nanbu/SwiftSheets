@@ -98,6 +98,13 @@ package struct PreservationStore: Sendable, Hashable {
         return counts
     }
 
+    /// What a conversion leaves behind, for its warning: `; what they hold: chart 2, pivot 1` from `inventory`, or
+    /// empty when it names nothing beyond the VBA project — which has a `.macros` warning of its own.
+    package func heldKindsClause(sheets: [Sheet], themeRead: Bool) -> String {
+        let kinds = inventory(sheets: sheets, themeRead: themeRead).filter { $0.key != .vbaProject }.sorted { $0.key < $1.key }
+        return kinds.isEmpty ? "" : "; what they hold: " + kinds.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+    }
+
     /// "xl/worksheets" + "../drawings/vmlDrawing1.vml" → "xl/drawings/vmlDrawing1.vml".
     static func resolved(_ target: String, relativeTo base: String) -> String {
         if target.hasPrefix("/") { return String(target.dropFirst()) }

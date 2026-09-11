@@ -14,7 +14,7 @@ struct FuriganaTests {
         s["A1"] = "漢字"
         s[cell: "A1"].phonetic = PhoneticText("カンジ", over: "漢字")
         s["A2"] = "東京都"
-        var runs = PhoneticText(runs: [.init("トウキョウ", start: 0, end: 2), .init("ト", start: 2, end: 3)],
+        var runs = PhoneticText(runs: [.init("トウキョウ", over: 0..<2), .init("ト", over: 2..<3)],
                                 kind: .hiragana, alignment: .center)
         runs.font = Font(name: "Meiryo", size: 6)
         s[cell: "A2"].phonetic = runs
@@ -60,7 +60,7 @@ struct FuriganaTests {
         let repacked = try Package.repacking(data, replacing: "xl/worksheets/sheet1.xml", with: Data(patched.utf8))
         let cell = try Workbook.read(repacked, format: .xlsx).workbook.sheets[0][cell: "A1"]
         #expect(cell.value == .text("漢字"))
-        #expect(cell.phonetic == PhoneticText(runs: [.init("カンジ", start: 0, end: 2)], kind: .noConversion, alignment: .distributed, font: nil))
+        #expect(cell.phonetic == PhoneticText(runs: [.init("カンジ", over: 0..<2)], kind: .noConversion, alignment: .distributed, font: nil))
     }
 
     @Test func theOtherWritersSaySo() throws {

@@ -127,7 +127,8 @@ struct NumbersWriter {
             warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name, message: "the sheet was never read (ReadOptions.sheets left it out) and is written empty"))
         }
         if let src = workbook.preserved.sourceFormat, src != .numbers, workbook.preserved.opaquePartCount > 0 {
-            warnings.append(ConversionWarning(.dropped, subject: .objects, message: "\(workbook.preserved.opaquePartCount) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"))
+            warnings.append(ConversionWarning(.dropped, subject: .objects, message: "\(workbook.preserved.opaquePartCount) part(s) preserved from the \(src.rawValue) file cannot be carried into Numbers"
+                                              + workbook.preserved.heldKindsClause(sheets: Array(workbook.sheets), themeRead: workbook.theme != nil)))
         }
         // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
         if workbook.preserved.hasVBAProject {

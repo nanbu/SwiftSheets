@@ -22,7 +22,7 @@ import SwiftSheets
         #expect(chart.series[0].categories?.hasSuffix("!$A$2:$A$4") == true, Comment(rawValue: chart.series[0].categories ?? "nil"))
         #expect(chart.series[0].nameReference?.hasSuffix("!$B$1") == true, Comment(rawValue: chart.series[0].nameReference ?? "nil"))
         let f = try #require(chart.frame)
-        #expect(NumbersCanvasTests.points(.absolute(x: f.origin.x, y: f.origin.y, width: f.width, height: f.height)) == [225, 61, 373, 153])
+        #expect(NumbersCanvasTests.points(.absolute(f)) == [225, 61, 373, 153])
         #expect(chart.anchor == nil && chart.anchorOrFrameCells != nil)
         #expect(!wb.readWarnings.contains { $0.message.contains("a chart") }, "\(wb.readWarnings.map(\.message))")
     }
@@ -58,7 +58,7 @@ import SwiftSheets
         #expect(chart.series[0].nameReference == "'Data::Table 1'!$B$1")
         #expect(chart.series[1].values == "'Data::Table 1'!$C$2:$C$4")
         let f = try #require(chart.frame)
-        #expect(NumbersCanvasTests.points(.absolute(x: f.origin.x, y: f.origin.y, width: f.width, height: f.height)) == [4 * 98, 20, 7 * 98, 219], "E2:K12 on the default grid")
+        #expect(NumbersCanvasTests.points(.absolute(f)) == [4 * 98, 20, 7 * 98, 219], "E2:K12 on the default grid")
         // the package: one mediator, registered with the engine as an owner of kind 2
         let doc = try NumbersDocument(data: result.data)
         let mediators = doc.identifiers(ofType: "TN.ChartMediatorArchive")

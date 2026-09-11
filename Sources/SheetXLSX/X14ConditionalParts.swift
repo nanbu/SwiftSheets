@@ -32,7 +32,7 @@ enum X14ConditionalParts {
     static func apply(_ ext: Extension, to rule: inout ConditionalFormattingRule) {
         if var bar = rule.dataBar, let x = ext.dataBar {
             bar.negativeColor = x.negativeColor; bar.axisColor = x.axisColor; bar.axisPosition = x.axisPosition
-            bar.direction = x.direction; bar.isGradient = x.isGradient; bar.borderColor = x.borderColor
+            bar.direction = x.direction; bar.gradient = x.gradient; bar.borderColor = x.borderColor
             rule.dataBar = bar
         }
         if var set = rule.iconSet, let icons = ext.icons, ext.custom { set.customIcons = icons; rule.iconSet = set }
@@ -59,7 +59,7 @@ enum X14ConditionalParts {
             if let v = bar.maxLength { s += " maxLength=\"\(v)\"" }
             if let p = bar.axisPosition { s += " axisPosition=\"\(p.rawValue)\"" }
             if let d = bar.direction { s += " direction=\"\(d.rawValue)\"" }
-            if !bar.isGradient { s += " gradient=\"0\"" }
+            if !bar.gradient { s += " gradient=\"0\"" }
             if bar.borderColor != nil { s += " border=\"1\"" }
             if bar.negativeColor != nil { s += " negativeBarColorSameAsPositive=\"0\"" }
             s += ">" + valueXML(bar.minimum) + valueXML(bar.maximum)
@@ -71,7 +71,7 @@ enum X14ConditionalParts {
         if let set = rule.iconSet, let icons = set.customIcons {
             s += "<x14:iconSet iconSet=\"\(XML.esc(set.name))\" custom=\"1\"\(set.showsValue ? "" : " showValue=\"0\"")\(set.percent ? "" : " percent=\"0\"")\(XML.attr("reverse", set.reverse))>"
             s += set.values.map { valueXML($0, includeGTE: true) }.joined()
-            for (i, icon) in icons.enumerated() { s += "<x14:cfIcon iconSet=\"\(XML.esc(icon.set))\" iconId=\"\(icon.index)\"/>"; _ = i }
+            for (i, icon) in icons.enumerated() { s += "<x14:cfIcon iconSet=\"\(XML.esc(icon.setName))\" iconId=\"\(icon.index)\"/>"; _ = i }
             s += "</x14:iconSet>"
         }
         return s + "</x14:cfRule>"
@@ -122,7 +122,7 @@ final class X14ConditionalParser: SAXHandler {
             var bar = DataBar(color: .black)
             bar.axisPosition = a["axisPosition"].flatMap { DataBar.AxisPosition(rawValue: $0) }
             bar.direction = a["direction"].flatMap { DataBar.Direction(rawValue: $0) }
-            bar.isGradient = XMLBool.isNotFalse(a["gradient"])
+            bar.gradient = XMLBool.isNotFalse(a["gradient"])
             current?.dataBar = bar
         case "negativeFillColor" where current != nil: current?.dataBar?.negativeColor = StylesParser.color(a)
         case "axisColor" where current != nil: current?.dataBar?.axisColor = StylesParser.color(a)
@@ -132,7 +132,7 @@ final class X14ConditionalParser: SAXHandler {
             current?.custom = XMLBool.isTrue(a["custom"])
             current?.icons = []
         case "cfIcon" where inIconSet:
-            if let set = a["iconSet"], let id = Int(a["iconId"] ?? "") { current?.icons?.append(IconSet.Icon(set: set, index: id)) }
+            if let set = a["iconSet"], let id = Int(a["iconId"] ?? "") { current?.icons?.append(IconSet.Icon(setName: set, index: id)) }
         default: break
         }
     }

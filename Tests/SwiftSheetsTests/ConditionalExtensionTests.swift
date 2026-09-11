@@ -23,11 +23,11 @@ import SwiftSheets
         bar.axisColor = Color(hex: "0000FF")
         bar.axisPosition = .middle
         bar.direction = .leftToRight
-        bar.isGradient = false
+        bar.gradient = false
         bar.borderColor = Color(hex: "008000")
         wb.sheets[0].conditionalFormatting.append(ConditionalFormatting(ranges: MultiCellRange("A1:A5")!, rules: [.dataBar(bar, priority: 1)]))
         var icons = IconSet(name: "3TrafficLights1", values: [.percent(0), .percent(33), .percent(67)])
-        icons.customIcons = [IconSet.Icon(set: "3Arrows", index: 0), IconSet.Icon(set: "3Symbols", index: 1), IconSet.Icon(set: "5Quarters", index: 4)]
+        icons.customIcons = [IconSet.Icon(setName: "3Arrows", index: 0), IconSet.Icon(setName: "3Symbols", index: 1), IconSet.Icon(setName: "5Quarters", index: 4)]
         wb.sheets[0].conditionalFormatting.append(ConditionalFormatting(ranges: MultiCellRange("B1:B5")!, rules: [.iconSet(icons, priority: 2)]))
         return wb
     }
@@ -38,7 +38,7 @@ import SwiftSheets
         #expect(!sheet.hasUnmodelledConditionalFormats, "a rule whose extension only names an id is the model's")
         let bar = try #require(sheet.conditionalFormatting.first?.rules.first?.dataBar)
         #expect(bar.color == .rgb("FF00B050") && bar.minLength == 5 && bar.maxLength == 95)
-        #expect(bar.negativeColor == .rgb("FFFF0000") && bar.axisColor == .rgb("FF0000FF") && bar.axisPosition == .middle && !bar.isGradient, "\(bar)")
+        #expect(bar.negativeColor == .rgb("FFFF0000") && bar.axisColor == .rgb("FF0000FF") && bar.axisPosition == .middle && !bar.gradient, "\(bar)")
         #expect(bar.usesExtension && sheet.preserved.unmatchedConditionalExtensions == 0)
     }
 
@@ -75,7 +75,7 @@ import SwiftSheets
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("ODF has no custom icons") }, "\(result.warnings.map(\.message))")
         let back = try Workbook.read(result.data, format: .ods).workbook.sheets[0]
         let bar = try #require(back.conditionalFormatting.first { $0.rules.first?.dataBar != nil }?.rules.first?.dataBar)
-        #expect(bar.negativeColor == .rgb("FFFF0000") && bar.axisColor == .rgb("FF0000FF") && bar.axisPosition == .middle && !bar.isGradient, "\(bar)")
+        #expect(bar.negativeColor == .rgb("FFFF0000") && bar.axisColor == .rgb("FF0000FF") && bar.axisPosition == .middle && !bar.gradient, "\(bar)")
     }
 
     @Test(.enabled(if: ODSCodecTests.hasLibreOffice, "LibreOffice is not installed at \(ODSCodecTests.soffice)"))

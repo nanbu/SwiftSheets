@@ -47,8 +47,32 @@ writes, so the constant, the README's status line and the tag always name the sa
   formulas to the table cells — and written: a column, bar, line or pie chart becomes a chart drawable over the
   template's style preset, with its cached grid, its mediator and its registration with the calculation engine.
   Numbers opens the written chart, saves it again and exports it to Excel with the chart intact (judged). `Chart`
-  gains `frame` (a `CanvasRect` in points) and `anchorOrFrameCells`; the XLSX and ODS writers place a chart that
+  gains `frame` (a `CanvasRect` in points); the XLSX and ODS writers place a chart that
   only has a frame over the cells it covers. A chart whose data is not linked to a table stays reported.
+
+### Changed
+
+The last look at the public surface before 1.0 (spec Appendix B.89). Each change is a rename or a narrowing that the
+compiler points at; no alias is kept.
+
+- `SheetImage.Anchor.absolute(x:y:width:height:)` → `SheetImage.Anchor.absolute(CanvasRect)` — one rectangle type
+  for a position on the canvas, the one `Chart.frame` already uses.
+- `addSparkline(_:data:at:)` → `addSparkline(_:dataRange:at:)`, now with a `CellRef` twin beside the A1 string, and
+  `SparklineGroup.Sparkline(dataRange:location:)` → `SparklineGroup.Sparkline(dataRange:at:)` — one label per role.
+- `addTable(named:anchor:)` → `addTable(named:at:)` — the same label as the canvas-point form, told apart by type.
+- `IconSet.Icon.set` → `IconSet.Icon.setName`, the word `IconSet.name` uses for the same kind of value.
+- `PhoneticText.Run.start` and `end` → `PhoneticText.Run.range`, a `Range<Int>` of UTF-16 code units made with
+  `Run(_:over:)`. The reader clamps a file whose `eb` comes before its `sb` instead of trapping on it.
+- `DataBar.isGradient` → `DataBar.gradient`, the attribute's own word, like `percent` and `reverse`.
+- No longer public, because each answered a codec's question rather than a caller's: `CommentThread.mirrorPrefix`,
+  `Chart.anchorOrFrameCells`, `Chart.Kind.drawable` (ask `isDrawable`), `Shape.Geometry.presets` (ask `isPreset`)
+  and `DataBar.usesExtension`.
+- A shape made with `Shape(_:)` and appended by hand covers cell A1 as a span instead of borrowing a picture's
+  `.original` size, so the XLSX and Numbers writers draw it at the same size.
+- The warning for preserved parts a conversion cannot carry names what they hold, from the inventory
+  (`…; what they hold: pivot 2, slicer 1`); the ODS writer's no longer guesses "charts, drawings, VBA…".
+- `Cell.init` takes `thread:` like every other extra; `CanvasPoint` and `CanvasRect` are `Codable`;
+  `PreservationSummary` is `Hashable`; assigning `Theme.colors` normalises to `AARRGGBB`, as the initialiser does.
 
 ## [0.26.0] — 2026-09-11
 

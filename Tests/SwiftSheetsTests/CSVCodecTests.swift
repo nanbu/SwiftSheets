@@ -326,7 +326,7 @@ import SheetCore
     @Test func extraTablesOfASheetAreReported() throws {
         var sheet = Sheet(name: "Canvas")
         sheet[1, 1] = .text("first")
-        let second = sheet.addTable(named: "Second", anchor: CellRef("D1")!)
+        let second = sheet.addTable(named: "Second", at: CellRef("D1")!)
         sheet.tables[second][1, 1] = .text("second")
         let (text, result) = try writeText(Workbook(sheets: [sheet]))
         #expect(text == "first\r\n")

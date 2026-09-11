@@ -7,12 +7,16 @@ public struct Theme: Hashable, Sendable {
     /// The twelve scheme colours as ARGB, in the order `<color theme="n"/>` indexes them: 0 = light 1 (background),
     /// 1 = dark 1 (text), 2 = light 2, 3 = dark 2, 4…9 = accent 1…6, 10 = hyperlink, 11 = followed hyperlink.
     /// Note the file's own order is dk1, lt1, dk2, lt2 — the index order swaps each pair, as Excel does.
-    public var colors: [String]
+    /// A value assigned here is normalised to `AARRGGBB`, as the initialiser does.
+    public var colors: [String] {
+        didSet { let normalized = colors.map { Color.normalizedARGB($0) }; if normalized != colors { colors = normalized } }
+    }
     /// The headings font (`a:majorFont/a:latin`).
     public var majorFont: String?
     /// The body font (`a:minorFont/a:latin`) — what `Font.scheme == .minor` and the default font resolve to.
     public var minorFont: String?
 
+    /// A theme of `colors` (`RRGGBB` or `AARRGGBB`, with or without `#`, normalised to `AARRGGBB`) and two fonts.
     public init(colors: [String], majorFont: String? = nil, minorFont: String? = nil) {
         self.colors = colors.map { Color.normalizedARGB($0) }
         self.majorFont = majorFont; self.minorFont = minorFont

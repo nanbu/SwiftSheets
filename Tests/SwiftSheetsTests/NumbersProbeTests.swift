@@ -71,7 +71,7 @@ import SwiftSheets
         var twoTables = Workbook()
         var s = twoTables.sheets[0]
         s["A1"] = "first"
-        let t = s.addTable(named: "Second", anchor: CellRef("A10")!)
+        let t = s.addTable(named: "Second", at: CellRef("A10")!)
         s.tables[t]["A1"] = "second"
         twoSheets.sheets[0] = s
         twoTables.sheets[0] = s

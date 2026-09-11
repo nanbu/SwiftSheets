@@ -268,7 +268,7 @@ enum ODSConditionalFormatWriter {
                     if let v = bar.minLength { standalone += " calcext:min-length=\"\(v)\"" }
                     if let v = bar.maxLength { standalone += " calcext:max-length=\"\(v)\"" }
                     // only what the model says (B.82): LibreOffice supplies its own defaults for the rest
-                    if !bar.isGradient { standalone += " calcext:gradient=\"false\"" }
+                    if !bar.gradient { standalone += " calcext:gradient=\"false\"" }
                     standalone += " calcext:positive-color=\"\(colour)\""
                     if let c = bar.negativeColor { standalone += " calcext:negative-color=\"\(ODSColor.hex(c, nonRGB: &nonRGB))\"" }
                     if let p = bar.axisPosition { standalone += " calcext:axis-position=\"\(p.rawValue)\"" }

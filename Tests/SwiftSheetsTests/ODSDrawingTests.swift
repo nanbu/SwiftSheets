@@ -69,7 +69,7 @@ import SwiftSheets
         wb.sheets[0].addImage(try SheetImage(data: Self.png()), at: "B2")
         wb.sheets[0].addImage(try SheetImage(data: Self.png()), over: "D4:F8")
         var absolute = try SheetImage(data: Self.png())
-        absolute.anchor = .absolute(x: 72, y: 36, width: 20, height: 10)
+        absolute.anchor = .absolute(CanvasRect(x: 72, y: 36, width: 20, height: 10))
         wb.sheets[0].images.append(absolute)
         let data = try wb.write(as: .ods).data
         let result = try Workbook.read(data, format: .ods)
@@ -79,7 +79,7 @@ import SwiftSheets
         #expect(back.images.contains { $0.anchor == .cell(CellRef("B2")!, sizing: .original) })
         #expect(back.images.contains { $0.anchor == .span(CellRange("D4:F8")!) })
         let absoluteBack = back.images.compactMap { image -> (Double, Double, Double, Double)? in
-            if case .absolute(let x, let y, let w, let h) = image.anchor { return (x, y, w, h) } else { return nil }
+            if case .absolute(let f) = image.anchor { return (f.origin.x, f.origin.y, f.width, f.height) } else { return nil }
         }
         #expect(absoluteBack.count == 1)
         if let a = absoluteBack.first { #expect(abs(a.0 - 72) < 0.5 && abs(a.1 - 36) < 0.5 && abs(a.2 - 20) < 0.5 && abs(a.3 - 10) < 0.5) }

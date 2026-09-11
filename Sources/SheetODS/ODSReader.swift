@@ -412,7 +412,7 @@ final class ContentParser: SAXHandler {
         case "sparkline" where sparklineGroup != nil:
             if let cell = ODSAttr.get(a, "calcext:cell-address").flatMap({ CellRef(ContentParser.excelAddress($0).split(separator: "!").last.map(String.init) ?? $0) }),
                let data = ODSAttr.get(a, "calcext:data-range") {
-                sparklineGroup?.sparklines.append(SparklineGroup.Sparkline(dataRange: ContentParser.excelAddress(data), location: cell))
+                sparklineGroup?.sparklines.append(SparklineGroup.Sparkline(dataRange: ContentParser.excelAddress(data), at: cell))
             }
         case "spreadsheet":
             if ODSAttr.bool(a, "table:structure-protected") == true { structureProtected = true }
@@ -729,7 +729,7 @@ final class ContentParser: SAXHandler {
                 case "automatic"?: bar.axisPosition = .automatic
                 default: break
                 }
-                if cfBar["calcext:gradient"] == "false" { bar.isGradient = false }
+                if cfBar["calcext:gradient"] == "false" { bar.gradient = false }
                 cfRules.append(.dataBar(bar, priority: cfPriority))
             } else if !cfColors.isEmpty, cfColors.count == cfValues.count {
                 cfPriority += 1

@@ -303,16 +303,19 @@ public struct DataBar: Hashable, Sendable {
     public enum Direction: String, Hashable, Sendable, CaseIterable { case context, leftToRight, rightToLeft }
     /// The bar of a negative value (nil: the application's default, red).
     public var negativeColor: Color?
+    /// The colour of the axis a bar grows from when values go below zero (nil: the application's default, black).
     public var axisColor: Color?
+    /// Where that axis sits (nil: automatic).
     public var axisPosition: AxisPosition?
+    /// Which way the bars grow (nil: by the sheet's direction).
     public var direction: Direction?
-    /// A gradient fill (Excel's default) rather than a solid one.
-    public var isGradient = true
+    /// A gradient fill (Excel's default) rather than a solid one — the attribute's own word, like `percent`.
+    public var gradient = true
     /// A border around the bar (nil: none).
     public var borderColor: Color?
     /// Whether the bar says anything only Excel 2010's extension can carry.
-    public var usesExtension: Bool {
-        negativeColor != nil || axisColor != nil || axisPosition != nil || direction != nil || !isGradient || borderColor != nil
+    package var usesExtension: Bool {
+        negativeColor != nil || axisColor != nil || axisPosition != nil || direction != nil || !gradient || borderColor != nil
     }
 
     public init(color: Color, minimum: ConditionalValue = .min, maximum: ConditionalValue = .max,
@@ -338,10 +341,10 @@ public struct IconSet: Hashable, Sendable {
     /// One icon of a custom set (spec Appendix B.82): taken from a named set by its position in it.
     public struct Icon: Hashable, Sendable {
         /// The set the icon is taken from ("3TrafficLights1", "5Arrows", …).
-        public var set: String
+        public var setName: String
         /// The icon's position in that set, from 0.
         public var index: Int
-        public init(set: String, index: Int) { self.set = set; self.index = index }
+        public init(setName: String, index: Int) { self.setName = setName; self.index = index }
     }
     /// The icons chosen one by one, band by band, instead of the set named — Excel 2010's extension; nil uses `name`'s icons.
     public var customIcons: [Icon]?

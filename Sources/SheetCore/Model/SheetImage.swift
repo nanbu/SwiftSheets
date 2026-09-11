@@ -45,7 +45,7 @@ public struct SheetImage: Hashable, Sendable {
         case span(CellRange)
         /// At a fixed position on the sheet, in points from its top-left corner, with a fixed size
         /// (`xdr:absoluteAnchor` — no cell moves it). Read from files; `addImage` never makes one.
-        case absolute(x: Double, y: Double, width: Double, height: Double)
+        case absolute(CanvasRect)
     }
 
     public let data: Data
@@ -103,7 +103,7 @@ public struct SheetImage: Hashable, Sendable {
 
     /// The size the picture is drawn at, in pixels. `cellSize` is the anchor cell's current size, used by `.fitCell`.
     public func displaySize(cellSize: (width: Double, height: Double)? = nil) -> (width: Double, height: Double) {
-        if case .absolute(_, _, let w, let h) = anchor { return (w / 0.75, h / 0.75) }   // points → pixels at 96 dpi
+        if case .absolute(let frame) = anchor { return (frame.width / 0.75, frame.height / 0.75) }   // points → pixels at 96 dpi
         guard case .cell(_, let sizing) = anchor else { return (Double(pixelWidth), Double(pixelHeight)) }
         switch sizing {
         case .original: return (Double(pixelWidth), Double(pixelHeight))

@@ -404,7 +404,7 @@ enum DrawingReader {
             return .span(span(a))
         case .absolute:
             let pos = a.pos ?? (0, 0), ext = a.ext ?? (Units.pixelsToEMU(Double(image.pixelWidth)), Units.pixelsToEMU(Double(image.pixelHeight)))
-            return .absolute(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700)
+            return .absolute(CanvasRect(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700))
         }
     }
 
@@ -419,7 +419,7 @@ enum DrawingReader {
         case .twoCell: return .span(span(a))
         case .absolute:
             let pos = a.pos ?? (0, 0), ext = a.ext ?? (0, 0)
-            return .absolute(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700)
+            return .absolute(CanvasRect(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700))
         }
     }
 

@@ -134,7 +134,11 @@ struct PhoneticCollector {
         default: return false
         }
     }
-    mutating func endRPh() { runs.append(PhoneticText.Run(runText, start: runStart, end: runEnd)); inRPh = false }
+    mutating func endRPh() {
+        // a file may say eb < sb or a negative sb; a range cannot, so the span is clamped rather than trapped on
+        let lower = max(runStart, 0)
+        runs.append(PhoneticText.Run(runText, over: lower..<max(runEnd, lower))); inRPh = false
+    }
     var isEmpty: Bool { runs.isEmpty && !hasProperties }
     /// Nil when the string carries no phonetic guide at all.
     func phonetic(fonts: [Font]) -> PhoneticText? {

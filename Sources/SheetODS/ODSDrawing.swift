@@ -183,7 +183,7 @@ enum ODSDrawing {
     static func shapeAnchor(_ f: ODSFrame, sheet: Sheet) -> SheetImage.Anchor {
         let pt = { (cm: Double) in cm / 2.54 * 72 }
         guard let cell = f.cell else {
-            return .absolute(x: pt(f.x ?? 0), y: pt(f.y ?? 0), width: pt(f.width ?? 0), height: pt(f.height ?? 0))
+            return .absolute(CanvasRect(x: pt(f.x ?? 0), y: pt(f.y ?? 0), width: pt(f.width ?? 0), height: pt(f.height ?? 0)))
         }
         if let range = spanRange(f, from: cell) { return .span(range) }
         guard let w = f.width, let h = f.height else { return .cell(cell, sizing: .fitCell) }
@@ -193,7 +193,7 @@ enum ODSDrawing {
     static func imageAnchor(_ f: ODSFrame, image: SheetImage, sheet: Sheet) -> SheetImage.Anchor {
         let pt = { (cm: Double) in cm / 2.54 * 72 }
         guard let cell = f.cell else {
-            return .absolute(x: pt(f.x ?? 0), y: pt(f.y ?? 0), width: pt(f.width ?? 0), height: pt(f.height ?? 0))
+            return .absolute(CanvasRect(x: pt(f.x ?? 0), y: pt(f.y ?? 0), width: pt(f.width ?? 0), height: pt(f.height ?? 0)))
         }
         if let range = spanRange(f, from: cell) { return .span(range) }
         guard let w = f.width, let h = f.height else { return .cell(cell, sizing: .original) }
@@ -284,8 +284,8 @@ enum ODSDrawing {
             (w, h) = rangeSize(range, in: sheet)
             let endCell = CellRef(row: range.maxRow + 1, column: range.maxColumn + 1)
             end = " table:end-cell-address=\"\(XML.esc(ODSFeatures.address(endCell, sheet: sheet.name)))\" table:end-x=\"0cm\" table:end-y=\"0cm\""
-        case .absolute(let ax, let ay, let aw, let ah):
-            (x, y, w, h) = (cm(ax), cm(ay), cm(aw), cm(ah))
+        case .absolute(let frame):
+            (x, y, w, h) = (cm(frame.origin.x), cm(frame.origin.y), cm(frame.width), cm(frame.height))
         }
         let name = XML.esc(shape.name ?? (shape.geometry == .textBox ? "TextBox \(number)" : "Shape \(number)"))
         let common = "draw:z-index=\"\(zIndex)\" draw:name=\"\(name)\" draw:style-name=\"\(style)\""

@@ -60,7 +60,7 @@ struct DrawingReadTests {
         wb.sheets[0].addImage(try SheetImage(data: Self.png()), at: "B2", sizing: .scaled(width: 40, height: 30))
         wb.sheets[0].addImage(try SheetImage(data: Self.png()), over: "D4:F8")
         var absolute = try SheetImage(data: Self.png())
-        absolute.anchor = .absolute(x: 100, y: 50, width: 20, height: 10)
+        absolute.anchor = .absolute(CanvasRect(x: 100, y: 50, width: 20, height: 10))
         wb.sheets[0].images.append(absolute)
         let data = try wb.write(as: .xlsx).data
         let backWB = try Workbook.read(data, format: .xlsx).workbook
@@ -68,7 +68,7 @@ struct DrawingReadTests {
         #expect(back.images.count == 3)
         #expect(back.images[0].anchor == .cell(CellRef("B2")!, sizing: .scaled(width: 40, height: 30)))
         #expect(back.images[1].anchor == .span(CellRange("D4:F8")!))
-        #expect(back.images[2].anchor == .absolute(x: 100, y: 50, width: 20, height: 10))
+        #expect(back.images[2].anchor == .absolute(CanvasRect(x: 100, y: 50, width: 20, height: 10)))
         #expect(back.images.map(\.data) == wb.sheets[0].images.map(\.data))
         #expect(back.images[0].format == .png)
 
@@ -83,7 +83,7 @@ struct DrawingReadTests {
         var removed = backWB
         removed.sheets[0].images.removeFirst()
         let rebuilt = try removed.write(as: .xlsx).data
-        #expect(try Workbook.read(rebuilt, format: .xlsx).workbook.sheets[0].images.map(\.anchor) == [.span(CellRange("D4:F8")!), .absolute(x: 100, y: 50, width: 20, height: 10)])
+        #expect(try Workbook.read(rebuilt, format: .xlsx).workbook.sheets[0].images.map(\.anchor) == [.span(CellRange("D4:F8")!), .absolute(CanvasRect(x: 100, y: 50, width: 20, height: 10))])
         #expect(try ZipInspection(data: rebuilt).entryNames.filter { $0.hasPrefix("xl/media/") }.count == 2, "the retired picture's media part is gone")
         var none = backWB
         none.sheets[0].images = []

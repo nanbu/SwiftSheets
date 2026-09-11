@@ -16,14 +16,23 @@ public struct Shape: Hashable, Sendable {
     public struct Geometry: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
         public let rawValue: String
         public init(rawValue: String) { self.rawValue = rawValue }
+        /// A rectangle.
         public static let rectangle = Geometry(rawValue: "rect")
+        /// A rectangle with rounded corners.
         public static let roundedRectangle = Geometry(rawValue: "roundRect")
+        /// An ellipse — a circle when the anchor is square.
         public static let ellipse = Geometry(rawValue: "ellipse")
+        /// A diamond.
         public static let diamond = Geometry(rawValue: "diamond")
+        /// An isosceles triangle, point up.
         public static let triangle = Geometry(rawValue: "triangle")
+        /// A block arrow pointing right.
         public static let rightArrow = Geometry(rawValue: "rightArrow")
+        /// A block arrow pointing left.
         public static let leftArrow = Geometry(rawValue: "leftArrow")
+        /// A block arrow pointing up.
         public static let upArrow = Geometry(rawValue: "upArrow")
+        /// A block arrow pointing down.
         public static let downArrow = Geometry(rawValue: "downArrow")
         /// A straight line from the anchor's top-left to its bottom-right.
         public static let line = Geometry(rawValue: "line")
@@ -34,7 +43,7 @@ public struct Shape: Hashable, Sendable {
         public var description: String { rawValue }
 
         /// ST_ShapeType (ECMA-376 Part 1, §20.1.10.56), the names Excel accepts in `a:prstGeom`.
-        public static let presets: Set<String> = [
+        package static let presets: Set<String> = [
             "line", "lineInv", "triangle", "rtTriangle", "rect", "diamond", "parallelogram", "trapezoid", "nonIsoscelesTrapezoid",
             "pentagon", "hexagon", "heptagon", "octagon", "decagon", "dodecagon", "star4", "star5", "star6", "star7", "star8",
             "star10", "star12", "star16", "star24", "star32", "roundRect", "round1Rect", "round2SameRect", "round2DiagRect",
@@ -69,11 +78,14 @@ public struct Shape: Hashable, Sendable {
 
     /// The shape's outline: a colour and a width in points.
     public struct Outline: Hashable, Sendable {
+        /// The line colour.
         public var color: Color
+        /// The line width in points.
         public var width: Double
         public init(color: Color, width: Double = 0.75) { self.color = color; self.width = width }
     }
 
+    /// The outline the shape draws.
     public var geometry: Geometry
     /// The text inside the shape; paragraphs are separated by `\n`.
     public var text: String?
@@ -87,9 +99,11 @@ public struct Shape: Hashable, Sendable {
     public var outline: Outline?
     /// The name the file gives the shape (`Rectangle 3`, `TextBox 1`); nil for one made here.
     public var name: String?
-    /// Where the shape sits — the same anchors a picture has.
-    public var anchor: SheetImage.Anchor = .cell(CellRef(row: 1, column: 1), sizing: .original)
+    /// Where the shape sits — the same anchors a picture has. A shape made here covers cell A1 until
+    /// `addShape(_:over:)` or `addTextBox(_:over:font:)` places it.
+    public var anchor: SheetImage.Anchor = .span(CellRange(minRow: 1, minColumn: 1, maxRow: 1, maxColumn: 1))
 
+    /// A shape of `geometry` with optional text, no fill and no outline, covering cell A1 until it is placed.
     public init(_ geometry: Geometry, text: String? = nil) {
         self.geometry = geometry; self.text = text
     }

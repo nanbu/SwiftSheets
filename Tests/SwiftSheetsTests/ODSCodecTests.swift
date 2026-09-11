@@ -349,7 +349,7 @@ import SwiftSheets
     @Test func extraTablesOfASheetAreReportedWhenWritingODS() throws {
         var ws = Sheet(name: "Canvas")
         ws["A1"] = .text("first")
-        let second = ws.addTable(named: "Second", anchor: CellRef("D1")!)
+        let second = ws.addTable(named: "Second", at: CellRef("D1")!)
         ws.tables[second]["A1"] = .text("second")
         let result = try ODSCodec.write(Workbook(sheets: [ws]))
         let dropped = result.warnings.filter { $0.kind == .dropped }

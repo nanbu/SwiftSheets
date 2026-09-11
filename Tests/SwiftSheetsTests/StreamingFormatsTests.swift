@@ -191,7 +191,7 @@ import SwiftSheets
         wb.sheets[0].name = "Canvas"
         wb.sheets[0]["A1"] = "first"
         wb.sheets[0]["B2"] = .integer(1)
-        let second = wb.sheets[0].addTable(named: "表2", anchor: CellRef("E1")!)
+        let second = wb.sheets[0].addTable(named: "表2", at: CellRef("E1")!)
         wb.sheets[0].tables[second]["A1"] = "second"
         wb.sheets[0].tables[second]["C3"] = .number(Decimal(string: "2.5")!)
         wb.addSheet(named: "Other")
@@ -223,7 +223,7 @@ import SwiftSheets
     func tableNamesLineUpWithTheTableIndex(_ format: SheetFormat) throws {
         var wb = Self.sample()
         if format == .numbers {
-            let second = wb.sheets[0].addTable(named: "表2", anchor: CellRef("H1")!)
+            let second = wb.sheets[0].addTable(named: "表2", at: CellRef("H1")!)
             wb.sheets[0].tables[second]["A1"] = "second"
         }
         let reader = try StreamingReader(data: try wb.write(as: format).data)

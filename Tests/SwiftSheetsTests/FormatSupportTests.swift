@@ -91,7 +91,7 @@ import SwiftSheets
         // several tables on one canvas: only Numbers keeps them
         wb.addSheet(named: "Multi")
         wb.sheets[3]["A1"] = "表1"
-        let second = wb.sheets[3].addTable(named: "表2", anchor: CellRef("D1")!)
+        let second = wb.sheets[3].addTable(named: "表2", at: CellRef("D1")!)
         wb.sheets[3].tables[second]["A1"] = "二枚目"
         return wb
     }

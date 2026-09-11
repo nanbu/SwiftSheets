@@ -27,7 +27,7 @@ import SwiftSheets
         s["H1"] = "quote \"q\" & <tag>\nline2"
         s.setWidth(30, ofColumn: "A"); s.setHeight(40, ofRow: 1)
         s.freezePanes = CellRef(row: 2, column: 1)
-        let t2 = s.addTable(named: "Second", anchor: CellRef("A12")!)
+        let t2 = s.addTable(named: "Second", at: CellRef("A12")!)
         s.tables[t2]["A1"] = "second table"; s.tables[t2]["B2"] = 42
         wb.sheets[0] = s
         wb.addSheet(named: "Notes")
@@ -317,7 +317,7 @@ import SwiftSheets
     @Test func everyCopiedComponentNamesTheFileItIsIn() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "one"
-        _ = wb.sheets[0].addTable(named: "Second", anchor: CellRef("A10")!)
+        _ = wb.sheets[0].addTable(named: "Second", at: CellRef("A10")!)
         wb.addSheet(named: "Notes"); wb.sheets[1]["A1"] = "two"
         let doc = try NumbersDocument(data: try wb.write(as: .numbers).data)
         let components = doc.object(NumbersDocument.packageID)?.messages("components") ?? []
@@ -338,7 +338,7 @@ import SwiftSheets
         var wb = Workbook()
         var first = wb.sheets[0]
         first["A1"] = "one"
-        let t = first.addTable(named: "Second", anchor: CellRef("A10")!)
+        let t = first.addTable(named: "Second", at: CellRef("A10")!)
         first.tables[t]["A1"] = "second table"
         wb.sheets[0] = first
         wb.addSheet(named: "Notes"); wb.sheets[1]["A1"] = "two"

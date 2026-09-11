@@ -25,14 +25,13 @@ package final class CellExtras: Sendable {
 /// Appendix B.70). Kept on the cell beside its value: the readings describe the text, and travel with it through
 /// the shared-string table. Only Excel's file format carries it; the other writers report it as dropped.
 public struct PhoneticText: Hashable, Sendable {
-    /// One reading and the span of the base text it belongs to, in UTF-16 code units (Excel's `sb` / `eb`).
+    /// One reading and the span of the base text it belongs to (Excel's `sb` / `eb`).
     public struct Run: Hashable, Sendable {
+        /// The reading.
         public var text: String
-        /// The first UTF-16 code unit of the base text the reading covers.
-        public var start: Int
-        /// One past the last UTF-16 code unit the reading covers.
-        public var end: Int
-        public init(_ text: String, start: Int, end: Int) { self.text = text; self.start = start; self.end = end }
+        /// The UTF-16 code units of the base text the reading covers, half-open: `0..<2` is the first two.
+        public var range: Range<Int>
+        public init(_ text: String, over range: Range<Int>) { self.text = text; self.range = range }
     }
     /// How Excel converts the reading it shows (`phoneticPr@type`) — four values fixed by the schema.
     public enum Kind: String, Hashable, Sendable, CaseIterable {
@@ -42,8 +41,11 @@ public struct PhoneticText: Hashable, Sendable {
     public enum Alignment: String, Hashable, Sendable, CaseIterable {
         case noControl, left, center, distributed
     }
+    /// The readings in the order of the text they cover; they need not cover all of it.
     public var runs: [Run]
+    /// How Excel converts the reading it shows.
     public var kind: Kind
+    /// Where each reading sits over its span.
     public var alignment: Alignment
     /// The font the readings are drawn in; nil for the workbook's default font.
     public var font: Font?
@@ -52,7 +54,7 @@ public struct PhoneticText: Hashable, Sendable {
     }
     /// A reading over the whole of `text`.
     public init(_ reading: String, over text: String, kind: Kind = .fullwidthKatakana, alignment: Alignment = .left, font: Font? = nil) {
-        self.init(runs: [Run(reading, start: 0, end: text.utf16.count)], kind: kind, alignment: alignment, font: font)
+        self.init(runs: [Run(reading, over: 0..<text.utf16.count)], kind: kind, alignment: alignment, font: font)
     }
 }
 
@@ -123,10 +125,10 @@ public struct Cell: Hashable, Sendable {
     }
 
     public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, note: CellNote? = nil,
-                control: CellControl? = nil, phonetic: PhoneticText? = nil) {
+                control: CellControl? = nil, phonetic: PhoneticText? = nil, thread: CommentThread? = nil) {
         storedValue = value
         self.style = style
-        setExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic)
+        setExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic, thread: thread)
         applyDateFormat()
         if let h = hyperlink, storedValue == nil { storedValue = .text(h.target) }
     }
@@ -242,16 +244,24 @@ public struct CellNote: Hashable, Sendable {
 /// the text into a note for older readers, which this model hides); ODS and Numbers have no threads, so their
 /// writers put the conversation into a note and say so.
 public struct CommentThread: Hashable, Sendable {
+    /// A reply in the thread.
     public struct Reply: Hashable, Sendable {
+        /// The name shown for the person who replied (a display name, not Excel's person id).
         public var author: String
         public var text: String
+        /// When the reply was made, as the file records it (Excel writes UTC); nil when the file does not say.
         public var created: CivilDateTime?
         public init(_ text: String, author: String, created: CivilDateTime? = nil) { self.text = text; self.author = author; self.created = created }
     }
+    /// The name shown for the person who opened the thread (a display name, not Excel's person id).
     public var author: String
+    /// The opening comment.
     public var text: String
+    /// When the thread was opened, as the file records it (Excel writes UTC); nil when the file does not say.
     public var created: CivilDateTime?
+    /// Whether the thread is marked resolved.
     public var resolved = false
+    /// The replies, oldest first.
     public var replies: [Reply] = []
     public init(_ text: String, author: String, created: CivilDateTime? = nil) { self.text = text; self.author = author; self.created = created }
 
@@ -264,7 +274,7 @@ public struct CommentThread: Hashable, Sendable {
     }
     /// What Excel writes into the mirror note so older versions show something; a note beginning like this is
     /// the thread's shadow, not a note of its own.
-    public static let mirrorPrefix = "[Threaded comment]"
+    package static let mirrorPrefix = "[Threaded comment]"
 }
 
 /// Row formatting (openpyxl RowDimension).
@@ -335,6 +345,7 @@ public struct SheetView: Hashable, Sendable {
     public var rightToLeft = false
     /// The cell in the top-left corner of the window, when the sheet is scrolled (`topLeftCell`); nil is A1.
     public var topLeftCell: CellRef?
+    /// How the sheet is shown: the grid (the default), the page layout, or the page-break preview.
     public var kind: Kind = .normal
     public init() {}
 }

@@ -1,18 +1,14 @@
 import Foundation
 
-/// A rectangular grid of cells with its row / column formatting and merges. XLSX and ODS sheets hold exactly one
-/// (the `Sheet` API forwards to it); Numbers sheets may hold several, each anchored somewhere on the canvas.
-/// Equatable, not Hashable: two tables are compared in tests and in round-trip checks, but hashing one means
-/// hashing every cell in it — an invitation to put a whole sheet in a `Set` and pay for it silently.
 /// A point on a Numbers sheet's canvas, in points from the top-left corner (spec Appendix B.85).
-public struct CanvasPoint: Hashable, Sendable {
+public struct CanvasPoint: Hashable, Sendable, Codable {
     public var x: Double
     public var y: Double
     public init(x: Double, y: Double) { self.x = x; self.y = y }
 }
 
 /// A rectangle on a Numbers sheet's canvas, in points (spec Appendix B.88).
-public struct CanvasRect: Hashable, Sendable {
+public struct CanvasRect: Hashable, Sendable, Codable {
     public var origin: CanvasPoint
     public var width: Double
     public var height: Double
@@ -20,6 +16,10 @@ public struct CanvasRect: Hashable, Sendable {
     public init(x: Double, y: Double, width: Double, height: Double) { self.init(origin: CanvasPoint(x: x, y: y), width: width, height: height) }
 }
 
+/// A rectangular grid of cells with its row / column formatting and merges. XLSX and ODS sheets hold exactly one
+/// (the `Sheet` API forwards to it); Numbers sheets may hold several, each anchored somewhere on the canvas.
+/// Equatable, not Hashable: two tables are compared in tests and in round-trip checks, but hashing one means
+/// hashing every cell in it — an invitation to put a whole sheet in a `Set` and pay for it silently.
 public struct Table: Equatable, Sendable {
     public var name: String?
     /// Where the table's A1 sits on the sheet canvas (Numbers), on the 98 pt × 20 pt grid of default cells; always
@@ -161,6 +161,7 @@ public struct Table: Equatable, Sendable {
 
     // MARK: - Styles
 
+    /// The style of the cell at `ref`, or the default style when the cell holds none.
     public func style(at ref: CellRef) -> CellStyle { cells[ref]?.style ?? .default }
     public func style(_ a1: String) -> CellStyle { CellRef(a1).map(style(at:)) ?? .default }
 
