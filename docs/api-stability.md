@@ -60,7 +60,7 @@ not part of CI.
 
 A name that is going away is marked `@available(*, deprecated, renamed:)` for at least one minor release, the
 CHANGELOG lists `old → new`, and `APIContractTests.everyRenameTheChangelogAnnouncesExistsInTheCode` checks that the
-new name exists. Before 1.0 no aliases are kept; the compiler is the migration guide.
+new name exists. Before 1.0 no aliases are kept; the compiler, with [Migrating to 1.0](migrating-to-1.0.md), is the migration guide.
 
 ## File formats
 

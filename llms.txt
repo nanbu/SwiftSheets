@@ -35,6 +35,7 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 - Interoperability guide (what each conversion direction does): https://nanbu.github.io/SwiftSheets/interoperability.html
 - Performance record (seconds and MB per operation, measured): https://nanbu.github.io/SwiftSheets/performance.json
 - Implementation spec (the design; Appendix B records every decision and its reason): https://nanbu.github.io/SwiftSheets/implementation-spec.html
+- Migrating to 1.0 (every rename since 0.20; integer coordinates are 1-based since 0.23.0): https://github.com/nanbu/SwiftSheets/blob/main/docs/migrating-to-1.0.md
 - Changelog: https://github.com/nanbu/SwiftSheets/blob/main/CHANGELOG.md
 - Contributing (spec-first rule, the bar for AI-assisted pull requests): https://github.com/nanbu/SwiftSheets/blob/main/CONTRIBUTING.md
 - AGENTS.md (conventions for agents changing the repository itself): https://github.com/nanbu/SwiftSheets/blob/main/AGENTS.md

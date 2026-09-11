@@ -137,4 +137,5 @@ The numbers — seconds and megabytes for a million and ten million cells — ar
   measured, and the API for each feature (also as [YAML](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml)).
 - [Implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html) — the design, and
   Appendix B: every implementation decision and the reason behind it.
+- [Migrating to 1.0](migrating-to-1.0.md) — for code written against 0.2x: every rename, and why `- 1` next to a row is now a bug.
 - [llms.txt](../llms.txt) — the short map of the library written for AI coding agents.

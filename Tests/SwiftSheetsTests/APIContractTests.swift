@@ -304,6 +304,28 @@ import SwiftSheets
         #expect(checked > 0 || !newest.contains("→"), "a section with arrows should have yielded rename pairs")
     }
 
+    /// The migration guide maps old names to new ones; a new name the code does not have would send a reader to a
+    /// dead end. Every identifier on the right of an arrow must occur under Sources/, as for the CHANGELOG.
+    @Test func everyNewNameTheMigrationGuideGivesExistsInTheCode() throws {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let guide = try String(contentsOf: root.appending(path: "docs/migrating-to-1.0.md"), encoding: .utf8)
+        var words: Set<Substring> = []
+        let walker = FileManager.default.enumerator(at: root.appending(path: "Sources"), includingPropertiesForKeys: nil)
+        while let file = walker?.nextObject() as? URL {
+            guard file.pathExtension == "swift" else { continue }
+            for m in try String(contentsOf: file, encoding: .utf8).matches(of: #/[A-Za-z_][A-Za-z0-9_]*/#) { words.insert(m.output) }
+        }
+        var checked = 0
+        for m in guide.matches(of: #/`([^`]+)`\s*→\s*`([^`]+)`/#) {
+            for ident in m.output.2.matches(of: #/[A-Za-z_][A-Za-z0-9_]*/#) {
+                checked += 1
+                #expect(words.contains(ident.output),
+                        Comment(rawValue: "docs/migrating-to-1.0.md maps `\(m.output.1)` → `\(m.output.2)`, but nothing under Sources/ is named \(ident.output)"))
+            }
+        }
+        #expect(checked > 50, "the guide should still be mapping names")
+    }
+
     /// The README's test count is a floor ("800+ tests"), and the floor cannot drift: it must equal the number of
     /// `@Test` declarations under `Tests/`, rounded down to the nearest hundred. Counting declarations in source
     /// stands in for counting at run time (a suite cannot ask the runner for its own total mid-run), and it counts
