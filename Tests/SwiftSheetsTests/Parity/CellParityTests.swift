@@ -203,8 +203,8 @@ import Testing
     // openpyxl: cell/tests/test_cell.py::test_alignment
     @Test func alignment() {
         var cell = dummyCell()
-        cell.alignment = Alignment(wrapText: true)
-        #expect(cell.alignment == Alignment(wrapText: true))
+        cell.alignment = Alignment(wrapsText: true)
+        #expect(cell.alignment == Alignment(wrapsText: true))
     }
 
     // openpyxl: cell/tests/test_cell.py::test_protection

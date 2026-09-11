@@ -186,7 +186,7 @@ final class StyleRegistry {
         if let fill = d.fill { s += "<fill>" + fillBodyXML(fill) + "</fill>" }
         if let al = d.alignment {
             s += "<alignment\(XML.attr("horizontal", al.horizontal?.rawValue))\(XML.attr("vertical", al.vertical?.rawValue))"
-            s += "\(XML.attr("wrapText", al.wrapText))\(XML.attr("shrinkToFit", al.shrinkToFit))"
+            s += "\(XML.attr("wrapText", al.wrapsText))\(XML.attr("shrinkToFit", al.shrinksToFit))"
             if al.indent != 0 { s += XML.attr("indent", al.indent) }
             if al.textRotation != 0 { s += XML.attr("textRotation", al.textRotation) }
             s += "/>"
@@ -297,7 +297,7 @@ final class StyleRegistry {
         guard style.alignment != Alignment.none else { return s + "/>" }
         let al = style.alignment
         s += " applyAlignment=\"1\"><alignment\(XML.attr("horizontal", al.horizontal?.rawValue))\(XML.attr("vertical", al.vertical?.rawValue))"
-        s += "\(XML.attr("wrapText", al.wrapText))\(XML.attr("shrinkToFit", al.shrinkToFit))"
+        s += "\(XML.attr("wrapText", al.wrapsText))\(XML.attr("shrinkToFit", al.shrinksToFit))"
         if al.indent != 0 { s += XML.attr("indent", al.indent) }
         if al.textRotation != 0 { s += XML.attr("textRotation", al.textRotation) }
         return s + "/></xf>"
@@ -337,7 +337,7 @@ final class StyleRegistry {
                 xfXML += ">"
                 if hasAlign {
                     xfXML += "<alignment\(XML.attr("horizontal", al.horizontal?.rawValue))\(XML.attr("vertical", al.vertical?.rawValue))"
-                    xfXML += "\(XML.attr("wrapText", al.wrapText))\(XML.attr("shrinkToFit", al.shrinkToFit))"
+                    xfXML += "\(XML.attr("wrapText", al.wrapsText))\(XML.attr("shrinkToFit", al.shrinksToFit))"
                     if al.indent != 0 { xfXML += XML.attr("indent", al.indent) }
                     if al.textRotation != 0 { xfXML += XML.attr("textRotation", al.textRotation) }
                     xfXML += "/>"

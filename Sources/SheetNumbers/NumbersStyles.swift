@@ -159,7 +159,7 @@ struct NumbersStyleResolver {
                 if !stops.isEmpty { style.fill = .gradient(GradientFill(kind: .linear, stops: stops)) }
             }
         }
-        if let v = bool(id, "cell_properties", "text_wrap") { style.alignment.wrapText = v }
+        if let v = bool(id, "cell_properties", "text_wrap") { style.alignment.wrapsText = v }
         switch int(id, "cell_properties", "vertical_alignment") {
         case 0: style.alignment.vertical = .top
         case 1: style.alignment.vertical = .center
@@ -644,7 +644,7 @@ struct NumbersStyleWriter {
             cell.set("cell_fill", message: fill)
             overrides += 1
         }
-        if style.alignment.wrapText { cell.set("text_wrap", bool: true); overrides += 1 }
+        if style.alignment.wrapsText { cell.set("text_wrap", bool: true); overrides += 1 }
         if let vertical = style.alignment.vertical {
             switch vertical {
             case .top: cell.set("vertical_alignment", int: 0)

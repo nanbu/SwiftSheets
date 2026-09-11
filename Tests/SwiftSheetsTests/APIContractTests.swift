@@ -304,6 +304,31 @@ import SwiftSheets
         #expect(checked > 0 || !newest.contains("→"), "a section with arrows should have yielded rename pairs")
     }
 
+    /// The naming rules hold for the whole public surface, not only for the names a review happened to read: a public
+    /// Bool is never an imperative (B.64; `wrapText` and `shrinkToFit` escaped its 28-word pass and this scan found
+    /// them, B.89), no public name abbreviates "column" (B.60), and no public name carries "A1" (B.68).
+    @Test func thePublicSurfaceFollowsTheNamingRules() throws {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let imperativeBool = #/\bpublic(?:\s+(?:internal|private|package)\(set\))?\s+(?:var|let)\s+((?:show|include|allow|lock|use|hide|fit|refresh|preserve|count|link|enable|wrap|shrink)[A-Z]\w*)\s*(?::\s*Bool\b|=\s*(?:true|false)\b)/#
+        let abbreviatedColumn = #/\bpublic\s+(?:static\s+)?(?:var|let)\s+((?:min|max|first|last|base|default)?[Cc]ols?(?:[A-Z]\w*)?)\s*[:=]/#
+        let a1InAName = #/\bpublic\s+(?:static\s+)?(?:mutating\s+)?(?:var|let|func)\s+(\w*A1\w*)/#
+        var violations: [String] = []
+        var lines = 0
+        let walker = FileManager.default.enumerator(at: root.appending(path: "Sources"), includingPropertiesForKeys: nil)
+        while let file = walker?.nextObject() as? URL {
+            guard file.pathExtension == "swift" else { continue }
+            for (n, line) in try String(contentsOf: file, encoding: .utf8).split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+                lines += 1
+                if line.trimmingCharacters(in: .whitespaces).hasPrefix("//") { continue }
+                for m in line.matches(of: imperativeBool) { violations.append("\(file.lastPathComponent):\(n + 1): \(m.output.1) is an imperative Bool (B.64)") }
+                for m in line.matches(of: abbreviatedColumn) { violations.append("\(file.lastPathComponent):\(n + 1): \(m.output.1) abbreviates column (B.60)") }
+                for m in line.matches(of: a1InAName) { violations.append("\(file.lastPathComponent):\(n + 1): \(m.output.1) carries A1 (B.68)") }
+            }
+        }
+        #expect(lines > 10_000, "the scan should have read the sources")
+        #expect(violations.isEmpty, Comment(rawValue: violations.joined(separator: "\n")))
+    }
+
     /// The migration guide maps old names to new ones; a new name the code does not have would send a reader to a
     /// dead end. Every identifier on the right of an arrow must occur under Sources/, as for the CHANGELOG.
     @Test func everyNewNameTheMigrationGuideGivesExistsInTheCode() throws {

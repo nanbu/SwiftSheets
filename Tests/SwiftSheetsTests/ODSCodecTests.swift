@@ -67,7 +67,7 @@ import SwiftSheets
             $0.font = Font(name: "Arial", size: 14, bold: true, italic: true, color: Color(hex: "112233"))
             $0.fill = .solid(Color(hex: "BFD7F5"))
             $0.border = Border(left: Side(style: .thin, color: .black), right: Side(style: .medium, color: Color(hex: "FF0000")), top: Side(style: .thick, color: .black), bottom: Side(style: .double, color: .black))
-            $0.alignment = Alignment(horizontal: .center, vertical: .top, wrapText: true)
+            $0.alignment = Alignment(horizontal: .center, vertical: .top, wrapsText: true)
         }
         ws["B2"] = .number(Decimal(string: "1234.5")!); ws.setStyle("B2") { $0.numberFormat = "#,##0.00" }
         ws["C2"] = .number(Decimal(string: "0.25")!); ws.setStyle("C2") { $0.numberFormat = "0%" }
@@ -157,7 +157,7 @@ import SwiftSheets
         #expect(st.fill == .solid(Color(hex: "BFD7F5")))
         #expect(st.border.left.style == .thin && st.border.right.style == .medium && st.border.top.style == .thick && st.border.bottom.style == .double)
         #expect(st.border.right.color == Color(hex: "FF0000"))
-        #expect(st.alignment.horizontal == .center && st.alignment.vertical == .top && st.alignment.wrapText)
+        #expect(st.alignment.horizontal == .center && st.alignment.vertical == .top && st.alignment.wrapsText)
         #expect(ws.style("B2").numberFormat == "#,##0.00")
         #expect(ws.style("C2").numberFormat == "0%")
         #expect(ws.style("D2").numberFormat == "yyyy-mm-dd")

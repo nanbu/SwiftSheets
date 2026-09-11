@@ -101,12 +101,12 @@ public struct Alignment: Hashable, Sendable {
     public enum Vertical: String, Sendable { case top, center, bottom, justify, distributed }
     public var horizontal: Horizontal?
     public var vertical: Vertical?
-    public var wrapText = false
-    public var shrinkToFit = false
+    public var wrapsText = false
+    public var shrinksToFit = false
     public var indent = 0
     public var textRotation = 0
-    public init(horizontal: Horizontal? = nil, vertical: Vertical? = nil, wrapText: Bool = false, shrinkToFit: Bool = false, indent: Int = 0, textRotation: Int = 0) {
-        self.horizontal = horizontal; self.vertical = vertical; self.wrapText = wrapText; self.shrinkToFit = shrinkToFit; self.indent = indent; self.textRotation = textRotation
+    public init(horizontal: Horizontal? = nil, vertical: Vertical? = nil, wrapsText: Bool = false, shrinksToFit: Bool = false, indent: Int = 0, textRotation: Int = 0) {
+        self.horizontal = horizontal; self.vertical = vertical; self.wrapsText = wrapsText; self.shrinksToFit = shrinksToFit; self.indent = indent; self.textRotation = textRotation
     }
     public static let none = Alignment()
 }

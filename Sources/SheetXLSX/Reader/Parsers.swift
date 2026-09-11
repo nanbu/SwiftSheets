@@ -367,7 +367,7 @@ final class StylesParser: SAXHandler {
         case "alignment" where xf != nil:
             xf!.alignment = Alignment(horizontal: a["horizontal"].flatMap(Alignment.Horizontal.init(rawValue:)),
                                       vertical: a["vertical"].flatMap(Alignment.Vertical.init(rawValue:)),
-                                      wrapText: XMLBool.isTrue(a["wrapText"]), shrinkToFit: XMLBool.isTrue(a["shrinkToFit"]),
+                                      wrapsText: XMLBool.isTrue(a["wrapText"]), shrinksToFit: XMLBool.isTrue(a["shrinkToFit"]),
                                       indent: Int(a["indent"] ?? "0") ?? 0, textRotation: Int(a["textRotation"] ?? "0") ?? 0)
         case "protection" where xf != nil:
             xf!.protection = Protection(locked: XMLBool.isNotFalse(a["locked"]), hidden: XMLBool.isTrue(a["hidden"]))
@@ -414,7 +414,7 @@ final class StylesParser: SAXHandler {
         case "alignment":
             dxf!.alignment = Alignment(horizontal: a["horizontal"].flatMap(Alignment.Horizontal.init(rawValue:)),
                                        vertical: a["vertical"].flatMap(Alignment.Vertical.init(rawValue:)),
-                                       wrapText: XMLBool.isTrue(a["wrapText"]), shrinkToFit: XMLBool.isTrue(a["shrinkToFit"]),
+                                       wrapsText: XMLBool.isTrue(a["wrapText"]), shrinksToFit: XMLBool.isTrue(a["shrinkToFit"]),
                                        indent: Int(a["indent"] ?? "0") ?? 0, textRotation: Int(a["textRotation"] ?? "0") ?? 0)
         case "protection": dxf!.protection = Protection(locked: XMLBool.isNotFalse(a["locked"]), hidden: XMLBool.isTrue(a["hidden"]))
         default: break

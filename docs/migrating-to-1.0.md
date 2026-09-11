@@ -28,6 +28,7 @@ to row 0 or column 0 stops with a message. `rowNumber` is gone (it is `row`), `F
 - `addSparkline(_:data:at:)` → `addSparkline(_:dataRange:at:)` (a `CellRef` twin exists), and `SparklineGroup.Sparkline(dataRange:location:)` → `SparklineGroup.Sparkline(dataRange:at:)`.
 - `addTable(named:anchor:)` → `addTable(named:at:)`.
 - `IconSet.Icon.set` → `IconSet.Icon.setName`; `DataBar.isGradient` → `DataBar.gradient`.
+- `Alignment.wrapText` → `Alignment.wrapsText`; `Alignment.shrinkToFit` → `Alignment.shrinksToFit`.
 - `PhoneticText.Run(_:start:end:)` → `PhoneticText.Run(_:over:)`, with the span as `range: Range<Int>`.
 - No longer public: `CommentThread.mirrorPrefix`, `Chart.anchorOrFrameCells`, `Chart.Kind.drawable` (ask `isDrawable`), `Shape.Geometry.presets` (ask `isPreset`), `DataBar.usesExtension`.
 

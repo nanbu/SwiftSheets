@@ -205,8 +205,8 @@ final class ODSStyleRegistry {
             case .bottom: cell += " style:vertical-align=\"bottom\""
             }
         }
-        if al.wrapText { cell += " fo:wrap-option=\"wrap\"" }
-        if al.shrinkToFit { cell += " style:shrink-to-fit=\"true\"" }
+        if al.wrapsText { cell += " fo:wrap-option=\"wrap\"" }
+        if al.shrinksToFit { cell += " style:shrink-to-fit=\"true\"" }
         if al.textRotation != 0, al.textRotation <= 180 { cell += " style:rotation-angle=\"\(al.textRotation)\"" }
         if al.horizontal != nil { cell += " style:text-align-source=\"fix\"" }
         if !st.protection.locked || st.protection.hidden {

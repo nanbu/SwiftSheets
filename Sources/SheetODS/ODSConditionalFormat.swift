@@ -386,7 +386,7 @@ final class ODSConditionalStyleRegistry {
                     case .bottom: cell += " style:vertical-align=\"bottom\""
                     }
                 }
-                if a.wrapText { cell += " fo:wrap-option=\"wrap\"" }
+                if a.wrapsText { cell += " fo:wrap-option=\"wrap\"" }
             }
             if let p = st.protection, !p.locked || p.hidden {
                 cell += " style:cell-protect=\"\(p.locked ? (p.hidden ? "hidden-and-protected" : "protected") : (p.hidden ? "formula-hidden" : "none"))\""

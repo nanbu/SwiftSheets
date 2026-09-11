@@ -64,6 +64,9 @@ compiler points at; no alias is kept.
 - `PhoneticText.Run.start` and `end` → `PhoneticText.Run.range`, a `Range<Int>` of UTF-16 code units made with
   `Run(_:over:)`. The reader clamps a file whose `eb` comes before its `sb` instead of trapping on it.
 - `DataBar.isGradient` → `DataBar.gradient`, the attribute's own word, like `percent` and `reverse`.
+- `Alignment.wrapText` → `Alignment.wrapsText` and `Alignment.shrinkToFit` → `Alignment.shrinksToFit` — the two
+  imperative Bools 0.24.0's pass missed, spelled the way its `fitToPage` → `fitsToPage` already is. A test now scans the
+  whole public surface for the naming rules, so the next one is caught when it is written.
 - No longer public, because each answered a codec's question rather than a caller's: `CommentThread.mirrorPrefix`,
   `Chart.anchorOrFrameCells`, `Chart.Kind.drawable` (ask `isDrawable`), `Shape.Geometry.presets` (ask `isPreset`)
   and `DataBar.usesExtension`.

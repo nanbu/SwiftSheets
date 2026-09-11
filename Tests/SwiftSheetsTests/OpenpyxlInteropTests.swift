@@ -21,7 +21,7 @@ import Testing
         ws["G1"] = .formula(FormulaExpr.parse("=B1*2"), cached: .integer(84))
         ws["H1"] = .number(0.25); ws[cell: "H1"].numberFormat = "0%"
         ws["A2"] = "  padded  "
-        ws["B2"] = "multi\nline"; ws[cell: "B2"].alignment = Alignment(horizontal: .center, vertical: .top, wrapText: true)
+        ws["B2"] = "multi\nline"; ws[cell: "B2"].alignment = Alignment(horizontal: .center, vertical: .top, wrapsText: true)
         ws[cell: "C2"].fill = .solid(.rgb("FFBFD7F5"))
         ws[cell: "D2"].border = Border(left: Side(style: .thin, color: .rgb("FF888888")), right: Side(style: .medium))
         ws["E2"] = "<A&B> \"q\" 日本語"
@@ -87,7 +87,7 @@ import Testing
         #expect(ws["G1"] == .formula(FormulaExpr.parse("=B1*2"), cached: .integer(84)) || ws["G1"] == .formula("=B1*2"))
         #expect(ws["H1"] == .number(0.25) && ws[cell: "H1"].numberFormat == "0%")
         #expect(ws["A2"] == .text("  padded  "))
-        #expect(ws["B2"] == .text("multi\nline") && ws[cell: "B2"].alignment.wrapText && ws[cell: "B2"].alignment.horizontal == .center && ws[cell: "B2"].alignment.vertical == .top)
+        #expect(ws["B2"] == .text("multi\nline") && ws[cell: "B2"].alignment.wrapsText && ws[cell: "B2"].alignment.horizontal == .center && ws[cell: "B2"].alignment.vertical == .top)
         #expect(ws[cell: "C2"].fill == .solid(.rgb("FFBFD7F5")))
         #expect(ws[cell: "D2"].border.left.style == .thin && ws[cell: "D2"].border.left.color == .rgb("FF888888") && ws[cell: "D2"].border.right.style == .medium)
         #expect(ws["E2"] == .text("<A&B> \"q\" 日本語"))

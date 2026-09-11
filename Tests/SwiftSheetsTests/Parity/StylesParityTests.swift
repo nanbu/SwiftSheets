@@ -288,7 +288,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
     // openpyxl: styles/tests/test_alignments.py::test_default
     @Test func defaultAlignment() {
         let al = Alignment()
-        #expect(al == .none && al.horizontal == nil && al.vertical == nil && !al.wrapText && !al.shrinkToFit && al.indent == 0 && al.textRotation == 0)
+        #expect(al == .none && al.horizontal == nil && al.vertical == nil && !al.wrapsText && !al.shrinksToFit && al.indent == 0 && al.textRotation == 0)
     }
 
     // openpyxl: styles/tests/test_alignments.py::test_round_trip
@@ -302,7 +302,7 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
 
     // openpyxl: styles/tests/test_alignments.py::test_alias
     @Test func alias() {
-        let al = Alignment(wrapText: true, shrinkToFit: true, textRotation: 90)
+        let al = Alignment(wrapsText: true, shrinksToFit: true, textRotation: 90)
         let reg = StyleRegistry(); var st = CellStyle(); st.alignment = al; _ = reg.index(for: st)
         #expect(reg.xml().contains("<alignment wrapText=\"1\" shrinkToFit=\"1\" textRotation=\"90\"/>"))
     }

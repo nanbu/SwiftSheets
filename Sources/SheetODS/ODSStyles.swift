@@ -303,7 +303,7 @@ final class ODSStyleCatalog {
                 default: break
                 }
             }
-            if let w = ODSAttr.get(s.cell, "fo:wrap-option") { alignment.wrapText = w == "wrap"; alignmentTouched = true }
+            if let w = ODSAttr.get(s.cell, "fo:wrap-option") { alignment.wrapsText = w == "wrap"; alignmentTouched = true }
             if let t = ODSAttr.get(s.paragraph, "fo:text-align") {
                 switch t {
                 case "start", "left": alignment.horizontal = .left; alignmentTouched = true
@@ -463,8 +463,8 @@ final class ODSStyleCatalog {
             default: style.alignment.vertical = nil
             }
         }
-        if let w = ODSAttr.get(a, "fo:wrap-option") { style.alignment.wrapText = w == "wrap" }
-        if let s = ODSAttr.bool(a, "style:shrink-to-fit") { style.alignment.shrinkToFit = s }
+        if let w = ODSAttr.get(a, "fo:wrap-option") { style.alignment.wrapsText = w == "wrap" }
+        if let s = ODSAttr.bool(a, "style:shrink-to-fit") { style.alignment.shrinksToFit = s }
         if let r = ODSAttr.get(a, "style:rotation-angle"), let deg = Int(r.replacingOccurrences(of: "deg", with: "")) { style.alignment.textRotation = deg }
         if let p = ODSAttr.get(a, "style:cell-protect") {
             style.protection.locked = p != "none" && p != "formula-hidden"
