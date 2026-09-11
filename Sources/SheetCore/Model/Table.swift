@@ -11,6 +11,15 @@ public struct CanvasPoint: Hashable, Sendable {
     public init(x: Double, y: Double) { self.x = x; self.y = y }
 }
 
+/// A rectangle on a Numbers sheet's canvas, in points (spec Appendix B.88).
+public struct CanvasRect: Hashable, Sendable {
+    public var origin: CanvasPoint
+    public var width: Double
+    public var height: Double
+    public init(origin: CanvasPoint, width: Double, height: Double) { self.origin = origin; self.width = width; self.height = height }
+    public init(x: Double, y: Double, width: Double, height: Double) { self.init(origin: CanvasPoint(x: x, y: y), width: width, height: height) }
+}
+
 public struct Table: Equatable, Sendable {
     public var name: String?
     /// Where the table's A1 sits on the sheet canvas (Numbers), on the 98 pt × 20 pt grid of default cells; always

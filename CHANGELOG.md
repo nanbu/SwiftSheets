@@ -42,6 +42,13 @@ writes, so the constant, the README's status line and the tag always name the sa
   triangle, the four arrows and a line are drawn as bezier paths and recognised on the way back. Other presets
   are still rectangles, named with the list of what is drawn.
 
+- **Charts in Numbers** (spec Appendix B.88). `sheet.charts` is read from a Numbers canvas — the kind, title and
+  legend, and each series' values, categories and name reference followed back through the chart mediator's
+  formulas to the table cells — and written: a column, bar, line or pie chart becomes a chart drawable over the
+  template's style preset, with its cached grid, its mediator and its registration with the calculation engine.
+  Numbers opens the written chart, saves it again and exports it to Excel with the chart intact (judged). `Chart`
+  gains `frame` (a `CanvasRect` in points) and `anchorOrFrameCells`; the XLSX and ODS writers place a chart that
+  only has a frame over the cells it covers. A chart whose data is not linked to a table stays reported.
 
 ## [0.26.0] — 2026-09-11
 

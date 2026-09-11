@@ -110,7 +110,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <div class="grid">
 <div class="card score"><div class="num">78<small> 項目</small></div><div class="lab">Excel（.xlsx / .xlsm）</div><div class="sub">読み ○53 △10 ▣11 ×1 ／ 書き ○53 △9 ▣12 ×1<br>公開仕様あり</div></div>
 <div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">OpenDocument 表計算（.ods）</div><div class="sub">読み ○39 △13 ▣0 ×2 ／ 書き ○36 △10 ▣0 ×11<br>公開仕様あり</div></div>
-<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○22 △14 ▣0 ×8 ／ 書き ○20 △10 ▣0 ×25<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
+<div class="card score"><div class="num">59<small> 項目</small></div><div class="lab">Apple Numbers（.numbers）</div><div class="sub">読み ○22 △15 ▣0 ×7 ／ 書き ○20 △11 ▣0 ×24<br><strong>公開仕様なし</strong> — ヘルプと観測で作りました</div></div>
 </div>
 </section>
 <section>
@@ -193,8 +193,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>Excel（.xlsx / .xlsm）</td><td>書き</td><td class="m">53</td><td class="m">9</td><td class="m">12</td><td class="m">1</td><td class="m">3</td><td class="m">0</td><td class="m">78</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>読み</td><td class="m">39</td><td class="m">13</td><td class="m">0</td><td class="m">2</td><td class="m">5</td><td class="m">0</td><td class="m">59</td></tr>
 <tr><td>OpenDocument 表計算（.ods）</td><td>書き</td><td class="m">36</td><td class="m">10</td><td class="m">0</td><td class="m">11</td><td class="m">2</td><td class="m">0</td><td class="m">59</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">22</td><td class="m">14</td><td class="m">0</td><td class="m">8</td><td class="m">15</td><td class="m">0</td><td class="m">59</td></tr>
-<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">20</td><td class="m">10</td><td class="m">0</td><td class="m">25</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>読み</td><td class="m">22</td><td class="m">15</td><td class="m">0</td><td class="m">7</td><td class="m">15</td><td class="m">0</td><td class="m">59</td></tr>
+<tr><td>Apple Numbers（.numbers）</td><td>書き</td><td class="m">20</td><td class="m">11</td><td class="m">0</td><td class="m">24</td><td class="m">4</td><td class="m">0</td><td class="m">59</td></tr>
 </tbody></table></div>
 <p class="meta">「—」はその形式に概念が無い行です。Numbers に「—」が多いのは能力差ではなく、Excel・OpenDocument 側の機能を並べた行に Numbers 側の対応物が無い、という意味です。</p>
 </section>
@@ -440,7 +440,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>集計表を読む</td><td class="m h">△</td><td class="m">—</td><td><code>同上</code></td><td><code>sheet.tables</code></td><td><strong>言うこと</strong>: なし（値のある普通の表として読める） 読み戻すと普通の表になる。集計の仕掛けはモデルに持たない。 <span class="chip">文書</span></td></tr>
 <tr><td>レポートフィルタの段</td><td class="m">—</td><td class="m n">×</td><td>—</td><td><code>PivotTable.pageFields</code></td><td><strong>言うこと</strong>: 「N report filter(s) dropped — a Numbers pivot has no filter field, and Numbers drops them too …」 <span class="chip">コード確認</span></td></tr>
 <tr class="group"><td colspan="6">キャンバスのオブジェクト</td></tr>
-<tr><td>グラフ</td><td class="m n">×</td><td class="m n">×</td><td><code>TSCH.ChartDrawableArchive</code></td><td><code>sheet.addChart(_:over:)</code></td><td><strong>言うこと</strong>: 読みは「a chart」を dropped で名指し／書きは「N chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet」 キャンバスに立つ物はモデルに置き場所が無い。あったことは必ず言う。 <span class="chip">実測</span></td></tr>
+<tr><td>グラフ</td><td class="m h">△</td><td class="m h">△</td><td><code>B.88（TSCH.ChartDrawableArchive・TN.ChartMediatorArchive）</code></td><td><code>sheet.charts</code> <code>sheet.addChart(_:over:)</code> <code>Chart.frame</code></td><td><strong>言うこと</strong>: 描けない種類は「a … chart was not written: the writer draws column, bar, line and pie charts」／表に無い範囲の系列は「… series of a chart dropped」／表に繋がっていないグラフは読みで「a chart」のまま 種類・題名・凡例・系列の範囲を仲介役の式から読み書きする。系列の色などの様式は雛形のプリセット。Numbers 15.3.1 が開いて保存し直し、Excel へ書き出しても残る（gated テスト）。 <span class="chip">実測</span></td></tr>
 <tr><td>画像</td><td class="m y">○</td><td class="m y">○</td><td><code>B.83（TSD.ImageArchive・TSP.DataInfo）</code></td><td><code>sheet.images</code> <code>sheet.addImage(_:at:sizing:)</code> <code>sheet.addImage(_:over:)</code></td><td><strong>言うこと</strong>: PNG / JPEG / GIF でない絵（PDF・HEIC）は読みで「an image」のまま 錨はキャンバス上の点で読む（.absolute）。セル錨は最初の表の列幅・行高で点に直して書く。Numbers 15.3.1 が開いて保存し直す（gated テスト）。 <span class="chip">実測</span></td></tr>
 <tr><td>図形・テキストボックス</td><td class="m h">△</td><td class="m h">△</td><td><code>B.83（TSWP.ShapeInfoArchive）</code></td><td><code>sheet.shapes</code> <code>sheet.addShape(_:over:)</code> <code>sheet.addTextBox(_:over:font:)</code></td><td><strong>言うこと</strong>: 10 種（rect / roundRect / ellipse / diamond / triangle / 矢印 4 方向 / line）以外の geometry は「a shape of geometry … was written as a rectangle」／textAlignment は「not written」（degraded） 文・塗り・線・書体（書きのみ）を運ぶ。10 種の形は単位経路として書き、読みで同じ経路を見分ける（B.87）。それ以外の経路は numbers-path（プリセット外）。 <span class="chip">実測</span></td></tr>
 <tr><td>ムービー・オーディオ</td><td class="m n">×</td><td class="m n">×</td><td><code>TSD.MovieArchive</code></td><td>—</td><td><strong>言うこと</strong>: 読みで「a movie」 <span class="chip">コード確認</span></td></tr>

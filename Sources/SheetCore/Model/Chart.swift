@@ -49,6 +49,10 @@ public struct Chart: Hashable, Sendable {
     public var legend = true
     /// Where the chart sits on the sheet, both corners following their cells. Set by `addChart(_:over:)`.
     public var anchor: CellRange?
+    /// Where the chart stands on a Numbers canvas, in points (spec Appendix B.88). Set by the Numbers reader; the
+    /// XLSX and ODS writers place a chart that has a frame but no anchor over the cells the frame covers on the
+    /// default grid, and the Numbers writer draws it at the frame when there is no anchor.
+    public var frame: CanvasRect?
 
     public init(_ kind: Kind, title: String? = nil) {
         self.kind = kind; self.title = title
@@ -56,6 +60,18 @@ public struct Chart: Hashable, Sendable {
 
     public mutating func addSeries(values: String, categories: String? = nil, name: String? = nil, nameReference: String? = nil) {
         series.append(Series(values: values, categories: categories, name: name, nameReference: nameReference))
+    }
+}
+
+extension Chart {
+    /// The cells a canvas frame covers on Numbers' default grid (98 pt columns, 20 pt rows): the anchor a writer
+    /// that places charts by cells uses for a chart that only has a frame.
+    public var anchorOrFrameCells: CellRange? {
+        if let anchor { return anchor }
+        guard let f = frame else { return nil }
+        let c0 = Int(f.origin.x / 98) + 1, r0 = Int(f.origin.y / 20) + 1
+        let c1 = Swift.max(c0, Int((f.origin.x + f.width - 1) / 98) + 1), r1 = Swift.max(r0, Int((f.origin.y + f.height - 1) / 20) + 1)
+        return CellRange(minRow: r0, minColumn: c0, maxRow: r1, maxColumn: c1)
     }
 }
 

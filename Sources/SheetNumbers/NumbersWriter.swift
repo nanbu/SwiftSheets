@@ -123,10 +123,6 @@ struct NumbersWriter {
 
     mutating func write() throws -> Data {
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
-        for sheet in workbook.sheets where !sheet.charts.isEmpty {
-            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
-                                              message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
-        }
         for sheet in workbook.sheets where sheet.preserved.isUnread {
             warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name, message: "the sheet was never read (ReadOptions.sheets left it out) and is written empty"))
         }
@@ -322,6 +318,11 @@ struct NumbersWriter {
             }
             // the pictures, shapes and text boxes on the canvas (Appendix B.83), placed against the first table
             try writeCanvas(of: sheet, sheetID: sid, firstTable: tables[0], firstTableInfo: infos[0])
+            // the charts (Appendix B.88), against the same grid
+            let chartModel = doc.object(infos[0])?.reference("tableModel").flatMap { doc.object($0) }
+            try writeCharts(of: sheet, sheetID: sid, grid: NumbersCanvas.TableGrid(origin: (0, 0), table: tables[0],
+                                                                                     defaultRowHeight: chartModel?.double("default_row_height") ?? NumbersWriter.defaultRowHeight,
+                                                                                     defaultColumnWidth: chartModel?.double("default_column_width") ?? NumbersWriter.defaultColumnWidth))
         }
         warnings += NumbersPrint.applyPaper(Array(workbook.sheets), to: doc)   // one paper for the document (B.86)
         flushComponents()

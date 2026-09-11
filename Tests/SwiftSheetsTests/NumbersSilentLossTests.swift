@@ -16,12 +16,13 @@ import SwiftSheets
         try Data(contentsOf: Bundle.module.resourceURL!.appending(path: "Fixtures/numbers/\(name)"))
     }
 
-    @Test func aChartOnTheSheetIsReported() throws {
+    /// The chart on the sheet used to be the one warning; since Appendix B.88 it is read into `sheet.charts`
+    /// instead, and nothing about it is reported.
+    @Test func aChartOnTheSheetIsReadNotReported() throws {
         let result = try NumbersCodec.read(try Self.fixture("chart-and-control-15.numbers"))
         let charts = result.warnings.filter { $0.subject == .objects && $0.message.contains("chart") }
-        #expect(charts.count == 1, Comment(rawValue: "expected exactly one chart warning, got \(result.warnings.map(\.message))"))
-        #expect(charts.first?.kind == .dropped)
-        #expect(charts.first?.sheet == result.workbook.sheets[0].name)
+        #expect(charts.isEmpty, Comment(rawValue: "the chart is modelled now, got \(result.warnings.map(\.message))"))
+        #expect(result.workbook.sheets[0].charts.count == 1)
     }
 
     /// A pop-up menu is no longer reported as a loss: it comes back as a `.list` validation instead. The warning

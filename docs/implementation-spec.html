@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.79 Draft</td><td>2026-09-11</td><td>Numbers のグラフ。<code>TSCH.ChartDrawableArchive</code> と仲介役 <code>TN.ChartMediatorArchive</code> の式から系列の範囲を読み、書きでは雛形の様式プリセット・非様式・キャッシュの格子・仲介役を作って計算エンジンに所有者（kind 2）として登録する。<code>Chart.frame</code>（<code>CanvasRect</code>）を新設（B.88）。</td></tr>
     <tr><td>4.78 Draft</td><td>2026-09-11</td><td>Numbers の図形の形。四角・角丸・楕円・菱形・三角・矢印 4 方向・線を 100 × 100 の単位空間の bezier 経路として書き、読みでは同じ経路を見分けて形の名に戻す（B.87）。</td></tr>
     <tr><td>4.77 Draft</td><td>2026-09-11</td><td>Numbers の印刷設定の残り。用紙は書類 1 つの <code>paper_id</code> / <code>page_size</code>、タイトル行／列は最初の表の見出し行／列＋<code>show_repeating_headers</code>。印刷範囲と改ページは置き場所が無く、名指しで落とす（B.86）。</td></tr>
     <tr><td>4.76 Draft</td><td>2026-09-11</td><td>Numbers の表の置き場所。<code>Table.position</code>（pt の <code>CanvasPoint</code>）を読み、書きでは position → 既定でない anchor → 前の表の下、の順で置く（B.85）。</td></tr>
@@ -7048,6 +7049,25 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>is_text_box</code> なら <code>textBox</code>、どれでもなければ <code>numbers-path</code>（プリセット外）。</p>
   <p><strong>審判。</strong>10 種の形を 1 冊に書いて Numbers に保存し直させ、経路が変わらず戻ることを読み戻しで確かめる gated テスト。見た目（楕円が楕円に見えるか）は MAINTENANCE の手動一覧。</p>
 
+  <h3>B.88 Numbers のグラフ（Rev 4.79）</h3>
+  <p>2026-09-11 決定。Numbers のグラフは <code>TSCH.ChartDrawableArchive</code> 1 つに、<code>TSCH.ChartArchive.unity</code> として種類（<code>TSCH.ChartType</code>）・書類の様式プリセット
+  （<code>TSCH.ChartStylePreset</code>。どの書類にも 6 つあり、グラフ様式・凡例様式・値軸 2・分類軸 1・系列様式 6・段落様式 2 を名指す）・様式と「非様式」（題名・凡例・軸・系列の設定。
+  <code>TSCH.ChartNonStyleArchive</code> ほか）・描く数のキャッシュ（<code>grid</code>: 行名・列名・値）・仲介役（<code>TN.ChartMediatorArchive</code>）を持つ。仲介役の <code>formulas</code> が
+  データ・行ラベル・列ラベルの式（1 セルか 1 範囲の参照を関数 175 で包んだ AST。<code>functions.json</code> に無い内部の関数）でデータの出所の表を名指し、仲介役自身は計算エンジンの
+  所有者（<code>TSCE.FormulaOwnerDependenciesArchive</code>、<code>owner_kind 2</code>、<code>formula_owner</code>＝グラフ）として登録される。実測は Numbers 15.3.1 が書いた <code>chart-and-control-15.numbers</code>。</p>
+  <p><strong>模型。</strong><code>CanvasRect { origin: CanvasPoint, width, height }</code> と <code>Chart.frame: CanvasRect?</code>（キャンバス上の枠、pt）。<code>anchor</code>（セル範囲）はそのまま。
+  枠しか無いグラフを XLSX / ODS に書くときは <code>anchorOrFrameCells</code>（既定の 98 pt × 20 pt 格子で枠が覆うセル）を錨にする。</p>
+  <p><strong>読み。</strong>種類は 2D の column / bar / line / pie を模型の種類に、それ以外は列挙名を raw にした <code>Kind</code>（描けない種類）。題名と凡例は非様式から。系列は仲介役の
+  <code>data_formulae</code> を 1 本ずつ <code>NumbersFormulaDecoder</code> で文字列に戻す（末尾の関数 175 を外してから。<code>'Data::表1'!$B$2:$B$4</code> の形。復号器が範囲の両端に表名を付けるので片方に畳む）。
+  ラベルの 2 列のうち系列数と同じ長さの方が系列名（<code>nameReference</code>）、もう一方が分類で、先頭と末尾のセルを 1 つの範囲に。仲介役に式が無いグラフ（貼り付けた数だけ）は模型に入れず、従来どおり「a chart」で言う。</p>
+  <p><strong>書き。</strong>描ける 4 種だけ。系列の <code>values</code> を <code>Sheet!$B$2:$B$4</code>（シート＝最初の表）/ <code>'Sheet::Table'!B2:B4</code> / 裸の範囲（そのシート）のどれでも受けて表とセルに解決し、
+  仲介役の式は必ず <code>'Sheet::Table'!</code> で書く（グラフ自身の表は無いので、すべての参照に表の UUID を付ける——<code>hostTable</code> を存在しない名にする）。データ式は系列ごとに 1 範囲、
+  行ラベルは分類のセルごとに 1 参照、列ラベルは <code>nameReference</code> があればその参照、無ければ名前の文字列。格子は表のセルの数値（無ければ 0）と分類の文字。非様式はグラフ 1・凡例 1・値軸 2・分類軸 1・系列ごとに 1 を
+  シートと同じ部品に作り、様式はすべて雛形の最初のプリセットの物を指す（私的な変種は作らない）。仲介役は乱数の <code>entity_id</code>、<code>local_series_indexes</code> に −1 を系列数、
+  <code>remote_series_indexes</code> に 1…N、<code>direction 2</code>。所有者は B.19 の <code>registerOwner</code> で kind 2・<code>formula_owner</code> をグラフにして登録。グラフから様式への参照と、所有者からグラフへの参照は
+  部品間の外部参照として登録する。枠は <code>anchor</code>（最初の表の格子で点に）→ <code>frame</code> → 無ければ表の下 400 × 250。解決できない系列は落として数え、1 本も無ければグラフごと落として言う。</p>
+  <p><strong>審判。</strong>2 系列の縦棒グラフを書いて Numbers に保存し直させ、種類と 2 系列の範囲が戻ること、さらに Numbers に .xlsx へ書き出させて Excel 側に縦棒グラフが 1 つ届くことを確かめる gated テスト
+  （<code>NumbersChartTests</code>）。この機械で緑（2026-09-11）。</p>
 </section>
 
 </div><!-- /.container -->

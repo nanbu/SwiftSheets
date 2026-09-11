@@ -160,12 +160,13 @@ import SwiftSheets
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
+        // a document whose read raises a warning of its own: the form is dropped (Appendix B.36). (The chart and
+        // pop-up menu of chart-and-control-15 are both read now, so that document reads clean.)
         let source = directory.appending(path: "canvas.numbers")
-        try Data(contentsOf: Bundle.module.resourceURL!.appending(path: "Fixtures/numbers/chart-and-control-15.numbers"))
+        try Data(contentsOf: Bundle.module.resourceURL!.appending(path: "Fixtures/numbers/form-15.numbers"))
             .write(to: source)
         let read = try Workbook.read(contentsOf: source)
-        // one warning: the chart. The document's pop-up menu is read as a validation, not warned about.
-        #expect(read.warnings.count == 1, Comment(rawValue: "\(read.warnings.map(\.message))"))
+        #expect(!read.warnings.isEmpty, "the form must be reported, or there is nothing to carry")
 
         let converted = try Workbook.convert(source, to: directory.appending(path: "canvas.xlsx"), as: .xlsx)
         for warning in read.warnings {

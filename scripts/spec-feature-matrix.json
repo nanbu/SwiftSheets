@@ -2861,15 +2861,17 @@
             {
               "id": "num.canvas.chart",
               "name": "グラフ",
-              "spec_anchor": "TSCH.ChartDrawableArchive",
-              "read": "none",
-              "write": "none",
+              "spec_anchor": "B.88（TSCH.ChartDrawableArchive・TN.ChartMediatorArchive）",
+              "read": "partial",
+              "write": "partial",
               "api": [
-                "sheet.addChart(_:over:)"
+                "sheet.charts",
+                "sheet.addChart(_:over:)",
+                "Chart.frame"
               ],
-              "warning": "読みは「a chart」を dropped で名指し／書きは「N chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet」",
+              "warning": "描けない種類は「a … chart was not written: the writer draws column, bar, line and pie charts」／表に無い範囲の系列は「… series of a chart dropped」／表に繋がっていないグラフは読みで「a chart」のまま",
               "evidence": "measured",
-              "note": "キャンバスに立つ物はモデルに置き場所が無い。あったことは必ず言う。"
+              "note": "種類・題名・凡例・系列の範囲を仲介役の式から読み書きする。系列の色などの様式は雛形のプリセット。Numbers 15.3.1 が開いて保存し直し、Excel へ書き出しても残る（gated テスト）。"
             },
             {
               "id": "num.canvas.image",

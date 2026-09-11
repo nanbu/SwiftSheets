@@ -136,7 +136,7 @@ date should be read with this in mind. Two things stop it, and the second is the
   reporting. **A mismatch is a failed measurement, never a fact about the file** — which is the whole point: the
   cheap slate can in principle miss, and this cannot.
 
-`NumbersProbeTests` writes a corpus of nineteen documents into `.build/numbers-judge/probes`, each one thing more
+`NumbersProbeTests` writes a corpus of twenty documents into `.build/numbers-judge/probes`, each one thing more
 than the last, starting from the template itself. When Numbers refuses one, the first refusal names the feature
 that broke it — which is how the two copy defects in Appendix B.18 were found.
 
@@ -231,6 +231,11 @@ per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maint
   say is how it looks. Open `.build/numbers-judge/probes/19-canvas.numbers` and confirm the picture sits at B2 at
   its own size, the text box reads "Boxed by SwiftSheets" over B4:D5, and the shape at F2:G4 is filled `#FF3366`
   with the word "Shape" on it.
+- **Charts and shapes in Numbers (Appendices B.87, B.88).** `NumbersChartTests` has Numbers save a written
+  column chart again and export it to Excel; `NumbersCanvasTests` has it keep the ten drawn geometries. What no test
+  can say is how they look: open `.build/numbers-judge/probes/20-chart.numbers` and confirm the chart shows two
+  series over three months with the title "Sales by month", and `19-canvas.numbers` for the ellipse, the arrows
+  and the diamond next to the rectangle.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

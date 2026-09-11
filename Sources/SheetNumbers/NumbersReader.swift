@@ -207,6 +207,12 @@ struct NumbersReader {
                 shape.anchor = .absolute(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
                 sheet.shapes.append(shape)
                 modelled.insert(did)
+            case "TSCH.ChartDrawableArchive":
+                // a chart whose data is linked to a table (Appendix B.88); pasted-only data stays "a chart"
+                let names = tableUUIDToName
+                guard let chart = NumbersChart.read(obj, doc: doc, tableName: { names[$0] }) else { continue }
+                sheet.charts.append(chart)
+                modelled.insert(did)
             default: continue
             }
         }

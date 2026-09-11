@@ -329,7 +329,8 @@ enum ODSWriter {
             var shapes: [ODSPicture] = []
             var freeShapes = ""   // shapes at a fixed position (table:shapes), after the pictures there
             // charts become chart documents under Object N/ (B.73), numbered past whatever a source ODS brought
-            for (z, chart) in sheet.charts.enumerated() {
+            for (z, var chart) in sheet.charts.enumerated() {
+                if chart.anchor == nil, let cells = chart.anchorOrFrameCells { chart.anchor = cells }   // a Numbers frame (B.88)
                 guard chart.kind.isDrawable || chart.kind.rawValue.hasPrefix("chart:") else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart was not written: the writer draws column, bar, line and pie charts")
                     continue

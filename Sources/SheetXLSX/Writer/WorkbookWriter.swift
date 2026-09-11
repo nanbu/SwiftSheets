@@ -265,7 +265,8 @@ enum WorkbookWriter {
                 entries.append((DrawingParts.imageRelationshipType, "../media/" + (path as NSString).lastPathComponent))
             }
             var charts: [Chart] = []
-            for chart in newCharts {
+            for var chart in newCharts {
+                if chart.anchor == nil, let cells = chart.anchorOrFrameCells { chart.anchor = cells }   // a Numbers frame (B.88)
                 guard chart.kind.isDrawable else {
                     sink.add(.dropped, subject: .objects, sheet: sheet.name, "a \(chart.kind.rawValue) chart was not written: the writer draws column, bar, line and pie charts")
                     continue

@@ -162,6 +162,22 @@ import SwiftSheets
             canvas.sheets[0].addShape(Shape(g), over: CellRange(minRow: 7 + 3 * i, minColumn: 2, maxRow: 8 + 3 * i, maxColumn: 3))
         }
         out[out.count - 1] = ("19-canvas", canvas)
+
+        // a two-series column chart over the table's own cells (Appendix B.88)
+        var charted = Workbook()
+        charted.sheets[0].name = "Data"
+        charted.sheets[0]["A1"] = "Month"; charted.sheets[0]["B1"] = "Sales"; charted.sheets[0]["C1"] = "Cost"
+        for (i, (m, v, c)) in [("Jan", 10.0, 4.0), ("Feb", 20.0, 6.0), ("Mar", 15.0, 5.0)].enumerated() {
+            charted.sheets[0][CellRef(row: i + 2, column: 1)] = CellValue(m)
+            charted.sheets[0][CellRef(row: i + 2, column: 2)] = CellValue(v)
+            charted.sheets[0][CellRef(row: i + 2, column: 3)] = CellValue(c)
+        }
+        var chart = Chart(.column, title: "Sales by month")
+        chart.addSeries(values: "Data!$B$2:$B$4", categories: "Data!$A$2:$A$4", nameReference: "Data!$B$1")
+        chart.addSeries(values: "Data!$C$2:$C$4", categories: "Data!$A$2:$A$4", name: "Cost")
+        charted.sheets[0].addChart(chart, over: "E2:K12")
+        out.append(("20-chart", charted))
+
         return out
     }
 
