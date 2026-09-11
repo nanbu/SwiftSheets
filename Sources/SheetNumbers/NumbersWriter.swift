@@ -92,7 +92,7 @@ struct NumbersWriter {
     /// Identifiers of objects cloned per table; kept so a sheet clone knows what belongs to its table.
     private var calcEngineID: Int
     /// "Sheet::Table" → the identifier a cross-table reference names it by.
-    private var tableUUIDs: [String: ProtoMessage] = [:]
+    var tableUUIDs: [String: ProtoMessage] = [:]
     /// Author name → its archive, so two notes by the same person share one author.
     private var authorIDs: [String: Int] = [:]
     /// Sheet name → the table info of its first table, which is the table a pivot on that sheet's range names as
@@ -106,7 +106,7 @@ struct NumbersWriter {
     /// **copied** sheet's component is only queued at that point, so `componentID(forObject:)` answers nil and
     /// the crossing used to be skipped altogether. The document that came out was one Numbers refused to open,
     /// and nothing said so (spec Appendix B.37).
-    private var pendingCrossings: [(from: Int, to: [Int])] = []
+    var pendingCrossings: [(from: Int, to: [Int])] = []
 
     init(workbook: Workbook, options: WriteOptions) throws {
         self.workbook = workbook
@@ -123,6 +123,10 @@ struct NumbersWriter {
 
     mutating func write() throws -> Data {
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
+        for sheet in workbook.sheets where !sheet.charts.isEmpty {
+            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
+                                              message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
+        }
         for sheet in workbook.sheets where sheet.preserved.isUnread {
             warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name, message: "the sheet was never read (ReadOptions.sheets left it out) and is written empty"))
         }
@@ -132,10 +136,6 @@ struct NumbersWriter {
         // the macros are named on their own: "parts" would send the reader to XLSX, which loses them too
         if workbook.preserved.hasVBAProject {
             warnings.append(ConversionWarning(.dropped, subject: .macros, message: "VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)"))
-        }
-        for sheet in workbook.sheets where !sheet.charts.isEmpty {
-            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
-                                              message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
         }
         for sheet in workbook.sheets {
             let threads = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.thread != nil && $0.note == nil }.count }
@@ -269,16 +269,26 @@ struct NumbersWriter {
                 let size = try patch(tableInfo: info, with: table, name: name, sheetName: sheet.name,
                                      conditionalFormats: t == 0 ? sheet.conditionalFormatting : [],
                                      popupRules: t == 0 ? popupRules : [])
+                // where the table stands (Appendix B.85): its exact point when it has one, a non-default anchor
+                // on the default grid otherwise, else below the previous table
+                let origin: (x: Double, y: Double)
+                if let position = table.position {
+                    origin = (position.x, position.y)
+                } else if table.anchor != CellRef(row: 1, column: 1) || t == 0 {
+                    origin = (Double(table.anchor.column - 1) * NumbersWriter.defaultColumnWidth, Double(table.anchor.row - 1) * NumbersWriter.defaultRowHeight)
+                } else {
+                    origin = (0, y)
+                }
                 doc.update(info) { m in
                     var d = m.message("super") ?? ProtoMessage(typeName: "TSD.DrawableArchive")
                     var g = d.message("geometry") ?? ProtoMessage(typeName: "TSD.GeometryArchive")
-                    var p = ProtoMessage(typeName: "TSP.Point"); p.set("x", float: 0); p.set("y", float: Float(y))
+                    var p = ProtoMessage(typeName: "TSP.Point"); p.set("x", float: Float(origin.x)); p.set("y", float: Float(origin.y))
                     var s = ProtoMessage(typeName: "TSP.Size"); s.set("width", float: Float(size.width)); s.set("height", float: Float(size.height))
                     g.set("position", message: p); g.set("size", message: s)
                     d.set("geometry", message: g)
                     m.set("super", message: d)
                 }
-                y += size.height + NumbersWriter.tableGap
+                y = Swift.max(y, origin.y + size.height + NumbersWriter.tableGap)
             }
             // the pivots, each on the pair of tables cloned for it above
             var spare = tables.count
@@ -300,9 +310,20 @@ struct NumbersWriter {
                     m.set("header_rows_frozen", bool: fp.row > 1); m.set("header_columns_frozen", bool: fp.column > 1)
                 }
             }
+            // title rows / columns are the header rows / columns repeated on every printed page (Appendix B.86)
+            let repeating = NumbersPrint.repeatingHeaders(sheet)
+            warnings += repeating.warnings
+            if repeating.rows != nil || repeating.columns != nil, tables.first?.nextAppendRow ?? 0 > 0 {
+                doc.update(doc.object(infos[0])!.reference("tableModel")!) { m in
+                    if let r = repeating.rows { m.set("number_of_header_rows", int: r) }
+                    if let c = repeating.columns { m.set("number_of_header_columns", int: c) }
+                }
+                doc.update(sid) { $0.set("show_repeating_headers", bool: true) }
+            }
             // the pictures, shapes and text boxes on the canvas (Appendix B.83), placed against the first table
             try writeCanvas(of: sheet, sheetID: sid, firstTable: tables[0], firstTableInfo: infos[0])
         }
+        warnings += NumbersPrint.applyPaper(Array(workbook.sheets), to: doc)   // one paper for the document (B.86)
         flushComponents()
         registerPendingCrossings()
         doc.update(NumbersDocument.documentID) { $0.set("sheets", references: sheetIDs) }
@@ -334,20 +355,21 @@ struct NumbersWriter {
         guard !sheet.shapes.isEmpty else { return }
         let textBoxStyle = NumbersCanvas.templateStyle("textbox-0-shapestyle", ofType: "TSWP.ShapeStyleArchive", in: doc)
         let shapeStyle = NumbersCanvas.templateStyle("shape-0-shapestyle", ofType: "TSWP.ShapeStyleArchive", in: doc)
+        let lineStyle = NumbersCanvas.templateStyle("line-0-shapestyle", ofType: "TSWP.ShapeStyleArchive", in: doc) ?? shapeStyle
         let plainRun = NumbersRichText.templateCharacterStyle("character-style-null", in: doc)
         let listStyle = NumbersRichText.templateListStyle(in: doc)
         var styleWriter = model.map { NumbersStyleWriter(doc: doc, model: $0) }
         for shape in sheet.shapes {
             let isTextBox = shape.geometry == .textBox
-            if !isTextBox, shape.geometry != .rectangle {
+            if !isTextBox, !NumbersCanvas.isDrawn(shape.geometry) {
                 warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
-                                                  message: "a shape of geometry \(shape.geometry.rawValue) was written as a rectangle: Numbers shapes are written as rectangles and text boxes only"))
+                                                  message: "a shape of geometry \(shape.geometry.rawValue) was written as a rectangle: Numbers shapes are drawn as \(NumbersCanvas.drawnGeometries.map(\.rawValue).joined(separator: ", ")) and text boxes"))
             }
             if shape.textAlignment != nil, shape.text != nil {
                 warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
                                                   message: "the text alignment of a shape is not written: the shape's text takes Numbers' own paragraph style"))
             }
-            guard let template = isTextBox ? textBoxStyle : shapeStyle else {
+            guard let template = isTextBox ? textBoxStyle : shape.geometry == .line ? lineStyle : shapeStyle else {
                 warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name, message: "a shape was dropped: the template has no shape style to draw it with"))
                 continue
             }
@@ -1075,8 +1097,11 @@ struct NumbersWriter {
     /// A UUID the writer invented, made known to the calculation engine. A group-by whose UUID no owner claims is
     /// one Numbers does not read (Appendix B.19); the clone machinery mints these for the objects it copies, and
     /// this does the same for the ones a pivot adds.
-    private mutating func registerOwner(uid: ProtoMessage, kind: Int, base: ProtoMessage?,
-                                        replacingExisting: Bool = false) throws {
+    /// - Parameter formulaOwner: the object that owns the formulas (a chart drawable, Appendix B.88); a table's
+    ///   owner names none here because the clone machinery carries its own.
+    @discardableResult
+    mutating func registerOwner(uid: ProtoMessage, kind: Int, base: ProtoMessage?,
+                                replacingExisting: Bool = false, formulaOwner: Int? = nil) throws -> Int? {
         if replacingExisting, let hex = NumbersUUID.hex(uid) {
             for fid in doc.identifiers(ofType: "TSCE.FormulaOwnerDependenciesArchive")
             where NumbersUUID.hex(doc.object(fid)?.message("formula_owner_uid")) == hex {
@@ -1084,14 +1109,15 @@ struct NumbersWriter {
                     m.set("owner_kind", int: kind)
                     if let base { m.set("base_owner_uid", message: base) }
                 }
-                return
+                return fid
             }
         }
-        guard let file = doc.locations[calcEngineID]?.0 else { return }
+        guard let file = doc.locations[calcEngineID]?.0 else { return nil }
         var owner = ProtoMessage(typeName: "TSCE.FormulaOwnerDependenciesArchive")
         owner.set("formula_owner_uid", message: uid)
         owner.set("owner_kind", int: kind)
         if let base { owner.set("base_owner_uid", message: base) }
+        if let formulaOwner { owner.set("formula_owner", reference: formulaOwner) }
         // The eight dependency containers, empty. Every owner in a document Numbers wrote carries exactly this
         // set whether or not anything is in them, and a bare owner without them poisons the document outright —
         // adding one to a working document made Numbers refuse it whole (Appendix B.19).
@@ -1120,6 +1146,7 @@ struct NumbersWriter {
             tracker.append("formula_owner_dependencies", reference: id)
             ce.set("dependency_tracker", message: tracker)
         }
+        return id
     }
 
     /// The pivot's third model. `TST.TableInfoArchive.summary_model` names a `TST.SummaryModelArchive` with a

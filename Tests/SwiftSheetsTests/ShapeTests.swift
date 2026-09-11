@@ -195,18 +195,16 @@ import SwiftSheets
         #expect(!Shape.Geometry(rawValue: "smiley-from-somewhere").isPreset && Shape.Geometry.rightArrow.isPreset && Shape.Geometry.textBox.isPreset)
     }
 
-    /// Numbers keeps all five (spec Appendix B.83): the rectangle and the text box as they are, the arrow, the
-    /// line and the ellipse as rectangles — each of those named — and the rectangle's centred text is said to lose
-    /// its alignment. Nothing is dropped.
+    /// Numbers keeps all five as themselves (spec Appendices B.83, B.87): the rectangle, the arrow, the text box,
+    /// the line and the ellipse are drawn as paths and read back by name; only the rectangle's centred text is
+    /// said to lose its alignment. Nothing is dropped.
     @Test func numbersKeepsShapesAsRectanglesAndTextBoxes() throws {
         let result = try Self.workbook().write(as: .numbers)
         #expect(!result.warnings.contains { $0.kind == .dropped && $0.message.contains("shape") }, "\(result.warnings.map(\.message))")
-        for name in ["rightArrow", "line", "ellipse"] {
-            #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("geometry \(name) was written as a rectangle") }, Comment(rawValue: name))
-        }
+        #expect(!result.warnings.contains { $0.message.contains("written as a rectangle") }, "\(result.warnings.map(\.message))")
         #expect(result.warnings.filter { $0.message.contains("text alignment of a shape") }.count == 1)
         let back = try Workbook(data: result.data).sheets[0].shapes
-        #expect(back.map(\.geometry) == [.rectangle, .rectangle, .textBox, .rectangle, .rectangle])
+        #expect(back.map(\.geometry) == [.rectangle, .rightArrow, .textBox, .line, .ellipse])
         #expect(back.map(\.text) == ["Hello\nWorld", nil, "A note\non two lines", nil, "free"])
         #expect(back[0].fill == Color(hex: "FFFF0000") && back[0].outline == Shape.Outline(color: Color(hex: "FF0000FF"), width: 2))
         #expect(back[1].fill == Color(hex: "FF4472C4"), "the theme colour is resolved before it is written")

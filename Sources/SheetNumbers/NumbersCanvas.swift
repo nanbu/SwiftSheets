@@ -99,39 +99,133 @@ enum NumbersCanvas {
         return a
     }
 
-    /// The four-corner path Numbers draws a rectangle and a text box with: a unit square scaled to `naturalSize`.
-    static func rectanglePath(width: Double, height: Double) -> ProtoMessage {
+    // MARK: - Geometries as paths (B.87)
+
+    /// One element of a path in the 100 × 100 unit space Numbers scales by `naturalSize`.
+    enum PathElement: Equatable {
+        case move(Double, Double), line(Double, Double), curve((Double, Double), (Double, Double), (Double, Double)), close
+        static func == (a: PathElement, b: PathElement) -> Bool { a.kind == b.kind && a.points.count == b.points.count && zip(a.points, b.points).allSatisfy { $0.0 == $1.0 && $0.1 == $1.1 } }
+        var kind: String {
+            switch self { case .move: "moveTo"; case .line: "lineTo"; case .curve: "curveTo"; case .close: "closeSubpath" }
+        }
+        var points: [(Double, Double)] {
+            switch self {
+            case .move(let x, let y), .line(let x, let y): [(x, y)]
+            case .curve(let a, let b, let c): [a, b, c]
+            case .close: []
+            }
+        }
+    }
+
+    /// The bezier control distance for a quarter circle.
+    static let kappa = 0.5522847498
+
+    /// The unit path of each geometry the writer draws. Nothing here is measured against Numbers' own presets —
+    /// Numbers cannot script an oval or an arrow — but Numbers keeps any bezier path it is given, so every
+    /// geometry is spelt out as points; the reader recognises these same paths on the way back.
+    static func unitPath(_ geometry: Shape.Geometry) -> [PathElement]? {
+        let k = kappa * 50
+        func polygon(_ pts: [(Double, Double)]) -> [PathElement] {
+            [.move(pts[0].0, pts[0].1)] + pts.dropFirst().map { .line($0.0, $0.1) } + [.close, .move(pts[0].0, pts[0].1)]
+        }
+        switch geometry {
+        case .rectangle, .textBox: return polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
+        case .ellipse:
+            return [.move(50, 0), .curve((50 + k, 0), (100, 50 - k), (100, 50)), .curve((100, 50 + k), (50 + k, 100), (50, 100)),
+                    .curve((50 - k, 100), (0, 50 + k), (0, 50)), .curve((0, 50 - k), (50 - k, 0), (50, 0)), .close, .move(50, 0)]
+        case .roundedRectangle:
+            let r = 16.0, c = kappa * r
+            return [.move(r, 0), .line(100 - r, 0), .curve((100 - r + c, 0), (100, r - c), (100, r)), .line(100, 100 - r),
+                    .curve((100, 100 - r + c), (100 - r + c, 100), (100 - r, 100)), .line(r, 100), .curve((r - c, 100), (0, 100 - r + c), (0, 100 - r)),
+                    .line(0, r), .curve((0, r - c), (r - c, 0), (r, 0)), .close, .move(r, 0)]
+        case .diamond: return polygon([(50, 0), (100, 50), (50, 100), (0, 50)])
+        case .triangle: return polygon([(50, 0), (100, 100), (0, 100)])
+        case .rightArrow: return polygon([(0, 25), (60, 25), (60, 0), (100, 50), (60, 100), (60, 75), (0, 75)])
+        case .leftArrow: return polygon([(100, 25), (40, 25), (40, 0), (0, 50), (40, 100), (40, 75), (100, 75)])
+        case .upArrow: return polygon([(25, 100), (25, 40), (0, 40), (50, 0), (100, 40), (75, 40), (75, 100)])
+        case .downArrow: return polygon([(25, 0), (25, 60), (0, 60), (50, 100), (100, 60), (75, 60), (75, 0)])
+        case .line: return [.move(0, 0), .line(100, 100)]
+        default: return nil
+        }
+    }
+
+    /// The geometries the writer draws as their own path; the rest are rectangles, and said so.
+    static func isDrawn(_ geometry: Shape.Geometry) -> Bool { unitPath(geometry) != nil }
+
+    static let drawnGeometries: [Shape.Geometry] = [.rectangle, .ellipse, .roundedRectangle, .diamond, .triangle, .rightArrow, .leftArrow, .upArrow, .downArrow, .line]
+
+    /// A `TSD.PathSourceArchive` carrying the unit path of `geometry` (a rectangle for one not drawn) at `size`.
+    static func pathSource(_ geometry: Shape.Geometry, width: Double, height: Double) -> ProtoMessage {
         var source = ProtoMessage(typeName: "TSD.PathSourceArchive")
         source.set("horizontalFlip", bool: false); source.set("verticalFlip", bool: false)
         var bezier = ProtoMessage(typeName: "TSD.BezierPathSourceArchive")
         bezier.set("naturalSize", message: size(width, height))
         var path = ProtoMessage(typeName: "TSP.Path")
-        func element(_ type: String, _ points: [(Double, Double)]) -> ProtoMessage {
+        path.set("elements", messages: (unitPath(geometry) ?? unitPath(.rectangle)!).map { element in
             var e = ProtoMessage(typeName: "TSP.Path.Element")
-            e.set("type", int: NumbersSchema.shared.enumValue("TSP.Path.ElementType", type) ?? 1)
-            e.set("points", messages: points.map { var p = ProtoMessage(typeName: "TSP.Point"); p.set("x", float: Float($0.0)); p.set("y", float: Float($0.1)); return p })
+            e.set("type", int: NumbersSchema.shared.enumValue("TSP.Path.ElementType", element.kind) ?? 1)
+            e.set("points", messages: element.points.map { var p = ProtoMessage(typeName: "TSP.Point"); p.set("x", float: Float($0.0)); p.set("y", float: Float($0.1)); return p })
             return e
-        }
-        path.set("elements", messages: [
-            element("moveTo", [(0, 0)]), element("lineTo", [(100, 0)]), element("lineTo", [(100, 100)]),
-            element("lineTo", [(0, 100)]), element("closeSubpath", []), element("moveTo", [(0, 0)])
-        ])
+        })
         bezier.set("path", message: path)
         source.set("bezier_path_source", message: bezier)
         return source
     }
 
-    /// Whether a path source is the four-corner rectangle above (any size).
-    static func isRectangle(_ source: ProtoMessage) -> Bool {
-        guard let bezier = source.message("bezier_path_source"), let path = bezier.message("path") else { return false }
-        let lineTo = NumbersSchema.shared.enumValue("TSP.Path.ElementType", "lineTo") ?? 2
-        let moveTo = NumbersSchema.shared.enumValue("TSP.Path.ElementType", "moveTo") ?? 1
-        let elements = path.messages("elements")
-        let corners = elements.filter { $0.int("type") == lineTo }.count
-        let moves = elements.filter { $0.int("type") == moveTo }.count
-        let curves = elements.contains { $0.int("type") != lineTo && $0.int("type") != moveTo && $0.int("type") != (NumbersSchema.shared.enumValue("TSP.Path.ElementType", "closeSubpath") ?? 5) }
-        return corners == 3 && moves >= 1 && !curves
+    /// The same, for the rectangle (kept by name for the text box).
+    static func rectanglePath(width: Double, height: Double) -> ProtoMessage { pathSource(.rectangle, width: width, height: height) }
+
+    /// The elements of a path source as read, in the unit space (a path whose natural size is not 100 × 100 is
+    /// scaled into it). Nil for a source that is not a bezier path.
+    static func elements(of source: ProtoMessage) -> [PathElement]? {
+        guard let bezier = source.message("bezier_path_source"), let path = bezier.message("path") else { return nil }
+        let names = NumbersSchema.shared.enums["TSP.Path.ElementType"] ?? [:]
+        let byValue = Dictionary(names.map { ($0.value, $0.key) }, uniquingKeysWith: { a, _ in a })
+        let natural = bezier.message("naturalSize")
+        let sx = natural.flatMap { $0.float("width") }.map { $0 > 0 ? 100 / Double($0) : 1 } ?? 1
+        let sy = natural.flatMap { $0.float("height") }.map { $0 > 0 ? 100 / Double($0) : 1 } ?? 1
+        // Numbers writes rectangle paths in a 100-unit space regardless of natural size; detect that case
+        let raw = path.messages("elements").map { e -> (String, [(Double, Double)]) in
+            (byValue[e.int("type") ?? -1] ?? "?", e.messages("points").map { (Double($0.float("x") ?? 0), Double($0.float("y") ?? 0)) })
+        }
+        let maxCoordinate = raw.flatMap { $0.1 }.map { Swift.max($0.0, $0.1) }.max() ?? 0
+        let unitAlready = abs(maxCoordinate - 100) < 0.5
+        var out: [PathElement] = []
+        for (kind, pts) in raw {
+            let p = pts.map { unitAlready ? $0 : ($0.0 * sx, $0.1 * sy) }
+            switch kind {
+            case "moveTo" where p.count == 1: out.append(.move(p[0].0, p[0].1))
+            case "lineTo" where p.count == 1: out.append(.line(p[0].0, p[0].1))
+            case "curveTo" where p.count == 3: out.append(.curve(p[0], p[1], p[2]))
+            case "closeSubpath": out.append(.close)
+            default: return nil
+            }
+        }
+        return out
     }
+
+    /// The geometry a read path draws, when it is one of ours (within half a unit); `unknownPath` otherwise.
+    static func geometry(of source: ProtoMessage) -> Shape.Geometry {
+        guard let read = elements(of: source) else { return unknownPath }
+        func same(_ a: [PathElement], _ b: [PathElement]) -> Bool {
+            guard a.count == b.count else { return false }
+            for (x, y) in zip(a, b) {
+                guard x.kind == y.kind, x.points.count == y.points.count else { return false }
+                for (p, q) in zip(x.points, y.points) where abs(p.0 - q.0) > 0.5 || abs(p.1 - q.1) > 0.5 { return false }
+            }
+            return true
+        }
+        // a trailing moveTo back to the start is Numbers' habit; compare with and without it
+        let trimmed = read.last.map { if case .move = $0, read.count > 1, read[read.count - 2] == .close { return Array(read.dropLast()) } else { return read } } ?? read
+        for g in drawnGeometries {
+            guard let ours = unitPath(g) else { continue }
+            if same(read, ours) || same(trimmed, ours) || same(trimmed, Array(ours.dropLast())) { return g }
+        }
+        return unknownPath
+    }
+
+    /// Whether a path source is the four-corner rectangle (any size).
+    static func isRectangle(_ source: ProtoMessage) -> Bool { geometry(of: source) == .rectangle }
 
     /// The `TSWP.ShapeInfoArchive` for a shape or a text box whose text lives in `storage`.
     static func shapeArchive(_ shape: Shape, frame: Frame, style: Int?, storage: Int?, parent sheet: Int) -> ProtoMessage {
@@ -139,7 +233,7 @@ enum NumbersCanvas {
         var shapeArchive = ProtoMessage(typeName: "TSD.ShapeArchive")
         shapeArchive.set("super", message: drawable(frame, parent: sheet))
         if let style { shapeArchive.set("style", reference: style) }
-        shapeArchive.set("pathsource", message: rectanglePath(width: frame.width, height: frame.height))
+        shapeArchive.set("pathsource", message: pathSource(shape.geometry, width: frame.width, height: frame.height))
         shapeArchive.set("strokePatternOffsetDistance", float: 0)
         info.set("super", message: shapeArchive)
         if let storage {

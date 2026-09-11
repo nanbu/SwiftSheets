@@ -349,6 +349,20 @@ public struct SheetFormatProperties: Hashable, Sendable {
     public init() {}
 }
 
+extension PageSetup {
+    /// The Excel paper sizes the ODS and Numbers writers can give a page size for: `paperSize` code → width and
+    /// height in centimetres, portrait (spec Appendices B.44, B.86).
+    package static let paperSizesInCentimetres: [Int: (width: Double, height: Double)] = [
+        1: (21.59, 27.94),    // Letter
+        5: (21.59, 35.56),    // Legal
+        8: (29.7, 42.0),      // A3
+        9: (21.0, 29.7),      // A4
+        11: (14.8, 21.0),     // A5
+        12: (25.0, 35.3),     // B4 (JIS)
+        13: (17.6, 25.0),     // B5 (JIS)
+    ]
+}
+
 public struct PageMargins: Hashable, Sendable {
     public var left = 0.75, right = 0.75, top = 1.0, bottom = 1.0, header = 0.5, footer = 0.5
     public init() {}

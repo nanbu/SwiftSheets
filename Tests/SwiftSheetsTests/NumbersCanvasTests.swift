@@ -18,7 +18,11 @@ import SwiftSheets
     static func gif() throws -> SheetImage { try SheetImage(data: try Data(contentsOf: images.appendingPathComponent("tiny.gif"))) }
 
     /// Runs `numbers_app.py` from the parity suite; nil when Python or the script cannot run at all.
+    /// One document at a time: Numbers answers about its front document, so two judges at once confuse it.
+    static let judgeLock = NSLock()
+
     static func numbersApp(_ arguments: [String]) -> (status: Int32, output: String)? {
+        judgeLock.lock(); defer { judgeLock.unlock() }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
         p.arguments = [parity.appending(path: "numbers_app.py").path] + arguments
@@ -30,8 +34,17 @@ import SwiftSheets
         return (p.terminationStatus, out)
     }
 
-    /// Whether Numbers itself can judge here: Apple's Numbers, an unlocked screen, Automation allowed.
-    static let numbersCanJudge: Bool = numbersApp(["which"])?.status == 0
+    /// Whether Numbers itself can judge here: Apple's Numbers, an unlocked screen, Automation allowed — the
+    /// driver's own `available()`, so a locked screen skips the judged tests with that reason instead of failing them.
+    static let numbersCanJudge: Bool = {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        p.arguments = ["-c", "import sys; sys.path.insert(0, sys.argv[1]); import numbers_app; ok, why = numbers_app.available(); print(why); sys.exit(0 if ok else 3)", parity.path]
+        p.standardOutput = Pipe(); p.standardError = Pipe()
+        do { try p.run() } catch { return false }
+        p.waitUntilExit()
+        return p.terminationStatus == 0
+    }()
 
     /// An anchor's frame rounded to whole points: the template's default row is 19.93 pt, not 20.
     static func points(_ anchor: SheetImage.Anchor) -> [Int] {
@@ -131,6 +144,20 @@ import SwiftSheets
         #expect(plain.fill == Color(hex: "FF000000"), "the template shape style fills black")
     }
 
+    /// Every geometry the writer draws comes back as itself (B.87): its unit path is recognised on the way in.
+    @Test func drawnGeometriesRoundTrip() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "x"
+        for (i, g) in NumbersCanvas.drawnGeometries.enumerated() {
+            wb.sheets[0].addShape(Shape(g, text: g == .line ? nil : g.rawValue), over: CellRange(minRow: 2 + 3 * i, minColumn: 2, maxRow: 3 + 3 * i, maxColumn: 4))
+        }
+        let result = try wb.write(as: .numbers)
+        #expect(!result.warnings.contains { $0.message.contains("written as a rectangle") }, "\(result.warnings.map(\.message))")
+        let back = try Workbook(data: result.data).sheets[0].shapes
+        #expect(back.map(\.geometry) == NumbersCanvas.drawnGeometries)
+        #expect(NumbersCanvas.unitPath(.ellipse)?.filter { $0.kind == "curveTo" }.count == 4)
+    }
+
     @Test func otherGeometriesAreWrittenAsRectanglesAndSaid() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
@@ -139,12 +166,14 @@ import SwiftSheets
         aligned.textAlignment = .center
         wb.sheets[0].addShape(aligned, over: "B5:C6")
         let result = try wb.write(as: .numbers)
-        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("geometry rightArrow was written as a rectangle") })
+        wb.sheets[0].addShape(Shape(Shape.Geometry(rawValue: "hexagon"), text: "six"), over: "E2:F3")
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("text alignment of a shape is not written") })
-        let back = try Workbook(data: result.data)
-        try #require(back.sheets[0].shapes.count == 2)
-        #expect(back.sheets[0].shapes[0].geometry == .rectangle)
-        #expect(back.sheets[0].shapes[0].text == "go")
+        let again = try wb.write(as: .numbers)
+        #expect(again.warnings.contains { $0.kind == .degraded && $0.message.contains("geometry hexagon was written as a rectangle") }, "\(again.warnings.map(\.message))")
+        let back = try Workbook(data: again.data)
+        try #require(back.sheets[0].shapes.count == 3)
+        #expect(back.sheets[0].shapes[0].geometry == .rightArrow)
+        #expect(back.sheets[0].shapes[2].geometry == .rectangle && back.sheets[0].shapes[2].text == "six")
     }
 
     /// What Numbers wrote comes back out as new objects: the picture and the shapes of the fixture survive a pass
@@ -161,11 +190,29 @@ import SwiftSheets
 
     // MARK: - Judged by Numbers itself
 
+    /// Numbers keeps every drawn geometry's path as given (B.87): curves and all come back after it saves.
+    @Test(.enabled(if: NumbersCanvasTests.numbersCanJudge, "Numbers.app is not here, or this terminal may not drive it"))
+    func numbersItselfKeepsTheDrawnGeometries() throws {
+        try FileManager.default.createDirectory(at: Self.stage, withIntermediateDirectories: true)
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "shapes"
+        for (i, g) in NumbersCanvas.drawnGeometries.enumerated() {
+            wb.sheets[0].addShape(Shape(g), over: CellRange(minRow: 2 + 3 * i, minColumn: 2, maxRow: 3 + 3 * i, maxColumn: 4))
+        }
+        let written = Self.stage.appending(path: "geometries.numbers")
+        try wb.write(as: .numbers).data.write(to: written)
+        let resaved = Self.stage.appending(path: "geometries-resaved.numbers")
+        let run = try #require(Self.numbersApp(["resave", written.path, resaved.path]))
+        try #require(run.status == 0, Comment(rawValue: "Numbers did not save the document again: \(run.output)"))
+        let back = try Workbook(data: try Data(contentsOf: resaved)).sheets[0].shapes
+        #expect(back.map(\.geometry) == NumbersCanvas.drawnGeometries)
+    }
+
     /// Numbers opens what we wrote, saves it again, and the picture's bytes and the text box's text are in what
     /// it saved. Skipped, with the reason, where Numbers cannot judge.
     @Test(.enabled(if: NumbersCanvasTests.numbersCanJudge, "Numbers.app is not here, or this terminal may not drive it"))
     func numbersItselfKeepsThePictureAndTheTextBox() throws {
-        try? FileManager.default.removeItem(at: Self.stage)
+        // the stage is shared with the other judged tests, which may be writing into it: never remove it
         try FileManager.default.createDirectory(at: Self.stage, withIntermediateDirectories: true)
         var wb = Workbook()
         wb.sheets[0]["A1"] = "canvas"

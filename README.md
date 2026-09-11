@@ -204,7 +204,8 @@ is reported, never dropped in silence.
   itself fills an untouched checkbox with false, a dial with its minimum, a rating with 0, and so does the
   writer). Pictures, shapes and text boxes on the canvas are read into `sheet.images` / `sheet.shapes` and written
   back as canvas objects at a point (a cell anchor is placed against the first table); a shape other than a
-  rectangle is drawn as one and said so. Charts, movies and groups have no place in the model and are reported.
+  rectangle is drawn as one and said so. A table stands at an exact point (`Table.position`). Charts, movies and
+  groups have no place in the model and are reported.
 - Everything else Numbers has no word for — range-sourced and numeric validations, named tables, auto-filters,
   sheet protection, scenarios, the print area, title rows and page breaks (orientation, margins, scale and the
   header / footer are carried), defined names, tab colours, outline grouping — is reported as a

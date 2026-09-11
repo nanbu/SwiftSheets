@@ -1712,7 +1712,7 @@ formats:
       note: "Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。"
     totals:
       read: {full: 22, partial: 14, preserved: 0, none: 8, na: 15, unverified: 0}
-      write: {full: 19, partial: 11, preserved: 0, none: 25, na: 4, unverified: 0}
+      write: {full: 20, partial: 10, preserved: 0, none: 25, na: 4, unverified: 0}
       rows: 59
     areas:
       - id: "package"
@@ -1851,14 +1851,16 @@ formats:
             note: null
           - id: "num.table.position"
             name: "表の位置（キャンバス上の置き場所）"
-            spec_anchor: "TST.TableInfoArchive の幾何"
+            spec_anchor: "B.85（TST.TableInfoArchive の幾何）"
             read: "full"
-            write: "partial"
+            write: "full"
             api:
+              - "Table.position"
               - "Table.anchor"
+              - "sheet.addTable(named:at:)"
             warning: null
-            evidence: "readme"
-            note: "読むときは位置を Table.anchor に写す。"
+            evidence: "measured"
+            note: "点（pt）をそのまま読み書きする。position → 既定でない anchor → 前の表の下、の順で置く。"
           - id: "num.table.header"
             name: "ヘッダ行・ヘッダ列"
             spec_anchor: "number_of_header_rows / _columns, header_rows_frozen"
@@ -2238,9 +2240,9 @@ formats:
               - "sheet.shapes"
               - "sheet.addShape(_:over:)"
               - "sheet.addTextBox(_:over:font:)"
-            warning: "四角とテキストボックス以外の geometry は「a shape of geometry … was written as a rectangle」／textAlignment は「not written」（degraded）"
+            warning: "10 種（rect / roundRect / ellipse / diamond / triangle / 矢印 4 方向 / line）以外の geometry は「a shape of geometry … was written as a rectangle」／textAlignment は「not written」（degraded）"
             evidence: "measured"
-            note: "文・塗り・線・書体（書きのみ）を運ぶ。読みは四隅の bezier を rect、それ以外を numbers-path（プリセット外）にする。"
+            note: "文・塗り・線・書体（書きのみ）を運ぶ。10 種の形は単位経路として書き、読みで同じ経路を見分ける（B.87）。それ以外の経路は numbers-path（プリセット外）。"
           - id: "num.canvas.movie"
             name: "ムービー・オーディオ"
             spec_anchor: "TSD.MovieArchive"
@@ -2284,8 +2286,8 @@ formats:
             evidence: "measured"
             note: null
           - id: "num.misc.print"
-            name: "印刷（用紙・向き・余白・ヘッダー／フッター・印刷範囲・改ページ）"
-            spec_anchor: "B.84（TN.SheetArchive）"
+            name: "印刷（用紙・向き・余白・ヘッダー／フッター・タイトル行・印刷範囲・改ページ）"
+            spec_anchor: "B.84・B.86（TN.SheetArchive・TN.DocumentArchive）"
             read: "partial"
             write: "partial"
             api:
@@ -2293,9 +2295,9 @@ formats:
               - "sheet.headerFooter"
               - "sheet.printArea"
               - "sheet.rowBreaks"
-            warning: "用紙・印刷範囲・タイトル行／列・改ページは「… are dropped: Numbers prints a canvas, not a page grid」で名指し／&P 以外の記号は「header / footer code(s) … dropped」（degraded）"
+            warning: "印刷範囲・改ページ・行 1 から始まらないタイトル行・表に無い用紙番号は「… are dropped: Numbers prints a canvas, not a page grid」で名指し／&P 以外の記号は「header / footer code(s) … dropped」（degraded）"
             evidence: "measured"
-            note: "向き・拡大率・余白・開始ページ番号・左中右のヘッダー／フッター（奇数ページ）を運ぶ。読みは Numbers が印刷する物をそのまま（フッター中央の &P、72 %）。"
+            note: "向き・拡大率・余白・開始ページ番号・左中右のヘッダー／フッター（奇数ページ）・用紙（書類に 1 つ）・行 1 からのタイトル行／列（見出し行の繰り返し）を運ぶ。読みは Numbers が印刷する物をそのまま（フッター中央の &P、72 %）。"
           - id: "num.misc.definednames"
             name: "定義名"
             spec_anchor: "—"

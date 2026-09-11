@@ -1914,6 +1914,9 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.78 Draft</td><td>2026-09-11</td><td>Numbers の図形の形。四角・角丸・楕円・菱形・三角・矢印 4 方向・線を 100 × 100 の単位空間の bezier 経路として書き、読みでは同じ経路を見分けて形の名に戻す（B.87）。</td></tr>
+    <tr><td>4.77 Draft</td><td>2026-09-11</td><td>Numbers の印刷設定の残り。用紙は書類 1 つの <code>paper_id</code> / <code>page_size</code>、タイトル行／列は最初の表の見出し行／列＋<code>show_repeating_headers</code>。印刷範囲と改ページは置き場所が無く、名指しで落とす（B.86）。</td></tr>
+    <tr><td>4.76 Draft</td><td>2026-09-11</td><td>Numbers の表の置き場所。<code>Table.position</code>（pt の <code>CanvasPoint</code>）を読み、書きでは position → 既定でない anchor → 前の表の下、の順で置く（B.85）。</td></tr>
     <tr><td>4.75 Draft</td><td>2026-09-11</td><td>Numbers の印刷設定。シートの archive が持つ向き・拡大率・余白・開始ページ番号と、左中右 3 つずつのヘッダー／フッターの保管庫を読み書きする。<code>&amp;P</code> は Numbers 自身のページ番号に、他の記号は落として名指す。用紙・印刷範囲・タイトル行・改ページは従来どおり落として言う（B.84）。</td></tr>
     <tr><td>4.74 Draft</td><td>2026-09-11</td><td>Numbers のキャンバスに絵と図形・テキストボックスを読み書きする。<code>TSD.ImageArchive</code> と <code>Data/</code> の実体、<code>TSWP.ShapeInfoArchive</code> と文の保管庫。錨はキャンバス上の点（<code>.absolute</code>）で読み、セル錨は最初の表の寸法で点に直して書く（B.83）。</td></tr>
     <tr><td>4.73 Draft</td><td>2026-09-11</td><td>拡張の条件付き書式。<code>DataBar</code> に負の色・軸の色と位置・向き・単色・枠、<code>IconSet</code> に <code>customIcons</code>。XLSX は x14 の拡張を規則に畳み込んで読み、規則と並べて作り直す。ODS は LibreOffice のデータバーが言える分を運ぶ（B.82）。</td></tr>
@@ -7014,6 +7017,37 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   Numbers が印刷する物をそのまま言うので、何もしていない Numbers 書類でも <code>oddFooter</code> は <code>&amp;C&amp;P</code> になる。</p>
   <p><strong>審判。</strong>横向きとヘッダーの文を持つ書類を Numbers に開かせ保存し直させ、読み戻す gated テスト（<code>NumbersPrintTests</code>）。全部入りブックの Numbers 列は
   「印刷・向き」「印刷・ヘッダフッタ」が ○ になり、公開ページの数を追従させた。</p>
+
+  <h3>B.85 Numbers の表の置き場所——<code>Table.position</code>（Rev 4.76）</h3>
+  <p>2026-09-11 決定。仕様の一覧は <code>Table.anchor</code> を「読み書き可」と言っていたが、書き手は無視して表を x=0 に縦に積み、読み手は 98 pt × 20 pt の格子に丸めていた。
+  Numbers の表はキャンバスの点に立つので、点をそのまま持つ。</p>
+  <p><strong>模型。</strong><code>CanvasPoint { x, y }</code>（pt）と <code>Table.position: CanvasPoint?</code>。<code>anchor</code> はその丸めた見え方のまま残す。
+  <code>sheet.addTable(named:at:)</code> で点を指定して表を足す。<code>Table ==</code> は position も比べる。</p>
+  <p><strong>読み。</strong><code>TST.TableInfoArchive</code> の幾何の position を <code>position</code> に、従来どおり丸めて <code>anchor</code> に。</p>
+  <p><strong>書き。</strong>表ごとに、<code>position</code> があればその点、無ければ <code>anchor</code> が (1,1) でないときにその格子の点（(列−1) × 98、(行−1) × 20）、
+  どちらも無ければ前の表の下（従来の積み方。積む y は置いた表の下端も追い越す）。最初の表は anchor が (1,1) なら原点。</p>
+
+  <h3>B.86 Numbers の印刷設定の残り——用紙とタイトル行（Rev 4.77）</h3>
+  <p>2026-09-11 決定。B.84 で落として名指していた物のうち、置き場所のある 2 つを運ぶ。</p>
+  <p><strong>用紙。</strong>Numbers の用紙は書類に 1 つ（<code>TN.DocumentArchive</code> の <code>paper_id</code>（<code>iso-a4</code> / <code>na-letter</code> …）と <code>page_size</code>（pt））。
+  最初に用紙を名乗るシートの <code>pageSetup.paperSize</code>（Excel の番号。ODS と共有する <code>PageSetup.paperSizesInCentimetres</code> の 7 種）を書き、違う用紙を名乗る後のシートは degraded で言う。
+  表に無い番号は従来どおり落として名指す。読みは <code>paper_id</code>、無ければ <code>page_size</code> を ±2 pt で照合し、全シートの <code>paperSize</code> に入れる。</p>
+  <p><strong>タイトル行／列。</strong>行 1 から始まる <code>printTitleRows</code> は最初の表の <code>number_of_header_rows</code>（列も同様）、シートの <code>show_repeating_headers</code> を立てる
+  （Numbers の「各ページで見出しを繰り返す」）。<code>freezePanes</code> と数が違えばタイトル行が勝ち、degraded で言う。行 1 から始まらない範囲は置き場所が無いので落として名指す。
+  読みは <code>show_repeating_headers</code> が立っている表の見出し行数を <code>1...n</code> に。</p>
+  <p><strong>置き場所の無い物。</strong>印刷範囲と改ページ。Numbers はキャンバスをそのまま紙に流すので、範囲も改ページも archive に無い。従来どおり dropped で名指す。</p>
+
+  <h3>B.87 Numbers の図形の形——単位経路（Rev 4.78）</h3>
+  <p>2026-09-11 決定。B.83 では四角とテキストボックスだけを実測どおりに書き、他の形は四角にしていた。Numbers は AppleScript で楕円も矢印も作れず（<code>shape</code> は文と塗りしか持たない）、
+  <code>scalar_path_source</code> / <code>point_path_source</code> の数の意味は測れない。代わりに、Numbers が与えられた bezier 経路をそのまま保つことは四角で確かめてあるので、
+  形をすべて点で綴る。</p>
+  <p><strong>書き。</strong>100 × 100 の単位空間（<code>naturalSize</code> で拡大される）に、四角・角丸（半径 16、κ＝0.5523 の 3 次曲線）・楕円（4 本の 3 次曲線）・菱形・三角・右左上下の矢印（7 点の多角形）・
+  線（0,0 → 100,100 の開いた経路。様式は雛形の <code>line-0-shapestyle</code>）を <code>TSP.Path</code> の <code>moveTo</code> / <code>lineTo</code> / <code>curveTo</code>（制御点 2 つ＋終点）/ <code>closeSubpath</code> で書く。
+  それ以外の geometry は四角で書き、書ける形の一覧つきで degraded。</p>
+  <p><strong>読み。</strong>経路の要素を単位空間に直し（<code>naturalSize</code> で割る。Numbers 自身の四角は最初から 100 単位）、上の経路のどれかと半単位以内で一致すればその形の名、
+  <code>is_text_box</code> なら <code>textBox</code>、どれでもなければ <code>numbers-path</code>（プリセット外）。</p>
+  <p><strong>審判。</strong>10 種の形を 1 冊に書いて Numbers に保存し直させ、経路が変わらず戻ることを読み戻しで確かめる gated テスト。見た目（楕円が楕円に見えるか）は MAINTENANCE の手動一覧。</p>
+
 </section>
 
 </div><!-- /.container -->

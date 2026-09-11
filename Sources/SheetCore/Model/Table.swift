@@ -4,10 +4,21 @@ import Foundation
 /// (the `Sheet` API forwards to it); Numbers sheets may hold several, each anchored somewhere on the canvas.
 /// Equatable, not Hashable: two tables are compared in tests and in round-trip checks, but hashing one means
 /// hashing every cell in it — an invitation to put a whole sheet in a `Set` and pay for it silently.
+/// A point on a Numbers sheet's canvas, in points from the top-left corner (spec Appendix B.85).
+public struct CanvasPoint: Hashable, Sendable {
+    public var x: Double
+    public var y: Double
+    public init(x: Double, y: Double) { self.x = x; self.y = y }
+}
+
 public struct Table: Equatable, Sendable {
     public var name: String?
-    /// Where the table's A1 sits on the sheet canvas (Numbers); always A1 for XLSX / ODS.
+    /// Where the table's A1 sits on the sheet canvas (Numbers), on the 98 pt × 20 pt grid of default cells; always
+    /// A1 for XLSX / ODS. The rounded view of `position`: the writer places a table by `position` when it has one,
+    /// by a non-default `anchor` otherwise, and below the previous table when it has neither (spec Appendix B.85).
     public var anchor = CellRef(row: 1, column: 1)
+    /// The exact point the table stands at on a Numbers canvas, when known.
+    public var position: CanvasPoint?
     /// Sparse: only cells that hold a value, a style, a link or a note exist here.
     ///
     /// Assigning or mutating this map directly is allowed, but it costs the table its knowledge of the used range —
@@ -68,7 +79,7 @@ public struct Table: Equatable, Sendable {
     package mutating func store(_ cell: Cell, at ref: CellRef) { put(cell, at: ref) }
 
     public static func == (a: Table, b: Table) -> Bool {
-        a.name == b.name && a.anchor == b.anchor && a.storage == b.storage && a.rowDimensions == b.rowDimensions
+        a.name == b.name && a.anchor == b.anchor && a.position == b.position && a.storage == b.storage && a.rowDimensions == b.rowDimensions
             && a.columnDimensions == b.columnDimensions && a.merges == b.merges && a.nextAppendRow == b.nextAppendRow
     }
 

@@ -107,6 +107,11 @@ struct NumbersReader {
                 let rows = model.bool("header_rows_frozen") == true ? (model.int("number_of_header_rows") ?? 0) : 0
                 let cols = model.bool("header_columns_frozen") == true ? (model.int("number_of_header_columns") ?? 0) : 0
                 if rows > 0 || cols > 0 { sheet.freezePanes = CellRef(row: rows + 1, column: cols + 1) }   // header counts → the first free cell
+                // header rows repeated on every printed page are title rows (Appendix B.86)
+                if archive.bool("show_repeating_headers") == true {
+                    if let n = model.int("number_of_header_rows"), n > 0 { sheet.printTitleRows = 1...n }
+                    if let n = model.int("number_of_header_columns"), n > 0 { sheet.printTitleColumns = 1...n }
+                }
             }
             // A Numbers sheet is a canvas. Whatever else is standing on it cannot come into the model, and until
             // this was added it went without a word — the one thing the library promises never to do.
@@ -189,8 +194,8 @@ struct NumbersReader {
                 guard let shapeArchive = obj.message("super"), let drawable = shapeArchive.message("super"),
                       let frame = NumbersCanvas.frame(of: drawable) else { continue }
                 let isTextBox = obj.bool("is_text_box") == true
-                let rectangle = shapeArchive.message("pathsource").map(NumbersCanvas.isRectangle) ?? false
-                var shape = Shape(isTextBox ? .textBox : rectangle ? .rectangle : NumbersCanvas.unknownPath)
+                let drawn = shapeArchive.message("pathsource").map(NumbersCanvas.geometry(of:)) ?? NumbersCanvas.unknownPath
+                var shape = Shape(isTextBox ? .textBox : drawn)
                 if let storage = obj.reference("owned_storage") ?? obj.reference("deprecated_storage"),
                    let text = doc.object(storage)?.string("text"), !text.isEmpty {
                     shape.text = text
@@ -361,6 +366,7 @@ struct NumbersReader {
            let geometry = doc.object(info)?.message("super")?.message("geometry"), let pos = geometry.message("position") {
             let x = Double(pos.float("x") ?? 0), y = Double(pos.float("y") ?? 0)
             t.anchor = CellRef(row: Swift.max(0, Int(y / NumbersReader.defaultRowHeight)) + 1, column: Swift.max(0, Int(x / NumbersReader.defaultColumnWidth)) + 1)
+            t.position = CanvasPoint(x: x, y: y)   // the exact point (Appendix B.85)
         }
         // row heights / column widths / hidden state
         let defaultRowHeight = model.double("default_row_height") ?? NumbersReader.defaultRowHeight

@@ -158,7 +158,10 @@ import SwiftSheets
         shape.fill = .rgb("FF3366")
         canvas.sheets[0].addShape(shape, over: "F2:G4")
         out.append(("19-canvas", canvas))
-
+        for (i, g) in [Shape.Geometry.ellipse, .rightArrow, .diamond].enumerated() {
+            canvas.sheets[0].addShape(Shape(g), over: CellRange(minRow: 7 + 3 * i, minColumn: 2, maxRow: 8 + 3 * i, maxColumn: 3))
+        }
+        out[out.count - 1] = ("19-canvas", canvas)
         return out
     }
 

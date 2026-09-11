@@ -130,9 +130,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
     <div class="sub">Excel より 1 つ多く通ります。落とす 6 件と拾う 7 件が違うだけで、優劣ではありません。</div>
   </div>
   <div class="card score">
-    <div class="num">22<small> / 48</small></div>
+    <div class="num">23<small> / 48</small></div>
     <div class="lab">Numbers</div>
-    <div class="sub">値・数式・株価の関数・書式・条件付き書式・入力規則・セルの制御・集計表・複数の表・絵と図形・ページの向きとヘッダーまで。印刷範囲や保護の仕掛けは書けません（理由は後述）。</div>
+    <div class="sub">値・数式・株価の関数・書式・条件付き書式・入力規則・セルの制御・集計表・複数の表・絵と図形・表の置き場所・ページの向きとヘッダー・用紙・タイトル行まで。印刷範囲や保護の仕掛けは書けません（理由は後述）。</div>
   </div>
 </div>
 </section>
@@ -190,7 +190,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <text x="715" y="178" class="sv-tb" text-anchor="middle">Numbers</text>
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
   <rect x="590" y="192" width="101" height="18" rx="5" class="sv-accent" opacity="0.85"/>
-  <text x="703" y="205" class="sv-t2" font-weight="700">22 / 48</text>
+  <text x="703" y="205" class="sv-t2" font-weight="700">23 / 48</text>
   <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
   <text x="590" y="260" class="sv-t2">リンク・メモ・結合・複数の表</text>
   <text x="590" y="282" class="sv-t2">条件付き書式・集計表・入力規則・制御</text>
@@ -290,7 +290,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <tr><td>ヘッダ／フッタ</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>Excel の <code>&amp;L&amp;C&amp;R</code> と ODF の 3 領域、Numbers の左中右 3 つの保管庫を相互変換。フォント指定は落ち、Numbers は <code>&amp;P</code> 以外の記号（日付・ファイル名など）も落として名指します</td></tr>
 <tr><td>向き・用紙・拡大率・余白・中央寄せ</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>ODF はシートごとのマスターページ。Numbers は向き・拡大率・余白・開始ページ番号を持ち、用紙サイズは落として名指します</td></tr>
-<tr><td>印刷範囲・タイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>印刷範囲・タイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td><td>Numbers は行 1 からのタイトル行／列を「各ページで見出しを繰り返す」として運び、印刷範囲は落として名指します</td></tr>
 <tr><td>改ページ</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は行・列スタイルの <code>fo:break-before</code></td></tr>
 <tr><td>定義名（ブック・シート）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 <tr><td>ブック保護（シート構成の固定）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は <code>table:structure-protected</code>（旗だけ。鍵は Excel の合鍵と互換が無いので運びません）</td></tr>

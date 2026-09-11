@@ -132,6 +132,14 @@ public struct Sheet: Equatable, Sendable {
         tables.append(t)
         return tables.count - 1
     }
+    /// Adds a table at an exact point of a Numbers canvas (spec Appendix B.85). Returns its index.
+    @discardableResult
+    public mutating func addTable(named name: String? = nil, at position: CanvasPoint) -> Int {
+        var t = Table(name: name); t.position = position
+        t.anchor = CellRef(row: Int(position.y / 20) + 1, column: Int(position.x / 98) + 1)
+        tables.append(t)
+        return tables.count - 1
+    }
 
     /// Adds a named table over `ref`, taking its column names from the sheet's own first row. Returns the name it
     /// was given (sanitised, and de-duplicated against the tables already on this sheet).

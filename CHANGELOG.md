@@ -29,6 +29,20 @@ writes, so the constant, the README's status line and the tag always name the sa
   size, fit-to-pages, the print area, title rows and page breaks stay reported, now each by name. A Numbers
   document reads back with the footer Numbers prints (`&C&P`) and its scale (72 %).
 
+- **Where a table stands on a Numbers canvas** (spec Appendix B.85). `Table.position` (a `CanvasPoint` in points)
+  is read exactly and written back; `sheet.addTable(named:at:)` places one. A table with a non-default `anchor`
+  goes on the default 98 × 20 pt grid, and one with neither goes below the previous table as before.
+
+- **The paper and the title rows in Numbers** (spec Appendix B.86). The paper size goes onto the document (one per
+  document; a sheet asking for another is said so) and comes back; title rows / columns from row 1 / column 1
+  become the first table's header rows / columns repeated on every printed page. The print area and page breaks
+  have no place and stay reported.
+
+- **Ten shape geometries in Numbers** (spec Appendix B.87): rectangle, rounded rectangle, ellipse, diamond,
+  triangle, the four arrows and a line are drawn as bezier paths and recognised on the way back. Other presets
+  are still rectangles, named with the list of what is drawn.
+
+
 ## [0.26.0] — 2026-09-11
 
 The remaining entrances the 2026-09-10 review proposed are all in: shapes and text boxes, sparklines, threaded

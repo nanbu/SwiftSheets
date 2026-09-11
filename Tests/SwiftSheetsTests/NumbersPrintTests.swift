@@ -53,17 +53,51 @@ import SwiftSheets
 
     @Test func whatTheArchiveCannotHoldIsNamed() throws {
         var wb = Workbook(); wb.sheets[0]["A1"] = 1
-        wb.sheets[0].pageSetup.paperSize = 9
+        wb.sheets[0].pageSetup.paperSize = 99   // not in the table
         wb.sheets[0].pageSetup.fitToWidth = 1
         wb.sheets[0].printAreaFormula = "A1:B2"
-        wb.sheets[0].printTitleRows = 1...1
+        wb.sheets[0].printTitleRows = 3...4      // not from row 1
         wb.sheets[0].rowBreaks = [3]
         wb.sheets[0].headerFooter.differentFirst = true
         wb.sheets[0].headerFooter.firstHeader = "first"
         let result = try wb.write(as: .numbers)
-        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("paper size, print area, title rows / columns, page breaks are dropped") }, "\(result.warnings.map(\.message))")
+        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("paper size 99, print area, title rows 3-4, page breaks are dropped") }, "\(result.warnings.map(\.message))")
         #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("fit-to-pages is written as Numbers' auto-fit") })
         #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("even-page / first-page header") })
+    }
+
+    /// The paper is one for the document (B.86); title rows starting at row 1 are the header rows repeated on
+    /// every page; what has no place is named.
+    @Test func carriesThePaperAndTheTitleRows() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "h"; wb.sheets[0]["A2"] = 1; wb.sheets[0]["A3"] = 2
+        wb.sheets[0].pageSetup.paperSize = 1   // Letter
+        wb.sheets[0].printTitleRows = 1...1
+        wb.sheets[0].printTitleColumns = 1...1
+        wb.addSheet(named: "Other"); wb.sheets[1]["A1"] = 1
+        wb.sheets[1].pageSetup.paperSize = 9   // A4: the document already has Letter
+        wb.sheets[1].printTitleRows = 2...3
+        let result = try wb.write(as: .numbers)
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("paper size 9 is written as 1") }, "\(result.warnings.map(\.message))")
+        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("title rows 2-3") })
+        #expect(!result.warnings.contains { $0.message.contains("paper size 1") })
+        let back = try Workbook(data: result.data)
+        #expect(back.sheets[0].pageSetup.paperSize == 1 && back.sheets[1].pageSetup.paperSize == 1)
+        #expect(back.sheets[0].printTitleRows == 1...1 && back.sheets[0].printTitleColumns == 1...1)
+        #expect(back.sheets[0].freezePanes == CellRef("B2"), "the header rows / columns are frozen panes too")
+        #expect(back.sheets[1].printTitleRows == nil)
+        let doc = try NumbersDocument(data: result.data)
+        #expect(doc.object(NumbersDocument.documentID)?.string("paper_id") == "na-letter")
+    }
+
+    @Test func titleRowsAndFrozenRowsThatDifferAreSaid() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "h"; wb.sheets[0]["A2"] = 1; wb.sheets[0]["A3"] = 2; wb.sheets[0]["A4"] = 3
+        wb.sheets[0].freezePanes = CellRef("A3")   // two frozen rows
+        wb.sheets[0].printTitleRows = 1...1        // one title row
+        let result = try wb.write(as: .numbers)
+        #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("title rows (1) and the frozen rows (2) differ") }, "\(result.warnings.map(\.message))")
+        #expect(try Workbook(data: result.data).sheets[0].printTitleRows == 1...1)
     }
 
     @Test func splitsAndStripsCodes() {

@@ -146,14 +146,77 @@ enum NumbersPrint {
             warn(.degraded, "fit-to-pages is written as Numbers' auto-fit (one page wide): Numbers has no page count to fit to")
         }
         var stillDropped: [String] = []
-        if setup.paperSize != nil { stillDropped.append("paper size") }
+        if let code = setup.paperSize, NumbersPrint.paperNames[code] == nil { stillDropped.append("paper size \(code)") }
         if !sheet.printArea.isEmpty { stillDropped.append("print area") }
-        if sheet.printTitleRows != nil || sheet.printTitleColumns != nil { stillDropped.append("title rows / columns") }
+        // title rows / columns that start at the first row / column are the first table's header rows / columns,
+        // repeated on every page (B.86); any other range has no place
+        if let rows = sheet.printTitleRows, rows.lowerBound != 1 { stillDropped.append("title rows \(rows.lowerBound)-\(rows.upperBound)") }
+        if let cols = sheet.printTitleColumns, cols.lowerBound != 1 { stillDropped.append("title columns \(cols.lowerBound)-\(cols.upperBound)") }
         if !sheet.rowBreaks.isEmpty || !sheet.columnBreaks.isEmpty { stillDropped.append("page breaks") }
         if !stillDropped.isEmpty {
             warn(.dropped, "the \(stillDropped.joined(separator: ", ")) \(stillDropped.count == 1 ? "is" : "are") dropped: Numbers prints a canvas, not a page grid")
         }
         return warnings
+    }
+
+    // MARK: - The paper (document-level) and the title rows (B.86)
+
+    /// Excel paper-size codes → the name Numbers keeps in `TN.DocumentArchive.paper_id`.
+    static let paperNames: [Int: String] = [1: "na-letter", 5: "na-legal", 8: "iso-a3", 9: "iso-a4", 11: "iso-a5", 12: "jis-b4", 13: "jis-b5"]
+
+    /// The paper of the document: Numbers keeps one for the whole document, so the first sheet that names one
+    /// decides, and a sheet asking for another is said so.
+    static func applyPaper(_ sheets: [Sheet], to doc: NumbersDocument) -> [ConversionWarning] {
+        var warnings: [ConversionWarning] = []
+        var chosen: (code: Int, sheet: String)?
+        for sheet in sheets {
+            guard let code = sheet.pageSetup.paperSize, let name = paperNames[code], let cm = PageSetup.paperSizesInCentimetres[code] else { continue }
+            if let chosen {
+                if chosen.code != code {
+                    warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
+                                                      message: "the paper size \(code) is written as \(chosen.code): Numbers has one paper for the document, and the sheet \(chosen.sheet) named it first"))
+                }
+                continue
+            }
+            chosen = (code, sheet.name)
+            doc.update(NumbersDocument.documentID) { d in
+                d.set("paper_id", string: name)
+                var size = ProtoMessage(typeName: "TSP.Size")
+                size.set("width", float: Float((cm.width / 2.54 * 72).rounded())); size.set("height", float: Float((cm.height / 2.54 * 72).rounded()))
+                d.set("page_size", message: size)
+            }
+        }
+        return warnings
+    }
+
+    /// The document's paper, read back as the Excel code whose size it is (nil for a paper the table lacks).
+    static func paperCode(of doc: any NumbersObjectStore) -> Int? {
+        guard let document = doc.object(NumbersDocument.documentID) else { return nil }
+        if let name = document.string("paper_id"), let code = paperNames.first(where: { $0.value == name })?.key { return code }
+        guard let size = document.message("page_size"), let w = size.float("width"), let h = size.float("height") else { return nil }
+        return PageSetup.paperSizesInCentimetres.first { abs(Float($0.value.width / 2.54 * 72) - w) < 2 && abs(Float($0.value.height / 2.54 * 72) - h) < 2 }?.key
+    }
+
+    /// Title rows / columns starting at the first row / column → the table's header rows / columns, repeated on
+    /// every printed page. Returns the header counts to set (nil = leave the table's own), and the warnings.
+    static func repeatingHeaders(_ sheet: Sheet) -> (rows: Int?, columns: Int?, warnings: [ConversionWarning]) {
+        var warnings: [ConversionWarning] = []
+        var rows: Int?, columns: Int?
+        if let r = sheet.printTitleRows, r.lowerBound == 1 {
+            rows = r.count
+            if let fp = sheet.freezePanes, fp.row - 1 != r.count {
+                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
+                                                  message: "the title rows (\(r.count)) and the frozen rows (\(fp.row - 1)) differ: Numbers has one header-row count, and the title rows win"))
+            }
+        }
+        if let c = sheet.printTitleColumns, c.lowerBound == 1 {
+            columns = c.count
+            if let fp = sheet.freezePanes, fp.column - 1 != c.count {
+                warnings.append(ConversionWarning(.degraded, subject: .formatting, sheet: sheet.name,
+                                                  message: "the title columns (\(c.count)) and the frozen columns (\(fp.column - 1)) differ: Numbers has one header-column count, and the title columns win"))
+            }
+        }
+        return (rows, columns, warnings)
     }
 
     // MARK: - Reading
@@ -174,6 +237,7 @@ enum NumbersPrint {
             if let f = archive.float("page_footer_inset") { m.footer = Double(f) / 72 }
             sheet.pageMargins = m
         }
+        if let code = paperCode(of: doc) { sheet.pageSetup.paperSize = code }
         let showsPageNumbers = archive.bool("show_page_numbers") ?? true
         func zones(_ refs: [Int], pageNumberInCentre: Bool) -> String? {
             guard refs.count == 3 else { return nil }
