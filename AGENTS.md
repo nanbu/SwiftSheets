@@ -8,7 +8,9 @@ it does not replace them. Read the one that covers what you are about to touch:
 - [MAINTENANCE.md](MAINTENANCE.md) — keeping Numbers support current; **cutting a release** (version bump and tag
   in one commit; the manual pre-release checklist).
 - [SECURITY.md](SECURITY.md) — handling untrusted files.
-- The implementation spec (Japanese, linked from the README) is revised **first**, then the code. A change that
+- [docs/getting-started.md](docs/getting-started.md), [docs/cookbook.md](docs/cookbook.md) and [llms.txt](llms.txt) — how the
+  library is used; the cookbook page is generated from `Examples/` (see below).
+- The implementation spec (linked from the README) is revised **first**, then the code. A change that
   contradicts it revises the spec in the same pull request.
 
 ## Build and test
@@ -59,6 +61,13 @@ the two products — `--check` runs in CI and fails on any difference, and it al
 README.md or docs/index.html no longer matches the source. Statuses in that table are `full` / `partial` /
 `preserved` / `none` / `na` / `unverified`; `unverified` exists so a row nobody has measured is never guessed at.
 The page borrows its `<style>` from `docs/format-support.html` at build time, so the sibling pages cannot drift apart.
+
+## The cookbook (docs/cookbook.md)
+
+`docs/cookbook.md` is **generated** from the recipe files under `Examples/Sources/swiftsheets-examples/Recipes`
+by `python3 scripts/build-cookbook.py`; `--check` runs in CI. CI also builds the `Examples` package on both
+platforms and runs every recipe on macOS, so a recipe that stops compiling or working fails the build. Add a
+recipe as a file `NN-name.swift` whose first line is `// # Title`, register it in `main.swift`, and regenerate.
 
 ## The openpyxl parity ledger (Tests/OpenpyxlParity)
 

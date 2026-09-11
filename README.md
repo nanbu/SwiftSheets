@@ -67,6 +67,10 @@ format. A row that fails, a closure that throws, a writer let go of: whatever wa
 Opening one by hand still works — `StreamingWriter(to:)`, then `append(_:)`, then `close()`, which returns the same
 result and must be called — and `cancel()` throws the rows away.
 
+**Guides.** [Getting started](docs/getting-started.md) takes you from an empty package to a saved file;
+the [cookbook](docs/cookbook.md) is thirteen complete recipes that CI compiles and runs (the page is generated
+from [`Examples/`](Examples)); [llms.txt](llms.txt) is the short map written for AI coding agents.
+
 ## Installation
 
 ```swift

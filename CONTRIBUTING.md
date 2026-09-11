@@ -18,7 +18,7 @@ the message did not tell you what happened, that is a bug in the message.
 ## Before opening a pull request
 
 Open an issue first. The API is still moving before 1.0, and the design is written down before the code — the spec is
-[the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html) (Japanese), and Appendix B records the decisions and
+[the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html), and Appendix B records the decisions and
 the reasons behind them. A change that contradicts the spec needs the spec revised in the same pull request.
 
 ```bash
@@ -48,8 +48,8 @@ it" is not an answer to "why does this branch exist". Say in the pull request wh
 
 ## Language
 
-Issues and pull requests in English or Japanese are equally welcome. The design spec is Japanese; the README, the API,
-and all symbol names are English.
+Issues and pull requests in English or Japanese are equally welcome. Everything in the repository — the README, the
+implementation spec, the guides, the API and every symbol name — is English.
 
 ## Scope
 

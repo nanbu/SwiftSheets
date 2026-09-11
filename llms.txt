@@ -1,0 +1,40 @@
+# SwiftSheets
+
+> A pure Swift spreadsheet library: one format-neutral model, one codec per format — XLSX, XLSM, CSV/TSV, ODS and
+> Apple Numbers. Open, edit, save; everything untouched round-trips byte for byte. Foundation only, no package
+> dependencies. Swift 6.2+, macOS 14+ / iOS 17+ / Linux. MIT.
+
+This file is the map for a coding agent. Every claim below is checked by a test or a CI script in the repository;
+prefer the linked documents over memory, and prefer the compiled recipes over prose.
+
+## Entry points
+
+- `import SwiftSheets` — the umbrella. `Workbook(contentsOf:)` / `Workbook(data:format:)` open; `Workbook.read(contentsOf:)` opens and returns the warnings too; `Workbook.inspect(contentsOf:)` reads the sheet list and cell counts without reading cells; `workbook.write(to:as:)` / `write(as:)` save (they return a `WriteResult` with `data`, `warnings`, `suggestion`); `Workbook.convert(_:to:as:)` converts; `StreamingReader(contentsOf:)` and `CodecSet.all.withStreamingWriter(to:as:)` work row by row.
+- Only some formats: `import SheetCore` plus `SheetXLSX` / `SheetCSV` / `SheetODS` / `SheetNumbers`, then `CodecSet([.xlsx, .ods])` has the same methods.
+- Passwords: `import SheetDecrypt` (`Workbook(contentsOf:password:)`) and `import SheetEncrypt` (`write(to:password:)`). The plain products contain no cipher and refuse an encrypted file with `SheetError.unopenable`.
+
+## Model in one paragraph
+
+`Workbook.sheets` (by index or name) → `Sheet` → cells. `sheet["B3"]`, `sheet[3, 2]`, `sheet[CellRef(row: 3, column: 2)]` are the same cell; integer coordinates are the numbers the sheet shows (1-based); only Swift collections are 0-based. A cell value is `CellValue?`: `.text`, `.integer(Int)`, `.number(Decimal)`, `.bool`, `.date(CivilDateTime)` (no time zone), `.time`, `.duration`, `.formula(FormulaExpr, cached:)`, `.error`, `.richText`; literals work (`sheet["A1"] = 42`). Style through `sheet.setStyle("A1:D1") { $0.font.bold = true }` or `sheet[cell: "A1"].font`. Everything is a `Sendable` value type; `workbook.editSheet(named:) { sheet in … }` edits in place.
+
+## Rules an agent should not break
+
+- Failure throws `SheetError`; degradation comes back as `ConversionWarning`s on `ReadResult` / `WriteResult` / `workbook.readWarnings`. Never assume a write kept everything — read `result.warnings`.
+- The format is named explicitly on conversion (`as: .ods`) and detected from bytes on read; the extension is a hint only.
+- Bool properties are predicative (`allowsBlank`, `showsGridLines`, `includesBOM`); typed and A1-string twins share labels (`cell(ref)` / `cell("B2")`, `setStyle(at:)` / `setStyle("A1")`).
+- Formulas are `.formula("=SUM(A1:A3)")`, parsed into a tree; they follow row inserts and sheet renames. The library does not evaluate formulas.
+- Untrusted input: call `Workbook.inspect` first, then read with `ReadOptions.cellLimit` and `ReadOptions.limits`.
+
+## Documents
+
+- Getting started: https://github.com/nanbu/SwiftSheets/blob/main/docs/getting-started.md
+- Cookbook (13 compiled, running recipes; generated from Examples/): https://github.com/nanbu/SwiftSheets/blob/main/docs/cookbook.md
+- README (openpyxl ↔ SwiftSheets table, Limits, Formats, Targets): https://github.com/nanbu/SwiftSheets/blob/main/README.md
+- Spec feature matrix — 196 rows, per format, read and write apart, with the API for each (machine-readable YAML): https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml
+- Format support table (48 features × 3 formats, measured): https://nanbu.github.io/SwiftSheets/format-support.html
+- Interoperability guide (what each conversion direction does): https://nanbu.github.io/SwiftSheets/interoperability.html
+- Performance record (seconds and MB per operation, measured): https://nanbu.github.io/SwiftSheets/performance.json
+- Implementation spec (the design; Appendix B records every decision and its reason): https://nanbu.github.io/SwiftSheets/implementation-spec.html
+- Changelog: https://github.com/nanbu/SwiftSheets/blob/main/CHANGELOG.md
+- Contributing (spec-first rule, the bar for AI-assisted pull requests): https://github.com/nanbu/SwiftSheets/blob/main/CONTRIBUTING.md
+- AGENTS.md (conventions for agents changing the repository itself): https://github.com/nanbu/SwiftSheets/blob/main/AGENTS.md

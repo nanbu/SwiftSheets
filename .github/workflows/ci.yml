@@ -31,6 +31,7 @@ jobs:
         run: |
           python3 scripts/build-spec-feature-matrix.py --check
           python3 scripts/build-performance-page.py --check
+          python3 scripts/build-cookbook.py --check
 
       - name: Build
         run: swift build --build-tests
@@ -39,6 +40,13 @@ jobs:
       # uncompilable without anything noticing — which is what happened between 0.20.0 and Appendix B.51.
       - name: The measuring bench still builds against the public surface
         run: swift build --package-path Benchmarks
+
+      # The cookbook's code is a package too (docs/cookbook.md is generated from it). Building it proves every
+      # recipe compiles against the public surface; running it proves each one still does what the page says.
+      - name: The cookbook's recipes build and run
+        run: |
+          swift build --package-path Examples
+          swift run --package-path Examples swiftsheets-examples all "$RUNNER_TEMP/cookbook"
 
       - name: Write API results and removed data conveniences
         run: python3 scripts/check-write-result-api.py
@@ -102,6 +110,10 @@ jobs:
 
       - name: Build
         run: swift build --build-tests
+
+      # Same as macOS: every recipe of the cookbook compiles against the public surface on the other toolchain.
+      - name: The cookbook's recipes build
+        run: swift build --package-path Examples
 
       - name: Write API results and removed data conveniences
         run: python3 scripts/check-write-result-api.py

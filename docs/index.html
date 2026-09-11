@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SwiftSheets — documents</title>
-<meta name="description" content="Design spec and measured format-support table for SwiftSheets, a pure Swift spreadsheet library for XLSX, XLSM, CSV, ODS and Numbers.">
+<meta name="description" content="Guides, the design spec and the measured format-support tables for SwiftSheets, a pure Swift spreadsheet library for XLSX, XLSM, CSV, ODS and Numbers.">
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -65,7 +65,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h2>Documents</h2>
 
 <a class="doc" href="implementation-spec.html">
-  <div class="t">Implementation spec <span class="chip">日本語</span></div>
+  <div class="t">Implementation spec</div>
   <div class="d">
     The design, written down before the code. Appendix B records every implementation decision
     and the reason behind it — including the ones that were measured and then rejected.
@@ -73,7 +73,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </a>
 
 <a class="doc" href="format-support.html">
-  <div class="t">Format support table <span class="chip">日本語</span></div>
+  <div class="t">Format support table</div>
   <div class="d">
     What each format actually carries, across 48 features — measured against Excel, LibreOffice,
     Numbers.app, openpyxl and numbers-parser, not claimed from the specifications.
@@ -81,7 +81,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </a>
 
 <a class="doc" href="spec-feature-matrix.html">
-  <div class="t">Spec feature matrix <span class="chip">日本語</span></div>
+  <div class="t">Spec feature matrix</div>
   <div class="d">
     The same question from the other side: every feature each format's own specification names,
     and how far SwiftSheets carries it — read and write kept apart, with the API for each of the
@@ -90,7 +90,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </a>
 
 <a class="doc" href="performance.html">
-  <div class="t">Performance record <span class="chip">日本語</span></div>
+  <div class="t">Performance record</div>
   <div class="d">
     What a million cells cost to read and write, in seconds and megabytes, measured by a script in
     the repository on a named machine — the numbers the README quotes are checked against this page's
@@ -99,20 +99,20 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </a>
 
 <a class="doc" href="interoperability.html">
-  <div class="t">Interoperability guide <span class="chip">日本語</span></div>
+  <div class="t">Interoperability guide</div>
   <div class="d">
     What happens to each format's own features when a file is converted into another — the four
     possible outcomes, all nine directions, and the test that measures each claim.
   </div>
 </a>
 
-<p class="meta">
-  All four documents are in Japanese. The README, the API and every symbol name are English.
-</p>
 
 <h2>Getting started</h2>
 
 <ul class="plain">
+  <li><a href="https://github.com/nanbu/SwiftSheets/blob/main/docs/getting-started.md">Getting started</a> — from an empty package to a saved file</li>
+  <li><a href="https://github.com/nanbu/SwiftSheets/blob/main/docs/cookbook.md">Cookbook</a> — thirteen complete recipes, compiled and run by CI</li>
+  <li><a href="https://github.com/nanbu/SwiftSheets/blob/main/llms.txt">llms.txt</a> — the short map of the library written for AI coding agents</li>
   <li><a href="https://github.com/nanbu/SwiftSheets#installation">Installation</a> — one line in <code>Package.swift</code></li>
   <li><a href="https://github.com/nanbu/SwiftSheets#limits">Limits</a> — what to know before pointing it at a very large or very strange file</li>
   <li><a href="https://github.com/nanbu/SwiftSheets#openpyxl--swiftsheets">openpyxl ↔ SwiftSheets</a> — the API, side by side with the library it uses as its behavioural reference</li>
