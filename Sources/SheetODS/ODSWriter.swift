@@ -105,19 +105,29 @@ final class ODSStyleRegistry {
         return n
     }
 
-    /// Nil for the default style (no attribute needed).
-    /// The style name of a cell's formatting, by the shared object the cell points at when it has one (the same
-    /// identity table the XLSX writer keeps: one hash per distinct style rather than one per cell).
-    private var sharedCells: [ObjectIdentifier: (style: SharedStyle, name: String?)] = [:]
-    func cell(of cell: Cell) -> String? {
-        guard let shared = cell.sharedStyle else { return self.cell(cell.style) }
+    /// What a cell's formatting means to the writer: its style name (nil for the default style, which needs no
+    /// attribute), and whether its number format is a percentage or names a currency.
+    struct CellFacts { let name: String?; let percent: Bool; let currency: String? }
+    /// The facts by the shared object the cell points at (the same identity table the XLSX writer keeps), so they
+    /// are worked out once per distinct style rather than once per cell — two style copies and two scans of the
+    /// format code each (spec Appendix B.91). A cell without a shared style has the default style.
+    private var sharedCells: [ObjectIdentifier: (style: SharedStyle, facts: CellFacts)] = [:]
+    private lazy var defaultFacts = facts(of: CellStyle.default)
+    func facts(of cell: Cell) -> CellFacts {
+        guard let shared = cell.sharedStyle else { return defaultFacts }
         let id = ObjectIdentifier(shared)
-        if let known = sharedCells[id], known.style === shared { return known.name }
-        let name = self.cell(shared.style)
+        if let known = sharedCells[id], known.style === shared { return known.facts }
+        let facts = facts(of: shared.style)
         if sharedCells.count >= 4096 { sharedCells.removeAll(keepingCapacity: true) }   // bounded, as the XLSX registry is
-        sharedCells[id] = (shared, name)
-        return name
+        sharedCells[id] = (shared, facts)
+        return facts
     }
+    private func facts(of style: CellStyle) -> CellFacts {
+        CellFacts(name: cell(style), percent: NumberFormat.isPercentFormat(style.numberFormat),
+                  currency: ODSFeatures.currency(inFormat: style.numberFormat))
+    }
+    /// The style name alone.
+    func cell(of cell: Cell) -> String? { facts(of: cell).name }
 
     func cell(_ style: CellStyle) -> String? {
         if style == .default { return nil }
@@ -928,16 +938,17 @@ enum ODSWriter {
                         detective: CellDetective? = nil, sheet: String, styles: ODSStyleRegistry,
                         sink: ODSWarningSink, frames: String = "") -> String {
         var attrs = ""
-        if let n = styles.cell(of: cell) { attrs += " table:style-name=\"\(n)\"" }
+        let facts = styles.facts(of: cell)
+        if let n = facts.name { attrs += " table:style-name=\"\(n)\"" }
         if let v = validation { attrs += " table:content-validation-name=\"\(v)\"" }
         if let m = merge, !m.isSingleCell { attrs += " table:number-columns-spanned=\"\(m.size.columns)\" table:number-rows-spanned=\"\(m.size.rows)\"" }
         // an array formula: ODF puts the span on the cell that holds it (`table:number-matrix-*-spanned`)
         if let m = matrix { attrs += " table:number-matrix-columns-spanned=\"\(m.size.columns)\" table:number-matrix-rows-spanned=\"\(m.size.rows)\"" }
         var valueAttrs = ""
         var paragraphs: [String] = []
-        let percent = NumberFormat.isPercentFormat(cell.style.numberFormat)
+        let percent = facts.percent
         // ODF marks a money cell as money and names the currency on the cell itself, which OOXML cannot
-        let currency = percent ? nil : ODSFeatures.currency(inFormat: cell.style.numberFormat)
+        let currency = percent ? nil : facts.currency
         switch cell.value {
         case nil: break
         case .richText(let runs)?:

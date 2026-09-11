@@ -124,6 +124,19 @@ struct CellStorage {
         return value
     }
 
+    /// An integer's bytes, exactly as `encodeDecimal128(Decimal(i))` makes them but without its base-10 string and long
+    /// division (spec Appendix B.91): an integer is written with exponent 0, and its magnitude fits the low eight
+    /// bytes, little-endian.
+    static func encodeDecimal128(integer i: Int) -> [UInt8] {
+        var out = [UInt8](repeating: 0, count: 16)
+        let magnitude = UInt64(i.magnitude)
+        for k in 0..<8 { out[k] = UInt8((magnitude >> (8 * UInt64(k))) & 0xFF) }
+        out[14] |= UInt8((decimal128Bias & 0x7F) << 1)
+        out[15] |= UInt8((decimal128Bias >> 7) & 0x7F)
+        if i < 0 { out[15] |= 0x80 }
+        return out
+    }
+
     /// The inverse: the decimal's own significand and exponent go straight into the record.
     static func encodeDecimal128(_ value: Decimal) -> [UInt8] {
         var out = [UInt8](repeating: 0, count: 16)
@@ -167,7 +180,7 @@ struct CellStorage {
     /// A version-5 record for a value. `stringID` / `richID` index the table's string / rich-text lists,
     /// `cellStyleID` / `textStyleID` its style list and the `*FormatID`s its format list. The fields go out in flag
     /// order, which is the order `decode` reads them in.
-    static func encode(type: CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil, stringID: Int? = nil,
+    static func encode(type: CellType, decimal: Decimal? = nil, integer: Int? = nil, double: Double? = nil, seconds: Double? = nil, stringID: Int? = nil,
                        richID: Int? = nil, commentID: Int? = nil,
                        cellStyleID: Int? = nil, textStyleID: Int? = nil, conditionalStyleID: Int? = nil, formulaID: Int? = nil,
                        controlID: Int? = nil,
@@ -179,6 +192,7 @@ struct CellStorage {
         func dbl(_ v: Double) { let u = v.bitPattern; for k in 0..<8 { body.append(UInt8((u >> (8 * UInt64(k))) & 0xFF)) } }
         var extras: UInt8 = 0
         if let decimal { flags |= 0x1; body.append(contentsOf: encodeDecimal128(decimal)) }
+        else if let integer { flags |= 0x1; body.append(contentsOf: encodeDecimal128(integer: integer)) }
         if let double { flags |= 0x2; dbl(double) }
         if let seconds { flags |= 0x4; dbl(seconds) }
         if let stringID { flags |= 0x8; int32(stringID); extras |= 0x80 }

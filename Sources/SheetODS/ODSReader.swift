@@ -932,9 +932,10 @@ final class ContentParser: SAXHandler {
     }
 
     static func number(_ v: String) -> CellValue? {
-        let s = v.trimmingCharacters(in: .whitespaces)
-        if !s.contains("."), !s.contains("e"), !s.contains("E"), let i = Int(s) { return .integer(i) }
-        guard let d = Decimal(string: s, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+        let s = XML.needsTrimming(v) ? v.trimmingCharacters(in: .whitespaces) : v
+        // Int accepts only a sign and digits — never ".", "e" or "E" — so it needs no scan for them first
+        if let i = Int(s) { return .integer(i) }
+        guard let d = Decimal(string: s, locale: XML.posixLocale) else { return nil }
         return .number(d)
     }
 

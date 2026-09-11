@@ -1632,6 +1632,10 @@ struct NumbersWriter {
         // has a reason: a fill, a border, a note, a link. A sheet draws with exactly these — a Gantt bar, a
         // weekend column, a legend swatch are colour and nothing else — and skipping them here sent the drawing
         // out blank and unreported (Appendix B.20).
+        // a style's list keys, format key and currency flag, worked out once per distinct shared style (spec Appendix
+        // B.91): each call behind them is a cache after its first use, so a later cell of the same style needs none
+        var styleFacts: [ObjectIdentifier: (shared: SharedStyle, keys: (cell: Int?, text: Int?), formatKey: Int?, isCurrency: Bool)] = [:]
+        var defaultStyleFacts: (keys: (cell: Int?, text: Int?), formatKey: Int?, isCurrency: Bool)?
         for (ref, cell) in table.cells where ref.row <= rows && ref.column <= columns && !covered.contains(ref) {
             var value: CellValue? = cell.value
             var formulaID: Int?
@@ -1668,9 +1672,26 @@ struct NumbersWriter {
                 }
             }
             let commentID = try (cell.note ?? cell.thread.map { CellNote($0.noteText, author: $0.author) }).map { try commentKey(for: $0) }
-            let style = cell.style
-            let keys = try styleWriter.keys(for: style)
-            var formatKey = style.numberFormat == NumberFormat.general ? nil : styleWriter.formatKey(for: style.numberFormat)
+            let facts: (keys: (cell: Int?, text: Int?), formatKey: Int?, isCurrency: Bool)
+            if let shared = cell.sharedStyle, let known = styleFacts[ObjectIdentifier(shared)], known.shared === shared {
+                facts = (known.keys, known.formatKey, known.isCurrency)
+            } else if cell.sharedStyle == nil, let known = defaultStyleFacts {
+                facts = known
+            } else {
+                let style = cell.style
+                let code = style.numberFormat
+                let keys = try styleWriter.keys(for: style)
+                let formatKey = code == NumberFormat.general ? nil : styleWriter.formatKey(for: code)
+                facts = (keys, formatKey, code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£"))
+                if let shared = cell.sharedStyle {
+                    if styleFacts.count >= 4096 { styleFacts.removeAll(keepingCapacity: true) }
+                    styleFacts[ObjectIdentifier(shared)] = (shared, facts.keys, facts.formatKey, facts.isCurrency)
+                } else {
+                    defaultStyleFacts = facts
+                }
+            }
+            let keys = facts.keys
+            var formatKey = facts.formatKey
             // A control cell draws through its own format, and always holds a value — Numbers itself fills an
             // untouched checkbox with false, a dial with its minimum, a rating with 0 (Appendix B.25).
             if let control = cell.control, controlKeys[ref] != nil {
@@ -1688,7 +1709,7 @@ struct NumbersWriter {
             }
             // the file counts from 0
             records[ref.row - 1][ref.column - 1] = record(for: value, key: key, cellStyleID: keys.cell, textStyleID: keys.text,
-                                               formatKey: formatKey, code: style.numberFormat, formulaID: formulaID,
+                                               formatKey: formatKey, isCurrency: facts.isCurrency, formulaID: formulaID,
                                                conditionalStyleID: conditionalKeys[ref], controlID: controlKeys[ref],
                                                richID: richID, commentID: commentID)
         }
@@ -1906,10 +1927,10 @@ struct NumbersWriter {
     /// The packed record for a value (nil for kinds Numbers cannot hold, after a warning). The number format goes
     /// in the slot the *value* asks for — Numbers has one per kind, not one per cell.
     private mutating func record(for value: CellValue?, key: (String) -> Int, cellStyleID: Int? = nil, textStyleID: Int? = nil,
-                                 formatKey: Int? = nil, code: String = NumberFormat.general, formulaID: Int? = nil,
+                                 formatKey: Int? = nil, code: String = NumberFormat.general, isCurrency knownCurrency: Bool? = nil, formulaID: Int? = nil,
                                  conditionalStyleID: Int? = nil, controlID: Int? = nil, richID: Int? = nil, commentID: Int? = nil) -> Data? {
-        let isCurrency = code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£")
-        func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, double: Double? = nil, seconds: Double? = nil,
+        let isCurrency = knownCurrency ?? (code.contains("$") || code.contains("¥") || code.contains("€") || code.contains("£"))
+        func encode(_ type: CellStorage.CellType, decimal: Decimal? = nil, integer: Int? = nil, double: Double? = nil, seconds: Double? = nil,
                     stringID: Int? = nil) -> Data {
             var number: Int?, currency: Int?, date: Int?, duration: Int?, text: Int?, boolean: Int?
             switch type {
@@ -1919,7 +1940,7 @@ struct NumbersWriter {
             case .bool: boolean = formatKey
             default: if isCurrency { currency = formatKey } else { number = formatKey }
             }
-            return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, double: double,
+            return CellStorage.encode(type: isCurrency && type == .number ? .currency : type, decimal: decimal, integer: integer, double: double,
                                       seconds: seconds, stringID: stringID, richID: richID, commentID: commentID,
                                       cellStyleID: cellStyleID, textStyleID: textStyleID,
                                       conditionalStyleID: conditionalStyleID, formulaID: formulaID, controlID: controlID,
@@ -1938,7 +1959,7 @@ struct NumbersWriter {
             return saysSomething ? encode(.generic) : nil
         case .text(let s): return encode(.text, stringID: key(s))
         case .richText(let runs): return encode(.text, stringID: key(runs.map(\.text).joined()))
-        case .integer(let i): return encode(.number, decimal: Decimal(i))
+        case .integer(let i): return encode(.number, integer: i)
         case .number(let d): return encode(.number, decimal: d)
         case .bool(let b): return encode(.bool, double: b ? 1 : 0)
         case .date(let dt):

@@ -93,6 +93,11 @@ compiler points at; no alias is kept.
   and read without copying one, a number is trimmed only when its ends are not plain ASCII, a read cell is stored
   once, a dense sheet's rows are written straight from its extent, dated cells share one style per format, and the
   writers' style caches are bounded. The bytes written are unchanged.
+- **ODS, CSV and Numbers too** (spec Appendix B.91), measured the same way: write ODS 3.39 → 2.25 s, row-by-row
+  write ODS 3.52 → 2.50 s, read ODS 3.59 → 3.16 s, read CSV 1.76 → 1.32 s, row-by-row read CSV 1.31 → 0.87 s, write
+  CSV 0.88 → 0.65 s, write Numbers 3.90 → 2.20 s, row-by-row write Numbers 3.57 → 3.07 s, each at the peak memory it
+  had. The ODS writer works out a cell's style facts once per style, delimited text tests its rules on bytes with one
+  locale, and the Numbers writer encodes an integer without long division and its style keys once per style.
 
 ## [0.26.0] — 2026-09-11
 

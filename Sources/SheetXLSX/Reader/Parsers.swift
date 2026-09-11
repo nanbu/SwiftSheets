@@ -608,14 +608,6 @@ final class SheetParser: SAXHandler {
         return true
     }
 
-    /// Whether a cell's text could carry whitespace to trim: an end that is not a printable ASCII byte. Values
-    /// written by applications have none, and Foundation's trim costs an allocation per cell; anything else —
-    /// a space, a newline, a non-breaking space — still goes through it.
-    @inline(__always) static func needsTrimming(_ s: String) -> Bool {
-        guard let first = s.utf8.first, let last = s.utf8.last else { return false }
-        return !(0x21...0x7E).contains(first) || !(0x21...0x7E).contains(last)
-    }
-
     init(name: String, sst: [CellValue], phonetics: [PhoneticText?] = [], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
         self.sheet = Sheet(name: name); self.sst = sst; self.phonetics = phonetics; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
         for r in rels where r.type.hasSuffix("/hyperlink") { hyperlinkRels[r.id] = r.target }
@@ -1031,7 +1023,7 @@ final class SheetParser: SAXHandler {
     private func cachedValue() -> CellValue? {
         switch cellType {
         case "s":
-            guard let i = Int(SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText), sst.indices.contains(i) else { return nil }
+            guard let i = Int(XML.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText), sst.indices.contains(i) else { return nil }
             if phonetics.indices.contains(i) { pendingPhonetic = phonetics[i] }
             return sst[i]
         case "inlineStr":
@@ -1039,11 +1031,11 @@ final class SheetParser: SAXHandler {
             if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .text(isRuns.map(\.text).joined()) }
             return .text(isText)
         case "str": return .text(vText)
-        case "b": return .bool((SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText) == "1")
+        case "b": return .bool((XML.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText) == "1")
         case "e": return .error(vText)
         case "d": return CellValue(iso8601: vText)
         default:
-            let raw = SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespacesAndNewlines) : vText
+            let raw = XML.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespacesAndNewlines) : vText
             guard !raw.isEmpty else { return nil }
             let kind = styles.numericKind(cellStyle)
             // Int accepts only an optional sign and digits — no ".", "e" or "E" — and whatever it accepts Double does

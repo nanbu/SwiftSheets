@@ -93,6 +93,7 @@ package enum CSVCodec: SpreadsheetCodec {
         }
         // a date value's automatic number format is not formatting the user applied — it does not count
         func hasFormatting(_ c: Cell) -> Bool {
+            guard c.sharedStyle != nil else { return false }   // no shared style is the default style, without copying it
             var plain = c.style; plain.numberFormat = CellStyle.default.numberFormat
             if plain != .default { return true }
             if c.style.numberFormat == CellStyle.default.numberFormat { return false }
@@ -339,13 +340,16 @@ package enum CSVCodec: SpreadsheetCodec {
         func value(for s: String) -> CellValue {
             if Self.isInteger(s) {
                 if let i = Int(s) { return .integer(i) }
-                if let d = Decimal(string: s, locale: Locale(identifier: "en_US_POSIX")) { return .number(d) }   // beyond Int64
+                if let d = Decimal(string: s, locale: XML.posixLocale) { return .number(d) }   // beyond Int64
             }
-            if Self.isDecimal(s), let d = Decimal(string: s, locale: Locale(identifier: "en_US_POSIX")) { return .number(d) }
-            switch s.lowercased() {
-            case "true": return .bool(true)
-            case "false": return .bool(false)
-            default: break
+            if Self.isDecimal(s), let d = Decimal(string: s, locale: XML.posixLocale) { return .number(d) }
+            // only a four- or five-byte field can be "true" or "false" in any case: no letter outside ASCII lowercases into them
+            if s.utf8.count == 4 || s.utf8.count == 5 {
+                switch s.lowercased() {
+                case "true": return .bool(true)
+                case "false": return .bool(false)
+                default: break
+                }
             }
             for f in formatters {
                 if let date = f.date(from: s), let civil = civilDateTime(from: date) { return .date(civil) }
@@ -363,29 +367,35 @@ package enum CSVCodec: SpreadsheetCodec {
 
         /// Optional sign, then "0" or digits without a leading zero.
         static func isInteger(_ s: String) -> Bool {
-            var digits = Substring(s)
-            if let first = digits.first, first == "+" || first == "-" { digits = digits.dropFirst() }
-            guard !digits.isEmpty, digits.allSatisfy(\.isASCIIDigit) else { return false }
-            return digits.count == 1 || digits.first != "0"
+            // by bytes: an ASCII digit is one byte, so a count of digit bytes is the count of digit characters
+            var digits = s.utf8[...]
+            if let first = digits.first, first == UInt8(ascii: "+") || first == UInt8(ascii: "-") { digits = digits.dropFirst() }
+            guard !digits.isEmpty, digits.allSatisfy({ $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }) else { return false }
+            return digits.count == 1 || digits.first != UInt8(ascii: "0")
         }
 
         /// Optional sign, digits with one `.` and / or an exponent (at least one of the two; plain digit runs are the
         /// integer rule's business, so "01234" stays text).
         static func isDecimal(_ s: String) -> Bool {
-            var rest = Substring(s)
-            if let first = rest.first, first == "+" || first == "-" { rest = rest.dropFirst() }
-            var mantissa = rest, exponent: Substring? = nil
-            if let e = rest.firstIndex(where: { $0 == "e" || $0 == "E" }) {
+            // by bytes: the rule accepts ASCII only, and any other byte fails it wherever it stands
+            func isDigit(_ b: UInt8) -> Bool { b >= UInt8(ascii: "0") && b <= UInt8(ascii: "9") }
+            var rest = s.utf8[...]
+            if let first = rest.first, first == UInt8(ascii: "+") || first == UInt8(ascii: "-") { rest = rest.dropFirst() }
+            var mantissa = rest
+            var exponent: Substring.UTF8View? = nil
+            if let e = rest.firstIndex(where: { $0 == UInt8(ascii: "e") || $0 == UInt8(ascii: "E") }) {
                 mantissa = rest[..<e]; exponent = rest[rest.index(after: e)...]
             }
-            let parts = mantissa.split(separator: ".", omittingEmptySubsequences: false)
-            guard parts.count <= 2, parts.allSatisfy({ $0.allSatisfy(\.isASCIIDigit) }), parts.contains(where: { !$0.isEmpty }) else { return false }
-            if let exponent {
-                var digits = exponent
-                if let first = digits.first, first == "+" || first == "-" { digits = digits.dropFirst() }
-                guard !digits.isEmpty, digits.allSatisfy(\.isASCIIDigit) else { return false }
+            var dots = 0, digits = 0
+            for b in mantissa {
+                if b == UInt8(ascii: ".") { dots += 1 } else if isDigit(b) { digits += 1 } else { return false }
             }
-            return parts.count == 2 || exponent != nil
+            guard dots <= 1, digits > 0 else { return false }
+            if var power = exponent {
+                if let first = power.first, first == UInt8(ascii: "+") || first == UInt8(ascii: "-") { power = power.dropFirst() }
+                guard !power.isEmpty, power.allSatisfy(isDigit) else { return false }
+            }
+            return dots == 1 || exponent != nil
         }
     }
 
@@ -440,8 +450,16 @@ package enum CSVCodec: SpreadsheetCodec {
 
     /// Quotes when the field holds the delimiter, the quote, CR / LF, or leading / trailing spaces.
     static func quoted(_ field: String, delimiter: Character, quote: Character) -> String {
-        let needsQuotes = field.contains { $0 == delimiter || $0 == quote || $0 == "\r" || $0 == "\n" || $0 == "\r\n" }
-            || field.hasPrefix(" ") || field.hasSuffix(" ")
+        let needsQuotes: Bool
+        if let d = delimiter.asciiValue, let q = quote.asciiValue, field.utf8.allSatisfy({ $0 < 0x80 }) {
+            // an ASCII field with a one-byte delimiter and quote, the usual case: its bytes are its characters, so they
+            // answer without walking graphemes (a field with any other byte keeps the character walk below)
+            let bytes = field.utf8
+            needsQuotes = bytes.contains { $0 == d || $0 == q || $0 == 0x0D || $0 == 0x0A } || bytes.first == 0x20 || bytes.last == 0x20
+        } else {
+            needsQuotes = field.contains { $0 == delimiter || $0 == quote || $0 == "\r" || $0 == "\n" || $0 == "\r\n" }
+                || field.hasPrefix(" ") || field.hasSuffix(" ")
+        }
         guard needsQuotes else { return field }
         let q = String(quote)
         return q + field.replacingOccurrences(of: q, with: q + q) + q

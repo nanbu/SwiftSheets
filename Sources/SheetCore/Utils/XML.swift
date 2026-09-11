@@ -56,6 +56,16 @@ package enum XML {
     package static func attr(_ name: String, _ flag: Bool) -> String { flag ? " \(name)=\"1\"" : "" }
     package static func num(_ d: Double) -> String { d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : "\(d)" }
 
+    /// Whether text from a file could carry whitespace to trim: an end that is not a printable ASCII byte. Values
+    /// applications write have none, and Foundation's trim costs an allocation per call; anything else — a space, a
+    /// newline, a non-breaking space — still goes through it (spec Appendix B.91).
+    @inline(__always) package static func needsTrimming(_ s: String) -> Bool {
+        guard let first = s.utf8.first, let last = s.utf8.last else { return false }
+        return !(0x21...0x7E).contains(first) || !(0x21...0x7E).contains(last)
+    }
+    /// The POSIX locale the readers parse numbers in, made once rather than once per value.
+    package static let posixLocale = Locale(identifier: "en_US_POSIX")
+
     /// Strips a namespace prefix ("x:si" → "si").
     @inline(__always) package static func local(_ qualified: String) -> String {
         // the colon is ASCII, so a UTF-8 index is also a character boundary; walking Characters costs a grapheme check per byte

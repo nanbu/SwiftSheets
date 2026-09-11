@@ -249,17 +249,17 @@ final class StreamingSheetParser: StreamingRowParser {
     private func cachedValue() -> CellValue? {
         switch cellType {
         case "s":
-            guard let i = Int(SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText), sst.indices.contains(i) else { return nil }
+            guard let i = Int(XML.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText), sst.indices.contains(i) else { return nil }
             return sst[i]
         case "inlineStr":
             if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .text(isRuns.map(\.text).joined()) }
             return .text(isText)
         case "str": return .text(vText)
-        case "b": return .bool((SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText) == "1")
+        case "b": return .bool((XML.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText) == "1")
         case "e": return .error(vText)
         case "d": return CellValue(iso8601: vText)
         default:
-            let raw = SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespacesAndNewlines) : vText
+            let raw = XML.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespacesAndNewlines) : vText
             guard !raw.isEmpty else { return nil }
             let kind = styles.numericKind(cellStyle)
             // as in SheetParser: Int accepts only a sign and digits, and whatever it accepts Double does too

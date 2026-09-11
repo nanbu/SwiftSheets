@@ -3,6 +3,9 @@ import Testing
 @testable import SheetCore
 import SwiftSheets
 @testable import SheetXLSX
+@testable import SheetODS
+@testable import SheetCSV
+@testable import SheetNumbers
 
 /// The reading fast paths give the answers the slow paths gave: a numeric cell's text is trimmed only when an end is
 /// not plain ASCII, an integer under a plain format is tried before a Double, and a namespace prefix is stripped by
@@ -76,6 +79,87 @@ struct HotPathEquivalenceTests {
         let grouped = try wb.write(as: .xlsx).data
         for part in ["xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"] {
             #expect(try Package.part(part, of: dense) == Package.part(part, of: grouped), Comment(rawValue: part))
+        }
+    }
+
+    /// Number-like text, including what should not be a number.
+    static let numberLike = ["42", " 42 ", "\n42", "42\n", "\u{A0}42", "+5", "-0", "007", "4.5", ".5", "5.", "1e3", "1E3", "-1.25e-3",
+                             "12345678901234567890", "9223372036854775807", "9223372036854775808", "-9223372036854775808", "0x10",
+                             "abc", "", " ", "\u{661}\u{662}", "1\u{301}", "1,000", "+", "-", "++1"]
+
+    /// The ODS reader's number, against the function it replaced.
+    @Test func odsNumbersReadAsTheyDid() {
+        func old(_ v: String) -> CellValue? {
+            let s = v.trimmingCharacters(in: .whitespaces)
+            if !s.contains("."), !s.contains("e"), !s.contains("E"), let i = Int(s) { return .integer(i) }
+            guard let d = Decimal(string: s, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+            return .number(d)
+        }
+        for v in Self.numberLike { #expect(ContentParser.number(v) == old(v), Comment(rawValue: v.debugDescription)) }
+    }
+
+    /// Delimited text's type inference, against the tests it replaced.
+    @Test func csvInferenceReadsAsItDid() {
+        func oldIsInteger(_ s: String) -> Bool {
+            var digits = Substring(s)
+            if let first = digits.first, first == "+" || first == "-" { digits = digits.dropFirst() }
+            guard !digits.isEmpty, digits.allSatisfy({ $0.isASCII && $0.isNumber }) else { return false }
+            return digits.count == 1 || digits.first != "0"
+        }
+        func oldBool(_ s: String) -> Bool? { switch s.lowercased() { case "true": return true; case "false": return false; default: return nil } }
+        let inference = CSVCodec.TypeInference(dateFormats: [])
+        for v in Self.numberLike + ["true", "TRUE", "False", "fAlSe", "FALSE ", "truE", "yes", "t", "falsee", "\u{130}", "TRU\u{130}"] {
+            #expect(CSVCodec.TypeInference.isInteger(v) == oldIsInteger(v), Comment(rawValue: v.debugDescription))
+            if let b = oldBool(v), !CSVCodec.TypeInference.isInteger(v), !CSVCodec.TypeInference.isDecimal(v) {
+                #expect(inference.value(for: v) == .bool(b), Comment(rawValue: v.debugDescription))
+            }
+        }
+    }
+
+    /// Delimited text's decimal rule and quoting, against the code they replaced — combining marks included, which
+    /// the character walk and a byte scan could otherwise answer differently.
+    @Test func csvDecimalsAndQuotingAsTheyWere() {
+        func oldIsDecimal(_ s: String) -> Bool {
+            var rest = Substring(s)
+            if let first = rest.first, first == "+" || first == "-" { rest = rest.dropFirst() }
+            var mantissa = rest, exponent: Substring? = nil
+            if let e = rest.firstIndex(where: { $0 == "e" || $0 == "E" }) { mantissa = rest[..<e]; exponent = rest[rest.index(after: e)...] }
+            let parts = mantissa.split(separator: ".", omittingEmptySubsequences: false)
+            guard parts.count <= 2, parts.allSatisfy({ $0.allSatisfy({ $0.isASCII && $0.isNumber }) }), parts.contains(where: { !$0.isEmpty }) else { return false }
+            if let exponent {
+                var digits = exponent
+                if let first = digits.first, first == "+" || first == "-" { digits = digits.dropFirst() }
+                guard !digits.isEmpty, digits.allSatisfy({ $0.isASCII && $0.isNumber }) else { return false }
+            }
+            return parts.count == 2 || exponent != nil
+        }
+        func oldQuoted(_ field: String, delimiter: Character, quote: Character) -> String {
+            let needsQuotes = field.contains { $0 == delimiter || $0 == quote || $0 == "\r" || $0 == "\n" || $0 == "\r\n" }
+                || field.hasPrefix(" ") || field.hasSuffix(" ")
+            guard needsQuotes else { return field }
+            let q = String(quote)
+            return q + field.replacingOccurrences(of: q, with: q + q) + q
+        }
+        let decimals = Self.numberLike + ["1.2.3", "e5", "1e", "1e+", "+.5", "-.", ".", "1.5E-10", "\u{FF11}.\u{FF15}", "1.\u{301}5", "e\u{301}5", "1e\u{301}5", "1E+05"]
+        for v in decimals { #expect(CSVCodec.TypeInference.isDecimal(v) == oldIsDecimal(v), Comment(rawValue: v.debugDescription)) }
+        let fields = ["plain", "a,b", "say \"hi\"", "line\nbreak", "cr\rx", "crlf\r\nx", " lead", "trail ", "", " ", "\u{65E5},\u{8A9E}",
+                      ",\u{301}", " \u{301}x", "x \u{301}", "tab\tsep", "a;b", "it's"]
+        let dialects: [(Character, Character)] = [(",", "\""), (";", "'"), ("\t", "\""), ("\u{FF1B}", "\"")]
+        for f in fields {
+            for (d, q) in dialects {
+                #expect(CSVCodec.quoted(f, delimiter: d, quote: q) == oldQuoted(f, delimiter: d, quote: q), Comment(rawValue: "\(f.debugDescription) \(d) \(q)"))
+            }
+        }
+    }
+
+    /// A Numbers record's decimal128 for an integer, against the long division it skips.
+    @Test func numbersIntegersEncodeAsTheyDid() {
+        var values = [0, 1, -1, 9, 10, 255, 256, -256, 65_535, 65_536, 1_000_000, -1_000_000, 10_000_000_000, Int(Int32.max), Int(Int32.min),
+                      Int.max, Int.min, Int.max - 1, Int.min + 1, 1_000_000_000_000_000_000, -1_000_000_000_000_000_000]
+        var x: UInt64 = 0x9E37_79B9_7F4A_7C15
+        for _ in 0..<2_000 { x ^= x << 13; x ^= x >> 7; x ^= x << 17; values.append(Int(truncatingIfNeeded: x) >> Int(x % 60)) }
+        for i in values {
+            #expect(CellStorage.encodeDecimal128(integer: i) == CellStorage.encodeDecimal128(Decimal(i)), Comment(rawValue: "\(i)"))
         }
     }
 }
