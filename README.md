@@ -69,7 +69,8 @@ result and must be called — and `cancel()` throws the rows away.
 
 **Guides.** [Getting started](docs/getting-started.md) takes you from an empty package to a saved file;
 the [cookbook](docs/cookbook.md) is thirteen complete recipes that CI compiles and runs (the page is generated
-from [`Examples/`](Examples)); [llms.txt](llms.txt) is the short map written for AI coding agents.
+from [`Examples/`](Examples)); [API stability](docs/api-stability.md) says what 1.0 will promise; [llms.txt](llms.txt) is the
+short map written for AI coding agents.
 
 ## Installation
 
