@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The spec feature matrix — how far SwiftSheets handles the features in each format's specification (SwiftSheets 0.26.0)</title>
+<title>The spec feature matrix — how far SwiftSheets handles the features in each format's specification (SwiftSheets 0.27.0)</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -101,7 +101,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <main>
 <h1>The spec feature matrix</h1>
 <p class="lede">The features that the <strong>public specifications</strong> of Excel, OpenDocument and Numbers each have, set out in 196 rows: whether SwiftSheets reads each one, whether it writes it, and which API reaches it. Where the sibling <a href="format-support.html">format support table</a> measures "the model's 48 features → 3 formats", this table looks the <strong>other way round</strong>: "a format's specification → SwiftSheets".</p>
-<p class="meta">As of 2026-09-11 / SwiftSheets 0.26.0 / verified with: macOS 15, Swift 6.2 / Xcode 26, openpyxl 3.1.5 (judge for XLSX), LibreOffice 26.2.3 (judge for ODF), numbers-parser 4.16.3 / Numbers 15.3.1 (judge for Numbers), Microsoft Excel 16.112.2 (judge for protection, Appendix B.31)</p>
+<p class="meta">As of 2026-09-11 / SwiftSheets 0.27.0 / verified with: macOS 15, Swift 6.2 / Xcode 26, openpyxl 3.1.5 (judge for XLSX), LibreOffice 26.2.3 (judge for ODF), numbers-parser 4.16.3 / Numbers 15.3.1 (judge for Numbers), Microsoft Excel 16.112.2 (judge for protection, Appendix B.31)</p>
 <hr class="rule">
 <section>
 <h2>Which way this table reads</h2>
@@ -471,7 +471,7 @@ python3 scripts/build-spec-feature-matrix.py --check   # does this table match i
 <p class="meta">The YAML begins with a UTF-8 mark (BOM). Unlike HTML, it has nowhere to declare its encoding, and GitHub Pages serves <code>text/yaml</code> with no charset, so without the mark a browser garbles non-ASCII text. YAML 1.2 allows a leading mark, so code that loads the file needs no change.</p>
 </section>
 <footer>
-SwiftSheets — the spec feature matrix. Measurements and code checks as of SwiftSheets 0.26.0 (commit 0.26.0).<br>
+SwiftSheets — the spec feature matrix. Measurements and code checks as of SwiftSheets 0.27.0 (commit 0.27.0).<br>
 The table measured from the model's side is <a href="format-support.html">the format support table</a>; the behaviour per direction (A → B) is in <a href="interoperability.html">the interoperability guide</a>.<br>
 The implementation decisions and their reasons are in <code>docs/implementation-spec.html</code>, Appendix B.
 </footer>

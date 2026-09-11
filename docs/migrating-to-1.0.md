@@ -22,7 +22,7 @@ last column. Search your code for `- 1` and `+ 1` next to a `CellRef`, a row or 
 to row 0 or column 0 stops with a message. `rowNumber` is gone (it is `row`), `FilterColumn.column` is
 `columnOffset`, and `RangeView`'s relative subscript is `view[rowOffset:columnOffset:]`.
 
-## After 0.26.0 — the last look before 1.0 (B.89)
+## 0.27.0 — the last look before 1.0 (B.89)
 
 - `SheetImage.Anchor.absolute(x:y:width:height:)` → `SheetImage.Anchor.absolute(CanvasRect)`; match with `case .absolute(let frame)`.
 - `addSparkline(_:data:at:)` → `addSparkline(_:dataRange:at:)` (a `CellRef` twin exists), and `SparklineGroup.Sparkline(dataRange:location:)` → `SparklineGroup.Sparkline(dataRange:at:)`.

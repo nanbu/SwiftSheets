@@ -7,7 +7,14 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.27.0] — 2026-09-12
+
+The last minor release before the 1.0 release candidate. Numbers gains pictures, shapes, text boxes, charts, the
+print setup and a table's exact position on the canvas. The public surface has its final naming pass, and the
+renames under *Changed* break source: each is a compile error at the line to change, mapped in
+[Migrating to 1.0](docs/migrating-to-1.0.md). `ReadOptions.cellLimit` now holds for every reader, the codecs read and
+write faster with the same bytes, and the documentation is English throughout, with a getting-started guide, a
+cookbook whose recipes CI builds and runs, and `llms.txt`.
 
 ### Added
 
@@ -1382,7 +1389,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...HEAD
+[0.27.0]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...0.27.0
 [0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0
 [0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/nanbu/SwiftSheets/compare/0.23.0...0.24.0
