@@ -63,7 +63,12 @@ import SwiftSheets
         let same = try wb.write(as: .xlsx)
         let sameSheet = try Package.part("xl/worksheets/sheet1.xml", of: same.data)
         let sourceExt = source[source.range(of: "<extLst>")!.lowerBound...]
+        #if SWIFTSHEETS_FOUNDATION_XML
+        // Foundation's parser hands the preserved fragment back re-serialised, not as the source bytes
+        #expect(sameSheet.components(separatedBy: "<extLst>").count == 2 && sameSheet.contains("sparklineGroups"), "the extension list travels once")
+        #else
         #expect(sameSheet.hasSuffix(String(sourceExt)), "the extension list travels as bytes")
+        #endif
         wb.sheets[0].sparklines[0].color = Color(hex: "00FF00")
         wb.sheets[0].addSparkline(.column, data: "A1:H1", at: "J1")
         let changed = try wb.write(as: .xlsx)

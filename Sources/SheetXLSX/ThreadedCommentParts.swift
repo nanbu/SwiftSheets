@@ -48,8 +48,10 @@ enum ThreadedCommentParts {
     static func personID(_ name: String) -> String {
         var h: UInt64 = 0xcbf29ce484222325
         for b in name.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
-        let hex = String(format: "%016llX", h)
-        return "{" + hex.prefix(8) + "-" + hex.dropFirst(8).prefix(4) + "-4" + hex.dropFirst(12).prefix(3) + "-8000-" + String(format: "%012llX", h & 0xFFFFFFFFFFFF) + "}"
+        let hex = Array(String(format: "%016llX", h))
+        let a = String(hex[0..<8]), b = String(hex[8..<12]), c = String(hex[12..<15])
+        let d = String(format: "%012llX", h & 0xFFFFFFFFFFFF)
+        return "{\(a)-\(b)-4\(c)-8000-\(d)}"
     }
 
     static func personsXML(_ persons: [(id: String, name: String)]) -> String {
