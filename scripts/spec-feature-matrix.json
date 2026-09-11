@@ -1,51 +1,51 @@
 {
   "meta": {
-    "title": "形式別 機能対応表 — Excel / ODS / Numbers の公開仕様に対する SwiftSheets の対応",
+    "title": "The spec feature matrix — SwiftSheets against the public specifications of Excel / ODS / Numbers",
     "library_version": "0.26.0",
     "as_of": "2026-09-11",
     "commit": "0.26.0",
-    "axis": "各形式の「公開仕様が持つ機能」を縦軸に置き、SwiftSheets の読み・書きの対応と API を横に並べる。docs/format-support.html（モデルの 48 項目 × 3 形式）とは軸が逆で、あちらが本表の実測の裏づけになる。",
-    "granularity": "「利用者から見て 1 つの機能」を 1 行とする（XML 要素 1 つを 1 行にはしない）。仕様の全要素を網羅する表ではなく、仕様の章立て・部品構成に沿って利用者が名指しできる単位で並べた。",
-    "caveat": "「落ちる」と書いた行は、黙って消えるのではなく必ず警告として返る。警告が返ること自体を FormatSupportTests が形式ごとの件数で固定している（xlsx 7 件 / ods 8 件 / numbers 24 件）。",
+    "axis": "The rows are the features each format's public specification has; across them run SwiftSheets' read and write support and the API. The axes are the reverse of docs/format-support.html (the model's 48 features × 3 formats), which provides the measured evidence behind this table.",
+    "granularity": "One row is one feature as a user sees it (not one row per XML element). The table does not cover every element of a specification; it lists the units a user can name, following the specification's chapters and part structure.",
+    "caveat": "A row described as dropped never vanishes in silence: it always comes back as a warning. FormatSupportTests pins the fact that warnings come back, by their count per format (xlsx 7 / ods 8 / numbers 24).",
     "environments": [
       "macOS 15",
       "Swift 6.2 / Xcode 26",
-      "openpyxl 3.1.5（XLSX の審判）",
-      "LibreOffice 26.2.3（ODF の審判）",
-      "numbers-parser 4.16.3 / Numbers 15.3.1（Numbers の審判）",
-      "Microsoft Excel 16.112.2（保護の審判・付録 B.31）"
+      "openpyxl 3.1.5 (judge for XLSX)",
+      "LibreOffice 26.2.3 (judge for ODF)",
+      "numbers-parser 4.16.3 / Numbers 15.3.1 (judge for Numbers)",
+      "Microsoft Excel 16.112.2 (judge for protection, Appendix B.31)"
     ],
     "status_vocabulary": {
       "full": {
         "symbol": "○",
-        "meaning": "そのまま往復する。モデルの言葉で読め、同じものが書き出される"
+        "meaning": "Round-trips unchanged. Read in the model's own terms, and the same thing is written out"
       },
       "partial": {
         "symbol": "△",
-        "meaning": "形を変えて通る。必ず degraded / substituted の警告が返る"
+        "meaning": "Goes through in another shape. A degraded / substituted warning is always returned"
       },
       "preserved": {
         "symbol": "▣",
-        "meaning": "モデル化しない。同形式の保存では元のバイトのまま残る（F3）。他形式へ変換すると落ちて警告"
+        "meaning": "Not modelled. Saving to the same format keeps the original bytes (F3). Converting to another format drops it, with a warning"
       },
       "none": {
         "symbol": "×",
-        "meaning": "通らない。落として dropped の警告を返す"
+        "meaning": "Does not go through. Dropped, and a dropped warning is returned"
       },
       "na": {
         "symbol": "—",
-        "meaning": "その形式に概念がない"
+        "meaning": "Not applicable: the format has no such concept"
       },
       "unverified": {
         "symbol": "?",
-        "meaning": "実測していない。推測で ○ × を書かないための欄"
+        "meaning": "Not measured. The slot that keeps ○ or × from being written by guesswork"
       }
     },
     "evidence_types": {
-      "measured": "FormatSupportTests の 48 項目の実測（書いて読み戻して比べる）",
-      "code": "コーデックのコードで確認（要素名・警告文・保全リストの実在）",
-      "readme": "README / 実装仕様書 付録 B の記述",
-      "judge": "外部の実装が読めたこと（openpyxl・LibreOffice・numbers-parser・Numbers.app・Excel）"
+      "measured": "Measured by FormatSupportTests over the 48 features (written, read back and compared)",
+      "code": "Checked in the codec code (that the element names, the warning text and the preservation-list entry really exist)",
+      "readme": "Stated in README / the implementation spec, Appendix B",
+      "judge": "An external implementation could read it (openpyxl, LibreOffice, numbers-parser, Numbers.app, Excel)"
     },
     "common_api": {
       "read": "Workbook(contentsOf:) / Workbook.read(contentsOf:) -> ReadResult / wb.readWarnings",
@@ -61,16 +61,16 @@
       "spec": {
         "name": "ECMA-376 / ISO/IEC 29500 — Office Open XML SpreadsheetML",
         "public": true,
-        "note": "公開仕様。要素名は仕様のもの。SwiftSheets の実装仕様書 §7 が写像を持つ。"
+        "note": "Public specification. The element names are the specification's own. §7 of the SwiftSheets implementation spec holds the mapping."
       },
       "areas": [
         {
           "id": "package",
-          "name": "パッケージと部品",
+          "name": "Package and parts",
           "features": [
             {
               "id": "xlsx.package.opc",
-              "name": "OPC パッケージ（ZIP・コンテンツタイプ・リレーション）",
+              "name": "OPC package (ZIP, content types, relationships)",
               "spec_anchor": "[Content_Types].xml, _rels/.rels",
               "read": "full",
               "write": "full",
@@ -80,12 +80,12 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "書き出しでは [Content_Types].xml が実在するパートだけを宣言し、r:id は全て解決する（PreservationTests）。"
+              "note": "On write, [Content_Types].xml declares only the parts that exist, and every r:id resolves (PreservationTests)."
             },
             {
               "id": "xlsx.package.preservation",
-              "name": "解釈しないパートの保全（F3）",
-              "spec_anchor": "xl/charts/, xl/theme/, xl/drawings/, vbaProject.bin ほか",
+              "name": "Preservation of uninterpreted parts (F3)",
+              "spec_anchor": "xl/charts/, xl/theme/, xl/drawings/, vbaProject.bin and others",
               "read": "preserved",
               "write": "preserved",
               "api": [
@@ -94,13 +94,13 @@
                 "preservationSummary.parts",
                 "PreservedPartKind"
               ],
-              "warning": "他形式へ変換すると「N part(s) … cannot be carried into …」",
+              "warning": "Converting to another format: \"N part(s) … cannot be carried into …\"",
               "evidence": "measured",
-              "note": "触っていないパートはバイト単位で同一。既存の r:id・sheetId・パスは不変で、新規は最大値の次から採番する。生の部品・XML・関係は package 内に閉じ、公開の入口は元形式・部品数・VBA 有無の要約と、模型に入らなかった物の種類別の目録 parts（SmartArt・スライサー・外部リンク・埋め込み …。読んだ図面・グラフ・テーマ・メモは数えない）（付録 B.46・B.77）。"
+              "note": "Untouched parts are identical byte for byte. Existing r:id, sheetId and paths never change; new ones are numbered on from the highest. The raw parts, XML and relationships stay at package access; the public entry points are a summary (source format, part count, whether there is VBA) and parts, an inventory by kind of what the model did not take in (SmartArt, slicers, external links, embeddings …; drawings, charts, themes and notes that were read are not counted) (Appendix B.46, B.77)."
             },
             {
               "id": "xlsx.package.zip64",
-              "name": "ZIP64（4GB 超・65,535 パート超）",
+              "name": "ZIP64 (over 4 GB, over 65,535 parts)",
               "spec_anchor": "ZIP64 end of central directory",
               "read": "full",
               "write": "full",
@@ -110,11 +110,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "0.12.0（付録 B.39.1）で読み書きする。4 GB 超の部品・65,535 超の部品数。ZIP64 の記録は必要な封筒にだけ書く。ZipTests が往復を固定する。この行は 0.12.0 の後も「none」のまま残っていたのを Rev 4.22 で直した。"
+              "note": "Read and written since 0.12.0 (Appendix B.39.1): parts over 4 GB and more than 65,535 parts. ZIP64 records are written only into the entries that need them. ZipTests pins the round trip. This row still said \"none\" after 0.12.0; Rev 4.22 corrected it."
             },
             {
               "id": "xlsx.package.encryption",
-              "name": "パスワードによる暗号化",
+              "name": "Password encryption",
               "spec_anchor": "ECMA-376 Part 2 agile / standard encryption（[MS-OFFCRYPTO]）",
               "read": "partial",
               "write": "full",
@@ -126,19 +126,19 @@
                 "SheetError.wrongPassword",
                 "UnopenableInput.encryptedOOXML"
               ],
-              "warning": "中核だけでは throw（暗号化されていると名指しし、SheetDecrypt で開けると言う）。誤ったパスワードは wrongPassword。Excel 2007 の standard 形式と RC4 は名指しで断る",
+              "warning": "The core alone throws (naming the file as encrypted and saying SheetDecrypt opens it). A wrong password is wrongPassword. Excel 2007's standard encryption and RC4 are refused by name",
               "evidence": "judge",
-              "note": "読みは SheetDecrypt・書きは SheetEncrypt を繋いだとき（0.17.2・Rev 4.29）。中核と 5 つの製品に暗号のコードは入らない（scripts/check-no-crypto.sh が CI で記号表を見る）。agile 形式（AES-256 / SHA-512、Excel 2010 以降が書く形）を読み書きする。審判は msoffcrypto-tool（付録 B.39.9）。旧 .xls（BIFF）は UnopenableInput.legacyCompoundFile として別扱いで報告する。"
+              "note": "Read when SheetDecrypt is linked, written when SheetEncrypt is (0.17.2, Rev 4.29). The core and the 5 products contain no cipher code (scripts/check-no-crypto.sh reads the symbol tables in CI). Agile encryption (AES-256 / SHA-512, the form Excel 2010 and later write) is read and written. The judge is msoffcrypto-tool (Appendix B.39.9). An old .xls (BIFF) is reported separately, as UnopenableInput.legacyCompoundFile."
             }
           ]
         },
         {
           "id": "workbook",
-          "name": "ブック（xl/workbook.xml）",
+          "name": "Workbook (xl/workbook.xml)",
           "features": [
             {
               "id": "xlsx.wb.sheets",
-              "name": "シートの一覧・順序・名前・複製",
+              "name": "Sheet list, order, names, duplication",
               "spec_anchor": "<sheets>/<sheet>",
               "read": "full",
               "write": "full",
@@ -153,11 +153,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "シート名を変えると、そのシートを指す数式が追従する。"
+              "note": "Renaming a sheet updates the formulas that refer to it."
             },
             {
               "id": "xlsx.wb.state",
-              "name": "シートの表示状態（表示・非表示・完全非表示）",
+              "name": "Sheet visibility (visible, hidden, very hidden)",
               "spec_anchor": "sheet@state",
               "read": "full",
               "write": "full",
@@ -172,7 +172,7 @@
             },
             {
               "id": "xlsx.wb.definednames",
-              "name": "定義名（ブック単位・シート単位）",
+              "name": "Defined names (workbook scope, sheet scope)",
               "spec_anchor": "<definedNames>/<definedName localSheetId>",
               "read": "full",
               "write": "full",
@@ -182,11 +182,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "印刷範囲・タイトル行は _xlnm.Print_Area / _xlnm.Print_Titles として同じ場所に載る。"
+              "note": "Print areas and title rows sit in the same place, as _xlnm.Print_Area / _xlnm.Print_Titles."
             },
             {
               "id": "xlsx.wb.epoch",
-              "name": "日付の原点（1900 / 1904）",
+              "name": "Date epoch (1900 / 1904)",
               "spec_anchor": "workbookPr@date1904",
               "read": "full",
               "write": "full",
@@ -197,11 +197,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "1900 年 2 月 29 日の幻の日も openpyxl と同じ扱いに揃えてある。"
+              "note": "The phantom day of 29 February 1900 is handled the same way as in openpyxl."
             },
             {
               "id": "xlsx.wb.calcpr",
-              "name": "計算プロパティと計算チェーン",
+              "name": "Calculation properties and calculation chain",
               "spec_anchor": "<calcPr calcMode iterate fullPrecision>, xl/calcChain.xml",
               "read": "partial",
               "write": "partial",
@@ -211,11 +211,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "calcMode（auto / autoNoTable / manual）・反復計算・表示桁で計算は読み書きし、残りの属性は同じ形式への書き戻しで保全する。calcChain.xml は常に捨て、fullCalcOnLoad を立てる。開いたアプリに計算し直させる方が確実なため（B.76）。"
+              "note": "calcMode (auto / autoNoTable / manual), iterative calculation and precision as displayed are read and written; the remaining attributes are preserved when written back to the same format. calcChain.xml is always discarded and fullCalcOnLoad is set, because having the opening application recalculate is more reliable (B.76)."
             },
             {
               "id": "xlsx.wb.protection",
-              "name": "ブックの保護（シート構成・ウィンドウの固定）",
+              "name": "Workbook protection (sheet structure, windows)",
               "spec_anchor": "<workbookProtection>",
               "read": "full",
               "write": "full",
@@ -227,11 +227,11 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "新方式は SHA-512 のハッシュを生成。実機 Excel 16.112.2 が開錠することを AppleScript で確認（付録 B.31）。"
+              "note": "The modern scheme generates a SHA-512 hash. Confirmed over AppleScript that Excel 16.112.2 itself unlocks it (Appendix B.31)."
             },
             {
               "id": "xlsx.wb.views",
-              "name": "ブックビュー（選択中のシート）",
+              "name": "Workbook view (the active sheet)",
               "spec_anchor": "<bookViews>/<workbookView activeTab>",
               "read": "full",
               "write": "full",
@@ -245,22 +245,22 @@
             },
             {
               "id": "xlsx.wb.external",
-              "name": "外部ブックへの参照",
+              "name": "References to external workbooks",
               "spec_anchor": "<externalReferences>, xl/externalLinks/externalLinkN.xml, externalLinkPath",
               "read": "partial",
               "write": "preserved",
               "api": [
                 "wb.externalLinks",
                 "ExternalLink",
-                "FormulaExpr（[1]Sheet!A1 は文字として保持）"
+                "FormulaExpr ([1]Sheet!A1 is kept as text)"
               ],
-              "warning": "他形式へ変換すると objects の dropped 警告",
+              "warning": "Converting to another format: a dropped warning (objects)",
               "evidence": "measured",
-              "note": "wb.externalLinks が [1] の番号・参照先のファイル・記録されたシート名を答える（B.78）。参照先の値は解決しない。数式の中では文字列のまま運ぶので、同形式なら壊れない。"
+              "note": "wb.externalLinks answers the [1] index, the target file and the recorded sheet names (B.78). Values in the target are not resolved. Inside formulas the reference is carried as a string, so it survives within the same format."
             },
             {
               "id": "xlsx.wb.props",
-              "name": "文書プロパティ（作成者・題名・日時）",
+              "name": "Document properties (author, title, dates)",
               "spec_anchor": "docProps/core.xml, docProps/app.xml",
               "read": "full",
               "write": "full",
@@ -271,11 +271,11 @@
               ],
               "warning": null,
               "evidence": "code",
-              "note": "生成元アプリ名は sourceInfo.application に残す。"
+              "note": "The name of the application that created the file is kept in sourceInfo.application."
             },
             {
               "id": "xlsx.wb.customprops",
-              "name": "ユーザー定義の文書プロパティ",
+              "name": "Custom document properties",
               "spec_anchor": "docProps/custom.xml",
               "read": "full",
               "write": "full",
@@ -285,28 +285,28 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "文字・整数・実数・真偽・日付・定義名リンクの 6 種。"
+              "note": "6 types: text, integer, real, boolean, date, and link to a defined name."
             },
             {
               "id": "xlsx.wb.misc",
-              "name": "ファイル共有・カスタムブックビュー・スマートタグ・Web 公開",
+              "name": "File sharing, custom workbook views, smart tags, web publishing",
               "spec_anchor": "<fileSharing>, <customWorkbookViews>, <smartTagPr>, <webPublishing>",
               "read": "preserved",
               "write": "preserved",
               "api": [],
-              "warning": "他形式へ変換すると dropped",
+              "warning": "Converting to another format: dropped",
               "evidence": "code",
-              "note": "<workbook> の未知の子要素はスキーマ順の位置に戻して書き出す（WorkbookWriter.workbookOrder）。"
+              "note": "Unknown child elements of <workbook> are written back at their place in schema order (WorkbookWriter.workbookOrder)."
             }
           ]
         },
         {
           "id": "worksheet",
-          "name": "ワークシート（xl/worksheets/sheetN.xml）",
+          "name": "Worksheet (xl/worksheets/sheetN.xml)",
           "features": [
             {
               "id": "xlsx.ws.cellvalues",
-              "name": "セルの値（数値・文字・真偽・エラー・インライン文字列）",
+              "name": "Cell values (number, text, boolean, error, inline string)",
               "spec_anchor": "<c t=\"n|s|str|b|e|inlineStr|d\">",
               "read": "full",
               "write": "full",
@@ -317,22 +317,22 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "整数と実数は openpyxl と同じ分け方（.integer / .number(Decimal)）。日付は CivilDate で、時間帯を持たない。"
+              "note": "Integers and reals are split the same way as in openpyxl (.integer / .number(Decimal)). Dates are CivilDate, with no time zone."
             },
             {
               "id": "xlsx.ws.sst",
-              "name": "共有文字列",
+              "name": "Shared strings",
               "spec_anchor": "xl/sharedStrings.xml",
               "read": "full",
               "write": "full",
               "api": [],
               "warning": null,
               "evidence": "code",
-              "note": "書き出しでは自動で共有化する。利用者が意識する API はない。"
+              "note": "Strings are shared automatically on write. There is no API the user needs to think about."
             },
             {
               "id": "xlsx.ws.richtext",
-              "name": "セル内の書式差（リッチテキスト）",
+              "name": "Formatting within a cell (rich text)",
               "spec_anchor": "<is>/<r>/<rPr>",
               "read": "full",
               "write": "full",
@@ -346,7 +346,7 @@
             },
             {
               "id": "xlsx.ws.furigana",
-              "name": "ふりがな（ルビ）",
+              "name": "Furigana (ruby)",
               "spec_anchor": "<rPh>, <phoneticPr>",
               "read": "full",
               "write": "full",
@@ -354,13 +354,13 @@
                 "sheet[cell: \"A1\"].phonetic",
                 "PhoneticText"
               ],
-              "warning": "ODS・Numbers へ書くと「N phonetic guide(s) (furigana) dropped: … the text is kept」",
+              "warning": "Writing to ODS or Numbers: \"N phonetic guide(s) (furigana) dropped: … the text is kept\"",
               "evidence": "measured",
-              "note": "共有文字列の <rPh>（読みと UTF-16 の区間）と <phoneticPr>（書体・変換の種類・配置）を Cell.phonetic に読み書きする。同じ文字で読みの有無が違えば別の項目。openpyxl は読み飛ばすが、こちらは運ぶ（B.70）。"
+              "note": "<rPh> (the reading and its UTF-16 range) and <phoneticPr> (font, conversion type, alignment) in shared strings are read into and written from Cell.phonetic. The same text with and without a reading makes two separate entries. openpyxl skips them; this library carries them (B.70)."
             },
             {
               "id": "xlsx.ws.rows",
-              "name": "行の高さ・非表示・アウトライン段",
+              "name": "Row height, hidden, outline level",
               "spec_anchor": "<row ht customHeight hidden outlineLevel collapsed>",
               "read": "full",
               "write": "full",
@@ -375,7 +375,7 @@
             },
             {
               "id": "xlsx.ws.cols",
-              "name": "列の幅・非表示・アウトライン段・自動幅",
+              "name": "Column width, hidden, outline level, autofit",
               "spec_anchor": "<cols>/<col width bestFit hidden outlineLevel>",
               "read": "full",
               "write": "full",
@@ -386,11 +386,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "autofitColumns は XlsxWriter の幅表に倣う。東アジアの文字は 2 倍幅で測る（付録 B.33）。"
+              "note": "autofitColumns follows XlsxWriter's width table. East Asian characters are measured at double width (Appendix B.33)."
             },
             {
               "id": "xlsx.ws.outline",
-              "name": "行・列のグループ化（アウトライン）",
+              "name": "Row and column grouping (outline)",
               "spec_anchor": "row@outlineLevel, <outlinePr summaryBelow summaryRight>",
               "read": "full",
               "write": "full",
@@ -405,7 +405,7 @@
             },
             {
               "id": "xlsx.ws.merge",
-              "name": "セルの結合",
+              "name": "Merged cells",
               "spec_anchor": "<mergeCells>/<mergeCell>",
               "read": "full",
               "write": "full",
@@ -421,7 +421,7 @@
             },
             {
               "id": "xlsx.ws.hyperlink",
-              "name": "ハイパーリンク",
+              "name": "Hyperlinks",
               "spec_anchor": "<hyperlinks>/<hyperlink r:id location tooltip>",
               "read": "full",
               "write": "full",
@@ -435,7 +435,7 @@
             },
             {
               "id": "xlsx.ws.freeze",
-              "name": "ウィンドウ枠の固定",
+              "name": "Frozen panes",
               "spec_anchor": "<sheetViews>/<sheetView>/<pane state=\"frozen\">",
               "read": "full",
               "write": "full",
@@ -446,11 +446,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "分割（split）は固定として扱う。"
+              "note": "A split pane (split) is treated as frozen."
             },
             {
               "id": "xlsx.ws.sheetview",
-              "name": "シートビュー（表示倍率・目盛線の表示・選択）",
+              "name": "Sheet view (zoom, gridlines shown, selection)",
               "spec_anchor": "<sheetView zoomScale showGridLines tabSelected showRowColHeaders showZeros rightToLeft topLeftCell view>, <selection>",
               "read": "full",
               "write": "full",
@@ -461,11 +461,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "倍率・目盛線・選択に加え、行列見出し・ゼロの表示・右から左・スクロール位置・表示の種類（normal / pageLayout / pageBreakPreview）を読み書きする（B.76）。showFormulas・colorId・表示種類ごとの倍率など残りの属性は持たない（README の既知の限界）。"
+              "note": "Besides zoom, gridlines and selection, the row and column headings, showing zeros, right-to-left, the scroll position and the view type (normal / pageLayout / pageBreakPreview) are read and written (B.76). The remaining attributes, such as showFormulas, colorId and the zoom per view type, are not held (the README's known limits)."
             },
             {
               "id": "xlsx.ws.tabcolor",
-              "name": "タブの色",
+              "name": "Tab colour",
               "spec_anchor": "<sheetPr>/<tabColor>",
               "read": "full",
               "write": "full",
@@ -478,7 +478,7 @@
             },
             {
               "id": "xlsx.ws.protection",
-              "name": "シートの保護（できることを名指しする許可の集合）",
+              "name": "Sheet protection (a set of permissions naming what is allowed)",
               "spec_anchor": "<sheetProtection>",
               "read": "full",
               "write": "full",
@@ -489,11 +489,11 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "ファイルは「禁止」を書くが、API は「許可」で名づけた。実機 Excel が開錠を確認済み。"
+              "note": "The file records what is forbidden, but the API is named for what is allowed. Unlocking has been confirmed in Excel itself."
             },
             {
               "id": "xlsx.ws.protectedranges",
-              "name": "保護シート内の編集できる窓",
+              "name": "Editable windows in a protected sheet",
               "spec_anchor": "<protectedRanges>/<protectedRange>",
               "read": "full",
               "write": "full",
@@ -503,11 +503,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODS・Numbers には無い。変換すると落ちて警告。"
+              "note": "ODS and Numbers have none. Converting drops them, with a warning."
             },
             {
               "id": "xlsx.ws.scenarios",
-              "name": "シナリオ（入力値の組の記録）",
+              "name": "Scenarios (recorded sets of input values)",
               "spec_anchor": "<scenarios>/<scenario>/<inputCells>",
               "read": "full",
               "write": "full",
@@ -522,18 +522,18 @@
             },
             {
               "id": "xlsx.ws.watches",
-              "name": "無視するエラー・セルウォッチ・カスタムシートビュー・データ統合",
+              "name": "Ignored errors, cell watches, custom sheet views, data consolidation",
               "spec_anchor": "<ignoredErrors>, <cellWatches>, <customSheetViews>, <dataConsolidate>",
               "read": "preserved",
               "write": "preserved",
               "api": [],
-              "warning": "他形式へ変換すると dropped",
+              "warning": "Converting to another format: dropped",
               "evidence": "code",
-              "note": "<worksheet> の未知の子要素はスキーマ順に戻す（WorkbookWriter.worksheetOrder）。統合だけは ODF が文書に持てる（ODS の表を参照）。"
+              "note": "Unknown child elements of <worksheet> are put back in schema order (WorkbookWriter.worksheetOrder). Of these, only consolidation is something an ODF document can hold (see the ODS table)."
             },
             {
               "id": "xlsx.ws.multitable",
-              "name": "1 つのシートに複数の表",
+              "name": "Several tables on one sheet",
               "spec_anchor": "—",
               "read": "na",
               "write": "na",
@@ -542,17 +542,17 @@
               ],
               "warning": "「N other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)」",
               "evidence": "measured",
-              "note": "ワークシートは 1 枚のグリッド。Numbers から来た複数の表は、先頭以外を落として言う。"
+              "note": "A worksheet is a single grid. Of several tables coming from Numbers, all but the first are dropped, with a warning."
             }
           ]
         },
         {
           "id": "formula",
-          "name": "数式",
+          "name": "Formulas",
           "features": [
             {
               "id": "xlsx.formula.normal",
-              "name": "数式（構文木として保持）",
+              "name": "Formulas (held as a syntax tree)",
               "spec_anchor": "<f>",
               "read": "full",
               "write": "full",
@@ -563,22 +563,22 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "行の挿入・削除・シート名の変更に参照が追従する（openpyxl は追従しない）。"
+              "note": "References follow row insertion and deletion and sheet renames (openpyxl's do not)."
             },
             {
               "id": "xlsx.formula.shared",
-              "name": "共有数式",
+              "name": "Shared formulas",
               "spec_anchor": "<f t=\"shared\" si ref>",
               "read": "full",
               "write": "full",
               "api": [],
               "warning": null,
               "evidence": "code",
-              "note": "読むときに展開する。書き出しは通常の数式として書く。"
+              "note": "Expanded on read. Written out as ordinary formulas."
             },
             {
               "id": "xlsx.formula.array",
-              "name": "配列数式（範囲つき）",
+              "name": "Array formulas (with their range)",
               "spec_anchor": "<f t=\"array\" ref>",
               "read": "full",
               "write": "full",
@@ -591,7 +591,7 @@
             },
             {
               "id": "xlsx.formula.cached",
-              "name": "数式のキャッシュ値",
+              "name": "Cached formula values",
               "spec_anchor": "<c><v>",
               "read": "full",
               "write": "full",
@@ -601,56 +601,56 @@
               ],
               "warning": null,
               "evidence": "code",
-              "note": "formulaCells: .cachedValues で値だけを読む道もある。"
+              "note": "formulaCells: .cachedValues also offers a way to read the values alone."
             },
             {
               "id": "xlsx.formula.nesting",
-              "name": "数式の入れ子（64 段まで）",
-              "spec_anchor": "Excel 自身の上限",
+              "name": "Formula nesting (up to 64 levels)",
+              "spec_anchor": "Excel's own limit",
               "read": "partial",
               "write": "partial",
               "api": [
                 "FormulaExpr.unparsed"
               ],
-              "warning": "なし（同じ形式へ書き戻すかぎり無損失）",
+              "warning": "None (lossless as long as it is written back to the same format)",
               "evidence": "readme",
-              "note": "64 段を超える式は文字のまま持ち、そのまま書き戻す。行の挿入に追従せず、方言も翻訳しない。"
+              "note": "A formula nested deeper than 64 levels is held as text and written back unchanged. It does not follow row insertion, and its dialect is not translated."
             },
             {
               "id": "xlsx.formula.remote",
-              "name": "株価・為替の関数（STOCK・CURRENCY など 6 種）",
+              "name": "Stock and currency functions (6 functions, such as STOCK and CURRENCY)",
               "spec_anchor": "—",
               "read": "na",
               "write": "partial",
               "api": [
                 "FormulaExpr.remoteDataFunction"
               ],
-              "warning": "キャッシュしてあった値を式の代わりに書き、そう言う",
+              "warning": "The cached value is written in place of the formula, with a warning saying so",
               "evidence": "measured",
-              "note": "Numbers だけが計算し直せる関数で、Excel に同名の関数が無い。取ってあった値を書いて言う——Numbers 自身が Excel へ書き出すときと同じ置き換え（付録 B.27）。"
+              "note": "Functions that only Numbers can recalculate; Excel has no function of that name. The value that had been fetched is written, and the warning says so: the same substitution Numbers itself makes when it exports to Excel (Appendix B.27)."
             },
             {
               "id": "xlsx.formula.unknownfn",
-              "name": "未知の関数・新しい関数（_xlfn 接頭辞・動的配列）",
+              "name": "Unknown and newer functions (_xlfn prefix, dynamic arrays)",
               "spec_anchor": "_xlfn.*",
               "read": "partial",
               "write": "partial",
               "api": [
                 "FormulaExpr"
               ],
-              "warning": "なし（名前のまま運ぶ）",
+              "warning": "None (carried by name)",
               "evidence": "code",
-              "note": "関数の意味は解釈しない。名前と引数の木として運ぶので、同形式なら壊れない。"
+              "note": "The meaning of a function is not interpreted. It is carried as a name and a tree of arguments, so it survives within the same format."
             }
           ]
         },
         {
           "id": "styles",
-          "name": "スタイル（xl/styles.xml）",
+          "name": "Styles (xl/styles.xml)",
           "features": [
             {
               "id": "xlsx.style.cell",
-              "name": "フォント・塗り・罫線・配置・表示形式",
+              "name": "Fonts, fills, borders, alignment, number formats",
               "spec_anchor": "<fonts> <fills> <borders> <numFmts> <cellXfs>",
               "read": "full",
               "write": "full",
@@ -664,11 +664,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "書き出しは元のフォント／塗り／罫線の表の上に積むので、索引で参照される項目の位置が動かない。"
+              "note": "Writing appends to the original font / fill / border tables, so entries referenced by index do not move."
             },
             {
               "id": "xlsx.style.gradient",
-              "name": "グラデーションの塗り",
+              "name": "Gradient fills",
               "spec_anchor": "<gradientFill>",
               "read": "full",
               "write": "full",
@@ -678,11 +678,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODS・Numbers はセルに 1 色しか持てないので、変換すると最初の色になり警告が出る。"
+              "note": "ODS and Numbers can hold only one colour per cell, so converting keeps the first colour and returns a warning."
             },
             {
               "id": "xlsx.style.named",
-              "name": "名前付きセルスタイル",
+              "name": "Named cell styles",
               "spec_anchor": "<cellStyles>, <cellStyleXfs>",
               "read": "full",
               "write": "full",
@@ -697,7 +697,7 @@
             },
             {
               "id": "xlsx.style.dxf",
-              "name": "差分書式（条件付き書式・テーブルが指す書式）",
+              "name": "Differential formats (the formats conditional formatting and tables point to)",
               "spec_anchor": "<dxfs>/<dxf>",
               "read": "full",
               "write": "full",
@@ -708,11 +708,11 @@
               ],
               "warning": null,
               "evidence": "code",
-              "note": "全ての欄が省略可。nil は「そのままにする」の意味。"
+              "note": "Every field is optional. nil means \"leave as is\"."
             },
             {
               "id": "xlsx.style.theme",
-              "name": "テーマ（配色・書体）",
+              "name": "Theme (colours, fonts)",
               "spec_anchor": "xl/theme/theme1.xml, Color.theme",
               "read": "full",
               "write": "full",
@@ -726,28 +726,28 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "テーマ部品の 12 色と 2 書体を wb.theme に読む。触らなければ部品はバイトのまま、変えれば同じパスに作り直す。wb.rgb(of:) がテーマ色（濃淡つき）と索引色を RGB に解決し、ODS・Numbers の書き手はその色を書く（従来の「written as default」警告は解決できない色だけに残る）（B.71）。"
+              "note": "The theme part's 12 colours and 2 fonts are read into wb.theme. Left untouched, the part stays byte for byte; changed, it is rebuilt at the same path. wb.rgb(of:) resolves theme colours (with tint) and indexed colours to RGB, and the ODS and Numbers writers write that colour (the former \"written as default\" warning remains only for colours that cannot be resolved) (B.71)."
             },
             {
               "id": "xlsx.style.tablestyles",
-              "name": "テーブルスタイル定義",
+              "name": "Table style definitions",
               "spec_anchor": "<tableStyles>",
               "read": "preserved",
               "write": "preserved",
               "api": [],
               "warning": null,
               "evidence": "code",
-              "note": "そのまま複写する。索引がずれないことを優先。"
+              "note": "Copied as is. Keeping the indexes from shifting comes first."
             }
           ]
         },
         {
           "id": "cf",
-          "name": "条件付き書式",
+          "name": "Conditional formatting",
           "features": [
             {
               "id": "xlsx.cf.rules",
-              "name": "規則 17 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）",
+              "name": "17 kinds of rule (comparison, formula, text, top/bottom, above/below average, duplicate/unique, blank/error, time period)",
               "spec_anchor": "<conditionalFormatting>/<cfRule type operator>",
               "read": "full",
               "write": "full",
@@ -757,11 +757,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "優先順位はシート内で 1…n に振り直す。"
+              "note": "Priorities are renumbered 1…n within the sheet."
             },
             {
               "id": "xlsx.cf.scales",
-              "name": "カラースケール・データバー・アイコンセット",
+              "name": "Colour scales, data bars, icon sets",
               "spec_anchor": "<colorScale> <dataBar> <iconSet> <cfvo>",
               "read": "full",
               "write": "full",
@@ -777,28 +777,28 @@
             },
             {
               "id": "xlsx.cf.ext",
-              "name": "拡張の条件付き書式（負のデータバー・独自アイコン）",
+              "name": "Extension conditional formatting (negative data bars, custom icons)",
               "spec_anchor": "<cfRule><extLst> x14:id, <extLst> x14:conditionalFormattings / x14:dataBar / x14:iconSet",
               "read": "partial",
               "write": "partial",
               "api": [
-                "DataBar.negativeColor / axisColor / axisPosition / direction / isGradient / borderColor",
+                "DataBar.negativeColor / axisColor / axisPosition / direction / gradient / borderColor",
                 "IconSet.customIcons",
                 "sheet.hasUnmodelledConditionalFormats"
               ],
-              "warning": "2010 だけの規則（x14 の cfRule に 2007 形式が無い物）は規則を作り直すとき「N conditional format(s) of Excel 2010's extension dropped」",
+              "warning": "Rules that exist only in 2010 (an x14 cfRule with no 2007 form), when the rules are rebuilt: \"N conditional format(s) of Excel 2010's extension dropped\"",
               "evidence": "measured",
-              "note": "データバーの負の色・軸の色と位置・向き・単色・枠と、独自アイコンのアイコンセットは x14 の拡張から規則に畳み込んで読み、規則と並べて作り直す（B.82）。x14 だけの規則の種類は持たず、作り直しで落として言う。"
+              "note": "A data bar's negative colour, axis colour and position, direction, solid fill and border, and icon sets with custom icons, are folded from the x14 extension into the rule on read, and rebuilt beside the rule (B.82). Rule types that exist only in x14 are not held; a rebuild drops them, with a warning."
             }
           ]
         },
         {
           "id": "validation",
-          "name": "入力規則",
+          "name": "Data validation",
           "features": [
             {
               "id": "xlsx.dv.rules",
-              "name": "入力規則（リスト・数値・日付・文字数・カスタム）",
+              "name": "Data validation (list, number, date, text length, custom)",
               "spec_anchor": "<dataValidations>/<dataValidation type operator>",
               "read": "full",
               "write": "full",
@@ -808,30 +808,30 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "hidesDropDown は、反転した showDropDown 属性の「意味」で名づけた。"
+              "note": "hidesDropDown is named for what the inverted showDropDown attribute actually means."
             },
             {
               "id": "xlsx.dv.ext",
-              "name": "拡張の入力規則（別シートを直接指すリストなど）",
+              "name": "Extension data validation (such as a list pointing straight at another sheet)",
               "spec_anchor": "<extLst> x14:dataValidations",
               "read": "partial",
               "write": "partial",
               "api": [
                 "sheet.hasUnmodelledValidations"
               ],
-              "warning": "フラグが立つ",
+              "warning": "A flag is set",
               "evidence": "code",
-              "note": "ファイル自身のブロックを保持して書き戻す。"
+              "note": "The file's own block is kept and written back."
             }
           ]
         },
         {
           "id": "tables",
-          "name": "テーブル・フィルタ・並べ替え",
+          "name": "Tables, filters, sorting",
           "features": [
             {
               "id": "xlsx.table.part",
-              "name": "名前付きテーブル",
+              "name": "Named tables",
               "spec_anchor": "xl/tables/tableN.xml, <tableParts>",
               "read": "full",
               "write": "full",
@@ -841,13 +841,13 @@
                 "StructuredTable",
                 "TableStyleInfo"
               ],
-              "warning": "名前が重複すると「named table not written」",
+              "warning": "A duplicate name: \"named table not written\"",
               "evidence": "measured",
-              "note": "パート・コンテンツタイプ・リレーション・<tableParts> をすべて生成する。"
+              "note": "The part, its content type, its relationship and <tableParts> are all generated."
             },
             {
               "id": "xlsx.filter.auto",
-              "name": "オートフィルタ（範囲）",
+              "name": "AutoFilter (the range)",
               "spec_anchor": "<autoFilter ref>",
               "read": "full",
               "write": "full",
@@ -861,7 +861,7 @@
             },
             {
               "id": "xlsx.filter.columns",
-              "name": "絞り込み条件（値の一覧・比較・色・アイコン・動的・上位 10・日付グループ）",
+              "name": "Filter criteria (value list, comparison, colour, icon, dynamic, top 10, date group)",
               "spec_anchor": "<filterColumn> <filters> <customFilters> <colorFilter> <iconFilter> <dynamicFilter> <top10>",
               "read": "full",
               "write": "full",
@@ -880,20 +880,20 @@
             },
             {
               "id": "xlsx.filter.ext",
-              "name": "拡張のフィルタ",
+              "name": "Extension filters",
               "spec_anchor": "<extLst> x14:filter",
               "read": "preserved",
               "write": "preserved",
               "api": [
                 "sheet.hasUnmodelledFilters"
               ],
-              "warning": "フラグが立つ",
+              "warning": "A flag is set",
               "evidence": "code",
-              "note": "元の XML をそのまま保持する。"
+              "note": "The original XML is kept as is."
             },
             {
               "id": "xlsx.sort",
-              "name": "並べ替えの記録",
+              "name": "Recorded sort",
               "spec_anchor": "<sortState>/<sortCondition>",
               "read": "full",
               "write": "full",
@@ -908,24 +908,24 @@
             },
             {
               "id": "xlsx.slicer",
-              "name": "スライサー",
+              "name": "Slicers",
               "spec_anchor": "xl/slicers/, xl/slicerCaches/",
               "read": "preserved",
               "write": "preserved",
               "api": [],
-              "warning": "他形式へ変換すると objects の dropped",
+              "warning": "Converting to another format: dropped (objects)",
               "evidence": "code",
-              "note": "モデル化していない。同形式の保存ではパートごとそのまま残る。"
+              "note": "Not modelled. Saved to the same format, the parts stay as they are."
             }
           ]
         },
         {
           "id": "pivot",
-          "name": "ピボットテーブル",
+          "name": "Pivot tables",
           "features": [
             {
               "id": "xlsx.pivot.table",
-              "name": "ピボットテーブルの配置（行・列・値・レポートフィルタ）",
+              "name": "Pivot table layout (rows, columns, values, report filter)",
               "spec_anchor": "xl/pivotTables/pivotTableN.xml",
               "read": "full",
               "write": "full",
@@ -936,13 +936,13 @@
                 "PivotField",
                 "PivotDataField"
               ],
-              "warning": "解析できないパートは「could not be parsed; the pivot table it describes was skipped」",
+              "warning": "A part that cannot be parsed: \"could not be parsed; the pivot table it describes was skipped\"",
               "evidence": "measured",
-              "note": "配置は書くが数字は書かない。開いたアプリが元の範囲から計算し直す。"
+              "note": "The layout is written, the figures are not. The application that opens the file recomputes them from the source range."
             },
             {
               "id": "xlsx.pivot.cache",
-              "name": "ピボットキャッシュ（定義とレコード）",
+              "name": "Pivot cache (definition and records)",
               "spec_anchor": "xl/pivotCache/pivotCacheDefinitionN.xml, pivotCacheRecordsN.xml",
               "read": "full",
               "write": "full",
@@ -953,17 +953,17 @@
               ],
               "warning": null,
               "evidence": "code",
-              "note": "レコード部は XML のまま持ち運ぶ。2 回目の保存で壊れていた欠陥は 2026-08-27 に修正済み。"
+              "note": "The records part is carried as XML. A defect that broke it on the second save was fixed on 2026-08-27."
             }
           ]
         },
         {
           "id": "drawing",
-          "name": "描画とオブジェクト",
+          "name": "Drawings and objects",
           "features": [
             {
               "id": "xlsx.draw.image",
-              "name": "画像の埋め込み（マスに置く・範囲に合わせる）",
+              "name": "Embedded images (placed in a cell, fitted to a range)",
               "spec_anchor": "xl/media/, xl/drawings/drawingN.xml, <twoCellAnchor> <oneCellAnchor>",
               "read": "full",
               "write": "full",
@@ -975,13 +975,13 @@
                 "sheet.images",
                 "SheetImage.Anchor.absolute"
               ],
-              "warning": "他形式へ変換すると dropped",
+              "warning": "Converting to another format: dropped",
               "evidence": "measured",
-              "note": "PNG / JPEG / GIF。形式と画素数はバイトから読む。読み: drawing 部品の錨（1 セル・2 セル・絶対位置）と media 部品を sheet.images に読む（B.72）。触らなければ部品はバイトのまま、足せば継ぎ足し、変える・消すと図面を作り直して言う。他の形式（BMP・EMF など）の絵は模型に入れず、作り直しで落ちると言う。"
+              "note": "PNG / JPEG / GIF; the format and pixel size are read from the bytes. Reading: the drawing part's anchors (one-cell, two-cell, absolute) and the media parts go into sheet.images (B.72). Left untouched, the parts stay byte for byte; an addition is spliced in; a change or removal rebuilds the drawing, with a warning. Pictures in other formats (BMP, EMF and so on) are not taken into the model, and a rebuild drops them, with a warning."
             },
             {
               "id": "xlsx.draw.chart",
-              "name": "グラフ（縦棒・横棒・折れ線・円）",
+              "name": "Charts (column, bar, line, pie)",
               "spec_anchor": "xl/charts/chartN.xml",
               "read": "full",
               "write": "partial",
@@ -992,13 +992,13 @@
                 "sheet.charts",
                 "Chart.Series.nameReference"
               ],
-              "warning": "系列のないグラフは「a … chart with no series was not written」／描けない種類は「a … chart was not written: the writer draws column, bar, line and pie charts」／他形式へは dropped",
+              "warning": "A chart with no series: \"a … chart with no series was not written\" / a kind it cannot draw: \"a … chart was not written: the writer draws column, bar, line and pie charts\" / to another format: dropped",
               "evidence": "measured",
-              "note": "書けるのは 4 種、読めるのは全種（種類は Chart.Kind の raw に要素名で残る・B.69）。読んだグラフは触らなければバイトのまま（B.72）。openpyxl が型・表題・系列・参照まで一致で読み、LibreOffice の PDF で描画を確認（付録 B.34）。"
+              "note": "4 kinds are written, every kind is read (the kind stays in Chart.Kind's raw as the element name, B.69). A chart that was read stays byte for byte if untouched (B.72). openpyxl reads type, title, series and references in agreement, and the rendering was checked in LibreOffice's PDF (Appendix B.34)."
             },
             {
               "id": "xlsx.draw.comment",
-              "name": "メモ（セルのコメント）",
+              "name": "Notes (cell comments)",
               "spec_anchor": "xl/comments1.xml + legacy VML",
               "read": "full",
               "write": "full",
@@ -1008,12 +1008,12 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "コメント部と、その相棒の VML の両方を書く。"
+              "note": "Both the comments part and its companion VML are written."
             },
             {
               "id": "xlsx.draw.threaded",
-              "name": "スレッド形式のコメント",
-              "spec_anchor": "xl/threadedComments/threadedCommentN.xml, xl/persons/person.xml, comments の鏡",
+              "name": "Threaded comments",
+              "spec_anchor": "xl/threadedComments/threadedCommentN.xml, xl/persons/person.xml, the mirror in comments",
               "read": "full",
               "write": "full",
               "api": [
@@ -1021,13 +1021,13 @@
                 "CommentThread",
                 "sheet.threads"
               ],
-              "warning": "他形式へは「N threaded comment(s) written as notes …」（substituted）",
+              "warning": "To another format: \"N threaded comment(s) written as notes …\" (substituted)",
               "evidence": "measured",
-              "note": "本文・返信・解決済み・日時・人の名を読み書きする（B.80）。古い読み手向けの鏡のメモは隠し、書き戻しで作り直す。触らなければ 4 部品はバイトのまま、変えれば作り直して人の id は保つ。Excel 製の検体は無く、公開の部品構成から手作りした検体で検査している（手動一覧）。"
+              "note": "Text, replies, resolved state, dates and people's names are read and written (B.80). The mirror notes for older readers are hidden and rebuilt on write-back. Left untouched, the 4 parts stay byte for byte; changed, they are rebuilt and the person ids are kept. There is no Excel-made specimen; the checks use a specimen built by hand from the published part layout (manual checklist)."
             },
             {
               "id": "xlsx.draw.shapes",
-              "name": "図形・テキストボックス・SmartArt・背景画像",
+              "name": "Shapes, text boxes, SmartArt, background images",
               "spec_anchor": "<xdr:sp>, <xdr:cxnSp>, <xdr:grpSp>, dgm:*, <picture>",
               "read": "partial",
               "write": "partial",
@@ -1037,45 +1037,45 @@
                 "sheet.addTextBox(_:over:font:)",
                 "Shape.Geometry"
               ],
-              "warning": "作り直しで落ちる物は「N object(s) of the sheet's drawing the model could not read (a group of shapes, SmartArt) dropped」／プリセットに無い幾何は「written as a rectangle」",
+              "warning": "What a rebuild drops: \"N object(s) of the sheet's drawing the model could not read (a group of shapes, SmartArt) dropped\" / a geometry with no preset: \"written as a rectangle\"",
               "evidence": "measured",
-              "note": "図形とテキストボックス（xdr:sp / xdr:cxnSp）は読み書きする: プリセットの幾何・文と 1 書体・揃え・塗り・線・錨（B.75）。回転・影・グラデーション・段落ごとの書式は持たず、触らなければバイトのまま残る。SmartArt（dgm: の 4 部品）と図形のグループは模型に入れず「あった」と控え、同じ形式に触らず保存すればバイトのまま、図面を作り直すときは名指しで落とす。背景画像は保全のまま。LibreOffice が書いた 7 図形を読み、書いた図形を LibreOffice が読む（gated）。"
+              "note": "Shapes and text boxes (xdr:sp / xdr:cxnSp) are read and written: preset geometry, text with one font, alignment, fill, outline, anchor (B.75). Rotation, shadows, gradients and per-paragraph formatting are not held, and stay byte for byte if untouched. SmartArt (the 4 dgm: parts) and groups of shapes are not taken into the model but noted as present: saved untouched to the same format they stay byte for byte, and a rebuild of the drawing drops them by name. Background images remain under preservation. It reads 7 shapes LibreOffice wrote, and LibreOffice reads the shapes it writes (gated)."
             },
             {
               "id": "xlsx.draw.ole",
-              "name": "OLE オブジェクト・ActiveX コントロール",
+              "name": "OLE objects, ActiveX controls",
               "spec_anchor": "<oleObjects>, <controls>",
               "read": "preserved",
               "write": "preserved",
               "api": [],
-              "warning": "他形式へ変換すると dropped",
+              "warning": "Converting to another format: dropped",
               "evidence": "code",
               "note": null
             },
             {
               "id": "xlsx.draw.sparkline",
-              "name": "スパークライン",
+              "name": "Sparklines",
               "spec_anchor": "<extLst> x14:sparklineGroups, x14:sparklineGroup, x14:sparkline",
               "read": "full",
               "write": "full",
               "api": [
                 "sheet.sparklines",
-                "sheet.addSparkline(_:data:at:)",
+                "sheet.addSparkline(_:dataRange:at:)",
                 "SparklineGroup"
               ],
-              "warning": "Numbers へは「N sparkline group(s) dropped: Numbers has no sparklines」",
+              "warning": "To Numbers: \"N sparkline group(s) dropped: Numbers has no sparklines\"",
               "evidence": "measured",
-              "note": "種類（line / column / stacked）・色 8 つ・点の表示・空セルの扱い・1 群に複数のスパークラインを読み書きする（B.79）。触らなければ extLst の拡張はバイトのまま、変えれば拡張だけ作り直して他の拡張は残す。ODS は LibreOffice の calcext:sparkline-groups で運び、LibreOffice が両方向に変換する（gated テスト）。"
+              "note": "Type (line / column / stacked), 8 colours, marker display, empty-cell handling and several sparklines per group are read and written (B.79). Left untouched, the extLst extension stays byte for byte; changed, only that extension is rebuilt and the other extensions remain. ODS carries them as LibreOffice's calcext:sparkline-groups, and LibreOffice converts them in both directions (gated test)."
             }
           ]
         },
         {
           "id": "print",
-          "name": "印刷",
+          "name": "Printing",
           "features": [
             {
               "id": "xlsx.print.setup",
-              "name": "用紙・向き・拡大率・先頭ページ番号",
+              "name": "Paper, orientation, scale, first page number",
               "spec_anchor": "<pageSetup>",
               "read": "full",
               "write": "full",
@@ -1089,7 +1089,7 @@
             },
             {
               "id": "xlsx.print.margins",
-              "name": "余白・中央寄せ・目盛線と見出しの印刷",
+              "name": "Margins, centering, printing gridlines and headings",
               "spec_anchor": "<pageMargins>, <printOptions>",
               "read": "full",
               "write": "full",
@@ -1105,7 +1105,7 @@
             },
             {
               "id": "xlsx.print.headerfooter",
-              "name": "ヘッダー／フッター",
+              "name": "Header/footer",
               "spec_anchor": "<headerFooter> oddHeader/&L&C&R",
               "read": "full",
               "write": "full",
@@ -1115,11 +1115,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "Excel の書式コード文字列のまま持つ（分解しない）。"
+              "note": "Held as Excel's format-code string (not broken apart)."
             },
             {
               "id": "xlsx.print.breaks",
-              "name": "改ページ",
+              "name": "Page breaks",
               "spec_anchor": "<rowBreaks>, <colBreaks>",
               "read": "full",
               "write": "full",
@@ -1133,7 +1133,7 @@
             },
             {
               "id": "xlsx.print.area",
-              "name": "印刷範囲・繰り返すタイトル行／列",
+              "name": "Print area, repeated title rows/columns",
               "spec_anchor": "_xlnm.Print_Area, _xlnm.Print_Titles",
               "read": "full",
               "write": "full",
@@ -1151,51 +1151,51 @@
         },
         {
           "id": "macro",
-          "name": "マクロと外部連携",
+          "name": "Macros and external connections",
           "features": [
             {
               "id": "xlsx.macro.vba",
-              "name": "VBA マクロ（.xlsm）",
+              "name": "VBA macros (.xlsm)",
               "spec_anchor": "xl/vbaProject.bin",
               "read": "preserved",
               "write": "preserved",
               "api": [
                 "wb.write(to:as: .xlsm)"
               ],
-              "warning": ".xlsx へ書くと「VBA project dropped: macros cannot be kept in .xlsx」",
+              "warning": "Writing to .xlsx: \"VBA project dropped: macros cannot be kept in .xlsx\"",
               "evidence": "measured",
-              "note": "不透明なバイトとして保持するだけで、実行はしない。"
+              "note": "Only kept as opaque bytes; never executed."
             },
             {
               "id": "xlsx.macro.connections",
-              "name": "外部データ接続・クエリテーブル・Web クエリ",
+              "name": "External data connections, query tables, web queries",
               "spec_anchor": "xl/connections.xml, xl/queryTables/",
               "read": "preserved",
               "write": "preserved",
               "api": [],
-              "warning": "他形式へ変換すると dropped",
+              "warning": "Converting to another format: dropped",
               "evidence": "code",
               "note": null
             },
             {
               "id": "xlsx.macro.richvalue",
-              "name": "リッチ値（株価・地理などのデータ型）",
+              "name": "Rich values (data types such as stocks and geography)",
               "spec_anchor": "c@cm, c@vm, xl/richData/",
               "read": "none",
               "write": "none",
               "api": [],
-              "warning": "なし（README の既知の限界）",
+              "warning": "None (the README's known limits)",
               "evidence": "readme",
-              "note": "cm / vm 属性は保全の対象外。ここは正直な穴で、README に書いてある。"
+              "note": "The cm / vm attributes are outside preservation. This is an honest gap, and the README says so."
             },
             {
               "id": "xlsx.macro.customxml",
-              "name": "カスタム XML パート",
+              "name": "Custom XML parts",
               "spec_anchor": "customXml/",
               "read": "preserved",
               "write": "preserved",
               "api": [],
-              "warning": "他形式へ変換すると dropped",
+              "warning": "Converting to another format: dropped",
               "evidence": "code",
               "note": null
             }
@@ -1203,11 +1203,11 @@
         },
         {
           "id": "sheettypes",
-          "name": "ワークシート以外のシート",
+          "name": "Sheets other than worksheets",
           "features": [
             {
               "id": "xlsx.sheettype.chartsheet",
-              "name": "グラフシート・ダイアログシート・マクロシート",
+              "name": "Chart sheets, dialog sheets, macro sheets",
               "spec_anchor": "xl/chartsheets/, <chartsheet>",
               "read": "preserved",
               "write": "preserved",
@@ -1215,20 +1215,20 @@
                 "sheet.contentState",
                 "SheetContentState"
               ],
-              "warning": "読むと「a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived」。そのシートにセルを書き込むと「N cell(s) … are not saved」。他形式へ変換すると dropped",
+              "warning": "On read: \"a chart sheet has no grid the model can read; … written back to .xlsx exactly as it arrived\". Writing cells into such a sheet: \"N cell(s) … are not saved\". Converting to another format: dropped",
               "evidence": "judge",
-              "note": "ワークシートではないシート。ブックはワークシートと並べて挙げるが、部品の根は <chartsheet> で、モデルには中身を言う言葉がない。だから解釈せずに運ぶ——部品はバイトのまま出入りし、コンテンツタイプと関係の種別も元のまま。検体は Excel 16.112.2 自身に作らせ（Tests/FixtureGenerator/make_chartsheet_fixture.py）、書き戻した結果は LibreOffice が元と同じページ数に描くことで確かめている（付録 B.35）。"
+              "note": "Sheets that are not worksheets. The workbook lists them alongside the worksheets, but the part's root is <chartsheet>, and the model has no words for what it holds. So they are carried uninterpreted: the part goes in and out byte for byte, and its content type and relationship type stay as they were. The specimen was made by Excel 16.112.2 itself (Tests/FixtureGenerator/make_chartsheet_fixture.py), and the written-back result is checked by LibreOffice rendering it to the same number of pages as the original (Appendix B.35)."
             }
           ]
         },
         {
           "id": "streaming",
-          "name": "大きなファイル",
+          "name": "Large files",
           "features": [
             {
               "id": "xlsx.stream.read",
-              "name": "行ごとの読み出し（全体をメモリに載せない）",
-              "spec_anchor": "xl/worksheets/sheetN.xml の逐次解析",
+              "name": "Row-by-row reading (without loading everything into memory)",
+              "spec_anchor": "Streaming parse of xl/worksheets/sheetN.xml",
               "read": "partial",
               "write": "na",
               "api": [
@@ -1237,14 +1237,14 @@
                 "rows(inSheet:)",
                 "StreamedRow"
               ],
-              "warning": "なし（値と書式だけと明記）",
+              "warning": "None (documented as values and formatting only)",
               "evidence": "readme",
-              "note": "100 万マスで 23 MB（モデル全体は 221 MB — docs/performance.json）。結合・メモ・保全は運ばない。傘の StreamingReader は ODS・Numbers・CSV も同じ呼び方で開く（付録 B.40）。"
+              "note": "23 MB for a million cells (221 MB for the whole model — docs/performance.json). Merges, notes and preservation are not carried. The umbrella's StreamingReader opens ODS, Numbers and CSV with the same call (Appendix B.40)."
             },
             {
               "id": "xlsx.stream.write",
-              "name": "行ごとの書き出し",
-              "spec_anchor": "同上",
+              "name": "Row-by-row writing",
+              "spec_anchor": "Same as above",
               "read": "na",
               "write": "partial",
               "api": [
@@ -1254,22 +1254,22 @@
                 "close()",
                 "warnings"
               ],
-              "warning": "なし",
+              "warning": "None",
               "evidence": "readme",
-              "note": "行数によらず数 MB。値と書式だけ。傘の StreamingWriter は拡張子で形式を決め、ODS・Numbers・CSV にも同じ呼び方で書く（付録 B.42）。"
+              "note": "A few MB whatever the row count. Values and formatting only. The umbrella's StreamingWriter picks the format from the extension and writes ODS, Numbers and CSV with the same call too (Appendix B.42)."
             },
             {
               "id": "xlsx.limit.cells",
-              "name": "セル数の上限",
-              "spec_anchor": "ReadOptions.cellLimit（既定は上限なし — 付録 B.39.2）",
+              "name": "Cell count limit",
+              "spec_anchor": "ReadOptions.cellLimit (no limit by default — Appendix B.39.2)",
               "read": "partial",
               "write": "na",
               "api": [
                 "ReadOptions(cellLimit:)"
               ],
-              "warning": "degraded の警告で「読み取りをここで止めた」と言う",
+              "warning": "A degraded warning says \"reading stopped here\"",
               "evidence": "readme",
-              "note": "黙って途中で止めない。上限は読む側が決め、Workbook.inspect が決める材料を出す。"
+              "note": "Reading never stops partway in silence. The reader sets the limit, and Workbook.inspect provides what is needed to decide it."
             }
           ]
         }
@@ -1277,20 +1277,20 @@
     },
     {
       "id": "ods",
-      "name": "OpenDocument 表計算（.ods）",
+      "name": "OpenDocument spreadsheet (.ods)",
       "spec": {
         "name": "OASIS OpenDocument Format 1.3 — Part 3 (Schema) / Part 4 (OpenFormula)",
         "public": true,
-        "note": "公開仕様。要素名は OASIS ODF 1.3 の RelaxNG スキーマから採った。条件付き書式の richer な部分だけは本体仕様に置き場所がなく、LibreOffice の拡張名前空間 calcext: が事実上の正になっている。"
+        "note": "Public specification. The element names are taken from the OASIS ODF 1.3 RelaxNG schema. Only the richer parts of conditional formatting have no place in the main specification; for those, LibreOffice's extension namespace calcext: is the de facto standard."
       },
       "areas": [
         {
           "id": "package",
-          "name": "パッケージ",
+          "name": "Package",
           "features": [
             {
               "id": "ods.package.zip",
-              "name": "ODF パッケージ（mimetype を無圧縮で先頭に置く）",
+              "name": "ODF package (mimetype first, uncompressed)",
               "spec_anchor": "mimetype, META-INF/manifest.xml",
               "read": "full",
               "write": "full",
@@ -1300,22 +1300,22 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "先頭に非圧縮の mimetype を置く決まりを守る。LibreOffice が開き直せることで確認している。"
+              "note": "Follows the rule that an uncompressed mimetype comes first. Confirmed by LibreOffice being able to reopen the file."
             },
             {
               "id": "ods.package.parts",
-              "name": "文書の 4 つの部品",
+              "name": "The document's 4 parts",
               "spec_anchor": "content.xml, styles.xml, meta.xml, settings.xml",
               "read": "full",
               "write": "full",
               "api": [],
               "warning": null,
               "evidence": "code",
-              "note": "settings.xml も読み書きする（ウィンドウ枠の固定など、表示の設定がここに入る）。"
+              "note": "settings.xml is read and written too (view settings, such as frozen panes, live there)."
             },
             {
               "id": "ods.package.encryption",
-              "name": "パスワードによる暗号化",
+              "name": "Password encryption",
               "spec_anchor": "manifest:encryption-data（ODF 1.3 §4.3）",
               "read": "partial",
               "write": "full",
@@ -1327,13 +1327,13 @@
                 "SheetError.wrongPassword",
                 "UnopenableInput.encryptedODF"
               ],
-              "warning": "中核だけでは throw（暗号化されていると名指しし、SheetDecrypt で開けると言う）。誤ったパスワードは wrongPassword。ODF 1.1 の Blowfish 形式は名指しで断る",
+              "warning": "The core alone throws (naming the file as encrypted and saying SheetDecrypt opens it). A wrong password is wrongPassword. ODF 1.1's Blowfish form is refused by name",
               "evidence": "judge",
-              "note": "読みは SheetDecrypt・書きは SheetEncrypt を繋いだとき（0.17.2・Rev 4.29）。中核と 5 つの製品に暗号のコードは入らない（scripts/check-no-crypto.sh が CI で記号表を見る）。AES-CBC ＋ PBKDF2（ODF 1.2 以降、LibreOffice が書く形）を読み書きする。審判は cryptography ライブラリで ODF 1.3 §4.3 を辿る独立実装（付録 B.39.9）。"
+              "note": "Read when SheetDecrypt is linked, written when SheetEncrypt is (0.17.2, Rev 4.29). The core and the 5 products contain no cipher code (scripts/check-no-crypto.sh reads the symbol tables in CI). AES-CBC + PBKDF2 (ODF 1.2 and later, the form LibreOffice writes) is read and written. The judge is an independent implementation that follows ODF 1.3 §4.3 using the cryptography library (Appendix B.39.9)."
             },
             {
               "id": "ods.package.opaque",
-              "name": "埋め込みオブジェクト・画像のパート",
+              "name": "Embedded object and image parts",
               "spec_anchor": "Pictures/, Object N/, ObjectReplacements/",
               "read": "partial",
               "write": "partial",
@@ -1341,13 +1341,13 @@
                 "sheet.images",
                 "sheet.charts"
               ],
-              "warning": "グラフでない埋め込みオブジェクトが残ると「N embedded object(s)/picture(s) of the source ODS are not re-linked」",
+              "warning": "When embedded objects other than charts remain: \"N embedded object(s)/picture(s) of the source ODS are not re-linked\"",
               "evidence": "measured",
-              "note": "絵（Pictures/）とグラフ（Object N/）は模型に読み、書き出しで新しい部品として作り直す（B.73）。数式オブジェクトなどグラフでない埋め込みは持ってはいるが繋がらない、と正直に言う。"
+              "note": "Pictures (Pictures/) and charts (Object N/) are read into the model and rebuilt as new parts on write (B.73). Embeddings that are not charts, such as formula objects, are held but not linked back in, and the warning says so plainly."
             },
             {
               "id": "ods.draw.image",
-              "name": "画像の埋め込み（マスに置く・範囲に合わせる）",
+              "name": "Embedded images (placed in a cell, fitted to a range)",
               "spec_anchor": "Pictures/, draw:frame, draw:image, table:end-cell-address",
               "read": "full",
               "write": "full",
@@ -1358,19 +1358,19 @@
                 "sheet.images",
                 "SheetImage.Anchor.absolute"
               ],
-              "warning": "模型に持てない形式の絵は「a picture in a format the model cannot hold (…) is carried as a part only」",
+              "warning": "A picture in a format the model cannot hold: \"a picture in a format the model cannot hold (…) is carried as a part only\"",
               "evidence": "measured",
-              "note": "PNG / JPEG / GIF を Pictures/ の部品（manifest に media-type）と、錨のセルの中の draw:frame / draw:image で書く（付録 B.43）。寸法は 96 dpi で cm。範囲に合わせる絵は table:end-cell-address を添え、LibreOffice は範囲いっぱいに広げる。元の ODS の Pictures/ とは番号がぶつからない。 読み: セルの中の draw:frame（end-cell-address があれば範囲、無ければ 1 セル）と table:shapes の中の draw:frame（絶対位置）を sheet.images に読む（B.73）。"
+              "note": "PNG / JPEG / GIF are written as a part under Pictures/ (with its media-type in the manifest) and a draw:frame / draw:image inside the anchor cell (Appendix B.43). Sizes are in cm at 96 dpi. A picture fitted to a range gets table:end-cell-address, and LibreOffice stretches it to fill the range. Numbering does not collide with the source ODS's Pictures/. Reading: a draw:frame inside a cell (a range if it has end-cell-address, otherwise 1 cell) and a draw:frame inside table:shapes (absolute position) are read into sheet.images (B.73)."
             }
           ]
         },
         {
           "id": "table",
-          "name": "表・行・列",
+          "name": "Tables, rows, columns",
           "features": [
             {
               "id": "ods.table.sheet",
-              "name": "表（シート）と名前・表示／非表示",
+              "name": "Tables (sheets), names, visibility",
               "spec_anchor": "table:table, table:name, table:display=\"false\"",
               "read": "full",
               "write": "full",
@@ -1385,20 +1385,20 @@
             },
             {
               "id": "ods.table.repeat",
-              "name": "繰り返しによる圧縮（同じ行・同じ列をまとめて書く）",
+              "name": "Compression by repetition (identical rows and columns written once)",
               "spec_anchor": "table:number-rows-repeated, table:number-columns-repeated",
               "read": "full",
               "write": "full",
               "api": [
                 "ReadOptions(cellLimit:)"
               ],
-              "warning": "上限を超えると degraded で「ここで読み取りを止めた」",
+              "warning": "Past the limit, a degraded warning says \"reading stopped here\"",
               "evidence": "code",
-              "note": "ODF はこの圧縮で 170 億セルを 1KB の XML に書ける。既定 100 万セルで止め、必ずそう言う。"
+              "note": "With this compression ODF can describe 17 billion cells in 1 KB of XML. Reading stops at 1 million cells by default, and always says so."
             },
             {
               "id": "ods.table.rowcol",
-              "name": "行の高さ・列の幅・非表示",
+              "name": "Row height, column width, hidden",
               "spec_anchor": "style:row-height, style:column-width, table:visibility",
               "read": "full",
               "write": "full",
@@ -1414,8 +1414,8 @@
             },
             {
               "id": "ods.table.group",
-              "name": "行・列のグループ化（アウトライン）",
-              "spec_anchor": "table:table-row-group（入れ子）",
+              "name": "Row and column grouping (outline)",
+              "spec_anchor": "table:table-row-group (nested)",
               "read": "full",
               "write": "full",
               "api": [
@@ -1424,11 +1424,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODF は段の深さを要素の入れ子で表す。読むときに段の数に直す。"
+              "note": "ODF expresses the depth of levels by nesting elements. Reading turns the nesting into a level number."
             },
             {
               "id": "ods.table.header",
-              "name": "見出し行・見出し列",
+              "name": "Header rows, header columns",
               "spec_anchor": "table:table-header-rows, table:table-header-columns",
               "read": "full",
               "write": "full",
@@ -1441,26 +1441,26 @@
             },
             {
               "id": "ods.table.multi",
-              "name": "1 つのシートに複数の表",
-              "spec_anchor": "table:table を並べる",
+              "name": "Several tables on one sheet",
+              "spec_anchor": "Several table:table elements in sequence",
               "read": "na",
               "write": "na",
               "api": [
                 "sheet.tables"
               ],
-              "warning": "モデルに複数あると「N other table(s) not written」",
+              "warning": "When the model holds several: \"N other table(s) not written\"",
               "evidence": "measured",
-              "note": "ODF は 1 シート＝1 グリッド。Numbers から来た複数の表は、先頭以外を落として言う。"
+              "note": "In ODF, 1 sheet = 1 grid. Of several tables coming from Numbers, all but the first are dropped, with a warning."
             }
           ]
         },
         {
           "id": "cell",
-          "name": "セルと値",
+          "name": "Cells and values",
           "features": [
             {
               "id": "ods.cell.value",
-              "name": "セルの値（浮動小数・パーセント・通貨・日付・時刻・真偽・文字）",
+              "name": "Cell values (float, percentage, currency, date, time, boolean, string)",
               "spec_anchor": "office:value-type=\"float|percentage|currency|date|time|boolean|string\"",
               "read": "full",
               "write": "full",
@@ -1474,20 +1474,20 @@
             },
             {
               "id": "ods.cell.currency",
-              "name": "通貨のセル種別（どの通貨かをデータとして持つ）",
+              "name": "Currency cell type (which currency, held as data)",
               "spec_anchor": "office:value-type=\"currency\", office:currency",
               "read": "full",
               "write": "full",
               "api": [
                 "CellStyle.numberFormat"
               ],
-              "warning": "他形式へは「only OpenDocument has it」の dropped",
+              "warning": "To another format: dropped, \"only OpenDocument has it\"",
               "evidence": "measured",
-              "note": "ODF だけが持つ 6 つのうちの 1 つ。Excel と Numbers では表示形式の中にしか無いので、記号は残っても「これは金額だ」という区別は残らない。"
+              "note": "One of the 6 things only ODF has. Excel and Numbers have it only inside the number format, so the symbol survives but the distinction \"this is an amount of money\" does not."
             },
             {
               "id": "ods.cell.span",
-              "name": "セルの結合",
+              "name": "Merged cells",
               "spec_anchor": "table:number-columns-spanned / -rows-spanned",
               "read": "full",
               "write": "full",
@@ -1501,7 +1501,7 @@
             },
             {
               "id": "ods.cell.text",
-              "name": "セル内の書式差（リッチテキスト）",
+              "name": "Formatting within a cell (rich text)",
               "spec_anchor": "text:p / text:span",
               "read": "full",
               "write": "full",
@@ -1515,7 +1515,7 @@
             },
             {
               "id": "ods.cell.link",
-              "name": "ハイパーリンク",
+              "name": "Hyperlinks",
               "spec_anchor": "text:a xlink:href",
               "read": "full",
               "write": "full",
@@ -1523,13 +1523,13 @@
                 "sheet[cell: \"A1\"].hyperlink",
                 "Hyperlink"
               ],
-              "warning": "文字でない値のセルに複数あると「a cell holds more than one hyperlink; the first was kept」",
+              "warning": "Several on a cell whose value is not text: \"a cell holds more than one hyperlink; the first was kept\"",
               "evidence": "measured",
-              "note": "ODF はリンクを文字の範囲に付けられる。複数あれば richText の run ごとに読み書きし（TextRun.hyperlink・B.81）、Cell.hyperlink は先頭。"
+              "note": "ODF can attach a link to a range of characters. Several links are read and written per richText run (TextRun.hyperlink, B.81), and Cell.hyperlink is the first."
             },
             {
               "id": "ods.cell.note",
-              "name": "メモ（注釈）",
+              "name": "Notes (annotations)",
               "spec_anchor": "office:annotation",
               "read": "full",
               "write": "full",
@@ -1543,7 +1543,7 @@
             },
             {
               "id": "ods.cell.control",
-              "name": "セルの中の操作子（チェックボックスなど）",
+              "name": "Cell controls (checkboxes and the like)",
               "spec_anchor": "office:forms / form:control",
               "read": "none",
               "write": "none",
@@ -1553,17 +1553,17 @@
               ],
               "warning": "「N cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has …」",
               "evidence": "measured",
-              "note": "読み込みでは office:forms の中を読み飛ばす。Numbers から来た制御は値だけ残して落とす。"
+              "note": "On read, the contents of office:forms are skipped. Controls coming from Numbers are dropped, keeping only the value."
             }
           ]
         },
         {
           "id": "formula",
-          "name": "数式（OpenFormula）",
+          "name": "Formulas (OpenFormula)",
           "features": [
             {
               "id": "ods.formula.of",
-              "name": "数式（OpenFormula 方言）",
+              "name": "Formulas (the OpenFormula dialect)",
               "spec_anchor": "table:formula=\"of:=[.A1]\"",
               "read": "full",
               "write": "full",
@@ -1574,11 +1574,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "構文木から OpenFormula へ翻訳する。交差演算子は Excel の空白と OpenFormula の ! の両方を理解する。"
+              "note": "Translated from the syntax tree into OpenFormula. The intersection operator is understood both as Excel's space and as OpenFormula's !."
             },
             {
               "id": "ods.formula.matrix",
-              "name": "行列数式（配列数式）",
+              "name": "Matrix formulas (array formulas)",
               "spec_anchor": "table:number-matrix-columns-spanned / -rows-spanned",
               "read": "full",
               "write": "full",
@@ -1587,24 +1587,24 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "起点のセルに範囲を書く。"
+              "note": "The range is written on the anchor cell."
             },
             {
               "id": "ods.formula.untranslatable",
-              "name": "OpenFormula に無い式・訳せない式",
+              "name": "Formulas OpenFormula lacks, formulas that cannot be translated",
               "spec_anchor": "—",
               "read": "partial",
               "write": "partial",
               "api": [
                 "FormulaExpr.unparsed"
               ],
-              "warning": "「formula in … dialect could not be translated; cached value written」ほか 3 種",
+              "warning": "\"formula in … dialect could not be translated; cached value written\" and 3 others",
               "evidence": "code",
-              "note": "訳すと意味が変わってしまう式は、キャッシュ値に落として、どこがなぜ落ちたかを言う。"
+              "note": "A formula whose meaning would change in translation falls back to its cached value, and the warning says where and why."
             },
             {
               "id": "ods.formula.remote",
-              "name": "株価・為替の関数（STOCK・CURRENCY など 6 種）",
+              "name": "Stock and currency functions (6 functions, such as STOCK and CURRENCY)",
               "spec_anchor": "—",
               "read": "na",
               "write": "partial",
@@ -1613,11 +1613,11 @@
               ],
               "warning": "「… fetches live data and OpenFormula has no such function; the cached value …」",
               "evidence": "measured",
-              "note": "OpenFormula に同名の関数が無い。取ってあった値を書いて言う（Numbers 自身の Excel 書き出しと同じ置き換え）。"
+              "note": "OpenFormula has no function of that name. The value that had been fetched is written, and the warning says so (the same substitution Numbers itself makes when it exports to Excel)."
             },
             {
               "id": "ods.formula.named",
-              "name": "名前付き範囲・名前付き式",
+              "name": "Named ranges, named expressions",
               "spec_anchor": "table:named-range, table:named-expression",
               "read": "full",
               "write": "full",
@@ -1633,11 +1633,11 @@
         },
         {
           "id": "style",
-          "name": "スタイルとデータスタイル",
+          "name": "Styles and data styles",
           "features": [
             {
               "id": "ods.style.cell",
-              "name": "セルのスタイル（フォント・色・罫線・配置・折り返し）",
+              "name": "Cell styles (font, colour, borders, alignment, wrapping)",
               "spec_anchor": "style:style family=\"table-cell\", fo:*, style:*",
               "read": "full",
               "write": "full",
@@ -1651,7 +1651,7 @@
             },
             {
               "id": "ods.style.gradient",
-              "name": "グラデーションの塗り",
+              "name": "Gradient fills",
               "spec_anchor": "draw:gradient",
               "read": "na",
               "write": "partial",
@@ -1660,12 +1660,12 @@
               ],
               "warning": "「gradient fill(s) written as their first colour: an ODF cell style has one …」",
               "evidence": "measured",
-              "note": "ODF のセルスタイルは 1 色しか持てない。最初の色にして言う。"
+              "note": "An ODF cell style can hold only 1 colour. The first colour is used, with a warning."
             },
             {
               "id": "ods.style.datastyle",
-              "name": "データスタイル（表示形式）",
-              "spec_anchor": "number:number-style, number:date-style, number:currency-style ほか",
+              "name": "Data styles (number formats)",
+              "spec_anchor": "number:number-style, number:date-style, number:currency-style and others",
               "read": "partial",
               "write": "partial",
               "api": [
@@ -1674,11 +1674,11 @@
               ],
               "warning": "「number format … has no ODF data style; General used」／「only its first section is written」",
               "evidence": "measured",
-              "note": "ODF のデータスタイルは見え方を 1 通りしか持てない。Excel の複数セクション・色・条件は落ちる。逆向きに訳せないデータスタイルも General に落として言う。"
+              "note": "An ODF data style can hold only 1 way of showing a value. Excel's multiple sections, colours and conditions are dropped. A data style that cannot be translated back is also dropped to General, with a warning."
             },
             {
               "id": "ods.style.map",
-              "name": "スタイルに付く条件（本体仕様の条件付き書式）",
+              "name": "Conditions attached to a style (conditional formatting in the core specification)",
               "spec_anchor": "style:map",
               "read": "full",
               "write": "none",
@@ -1687,11 +1687,11 @@
               ],
               "warning": null,
               "evidence": "code",
-              "note": "読むときだけの経路。calcext: を持たない古い作り手のファイルのために残してある。書き出しは calcext: に一本化。"
+              "note": "A read-only path, kept for files from older generators that have no calcext:. Writing uses calcext: alone."
             },
             {
               "id": "ods.style.masterpage",
-              "name": "マスターページとページレイアウト",
+              "name": "Master pages and page layouts",
               "spec_anchor": "style:master-page, style:page-layout",
               "read": "full",
               "write": "full",
@@ -1702,17 +1702,17 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODF はシートごとにマスターページを持つ。印刷の設定はここに入る。"
+              "note": "ODF has a master page per sheet. The print settings live there."
             }
           ]
         },
         {
           "id": "cf",
-          "name": "条件付き書式",
+          "name": "Conditional formatting",
           "features": [
             {
               "id": "ods.cf.calcext",
-              "name": "条件付き書式 18 種（比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間）",
+              "name": "Conditional formatting, 18 kinds of rule (comparison, formula, text, top/bottom, above/below average, duplicate/unique, blank/error, time period)",
               "spec_anchor": "calcext:conditional-formats / calcext:condition",
               "read": "full",
               "write": "full",
@@ -1722,11 +1722,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "書き出しは calcext: だけ。読むときは calcext: と style:map の両方を読む。LibreOffice が XLSX へ変換すると 18 種すべて再現する。"
+              "note": "Only calcext: is written. On read, both calcext: and style:map are read. When LibreOffice converts the file to XLSX, all 18 kinds are reproduced."
             },
             {
               "id": "ods.cf.scales",
-              "name": "カラースケール・データバー・アイコンセット",
+              "name": "Colour scales, data bars, icon sets",
               "spec_anchor": "calcext:color-scale, calcext:data-bar, calcext:icon-set",
               "read": "full",
               "write": "full",
@@ -1737,11 +1737,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODF 1.3 の本体仕様には言葉が無い。データバーの負の色・軸の色と位置・gradient は calcext の属性で運ぶ（B.82）。ODF に「数値を隠す」データバーと独自アイコンは無いので、そこだけ落として言う。"
+              "note": "The ODF 1.3 core specification has no words for them. A data bar's negative colour, axis colour and position, and gradient are carried in calcext attributes (B.82). ODF has no data bar that \"hides the value\" and no custom icons, so only those are dropped, with a warning."
             },
             {
               "id": "ods.cf.unmodelled",
-              "name": "モデルが読み切れなかった条件付き書式",
+              "name": "Conditional formatting the model could not fully read",
               "spec_anchor": "—",
               "read": "partial",
               "write": "none",
@@ -1750,17 +1750,17 @@
               ],
               "warning": "「a conditional format the model could not read is dropped: ODS is regenerated …」",
               "evidence": "code",
-              "note": "ODS は毎回作り直すので、XLSX のように元のブロックを差し戻す手が使えない。落として言う。"
+              "note": "ODS is regenerated every time, so the XLSX approach of putting the original block back is not available. It is dropped, with a warning."
             }
           ]
         },
         {
           "id": "validation",
-          "name": "入力規則",
+          "name": "Data validation",
           "features": [
             {
               "id": "ods.dv.rules",
-              "name": "内容の検証（ドロップダウン・数値・日付・文字数・カスタム）",
+              "name": "Content validation (drop-down, number, date, text length, custom)",
               "spec_anchor": "table:content-validation, table:condition, table:content-validation-name",
               "read": "full",
               "write": "full",
@@ -1770,11 +1770,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODF は規則を文書の先頭にまとめ、セルが名前で指す。"
+              "note": "ODF lists the rules at the head of the document, and cells point at them by name."
             },
             {
               "id": "ods.dv.unmodelled",
-              "name": "モデルが読み切れなかった入力規則",
+              "name": "Data validation the model could not fully read",
               "spec_anchor": "—",
               "read": "partial",
               "write": "none",
@@ -1789,11 +1789,11 @@
         },
         {
           "id": "db",
-          "name": "データベース範囲・フィルタ・並べ替え",
+          "name": "Database ranges, filters, sorting",
           "features": [
             {
               "id": "ods.db.range",
-              "name": "データベース範囲（名前付きの表に当たるもの）",
+              "name": "Database ranges (the counterpart of a structured table)",
               "spec_anchor": "table:database-range",
               "read": "full",
               "write": "partial",
@@ -1803,11 +1803,11 @@
               ],
               "warning": "「named table … written as an ODF database range: its banded-row style …」",
               "evidence": "measured",
-              "note": "名前と範囲は通る。縞模様のスタイルは落ちて言う。"
+              "note": "The name and the range go through. The banded-row style is dropped, with a warning."
             },
             {
               "id": "ods.db.filter",
-              "name": "フィルタ（絞り込み条件）",
+              "name": "Filters (filter criteria)",
               "spec_anchor": "table:filter, table:filter-condition",
               "read": "full",
               "write": "partial",
@@ -1815,13 +1815,13 @@
                 "sheet.autoFilter",
                 "sheet.filterColumns"
               ],
-              "warning": "色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言う",
+              "warning": "Colour, icon, dynamic and date-group filters do not exist in ODF and are dropped, with a warning",
               "evidence": "measured",
-              "note": "値の一覧と比較条件は通る。"
+              "note": "Value lists and comparison criteria go through."
             },
             {
               "id": "ods.db.sort",
-              "name": "並べ替えの記録",
+              "name": "Recorded sort",
               "spec_anchor": "table:sort, table:sort-by",
               "read": "full",
               "write": "full",
@@ -1835,7 +1835,7 @@
             },
             {
               "id": "ods.db.unmodelled",
-              "name": "モデルが読み切れなかったフィルタ",
+              "name": "Filters the model could not fully read",
               "spec_anchor": "—",
               "read": "partial",
               "write": "none",
@@ -1850,11 +1850,11 @@
         },
         {
           "id": "pilot",
-          "name": "データパイロット（ピボット）",
+          "name": "Data pilot (pivot tables)",
           "features": [
             {
               "id": "ods.pilot.table",
-              "name": "データパイロット表",
+              "name": "Data pilot tables",
               "spec_anchor": "table:data-pilot-table, table:data-pilot-field",
               "read": "full",
               "write": "full",
@@ -1865,17 +1865,17 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "Excel のピボットと同じく配置だけを書き、数字は開いた側に計算させる。"
+              "note": "As with Excel's pivot tables, only the layout is written; the application that opens the file computes the figures."
             }
           ]
         },
         {
           "id": "protect",
-          "name": "保護",
+          "name": "Protection",
           "features": [
             {
               "id": "ods.protect.table",
-              "name": "表の保護",
+              "name": "Table protection",
               "spec_anchor": "table:protected, table:protection-key",
               "read": "full",
               "write": "full",
@@ -1889,7 +1889,7 @@
             },
             {
               "id": "ods.protect.ranges",
-              "name": "保護シート内の編集できる窓",
+              "name": "Editable windows in a protected sheet",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -1898,12 +1898,12 @@
               ],
               "warning": "「N protected range(s) dropped: ODF protects a whole table …」",
               "evidence": "measured",
-              "note": "ODF は表全体を守り、その中に窓を持たない。"
+              "note": "ODF protects the whole table and has no windows inside it."
             },
             {
               "id": "ods.protect.workbook",
-              "name": "ブックの保護（シート構成の固定）",
-              "spec_anchor": "office:spreadsheet の table:structure-protected（ODF 1.3 §9.1.2）",
+              "name": "Workbook protection (locking the sheet structure)",
+              "spec_anchor": "table:structure-protected on office:spreadsheet (ODF 1.3 §9.1.2)",
               "read": "full",
               "write": "full",
               "api": [
@@ -1911,17 +1911,17 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "シートの追加・削除・改名・並べ替えを禁じる旗。鍵（table:protection-key）は Excel の合鍵と互換が無いので運ばず、旗だけを往復する。LibreOffice が読み戻しで保持する（付録 B.40.4）。以前は「ODF に概念なし」と書いていたが誤りだった。"
+              "note": "A flag that forbids adding, deleting, renaming and reordering sheets. The key (table:protection-key) is not compatible with Excel's, so it is not carried; only the flag round-trips. LibreOffice keeps it when reading the file back (Appendix B.40.4). This row used to say \"no such concept in ODF\", which was wrong."
             }
           ]
         },
         {
           "id": "print",
-          "name": "印刷",
+          "name": "Printing",
           "features": [
             {
               "id": "ods.print.page",
-              "name": "向き・用紙・拡大率・余白・中央寄せ",
+              "name": "Orientation, paper, scale, margins, centering",
               "spec_anchor": "style:page-layout-properties, style:print-orientation, style:scale-to",
               "read": "full",
               "write": "full",
@@ -1935,20 +1935,20 @@
             },
             {
               "id": "ods.print.headerfooter",
-              "name": "ヘッダー／フッター（左・中央・右の 3 領域）",
+              "name": "Header/footer (3 regions: left, centre, right)",
               "spec_anchor": "style:header, style:footer, style:region-left/center/right",
               "read": "full",
               "write": "partial",
               "api": [
                 "sheet.headerFooter"
               ],
-              "warning": "フォント指定だけ落ちる",
+              "warning": "Only font directives are dropped",
               "evidence": "measured",
-              "note": "Excel の &L&C&R と ODF の 3 領域を相互に訳す。"
+              "note": "Excel's &L&C&R and ODF's 3 regions are translated both ways."
             },
             {
               "id": "ods.print.range",
-              "name": "印刷範囲・タイトル行／列",
+              "name": "Print area, title rows/columns",
               "spec_anchor": "table:print-ranges, table:print",
               "read": "full",
               "write": "full",
@@ -1962,8 +1962,8 @@
             },
             {
               "id": "ods.print.break",
-              "name": "改ページ",
-              "spec_anchor": "fo:break-before（行・列のスタイル）",
+              "name": "Page breaks",
+              "spec_anchor": "fo:break-before (on row and column styles)",
               "read": "full",
               "write": "full",
               "api": [
@@ -1978,11 +1978,11 @@
         },
         {
           "id": "odfonly",
-          "name": "ODF だけが持つもの（付録 B.17）",
+          "name": "What only ODF has (Appendix B.17)",
           "features": [
             {
               "id": "ods.only.label",
-              "name": "ラベル範囲（見出しを数式でそのまま使う）",
+              "name": "Label ranges (a heading used as is in a formula)",
               "spec_anchor": "table:label-ranges / table:label-range",
               "read": "full",
               "write": "full",
@@ -1990,13 +1990,13 @@
                 "wb.labelRanges",
                 "LabelRange"
               ],
-              "warning": "他形式へは「… is dropped: only OpenDocument has it」",
+              "warning": "To another format: \"… is dropped: only OpenDocument has it\"",
               "evidence": "measured",
-              "note": "=SUM(売上) の「売上」が定義名ではなく列見出し。Excel 2003 の自然言語の数式に当たるが、いまの Excel 形式に置き場所がない。"
+              "note": "The \"売上\" in =SUM(売上) is a column heading, not a defined name. It corresponds to Excel 2003's natural-language formulas, but today's Excel format has nowhere to put it."
             },
             {
               "id": "ods.only.consolidation",
-              "name": "統合の定義",
+              "name": "Consolidation definitions",
               "spec_anchor": "table:consolidation",
               "read": "full",
               "write": "full",
@@ -2004,13 +2004,13 @@
                 "wb.consolidation",
                 "Consolidation"
               ],
-              "warning": "他形式へは dropped",
+              "warning": "To another format: dropped",
               "evidence": "measured",
-              "note": "「この範囲とこの範囲を、ここに合計する」を文書に残す。Excel の統合は一度きりの操作で、定義は保存されない。"
+              "note": "\"Sum this range and this range into here\", kept in the document. Excel's Consolidate is a one-off operation and the definition is not saved."
             },
             {
               "id": "ods.only.detective",
-              "name": "探偵の矢印（参照元・参照先のトレース）",
+              "name": "Detective arrows (tracing precedents and dependents)",
               "spec_anchor": "table:detective, table:highlighted-range, table:operation",
               "read": "full",
               "write": "full",
@@ -2018,13 +2018,13 @@
                 "table.detective",
                 "CellDetective"
               ],
-              "warning": "他形式へは dropped",
+              "warning": "To another format: dropped",
               "evidence": "measured",
-              "note": "Excel も同じ矢印を描くが、閉じると消える。ODF はファイルに残すので、監査の跡がついたまま届く。"
+              "note": "Excel draws the same arrows, but they vanish when the file is closed. ODF keeps them in the file, so the audit trail arrives intact."
             },
             {
               "id": "ods.only.calcsettings",
-              "name": "計算設定（正規表現・ワイルドカード・大小文字・二桁年・表示桁で計算）",
+              "name": "Calculation settings (regular expressions, wildcards, case sensitivity, two-digit years, precision as displayed)",
               "spec_anchor": "table:calculation-settings, table:use-regular-expressions, table:null-year",
               "read": "full",
               "write": "full",
@@ -2032,13 +2032,13 @@
                 "wb.calculationSettings",
                 "CalculationSettings"
               ],
-              "warning": "他形式へは「a calculation setting is dropped — …; only OpenDocument keeps it in the file」",
+              "warning": "To another format: \"a calculation setting is dropped — …; only OpenDocument keeps it in the file\"",
               "evidence": "measured",
-              "note": "検索条件の意味を変える設定。Excel ではアプリ側の設定で、ファイルには入らない。"
+              "note": "Settings that change the meaning of a search criterion. In Excel they are application settings and never enter the file."
             },
             {
               "id": "ods.only.nulldate",
-              "name": "日付の原点（任意の日付を置ける）",
+              "name": "Date epoch (any date can be the origin)",
               "spec_anchor": "table:null-date",
               "read": "full",
               "write": "full",
@@ -2048,17 +2048,17 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODF は任意の日付を原点にできる。DateEpoch(origin:) がそのまま持ち、書き戻す（B.69）。Excel・Numbers へは 1900 系に据え直して degraded で言う（暦の日付は同じ日に着地する）。"
+              "note": "ODF can use any date as the epoch. DateEpoch(origin:) holds it as is and writes it back (B.69). To Excel and Numbers it is re-based onto the 1900 system, with a degraded warning (calendar dates land on the same day)."
             }
           ]
         },
         {
           "id": "unmodelled",
-          "name": "ODF が持ち、モデルが言葉を持たないもの",
+          "name": "What ODF has and the model has no words for",
           "features": [
             {
               "id": "ods.un.tracked",
-              "name": "変更履歴（セル単位の版）",
+              "name": "Tracked changes (per-cell revisions)",
               "spec_anchor": "table:tracked-changes",
               "read": "partial",
               "write": "none",
@@ -2068,50 +2068,50 @@
               ],
               "warning": "「tracked changes (a document's revision history) is dropped: … the model has no word for it」",
               "evidence": "code",
-              "note": "あることは読み取り、書き出しで「あったが落とした」と言う。中身は運ばない。"
+              "note": "Their presence is read, and writing says \"it was there but was dropped\". The contents are not carried."
             },
             {
               "id": "ods.un.dde",
-              "name": "DDE リンク（別の動いているアプリが値を供給する）",
+              "name": "DDE links (another running application supplies the values)",
               "spec_anchor": "table:dde-links",
               "read": "partial",
               "write": "none",
               "api": [
                 "UnmodelledODFFeatures.ddeLinks"
               ],
-              "warning": "同上",
+              "warning": "Same as above",
               "evidence": "code",
               "note": null
             },
             {
               "id": "ods.un.linkedsheet",
-              "name": "別の文書から取り込んだシート",
+              "name": "Sheets linked in from another document",
               "spec_anchor": "table:table-source",
               "read": "partial",
               "write": "none",
               "api": [
                 "UnmodelledODFFeatures.linkedSheet"
               ],
-              "warning": "同上",
+              "warning": "Same as above",
               "evidence": "code",
               "note": null
             },
             {
               "id": "ods.un.linkedrange",
-              "name": "別の文書から取り込んだ範囲",
+              "name": "Ranges linked in from another document",
               "spec_anchor": "table:cell-range-source",
               "read": "partial",
               "write": "none",
               "api": [
                 "UnmodelledODFFeatures.linkedRange"
               ],
-              "warning": "同上",
+              "warning": "Same as above",
               "evidence": "code",
               "note": null
             },
             {
               "id": "ods.un.draw",
-              "name": "描画オブジェクト（グラフ・図形・テキストボックス）",
+              "name": "Drawing objects (charts, shapes, text boxes)",
               "spec_anchor": "draw:frame, draw:object, draw:custom-shape, draw:line, draw:text-box",
               "read": "partial",
               "write": "partial",
@@ -2123,13 +2123,13 @@
                 "sheet.addShape(_:over:)",
                 "Shape.Geometry"
               ],
-              "warning": "描けない種類のグラフは「a … chart was not written: the writer draws column, bar, line and pie charts」／図形のグループ（draw:g）は読まない",
+              "warning": "A kind of chart it cannot draw: \"a … chart was not written: the writer draws column, bar, line and pie charts\" / groups of shapes (draw:g) are not read",
               "evidence": "measured",
-              "note": "グラフ: draw:object が指す Object N/content.xml（ODF のグラフ文書）を全種読み（chart:bar＋chart:vertical → column / bar、chart:line、chart:circle → pie、他は class を raw に）、4 種を chart 文書として書く（B.73）。図形・テキストボックス: draw:custom-shape（draw:type は ooxml-X と LibreOffice の名の対応表）・draw:line / draw:connector・draw:frame の draw:text-box を読み書きする（B.75）。LibreOffice は書いたグラフも図形も XLSX へ運ぶ（gated テスト）。図形のグループは読み飛ばす。"
+              "note": "Charts: every kind is read from the Object N/content.xml (an ODF chart document) that draw:object points to (chart:bar + chart:vertical → column / bar, chart:line, chart:circle → pie, any other class into raw), and 4 kinds are written as chart documents (B.73). Shapes and text boxes: draw:custom-shape (draw:type through a table mapping ooxml-X to LibreOffice's names), draw:line / draw:connector, and the draw:text-box of a draw:frame are read and written (B.75). LibreOffice carries both the charts and the shapes written here into XLSX (gated test). Groups of shapes are skipped."
             },
             {
               "id": "ods.un.scenario",
-              "name": "シナリオ",
+              "name": "Scenarios",
               "spec_anchor": "table:scenario",
               "read": "none",
               "write": "none",
@@ -2138,11 +2138,11 @@
               ],
               "warning": "「N scenario(s) dropped: an ODF scenario is a whole shadow sheet …」",
               "evidence": "measured",
-              "note": "ODF のシナリオは「影のシート」であって入力値の集合ではない。書くとシートが増えてしまうので書かない。"
+              "note": "An ODF scenario is a \"shadow sheet\", not a set of input values. Writing one would add a sheet, so none is written."
             },
             {
               "id": "ods.un.tabcolor",
-              "name": "タブの色",
+              "name": "Tab colour",
               "spec_anchor": "style:table-properties@table:tab-color",
               "read": "full",
               "write": "full",
@@ -2151,18 +2151,18 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "ODF 1.3 の table:tab-color（LibreOffice 26.2 が書く物と同じ属性。古い tableooo:tab-color も読む）。テーマ色・indexed 色は書く前に RGB へ解決する（B.74）。"
+              "note": "ODF 1.3's table:tab-color (the same attribute LibreOffice 26.2 writes; the older tableooo:tab-color is read too). Theme and indexed colours are resolved to RGB before writing (B.74)."
             }
           ]
         },
         {
           "id": "streaming",
-          "name": "大きなファイル",
+          "name": "Large files",
           "features": [
             {
               "id": "ods.stream.read",
-              "name": "行ごとの読み出し（全体をメモリに載せない）",
-              "spec_anchor": "content.xml の逐次解析",
+              "name": "Row-by-row reading (without loading everything into memory)",
+              "spec_anchor": "Streaming parse of content.xml",
               "read": "partial",
               "write": "na",
               "api": [
@@ -2171,14 +2171,14 @@
                 "forEachRow(inSheet:)",
                 "rows(inSheet:)"
               ],
-              "warning": "なし（値と書式だけと明記）",
+              "warning": "None (documented as values and formatting only)",
               "evidence": "measured",
-              "note": "本文を 1 度歩いて頼まれた表の行だけ届ける（前の表は読み飛ばし、後ろの表は読まない）。反復行・反復セルは通常の読み手と同じ規則で展開する。値と書式だけ。付録 B.40.2。"
+              "note": "Walks the body once and delivers only the rows of the requested table (earlier tables are skipped, later ones are not read). Repeated rows and repeated cells are expanded by the same rules as the ordinary reader. Values and formatting only. Appendix B.40.2."
             },
             {
               "id": "ods.stream.write",
-              "name": "行ごとの書き出し",
-              "spec_anchor": "content.xml（office:automatic-styles が表より前）",
+              "name": "Row-by-row writing",
+              "spec_anchor": "content.xml (office:automatic-styles before the tables)",
               "read": "na",
               "write": "partial",
               "api": [
@@ -2188,9 +2188,9 @@
                 "close()",
                 "warnings"
               ],
-              "warning": "ODF に無い書式・色は全載せの書き手と同じ警告",
+              "warning": "Formatting and colours ODF lacks: the same warnings as the whole-model writer",
               "evidence": "measured",
-              "note": "行は来るたびに XML にして退避し（8 MiB までメモリ・超えたら一時ファイル）、close で様式の後ろに流す。メモリは行数によらず数 MB、ディスクに本文 1 回分。値と書式だけ。付録 B.42。"
+              "note": "Each row is turned into XML as it arrives and set aside (in memory up to 8 MiB, beyond that in a temporary file), and on close it is flushed after the styles. Memory stays at a few MB whatever the row count, plus one copy of the body on disk. Values and formatting only. Appendix B.42."
             }
           ]
         }
@@ -2200,18 +2200,18 @@
       "id": "numbers",
       "name": "Apple Numbers（.numbers）",
       "spec": {
-        "name": "公開仕様なし — Numbers ユーザガイド（ヘルプ）＋実際のファイルからの観測",
+        "name": "No public specification — the Numbers User Guide (Help) + observation of real files",
         "public": false,
-        "note": "Apple は Numbers の書類形式を公開していない。この表の左の列は、①Numbers ユーザガイドが名前を与えている機能と、②書類の中に実在する保管庫の型（TN./TST./TSCH./TSD. …、numbers-parser 由来のスキーマから機械抽出した 581 種）の 2 つから作った。「仕様にこう書いてある」とは言えないので、根拠は常に観測か実測で示す。"
+        "note": "Apple does not publish the Numbers document format. The left column of this table was built from 2 sources: ① the features the Numbers User Guide gives names to, and ② the archive types that actually exist inside documents (TN./TST./TSCH./TSD. …, 581 kinds extracted mechanically from the schema derived from numbers-parser). Since no row can claim \"the specification says so\", the evidence is always given as an observation or a measurement."
       },
       "areas": [
         {
           "id": "package",
-          "name": "書類とパッケージ",
+          "name": "Document and package",
           "features": [
             {
               "id": "num.package.iwa",
-              "name": "書類の読み書き（IWA: Snappy 圧縮 + Protobuf）",
+              "name": "Reading and writing documents (IWA: Snappy compression + Protobuf)",
               "spec_anchor": "Index/*.iwa, Index/Document.iwa",
               "read": "full",
               "write": "full",
@@ -2222,25 +2222,25 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "依存のない動的な Protobuf の木（ProtoMessage）で扱う。知らない欄はバイト単位でそのまま往復する（NumbersIWATests.fixturesRoundTripByteForByte）。"
+              "note": "Handled as a dependency-free, dynamic Protobuf tree (ProtoMessage). Unknown fields round-trip unchanged, byte for byte (NumbersIWATests.fixturesRoundTripByteForByte)."
             },
             {
               "id": "num.package.template",
-              "name": "書き出しの土台（テンプレート・パッチ方式）",
+              "name": "The basis for writing (the template-and-patch approach)",
               "spec_anchor": "Resources/empty.numbers",
               "read": "na",
               "write": "partial",
               "api": [
                 "Codec.numbers"
               ],
-              "warning": "テンプレートに無い器を要る機能は、その旨を名指しして落とす",
+              "warning": "A feature that needs a structure the template lacks is dropped, with a warning naming it",
               "evidence": "readme",
-              "note": "numbers-parser 同梱の空の書類を土台にし、1 枚目のシート／表をその場で書き換え、2 枚目からは部分グラフを複製して新しい id と UUID を振る（仕様 §11.1）。毎回テンプレートから始まるので、往復の保全（F3）は無い。"
+              "note": "Built on the empty document bundled with numbers-parser: sheet 1 and its table are rewritten in place, and from sheet 2 on a subgraph is copied and given new ids and UUIDs (spec §11.1). Every write starts from the template, so there is no round-trip preservation (F3)."
             },
             {
               "id": "num.package.encryption",
-              "name": "書類のパスワード保護",
-              "spec_anchor": ".iwph（暗号化された書類の目印）",
+              "name": "Document password protection",
+              "spec_anchor": ".iwph (the marker of an encrypted document)",
               "read": "none",
               "write": "none",
               "api": [
@@ -2248,12 +2248,12 @@
               ],
               "warning": "throw「the Numbers document is password-protected (an .iwph package)」",
               "evidence": "code",
-              "note": "Numbers 側の「パスワードを要求」で守った書類は開かない。"
+              "note": "A document protected with a password in Numbers is not opened."
             },
             {
               "id": "num.package.version",
-              "name": "Numbers のバージョン追従",
-              "spec_anchor": "TN.DocumentArchive のバージョン欄",
+              "name": "Keeping up with Numbers versions",
+              "spec_anchor": "The version field of TN.DocumentArchive",
               "read": "partial",
               "write": "na",
               "api": [
@@ -2261,11 +2261,11 @@
               ],
               "warning": "「Numbers document version … is newer than the verified range; read as far as possible」",
               "evidence": "code",
-              "note": "検証済みの範囲より新しい書類でも、読めるところまで読んで、そう言う。"
+              "note": "A document newer than the verified range is still read as far as it can be, with a warning saying so."
             },
             {
               "id": "num.package.metadata",
-              "name": "文書プロパティ・ユーザー定義項目",
+              "name": "Document properties, custom properties",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2281,11 +2281,11 @@
         },
         {
           "id": "sheet",
-          "name": "シートとキャンバス",
+          "name": "Sheets and canvas",
           "features": [
             {
               "id": "num.sheet.sheets",
-              "name": "シート（名前・順序・複数）",
+              "name": "Sheets (name, order, several)",
               "spec_anchor": "TN.SheetArchive",
               "read": "full",
               "write": "full",
@@ -2295,26 +2295,26 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "2 枚目以降は部分グラフの複製。Numbers.app 自身が開けることを審判にしている（付録 B.18）。"
+              "note": "From sheet 2 on, each sheet is a copied subgraph. The judge is Numbers.app itself being able to open the file (Appendix B.18)."
             },
             {
               "id": "num.sheet.multitable",
-              "name": "1 枚のシートに複数の表",
-              "spec_anchor": "TST.TableInfoArchive を並べる",
+              "name": "Several tables on one sheet",
+              "spec_anchor": "Several TST.TableInfoArchive in sequence",
               "read": "full",
               "write": "full",
               "api": [
                 "sheet.tables",
-                "sheet.addTable(named:anchor:)",
+                "sheet.addTable(named:at:)",
                 "Table.anchor"
               ],
-              "warning": "他形式へは「N other table(s) not written: a worksheet holds a single grid」",
+              "warning": "To another format: \"N other table(s) not written: a worksheet holds a single grid\"",
               "evidence": "measured",
-              "note": "ここだけ Numbers が強い。Excel と ODS は 1 シート＝1 グリッドなので、先頭以外を落として言う。"
+              "note": "The one place Numbers is stronger. In Excel and ODS, 1 sheet = 1 grid, so all tables but the first are dropped, with a warning."
             },
             {
               "id": "num.sheet.hidden",
-              "name": "シートを隠す",
+              "name": "Hidden sheets",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2327,7 +2327,7 @@
             },
             {
               "id": "num.sheet.tabcolor",
-              "name": "タブの色",
+              "name": "Tab colour",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2340,37 +2340,37 @@
             },
             {
               "id": "num.sheet.background",
-              "name": "シートの背景色・向き",
+              "name": "Sheet background colour, orientation",
               "spec_anchor": "TN.SheetStyleArchive, TN.CommandSetSheetDirectionArchive",
               "read": "none",
               "write": "none",
               "api": [],
-              "warning": "なし（モデルに対応物が無い）",
+              "warning": "None (the model has no counterpart)",
               "evidence": "code",
-              "note": "保管庫の型としては実在するが、モデルに写す先が無い。読み書きの対象にしていない。"
+              "note": "It exists as an archive type, but the model has nothing to map it to. It is neither read nor written."
             },
             {
               "id": "num.sheet.form",
-              "name": "入力フォーム（iPhone / iPad で作るデータ入力用のタブ）",
+              "name": "Forms (data-entry tabs made on iPhone / iPad)",
               "spec_anchor": "TN.FormBasedSheetArchive",
               "read": "none",
               "write": "none",
               "api": [
                 "wb.readWarnings"
               ],
-              "warning": "「the form \"<名前>\" is dropped: a Numbers form is a way of typing into the table <表>, not a sheet of its own …」——フォームの名前と、それが書き込む先の表の名前を挙げる",
+              "warning": "\"the form \"<name>\" is dropped: a Numbers form is a way of typing into the table <table>, not a sheet of its own …\", naming the form and the table it writes into",
               "evidence": "measured",
-              "note": "フォームは表そのものではなく、既にある表へ入力するための画面。値を持たないので、空のシートに仕立てず落とし、名前と行き先の表を挙げて言う（書き手がその嘘を写さないように）。フォームを埋めた表は普通どおり読める。検体は iPhone でしか作れないため保守者の手作り（Fixtures/numbers/form-15.numbers）。付録 B.36。"
+              "note": "A form is not a table but a screen for typing into an existing table. It holds no values, so instead of being dressed up as an empty sheet it is dropped, with a warning naming it and the table it feeds (so that a writer does not copy that lie). The table the form filled in is read as usual. The specimen can only be made on an iPhone, so the maintainer made it by hand (Fixtures/numbers/form-15.numbers). Appendix B.36."
             }
           ]
         },
         {
           "id": "table",
-          "name": "表（テーブル）",
+          "name": "Tables",
           "features": [
             {
               "id": "num.table.name",
-              "name": "表の名前",
+              "name": "Table name",
               "spec_anchor": "TST.TableModelArchive.table_name",
               "read": "full",
               "write": "full",
@@ -2383,8 +2383,8 @@
             },
             {
               "id": "num.table.position",
-              "name": "表の位置（キャンバス上の置き場所）",
-              "spec_anchor": "B.85（TST.TableInfoArchive の幾何）",
+              "name": "Table position (where it sits on the canvas)",
+              "spec_anchor": "B.85 (the geometry of TST.TableInfoArchive)",
               "read": "full",
               "write": "full",
               "api": [
@@ -2394,11 +2394,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "点（pt）をそのまま読み書きする。position → 既定でない anchor → 前の表の下、の順で置く。"
+              "note": "Points (pt) are read and written as is. Placement order: position → a non-default anchor → below the previous table."
             },
             {
               "id": "num.table.header",
-              "name": "ヘッダ行・ヘッダ列",
+              "name": "Header rows, header columns",
               "spec_anchor": "number_of_header_rows / _columns, header_rows_frozen",
               "read": "full",
               "write": "full",
@@ -2407,23 +2407,23 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "Excel のウィンドウ枠の固定に当たるものとして往復させる。"
+              "note": "Round-tripped as the counterpart of Excel's frozen panes."
             },
             {
               "id": "num.table.footer",
-              "name": "フッタ行",
+              "name": "Footer rows",
               "spec_anchor": "number_of_footer_rows",
               "read": "partial",
               "write": "none",
               "api": [],
-              "warning": "なし（枠の指定だけが落ちる）",
+              "warning": "None (only the footer designation is dropped)",
               "evidence": "code",
-              "note": "行そのものは普通の行として読み、値も書式も失われない。「ここから下はフッタ」という枠だけモデルに言葉が無い。"
+              "note": "The rows themselves are read as ordinary rows, losing neither values nor formatting. Only the designation \"from here down is the footer\" has no word in the model."
             },
             {
               "id": "num.table.size",
-              "name": "行の高さ・列の幅・非表示",
-              "spec_anchor": "TST.TableModelArchive の行列情報",
+              "name": "Row height, column width, hidden",
+              "spec_anchor": "Row and column info in TST.TableModelArchive",
               "read": "full",
               "write": "full",
               "api": [
@@ -2436,7 +2436,7 @@
             },
             {
               "id": "num.table.merge",
-              "name": "セルの結合",
+              "name": "Merged cells",
               "spec_anchor": "TST.MergeRegionMapArchive",
               "read": "full",
               "write": "full",
@@ -2450,7 +2450,7 @@
             },
             {
               "id": "num.table.style",
-              "name": "表のスタイル（縞模様などの既定の見た目）",
+              "name": "Table styles (preset looks such as banded rows)",
               "spec_anchor": "TST.TableStyleArchive, TST.TableStylePresetArchive",
               "read": "none",
               "write": "none",
@@ -2459,11 +2459,11 @@
               ],
               "warning": "「N named table(s) dropped: every Numbers table is named, but its own header rows are not this frame」",
               "evidence": "measured",
-              "note": "Numbers の表は全て名前を持つが、Excel の「名前付きテーブル」とは枠が違う。写さずに落として言う。"
+              "note": "Every Numbers table has a name, but it is a different frame from an Excel \"named table\". It is not mapped; it is dropped, with a warning."
             },
             {
               "id": "num.table.outline",
-              "name": "行・列のグループ化（アウトライン）",
+              "name": "Row and column grouping (outline)",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2472,18 +2472,18 @@
               ],
               "warning": "「row / column grouping is dropped: Numbers groups by category, not by outline level」",
               "evidence": "measured",
-              "note": "Numbers はカテゴリで束ねる。段の深さという考え方が無い。"
+              "note": "Numbers groups by category. It has no idea of level depth."
             }
           ]
         },
         {
           "id": "cell",
-          "name": "セルと値",
+          "name": "Cells and values",
           "features": [
             {
               "id": "num.cell.value",
-              "name": "セルの値（数値・文字・日付・真偽・経過時間・エラー）",
-              "spec_anchor": "TST.Tile / TST.TileRowInfo のセル格納",
+              "name": "Cell values (number, text, date, boolean, duration, error)",
+              "spec_anchor": "Cell storage in TST.Tile / TST.TileRowInfo",
               "read": "full",
               "write": "full",
               "api": [
@@ -2492,11 +2492,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "Numbers の数値は decimal128。Decimal で受けるので桁が落ちない。"
+              "note": "Numbers stores numbers as decimal128. They are received as Decimal, so no digits are lost."
             },
             {
               "id": "num.cell.richtext",
-              "name": "セル内の書式差（リッチテキスト）",
+              "name": "Formatting within a cell (rich text)",
               "spec_anchor": "TSWP.StorageArchive, TSWP.CharacterStyleArchive",
               "read": "full",
               "write": "full",
@@ -2506,11 +2506,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "Numbers は文字スタイルの変わり目として持つ。"
+              "note": "Numbers holds it as the points where the character style changes."
             },
             {
               "id": "num.cell.link",
-              "name": "ハイパーリンク",
+              "name": "Hyperlinks",
               "spec_anchor": "TSWP.HyperlinkFieldArchive",
               "read": "partial",
               "write": "partial",
@@ -2518,13 +2518,13 @@
                 "sheet[cell: \"A1\"].hyperlink",
                 "Hyperlink"
               ],
-              "warning": "文字でない値のセルに複数あると「the cell holds N links; a cell carries one, so the first was kept」",
+              "warning": "Several on a cell whose value is not text: \"the cell holds N links; a cell carries one, so the first was kept\"",
               "evidence": "measured",
-              "note": "Numbers のリンクは文字列の範囲に付くので、1 セルに複数あり得る。複数あれば richText の run ごとに読み書きし（TextRun.hyperlink・B.81）、Cell.hyperlink は先頭。Numbers 本体が run ごとのリンクを開くかは手動一覧の確認。"
+              "note": "A Numbers link is attached to a range of characters, so 1 cell can carry several. Several links are read and written per richText run (TextRun.hyperlink, B.81), and Cell.hyperlink is the first. Whether Numbers itself opens the per-run links is checked on the manual checklist."
             },
             {
               "id": "num.cell.note",
-              "name": "メモ（セルのコメント）",
+              "name": "Notes (cell comments)",
               "spec_anchor": "TSD.CommentStorageArchive, TSK.AnnotationAuthorArchive",
               "read": "full",
               "write": "full",
@@ -2534,11 +2534,11 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "表のコメント一覧に置き、書いた人ごとに 1 つの「作成者」を共有する。"
+              "note": "Kept in the table's comment list, with 1 shared \"author\" record per person who wrote one."
             },
             {
               "id": "num.cell.stock",
-              "name": "株価セル（現行 Numbers では STOCK 数式）",
+              "name": "Stock cells (a STOCK formula in current Numbers)",
               "spec_anchor": "—",
               "read": "full",
               "write": "full",
@@ -2547,17 +2547,17 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "Numbers.app で手作りした見本で確認。いまの Numbers では株価セルは普通の STOCK 数式で、そう読める（付録 B.29）。"
+              "note": "Confirmed with a sample made by hand in Numbers.app. In today's Numbers a stock cell is an ordinary STOCK formula, and it is read as one (Appendix B.29)."
             }
           ]
         },
         {
           "id": "formula",
-          "name": "数式",
+          "name": "Formulas",
           "features": [
             {
               "id": "num.formula.tree",
-              "name": "数式（Numbers の式の木として読み書き）",
+              "name": "Formulas (read and written as Numbers expression trees)",
               "spec_anchor": "TSCE.FormulaArchive, TSCE.ASTNodeArrayArchive",
               "read": "full",
               "write": "full",
@@ -2567,11 +2567,11 @@
               ],
               "warning": null,
               "evidence": "judge",
-              "note": "構文木を Numbers が評価する逆ポーランドのノード列に変える。書いた式は Numbers の中で本物の式として計算される（付録 B.18）。"
+              "note": "The syntax tree is turned into the reverse-Polish node list that Numbers evaluates. A written formula is calculated inside Numbers as a genuine formula (Appendix B.18)."
             },
             {
               "id": "num.formula.cross",
-              "name": "別の表への参照",
+              "name": "References to another table",
               "spec_anchor": "'Sheet::Table'!A1",
               "read": "full",
               "write": "full",
@@ -2584,7 +2584,7 @@
             },
             {
               "id": "num.formula.unsupported",
-              "name": "写す先の見本が無い形（定義名・Numbers に無い関数・A:C の列範囲・交差／合併）",
+              "name": "Shapes with no sample to map onto (defined names, functions Numbers lacks, column ranges like A:C, intersection/union)",
               "spec_anchor": "—",
               "read": "na",
               "write": "partial",
@@ -2592,13 +2592,13 @@
                 "value.formula",
                 "WriteResult.warnings"
               ],
-              "warning": "「formula written as its cached value: …」がどこでなぜ落ちたかを名指しする",
+              "warning": "\"formula written as its cached value: …\" names where and why the formula fell back",
               "evidence": "readme",
-              "note": "手元のフィクスチャに実例が無い形は発明せず、キャッシュ値に落として言う。"
+              "note": "A shape with no real example in the local fixtures is not invented; it falls back to the cached value, with a warning."
             },
             {
               "id": "num.formula.remote",
-              "name": "株価・為替の関数（STOCK・STOCKH・CURRENCY ほか 6 種）",
+              "name": "Stock and currency functions (6 functions, such as STOCK, STOCKH and CURRENCY)",
               "spec_anchor": "—",
               "read": "full",
               "write": "full",
@@ -2607,12 +2607,12 @@
               ],
               "warning": null,
               "evidence": "measured",
-              "note": "Numbers だけが計算し直せる式。式のまま書き、書類を開いたときに取り直される（付録 B.27）。"
+              "note": "Formulas only Numbers can recalculate. They are written as formulas and fetched again when the document is opened (Appendix B.27)."
             },
             {
               "id": "num.formula.array",
-              "name": "配列数式（展開つき）",
-              "spec_anchor": "起点の式＋覆うセルの内部関数",
+              "name": "Array formulas (with their expansion)",
+              "spec_anchor": "The formula on the anchor + an internal function on each covered cell",
               "read": "full",
               "write": "none",
               "api": [
@@ -2620,17 +2620,17 @@
               ],
               "warning": "「N array formula(s) written as the anchor's formula and the covered cells' values …」",
               "evidence": "measured",
-              "note": "読みだけ。書けないのは内部関数が再計算で値を作れないため——Numbers 産の見本ですら、古い版に偽装して再計算させると値が消える（実測・付録 B.26）。"
+              "note": "Read only. It cannot be written because the internal function produces no value on recalculation: even a Numbers-made sample, disguised as an older version so that Numbers recalculates it, loses its values (measured, Appendix B.26)."
             }
           ]
         },
         {
           "id": "style",
-          "name": "書式",
+          "name": "Formatting",
           "features": [
             {
               "id": "num.style.cell",
-              "name": "セル書式（フォント・色・塗り・罫線・配置・折り返し）",
+              "name": "Cell formatting (font, colour, fill, borders, alignment, wrapping)",
               "spec_anchor": "TST.CellStyleArchive, TST.CellStylePropertiesArchive",
               "read": "full",
               "write": "full",
@@ -2644,8 +2644,8 @@
             },
             {
               "id": "num.style.font",
-              "name": "書体の名前",
-              "spec_anchor": "PostScript 名（Helvetica Neue ⇄ HelveticaNeue）",
+              "name": "Font names",
+              "spec_anchor": "PostScript names (Helvetica Neue ⇄ HelveticaNeue)",
               "read": "full",
               "write": "full",
               "api": [
@@ -2653,11 +2653,11 @@
               ],
               "warning": null,
               "evidence": "code",
-              "note": "対応表を資源（fonts.json）として持ち、相互に変換する。"
+              "note": "A mapping table is kept as a resource (fonts.json), and names are converted both ways."
             },
             {
               "id": "num.style.numfmt",
-              "name": "表示形式（種類＋小数桁＋桁区切り）",
+              "name": "Number format (kind + decimal places + thousands separator)",
               "spec_anchor": "TSK.FormatStructArchive",
               "read": "partial",
               "write": "partial",
@@ -2667,18 +2667,18 @@
               ],
               "warning": "「number format … has no Numbers equivalent」／「… its colours, conditions and negative section are dropped」",
               "evidence": "measured",
-              "note": "Numbers は見え方を 1 通りしか記述できない。Excel の複数セクション・色・条件は落として言う。"
+              "note": "Numbers can describe only 1 way of showing a value. Excel's multiple sections, colours and conditions are dropped, with a warning."
             },
             {
               "id": "num.style.gradient",
-              "name": "グラデーションの塗り",
+              "name": "Gradient fills",
               "spec_anchor": "TSD.FillArchive",
               "read": "partial",
               "write": "partial",
               "api": [
                 "Fill.gradient(_:)"
               ],
-              "warning": "最初の色になり、そう言う",
+              "warning": "Becomes the first colour, with a warning saying so",
               "evidence": "measured",
               "note": null
             }
@@ -2686,25 +2686,25 @@
         },
         {
           "id": "cf",
-          "name": "条件付き書式",
+          "name": "Conditional formatting",
           "features": [
             {
               "id": "num.cf.rules",
-              "name": "条件付き書式 14 種（比較 8・文字列 4・重複・一意）",
-              "spec_anchor": "TST.ConditionalStyleSetArchive の predicate_type",
+              "name": "Conditional formatting, 14 kinds of rule (8 comparisons, 4 text rules, duplicate, unique)",
+              "spec_anchor": "predicate_type in TST.ConditionalStyleSetArchive",
               "read": "full",
               "write": "full",
               "api": [
                 "sheet.addConditionalFormatting(_:over:)",
                 "ConditionalFormattingRule.Kind"
               ],
-              "warning": "残りの規則は「conditional format … is dropped: Numbers has no rule of that kind」",
+              "warning": "The remaining rules: \"conditional format … is dropped: Numbers has no rule of that kind\"",
               "evidence": "measured",
-              "note": "predicate_type は Apple が名前を付けていない整数。14 の値は観測で埋めた——1 列 1 規則の書類を .xlsx で書き、Numbers 15.3.1 に読ませて .numbers で保存し直し、生き残った規則をパラメータで元の列に対応づけた（付録 B.18）。"
+              "note": "predicate_type is an integer Apple has not named. The 14 values were filled in by observation: a document laid out as 1 column, 1 rule was written as .xlsx, Numbers 15.3.1 was made to read it and save it again as .numbers, and the rules that survived were matched back to their original columns by their parameters (Appendix B.18)."
             },
             {
               "id": "num.cf.scales",
-              "name": "カラースケール・データバー・アイコンセット",
+              "name": "Colour scales, data bars, icon sets",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2715,17 +2715,17 @@
               ],
               "warning": "dropped",
               "evidence": "measured",
-              "note": "Numbers 自身も Excel ファイルを読み込むときに同じものを捨てる。"
+              "note": "Numbers itself discards the same things when it imports an Excel file."
             }
           ]
         },
         {
           "id": "control",
-          "name": "入力規則とセルの制御",
+          "name": "Data validation and cell controls",
           "features": [
             {
               "id": "num.ctl.popup",
-              "name": "ポップアップメニュー",
+              "name": "Pop-up menus",
               "spec_anchor": "TST.PopUpMenuModel",
               "read": "full",
               "write": "partial",
@@ -2733,14 +2733,14 @@
                 "sheet.dataValidations = [.list(\"\\\"a,b,c\\\"\", over: …)]",
                 "DataValidation"
               ],
-              "warning": "選択肢を書き並べていない規則は「only a list whose choices are spelt in the rule becomes a Numbers pop-up menu」",
+              "warning": "A rule that does not spell out its choices: \"only a list whose choices are spelt in the rule becomes a Numbers pop-up menu\"",
               "evidence": "measured",
-              "note": "モデルの言葉では .list の入力規則。範囲を指すリストと数値条件は落として言う（Numbers 自身も Excel の取り込みで同じ置き換えをする・付録 B.24）。"
+              "note": "In the model's terms, a .list data validation. A list that references a range and numeric conditions are dropped, with a warning (Numbers itself makes the same substitution when it imports Excel, Appendix B.24)."
             },
             {
               "id": "num.ctl.controls",
-              "name": "セルの制御（チェックボックス・ステッパー・スライダー・レート）",
-              "spec_anchor": "セルの制御情報（つまみの最小・最大・刻み）",
+              "name": "Cell controls (checkbox, stepper, slider, rating)",
+              "spec_anchor": "Cell control info (the dial's minimum, maximum, step)",
               "read": "full",
               "write": "full",
               "api": [
@@ -2748,13 +2748,13 @@
                 "CellControl",
                 "CellControl.Kind"
               ],
-              "warning": "値と制御の型が合わないと「a checkbox edits a boolean and a dial edits a number …」",
+              "warning": "When the value does not match the control's type: \"a checkbox edits a boolean and a dial edits a number …\"",
               "evidence": "judge",
-              "note": "Numbers 固有。AppleScript でセルごとに尋ねると、Numbers 自身が制御の名前で答える（付録 B.25）。制御のあるセルは必ず値を持つ（未操作のチェックボックスは false、つまみは最小値、レートは 0）。"
+              "note": "Numbers-only. Asked cell by cell over AppleScript, Numbers itself answers with the control's name (Appendix B.25). A cell with a control always has a value (an untouched checkbox is false, a dial its minimum, a rating 0)."
             },
             {
               "id": "num.ctl.other",
-              "name": "モデルに言葉の無い制御",
+              "name": "Controls the model has no word for",
               "spec_anchor": "—",
               "read": "partial",
               "write": "na",
@@ -2767,24 +2767,24 @@
         },
         {
           "id": "organise",
-          "name": "整理（カテゴリ・フィルタ・並べ替え）",
+          "name": "Organise (categories, filters, sorting)",
           "features": [
             {
               "id": "num.org.category",
-              "name": "カテゴリ（列で束ねる）",
+              "name": "Categories (grouping by a column)",
               "spec_anchor": "TST.GroupByArchive, TST.CategoryOwnerRefArchive",
               "read": "partial",
               "write": "none",
               "api": [
                 "wb.readWarnings"
               ],
-              "warning": "「a category grouping by <列名> is dropped — the model has no word for Numbers categories …」",
+              "warning": "\"a category grouping by <column name> is dropped — the model has no word for Numbers categories …\"",
               "evidence": "measured",
-              "note": "行は平らなまま、束ねていた列の名前を挙げて言う。切ってあるカテゴリも別の文面で言う。"
+              "note": "The rows stay flat, and the warning names the columns they were grouped by. A switched-off category is reported too, in a different message."
             },
             {
               "id": "num.org.filter",
-              "name": "フィルタ",
+              "name": "Filters",
               "spec_anchor": "TST.FilterSetArchive",
               "read": "partial",
               "write": "none",
@@ -2793,28 +2793,28 @@
               ],
               "warning": "「a Numbers filter (N rule(s)) is dropped — the rows it hides are kept as hidden rows …」",
               "evidence": "measured",
-              "note": "隠している行は隠し行として保ち、規則は落として言う。Numbers 自身の Excel 書き出しと同じ渡し方（付録 B.29）。"
+              "note": "Rows the filter hides are kept as hidden rows, and the rules are dropped, with a warning. The same deal Numbers itself makes when it exports to Excel (Appendix B.29)."
             },
             {
               "id": "num.org.sort",
-              "name": "並べ替え",
+              "name": "Sorting",
               "spec_anchor": "sort_order / rules",
               "read": "partial",
               "write": "none",
               "api": [],
-              "warning": "「a Numbers sort order (N rule(s), by <列名>) is dropped — the rows already come back sorted」",
+              "warning": "\"a Numbers sort order (N rule(s), by <column name>) is dropped — the rows already come back sorted\"",
               "evidence": "measured",
-              "note": "行は並べ替え済みの順で入っている。規則だけが落ちる。"
+              "note": "The rows are stored in sorted order. Only the rules are dropped."
             }
           ]
         },
         {
           "id": "pivot",
-          "name": "集計表（ピボット）",
+          "name": "Pivot tables",
           "features": [
             {
               "id": "num.pivot.write",
-              "name": "集計表（縦横とも複数段・部分合計つき）",
+              "name": "Pivot tables (several levels on both axes, with subtotals)",
               "spec_anchor": "TST.PivotOwnerArchive, TST.PivotOrderArchive, TST.SummaryModelArchive",
               "read": "partial",
               "write": "partial",
@@ -2822,26 +2822,26 @@
                 "wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)",
                 "PivotTable"
               ],
-              "warning": "2 つ目以降の集計値は「N of its M summarised values dropped — the value lanes … share one placeholder id」",
+              "warning": "The 2nd and later summarised values: \"N of its M summarised values dropped — the value lanes … share one placeholder id\"",
               "evidence": "judge",
-              "note": "本物の Numbers の集計表として書く（生きた要約で、Numbers が元の行から数え直す）。3 段の入れ子まで実測済み。集計する値は 1 つまで（付録 B.28）。"
+              "note": "Written as a genuine Numbers pivot table (a live summary that Numbers recounts from the source rows). Measured up to 3 levels of nesting. At most 1 summarised value (Appendix B.28)."
             },
             {
               "id": "num.pivot.read",
-              "name": "集計表を読む",
-              "spec_anchor": "同上",
+              "name": "Reading pivot tables",
+              "spec_anchor": "Same as above",
               "read": "partial",
               "write": "na",
               "api": [
                 "sheet.tables"
               ],
-              "warning": "なし（値のある普通の表として読める）",
+              "warning": "None (read as an ordinary table with values)",
               "evidence": "readme",
-              "note": "読み戻すと普通の表になる。集計の仕掛けはモデルに持たない。"
+              "note": "Read back, it becomes an ordinary table. The model does not hold the pivot mechanism."
             },
             {
               "id": "num.pivot.filterfield",
-              "name": "レポートフィルタの段",
+              "name": "Report filter fields",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2856,12 +2856,12 @@
         },
         {
           "id": "canvas",
-          "name": "キャンバスのオブジェクト",
+          "name": "Objects on the canvas",
           "features": [
             {
               "id": "num.canvas.chart",
-              "name": "グラフ",
-              "spec_anchor": "B.88（TSCH.ChartDrawableArchive・TN.ChartMediatorArchive）",
+              "name": "Charts",
+              "spec_anchor": "B.88 (TSCH.ChartDrawableArchive, TN.ChartMediatorArchive)",
               "read": "partial",
               "write": "partial",
               "api": [
@@ -2869,14 +2869,14 @@
                 "sheet.addChart(_:over:)",
                 "Chart.frame"
               ],
-              "warning": "描けない種類は「a … chart was not written: the writer draws column, bar, line and pie charts」／表に無い範囲の系列は「… series of a chart dropped」／表に繋がっていないグラフは読みで「a chart」のまま",
+              "warning": "A kind it cannot draw: \"a … chart was not written: the writer draws column, bar, line and pie charts\" / series over a range not in a table: \"… series of a chart dropped\" / a chart not linked to a table stays \"a chart\" in the read report",
               "evidence": "measured",
-              "note": "種類・題名・凡例・系列の範囲を仲介役の式から読み書きする。系列の色などの様式は雛形のプリセット。Numbers 15.3.1 が開いて保存し直し、Excel へ書き出しても残る（gated テスト）。"
+              "note": "Kind, title, legend and series ranges are read and written through the mediator's formulas. Styling such as series colours is the template's preset. Numbers 15.3.1 opens and re-saves the file, and the chart survives an export to Excel (gated test)."
             },
             {
               "id": "num.canvas.image",
-              "name": "画像",
-              "spec_anchor": "B.83（TSD.ImageArchive・TSP.DataInfo）",
+              "name": "Images",
+              "spec_anchor": "B.83 (TSD.ImageArchive, TSP.DataInfo)",
               "read": "full",
               "write": "full",
               "api": [
@@ -2884,13 +2884,13 @@
                 "sheet.addImage(_:at:sizing:)",
                 "sheet.addImage(_:over:)"
               ],
-              "warning": "PNG / JPEG / GIF でない絵（PDF・HEIC）は読みで「an image」のまま",
+              "warning": "A picture that is not PNG / JPEG / GIF (PDF, HEIC) stays \"an image\" in the read report",
               "evidence": "measured",
-              "note": "錨はキャンバス上の点で読む（.absolute）。セル錨は最初の表の列幅・行高で点に直して書く。Numbers 15.3.1 が開いて保存し直す（gated テスト）。"
+              "note": "The anchor is read as a point on the canvas (.absolute). A cell anchor is converted to points using the first table's column widths and row heights, then written. Numbers 15.3.1 opens and re-saves the file (gated test)."
             },
             {
               "id": "num.canvas.shape",
-              "name": "図形・テキストボックス",
+              "name": "Shapes, text boxes",
               "spec_anchor": "B.83（TSWP.ShapeInfoArchive）",
               "read": "partial",
               "write": "partial",
@@ -2899,29 +2899,29 @@
                 "sheet.addShape(_:over:)",
                 "sheet.addTextBox(_:over:font:)"
               ],
-              "warning": "10 種（rect / roundRect / ellipse / diamond / triangle / 矢印 4 方向 / line）以外の geometry は「a shape of geometry … was written as a rectangle」／textAlignment は「not written」（degraded）",
+              "warning": "A geometry outside the 10 (rect / roundRect / ellipse / diamond / triangle / arrows in 4 directions / line): \"a shape of geometry … was written as a rectangle\" / textAlignment: \"not written\" (degraded)",
               "evidence": "measured",
-              "note": "文・塗り・線・書体（書きのみ）を運ぶ。10 種の形は単位経路として書き、読みで同じ経路を見分ける（B.87）。それ以外の経路は numbers-path（プリセット外）。"
+              "note": "Carries text, fill, outline and font (font: write only). The 10 shapes are written as unit paths, and reading recognises the same paths (B.87). Any other path becomes numbers-path (outside the presets)."
             },
             {
               "id": "num.canvas.movie",
-              "name": "ムービー・オーディオ",
+              "name": "Movies, audio",
               "spec_anchor": "TSD.MovieArchive",
               "read": "none",
               "write": "none",
               "api": [],
-              "warning": "読みで「a movie」",
+              "warning": "On read: \"a movie\"",
               "evidence": "code",
               "note": null
             },
             {
               "id": "num.canvas.group",
-              "name": "図形のグループ・接続線",
+              "name": "Groups of shapes, connection lines",
               "spec_anchor": "TSD.GroupArchive, TSD.ConnectionLineArchive",
               "read": "none",
               "write": "none",
               "api": [],
-              "warning": "読みで「a group of objects」「a connection line」",
+              "warning": "On read: \"a group of objects\", \"a connection line\"",
               "evidence": "code",
               "note": null
             }
@@ -2929,11 +2929,11 @@
         },
         {
           "id": "misc",
-          "name": "保護・印刷・その他",
+          "name": "Protection, printing, other",
           "features": [
             {
               "id": "num.misc.protect",
-              "name": "書類のパスワード保護（書き出し側）",
+              "name": "Document password protection (writing)",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2946,7 +2946,7 @@
             },
             {
               "id": "num.misc.sheetprotect",
-              "name": "シートの保護・保護範囲",
+              "name": "Sheet protection, protected ranges",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2954,14 +2954,14 @@
                 "sheet.protection",
                 "sheet.protectedRanges"
               ],
-              "warning": "「sheet protection is dropped: Numbers protects a whole document, not a sheet」ほか",
+              "warning": "\"sheet protection is dropped: Numbers protects a whole document, not a sheet\" and others",
               "evidence": "measured",
               "note": null
             },
             {
               "id": "num.misc.print",
-              "name": "印刷（用紙・向き・余白・ヘッダー／フッター・タイトル行・印刷範囲・改ページ）",
-              "spec_anchor": "B.84・B.86（TN.SheetArchive・TN.DocumentArchive）",
+              "name": "Printing (paper, orientation, margins, header/footer, title rows, print area, page breaks)",
+              "spec_anchor": "B.84, B.86 (TN.SheetArchive, TN.DocumentArchive)",
               "read": "partial",
               "write": "partial",
               "api": [
@@ -2970,13 +2970,13 @@
                 "sheet.printArea",
                 "sheet.rowBreaks"
               ],
-              "warning": "印刷範囲・改ページ・行 1 から始まらないタイトル行・表に無い用紙番号は「… are dropped: Numbers prints a canvas, not a page grid」で名指し／&P 以外の記号は「header / footer code(s) … dropped」（degraded）",
+              "warning": "Print area, page breaks, title rows not starting at row 1 and a paper size code with no entry in the lookup table are named in \"… are dropped: Numbers prints a canvas, not a page grid\" / codes other than &P: \"header / footer code(s) … dropped\" (degraded)",
               "evidence": "measured",
-              "note": "向き・拡大率・余白・開始ページ番号・左中右のヘッダー／フッター（奇数ページ）・用紙（書類に 1 つ）・行 1 からのタイトル行／列（見出し行の繰り返し）を運ぶ。読みは Numbers が印刷する物をそのまま（フッター中央の &P、72 %）。"
+              "note": "Carries orientation, scale, margins, first page number, left/centre/right header/footer (odd pages), paper (1 per document) and title rows/columns from row 1 (repeated header rows). Reading returns what Numbers prints, as is (&P in the centre footer, 72 %)."
             },
             {
               "id": "num.misc.definednames",
-              "name": "定義名",
+              "name": "Defined names",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -2990,7 +2990,7 @@
             },
             {
               "id": "num.misc.scenario",
-              "name": "シナリオ",
+              "name": "Scenarios",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -3003,7 +3003,7 @@
             },
             {
               "id": "num.misc.epoch",
-              "name": "1904 の日付原点",
+              "name": "The 1904 date epoch",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -3016,7 +3016,7 @@
             },
             {
               "id": "num.misc.vba",
-              "name": "VBA マクロ",
+              "name": "VBA macros",
               "spec_anchor": "—",
               "read": "na",
               "write": "none",
@@ -3027,25 +3027,25 @@
             },
             {
               "id": "num.misc.collab",
-              "name": "共同編集の履歴",
+              "name": "Collaboration history",
               "spec_anchor": "TSCK.* （collaboration）",
               "read": "none",
               "write": "none",
               "api": [],
-              "warning": "なし（モデルに対応物が無い）",
+              "warning": "None (the model has no counterpart)",
               "evidence": "code",
-              "note": "型は名簿に実在するが、読み書きの対象にしていない。"
+              "note": "The type exists in the registry, but it is neither read nor written."
             }
           ]
         },
         {
           "id": "streaming",
-          "name": "大きなファイル",
+          "name": "Large files",
           "features": [
             {
               "id": "num.stream.read",
-              "name": "行ごとの読み出し（全体をメモリに載せない）",
-              "spec_anchor": "Index/Tables/Tile-*.iwa の逐次復号",
+              "name": "Row-by-row reading (without loading everything into memory)",
+              "spec_anchor": "Streaming decode of Index/Tables/Tile-*.iwa",
               "read": "partial",
               "write": "na",
               "api": [
@@ -3054,14 +3054,14 @@
                 "forEachRow(inSheet:table:)",
                 "tableCount(inSheet:)"
               ],
-              "warning": "なし（値と書式だけと明記）",
+              "warning": "None (documented as values and formatting only)",
               "evidence": "measured",
-              "note": "部品の目次だけ先に作り、タイルは行送りのたびに戻して捨てる。1 枚のシートの 2 枚目以降の表は table: で。値と書式だけ。付録 B.40.3。"
+              "note": "Only an index of the parts is built up front; each tile is decoded as the rows advance, then discarded. The 2nd and later tables on 1 sheet are reached with table:. Values and formatting only. Appendix B.40.3."
             },
             {
               "id": "num.stream.write",
-              "name": "行ごとの書き出し",
-              "spec_anchor": "Index/Tables/Tile-*.iwa を 256 行ごとに書き出す",
+              "name": "Row-by-row writing",
+              "spec_anchor": "Index/Tables/Tile-*.iwa written every 256 rows",
               "read": "na",
               "write": "partial",
               "api": [
@@ -3071,9 +3071,9 @@
                 "close()",
                 "warnings"
               ],
-              "warning": "数式はキャッシュ値・リッチテキストは平文・リンクと注釈と制御は落とす（枚数つき）",
+              "warning": "Formulas become cached values, rich text becomes plain text, and links, notes and controls are dropped (with counts)",
               "evidence": "measured",
-              "note": "タイルは埋まるたびに封筒へ書いて手放す。残るのは文字列一覧・様式一覧・行ごと約 12 バイトの行ヘッダ。表の幅は最も広い行で、書き出し済みのタイルより広い行は refuse。付録 B.42。"
+              "note": "Each tile is written into its envelope as soon as it fills, and let go. What remains is the string list, the style list and a row header of about 12 bytes per row. The table's width is that of the widest row; a row wider than the tiles already written is refused. Appendix B.42."
             }
           ]
         }
