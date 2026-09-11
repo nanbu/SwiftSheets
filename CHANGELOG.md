@@ -1127,7 +1127,7 @@ replacement; no file output changes.
   rating with 0, and the writer does the same, so a control put on an empty cell reads back with that resting
   value rather than nil. A control on a value of the wrong kind (a checkbox on text) keeps the value and drops
   the control with a warning; writing `.xlsx` or `.ods` keeps the value and names the lost control — neither
-  format has one. The format-support table grows its 47th row (セルの制御 — Numbers ○, Excel and ODS ×), and the
+  format has one. The format-support table grows its 47th row (cell controls — Numbers ○, Excel and ODS ×), and the
   corpus gains `controls-15.numbers` (spec Appendix B.25).
 
 - **A list data validation and a Numbers pop-up menu are treated as the same thing**, because Numbers itself
