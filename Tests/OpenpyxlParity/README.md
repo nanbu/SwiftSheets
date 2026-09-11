@@ -8,7 +8,7 @@ claim machine-checked instead of narrative.
 | `enumerate_openpyxl_tests.py` | walks an openpyxl source tree and lists every test function → `openpyxl-<version>-tests.json` (committed, so the check runs offline) |
 | `parity.json` | the curated status of every test: `ported` / `adapted` / `na_api` / `na_python`, with a reason and the API area it belongs to |
 | `check.py` | resolves a status for every enumerated test, cross-checks `ported` / `adapted` entries against the `// openpyxl: <file>::[<Class>::]<test>` comments in `Tests/SwiftSheetsTests`, writes `report.json`, exits 1 on any inconsistency |
-| `verify_with_openpyxl.py` | writes a workbook with SwiftSheets and reads it with openpyxl, then the reverse (needs a Python with openpyxl — the Stream web venv) |
+| `verify_with_openpyxl.py` | writes a workbook with SwiftSheets and reads it with openpyxl, then the reverse (needs a Python with openpyxl installed) |
 
 Statuses:
 

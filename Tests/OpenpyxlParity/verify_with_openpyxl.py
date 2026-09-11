@@ -6,7 +6,7 @@
    checks every value, style, dimension, merge, link and name.
 2. openpyxl writes openpyxl.xlsx with the same content; `swift test` loads it and checks the same expectations
    (OpenpyxlInteropTests.readsVerificationWorkbook).
-Exit 0 when both directions pass. Requires a Python with openpyxl (the Stream web venv has it)."""
+Exit 0 when both directions pass. Requires a Python with openpyxl installed."""
 import datetime as dt
 import json
 import os
