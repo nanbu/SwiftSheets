@@ -67,9 +67,11 @@ enum ThreadedCommentParts {
         var mirrors: [(ref: CellRef, note: CellNote)] = []
         func guid() -> String { "{" + UUID().uuidString + "}" }
         let now: CivilDateTime = {
-            let c = Calendar(identifier: .gregorian).dateComponents(in: TimeZone(identifier: "UTC")!, from: Date())
-            return CivilDateTime(date: CivilDate(year: c.year ?? 2000, month: c.month ?? 1, day: c.day ?? 1) ?? CivilDate(year: 2000, month: 1, day: 1)!,
-                                 time: TimeOfDay(hour: c.hour ?? 0, minute: c.minute ?? 0, second: c.second ?? 0))
+            // UTC, by arithmetic on the epoch seconds: no Calendar, no TimeZone
+            let seconds = Int(Date().timeIntervalSince1970.rounded(.down))
+            let days = seconds >= 0 ? seconds / 86_400 : -((-seconds + 86_399) / 86_400)
+            let rest = seconds - days * 86_400
+            return CivilDateTime(date: CivilDate(dayNumber: days), time: TimeOfDay(hour: rest / 3600, minute: (rest % 3600) / 60, second: rest % 60))
         }()
         func time(_ d: CivilDateTime?) -> String { let t = d ?? now; return t.iso8601 + (t.time.nanosecond == 0 ? ".00" : "") }
         for (ref, thread) in threads {
