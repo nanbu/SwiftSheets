@@ -5,7 +5,7 @@ import Testing
 import SwiftSheets
 
 /// Named cell styles — `cellStyles` / `cellStyleXfs` and the `xfId` a cell's `xf` points home with. Appendix B.7
-/// listed them as未着手 and the README as a known limit of the preservation: a workbook opened and saved lost the
+/// listed them as not started and the README as a known limit of the preservation: a workbook opened and saved lost the
 /// link, so Excel stopped showing the style as applied even though the formatting was still right.
 @Suite struct NamedStyleTests {
     static let fixtures = Bundle.module.resourceURL!.appendingPathComponent("Fixtures")

@@ -3,8 +3,8 @@ import Testing
 @testable import SheetCore
 @testable import SheetODS
 
-/// Spec §12: "プロパティテスト — A1 ⇄ (row, col) 変換の全単射性、RLE 圧縮展開の対称性、数式 parse → emit → parse の
-/// 不動点性をランダム入力で検証する". Appendix B.6 recorded these as the one part of the test strategy still to do:
+/// Spec §12: "property tests — A1 ⇄ (row, col) conversion is a bijection, RLE compression and expansion are symmetric, formula parse → emit → parse
+/// reaches a fixed point, all verified on random input". Appendix B.6 recorded these as the one part of the test strategy still to do:
 /// the fixed case lists were there, the random generator was not.
 ///
 /// Random, but never flaky: every generator is driven by `SeededGenerator` from a constant seed, so a failure is

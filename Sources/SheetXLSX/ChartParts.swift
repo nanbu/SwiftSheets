@@ -68,7 +68,7 @@ enum ChartParts {
         return x
     }
 
-    /// `B2:B13` → `'集計'!$B$2:$B$13`. A reference that already names a sheet passes through untouched.
+    /// `B2:B13` → `'Summary'!$B$2:$B$13`. A reference that already names a sheet passes through untouched.
     static func qualify(_ ref: String, sheet: String) -> String {
         if ref.contains("!") { return ref }
         let absolute = CellRange(ref).map { range in

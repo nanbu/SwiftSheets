@@ -6,7 +6,7 @@ import SheetCore
 /// comments part without its VML opens, but the note is invisible and Excel offers to repair the file.
 ///
 /// Written from ECMA-376 Part 1 §18.7 (comments) and Part 4 §14.1 (the VML subset Office uses); the shape below is
-/// the minimum Excel and LibreOffice both accept. Appendix B.7 listed this as未着手 — a note read from an ODS file
+/// the minimum Excel and LibreOffice both accept. Appendix B.7 listed this as not started — a note read from an ODS file
 /// or set in code was dropped with a warning when writing .xlsx.
 enum CommentParts {
     static let relationshipType = "/comments"

@@ -3,7 +3,7 @@ import Foundation
 /// A chart on a sheet (spec Appendices B.34, B.72): built by `addChart` — the four kinds that carry most real
 /// work — or read from a file's drawing, in which case `kind` may be one the writers cannot draw and the chart is
 /// written back as the bytes it arrived in until it is changed. Series ranges may name their sheet
-/// (`'集計'!$B$2:$B$13`) or not (`B2:B13`) — an unqualified range is qualified with the host sheet's name and
+/// (`'Summary'!$B$2:$B$13`) or not (`B2:B13`) — an unqualified range is qualified with the host sheet's name and
 /// made absolute at write time, since chart references accept nothing less.
 public struct Chart: Hashable, Sendable {
     /// The kind of chart. A struct with static members rather than an enum, so a kind can be added without

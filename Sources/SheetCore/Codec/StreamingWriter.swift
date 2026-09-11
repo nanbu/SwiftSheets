@@ -47,8 +47,8 @@ public struct StreamingCleanupError: Error, CustomStringConvertible {
 /// it, and only a `close()` that completes the file renames that over the destination. A row that cannot be
 /// serialized, a full disk, a `close()` that fails half way — none of them touch the file that was already there.
 ///
-///     let result = try CodecSet.all.withStreamingWriter(to: url, sheetName: "売上") { writer in
-///         try writer.append([.text("品目"), .text("数量")])
+///     let result = try CodecSet.all.withStreamingWriter(to: url, sheetName: "Sales") { writer in
+///         try writer.append([.text("Item"), .text("Quantity")])
 ///         for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
 ///     }
 ///     print(result.warnings)   // the closure returned, so the file is saved

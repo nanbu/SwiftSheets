@@ -5,7 +5,7 @@ import Testing
 @testable import SheetXLSX
 import SwiftSheets
 
-/// Cell notes in XLSX. Appendix B.7 had "コメントの書き出し（VML）" as未着手: notes were preserved as opaque parts
+/// Cell notes in XLSX. Appendix B.7 had "writing comments (VML)" as not started: notes were preserved as opaque parts
 /// when a workbook was written back, but never *read* into the model and never generated — so a note written in
 /// LibreOffice and converted through SwiftSheets came out the other side missing, with a `dropped` warning saying so.
 @Suite struct CommentTests {

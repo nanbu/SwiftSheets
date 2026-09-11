@@ -91,7 +91,7 @@ package struct ODSStreamingReader: StreamingRowSource {
         }
     }
 
-    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` — pulled
+    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "Sales")` — pulled
     /// one piece of the body at a time as the loop asks for them, so a walk that stops early reads no further.
     package func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
         StreamingRowSequence.make { try rowWalk(inSheet: name, table: table, options: options) }

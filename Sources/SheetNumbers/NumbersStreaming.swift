@@ -108,7 +108,7 @@ package struct NumbersStreamingReader: StreamingRowSource {
         while let row = try walk.next() { try body(row) }
     }
 
-    /// The rows of one table as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` —
+    /// The rows of one table as a sequence to iterate — `for try await row in reader.rows(inSheet: "Sales")` —
     /// one tile of the table expanded at a time as the loop asks, so a walk that stops early reads no further.
     package func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {
         StreamingRowSequence.make { try rowWalk(inSheet: name, table: table, options: options) }

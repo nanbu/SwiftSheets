@@ -8,8 +8,8 @@ import SheetCore
 /// table model, the string list (one entry per distinct text — the same thing an XLSX reader's shared-string
 /// table is), the style list and a column count per column. Memory stays a few megabytes plus that list.
 ///
-///     let writer = try NumbersStreamingWriter(url: url, sheetName: "売上")
-///     try writer.append([.text("品目"), .text("数量")])
+///     let writer = try NumbersStreamingWriter(url: url, sheetName: "Sales")
+///     try writer.append([.text("Item"), .text("Quantity")])
 ///     for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
 ///     try writer.close()
 ///

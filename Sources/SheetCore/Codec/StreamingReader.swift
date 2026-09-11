@@ -14,7 +14,7 @@ import Foundation
 ///     try reader.forEachRow(inSheet: reader.sheetNames[0], valuesOnly: 3) { values in
 ///         if case .integer(let qty)? = values[2] { total += qty }
 ///     }
-///     for try await row in reader.rows(inSheet: "売上") { … }
+///     for try await row in reader.rows(inSheet: "Sales") { … }
 ///
 /// **What it costs.** The file is read through positioned reads, not mapped. An XLSX sheet part and an ODS body are
 /// expanded a piece at a time; a Numbers table is read one tile of rows at a time from a document indexed but not
@@ -54,7 +54,7 @@ public struct StreamingReader {
         try source.forEachRow(inSheet: name, table: table, options: options, body)
     }
 
-    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` — pulled
+    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "Sales")` — pulled
     /// from the file as the loop asks for them, so a walk that stops early reads no further. The sequence is
     /// asynchronous only because that is the shape Swift gives a sequence that can throw; nothing runs concurrently.
     public func rows(inSheet name: String, table: Int = 0, options: StreamingReadOptions = StreamingReadOptions()) -> AsyncThrowingStream<StreamedRow, Error> {

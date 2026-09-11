@@ -7,7 +7,7 @@ import Testing
 @testable import SheetXLSX
 import SwiftSheets
 
-/// Spec §12, pillar 5: "malformed コーパス＋ランダム破壊入力でクラッシュ・無限ループ・メモリ爆発がないこと".
+/// Spec §12, pillar 5: "no crash, endless loop or memory blow-up on the malformed corpus and on randomly damaged input".
 /// `MalformedInputTests` is the hand-written half — every case there is a crash that once happened. This is the
 /// other half: take the real corpus and break it in every cheap way there is, thousands of times, from fixed seeds.
 ///

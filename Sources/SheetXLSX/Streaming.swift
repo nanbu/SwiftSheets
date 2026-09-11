@@ -14,7 +14,7 @@ import SheetCore
 ///
 ///     let reader = try XLSXStreamingReader(contentsOf: url)
 ///     var total = 0
-///     try reader.forEachRow(inSheet: "売上", valuesOnly: 3) { values in
+///     try reader.forEachRow(inSheet: "Sales", valuesOnly: 3) { values in
 ///         if case .integer(let qty)? = values[2] { total += qty }
 ///     }
 ///
@@ -118,7 +118,7 @@ package struct XLSXStreamingReader: StreamingRowSource {
         }
     }
 
-    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "売上")` — pulled
+    /// The rows of a sheet as a sequence to iterate — `for try await row in reader.rows(inSheet: "Sales")` — pulled
     /// one piece of the part at a time as the loop asks for them, so a walk that stops early reads no further
     /// (spec Appendix B.39.10). The rows arrive in the sheet's order; the sequence is asynchronous only because that
     /// is the shape Swift gives a sequence that can throw.
@@ -278,8 +278,8 @@ final class StreamingSheetParser: StreamingRowParser {
 /// workbook of any size costs the same handful of megabytes. What that buys is paid for in what it gives up —
 /// this writes values and formatting and nothing else, and once a row is written it cannot be gone back to.
 ///
-///     let writer = try XLSXStreamingWriter(url: url, sheetName: "売上")
-///     try writer.append([.text("品目"), .text("数量")])
+///     let writer = try XLSXStreamingWriter(url: url, sheetName: "Sales")
+///     try writer.append([.text("Item"), .text("Quantity")])
 ///     for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
 ///     try writer.close()
 ///

@@ -11,8 +11,8 @@ import SheetCore
 /// (`TextSpill`), so memory stays a few megabytes whatever the row count; the disk holds the rows once,
 /// uncompressed, until `close()` — the price of the one-part format.
 ///
-///     let writer = try ODSStreamingWriter(url: url, sheetName: "売上")
-///     try writer.append([.text("品目"), .text("数量")])
+///     let writer = try ODSStreamingWriter(url: url, sheetName: "Sales")
+///     try writer.append([.text("Item"), .text("Quantity")])
 ///     for record in records { try writer.append([.text(record.name), .integer(record.quantity)]) }
 ///     try writer.close()
 ///

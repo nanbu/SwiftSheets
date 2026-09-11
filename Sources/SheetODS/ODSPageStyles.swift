@@ -145,7 +145,7 @@ enum ODSPageStyles {
     }
 }
 
-/// Excel's header / footer codes (`&L左&C中&R&P / &N`) ⇄ ODF's three regions of `text:p` with field elements.
+/// Excel's header / footer codes (`&Lleft&Ccentre&R&P / &N`) ⇄ ODF's three regions of `text:p` with field elements.
 enum ODSHeaderFooter {
     /// The three regions of one header or footer.
     static func regionsXML(_ code: String, sheet: String, sink: ODSWarningSink) -> String {
