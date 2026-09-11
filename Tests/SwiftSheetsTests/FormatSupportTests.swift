@@ -204,50 +204,50 @@ import SwiftSheets
     /// Four of the published rows carry two features apiece (the page merges what the measurement keeps apart),
     /// which is why 44 rows cover 48 keys.
     static let publishedRows: [(label: String, keys: [String])] = [
-        ("値（数値・文字・日付・真偽・経過時間・エラー）", ["値"]),
-        ("数式", ["数式"]),
-        ("└ 株価・為替の関数（STOCK・CURRENCY など 6 種）", ["株価・為替の関数"]),
-        ("配列数式（範囲つき）", ["配列数式"]),
-        ("セル内の書式差（リッチテキスト）", ["リッチテキスト"]),
-        ("ハイパーリンク", ["ハイパーリンク"]),
-        ("メモ（セルのコメント）", ["メモ"]),
-        ("結合", ["結合"]),
-        ("セル書式（フォント・太字・色・罫線）", ["書式・太字"]),
-        ("塗り（単色・階調）", ["書式・塗り"]),
-        ("配置・折り返し", ["配置"]),
-        ("表示形式（#,##0.00 など）", ["表示形式"]),
-        ("列幅・行高・非表示", ["列幅", "行高"]),
-        ("行・列のグループ化（アウトライン）", ["グループ化"]),
-        ("ウィンドウ枠の固定", ["ウィンドウ枠固定"]),
-        ("タブ色", ["タブ色"]),
-        ("比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間", ["条件付き書式"]),
-        ("カラースケール（2 色・3 色）", ["CF・カラースケール"]),
-        ("データバー", ["CF・データバー"]),
-        ("アイコンセット", ["CF・アイコンセット"]),
-        ("入力規則（ドロップダウン・範囲チェック）", ["入力規則"]),
-        ("セルの制御（チェックボックス・ステッパー・スライダー・レート）", ["セルの制御"]),
-        ("名前付きの表", ["名前付きの表"]),
-        ("オートフィルタ（範囲）", ["オートフィルタ"]),
-        ("└ 絞り込み条件・並べ替えの記録", ["絞り込み条件", "並べ替えの記録"]),
-        ("ピボット表", ["ピボット表"]),
-        ("シート保護", ["シート保護"]),
-        ("保護範囲（保護シート内の編集可能な窓）", ["保護範囲"]),
-        ("シナリオ", ["シナリオ"]),
-        ("ヘッダ／フッタ", ["印刷・ヘッダフッタ"]),
-        ("向き・用紙・拡大率・余白・中央寄せ", ["印刷・向き"]),
-        ("印刷範囲・タイトル行／列", ["印刷・範囲", "印刷・タイトル行"]),
-        ("改ページ", ["改ページ"]),
-        ("定義名（ブック・シート）", ["定義名・ブック", "定義名・シート"]),
-        ("ブック保護（シート構成の固定）", ["ブック保護"]),
-        ("文書の自由項目（部署・案件番号など）", ["文書の自由項目"]),
-        ("隠しシート", ["隠しシート"]),
-        ("1 シートに複数の表", ["1シート複数テーブル"]),
-        ("ラベル範囲（見出しを数式でそのまま使う）", ["ラベル範囲"]),
-        ("統合の定義", ["統合の定義"]),
-        ("探偵の矢印（参照元・参照先のトレース）", ["探偵の矢印"]),
-        ("計算設定（正規表現・ワイルドカード・大小文字・二桁年）", ["計算設定"]),
-        ("日付の原点", ["日付の原点"]),
-        ("通貨のセル種別", ["通貨のセル種別"]),
+        ("Values (number, text, date, boolean, duration, error)", ["値"]),
+        ("Formulas", ["数式"]),
+        ("└ Stock and currency functions (STOCK, CURRENCY and four others)", ["株価・為替の関数"]),
+        ("Array formulas (with their range)", ["配列数式"]),
+        ("Formatting within a cell (rich text)", ["リッチテキスト"]),
+        ("Hyperlinks", ["ハイパーリンク"]),
+        ("Notes (cell comments)", ["メモ"]),
+        ("Merged cells", ["結合"]),
+        ("Cell style (font, bold, colour, borders)", ["書式・太字"]),
+        ("Fill (solid, gradient)", ["書式・塗り"]),
+        ("Alignment and wrapping", ["配置"]),
+        ("Number format (#,##0.00 and the like)", ["表示形式"]),
+        ("Column width, row height, hidden rows and columns", ["列幅", "行高"]),
+        ("Row and column grouping (outline)", ["グループ化"]),
+        ("Frozen panes", ["ウィンドウ枠固定"]),
+        ("Tab colour", ["タブ色"]),
+        ("Comparison, formula, text, top/bottom, above/below average, duplicate/unique, blank/error, time period", ["条件付き書式"]),
+        ("Colour scale (2- and 3-colour)", ["CF・カラースケール"]),
+        ("Data bar", ["CF・データバー"]),
+        ("Icon set", ["CF・アイコンセット"]),
+        ("Data validation (drop-down lists, range checks)", ["入力規則"]),
+        ("Cell controls (checkbox, stepper, slider, rating)", ["セルの制御"]),
+        ("Named tables", ["名前付きの表"]),
+        ("AutoFilter (the range)", ["オートフィルタ"]),
+        ("└ Filter criteria and the recorded sort", ["絞り込み条件", "並べ替えの記録"]),
+        ("Pivot tables", ["ピボット表"]),
+        ("Sheet protection", ["シート保護"]),
+        ("Protected ranges (editable windows in a protected sheet)", ["保護範囲"]),
+        ("Scenarios", ["シナリオ"]),
+        ("Header/footer", ["印刷・ヘッダフッタ"]),
+        ("Orientation, paper, scale, margins, centering", ["印刷・向き"]),
+        ("Print area, title rows/columns", ["印刷・範囲", "印刷・タイトル行"]),
+        ("Page breaks", ["改ページ"]),
+        ("Defined names (workbook and sheet)", ["定義名・ブック", "定義名・シート"]),
+        ("Workbook protection (locking the sheet structure)", ["ブック保護"]),
+        ("Custom document properties (department, case number and the like)", ["文書の自由項目"]),
+        ("Hidden sheets", ["隠しシート"]),
+        ("Several tables on one sheet", ["1シート複数テーブル"]),
+        ("Label ranges (a heading used as is in a formula)", ["ラベル範囲"]),
+        ("Consolidation definitions", ["統合の定義"]),
+        ("Detective arrows (tracing precedents and dependents)", ["探偵の矢印"]),
+        ("Calculation settings (regular expressions, wildcards, case sensitivity, two-digit years)", ["計算設定"]),
+        ("Date epoch", ["日付の原点"]),
+        ("Currency cell type", ["通貨のセル種別"]),
     ]
 
     /// The page is the measurement, written out for people. Until this test existed, that was a promise kept by
@@ -267,9 +267,9 @@ import SwiftSheets
         let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let page = try String(contentsOf: root.appending(path: "docs/format-support.html"), encoding: .utf8)
 
-        // the rows of the one table under <h2>対応表</h2>
-        guard let start = page.range(of: "<h2>対応表</h2>"), let end = page.range(of: "</table>", range: start.upperBound..<page.endIndex)
-        else { Issue.record("docs/format-support.html has no 対応表 table"); return }
+        // the rows of the one table under <h2>The table</h2>
+        guard let start = page.range(of: "<h2>The table</h2>"), let end = page.range(of: "</table>", range: start.upperBound..<page.endIndex)
+        else { Issue.record("docs/format-support.html has no \"The table\" table"); return }
         var published: [String: [String]] = [:]     // label → the three marks
         for chunk in page[start.upperBound..<end.lowerBound].components(separatedBy: "<tr").dropFirst() {
             let cells = Self.cells(of: chunk)
@@ -309,8 +309,8 @@ import SwiftSheets
                     Comment(rawValue: "the page must show \(kept) / 48 for \(format.rawValue)"))
         }
         let counts = formats.map { Self.expectedWarningCount[$0]! }
-        #expect(page.contains("Excel \(counts[0]) 件・ODS \(counts[1]) 件・Numbers \(counts[2]) 件"),
-                Comment(rawValue: "the page must say Excel \(counts[0]) 件・ODS \(counts[1]) 件・Numbers \(counts[2]) 件"))
+        #expect(page.contains("Excel \(counts[0]), ODS \(counts[1]), Numbers \(counts[2])"),
+                Comment(rawValue: "the page must say Excel \(counts[0]), ODS \(counts[1]), Numbers \(counts[2])"))
     }
 
     /// The text of a row's `<td>`s, tags and entities removed — enough to read a label and a mark.

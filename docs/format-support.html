@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>形式ごとの対応表 — Excel / ODS / Numbers で何がどこまで通るか（SwiftSheets 0.26.0）</title>
+<title>The format support table — what goes through Excel / ODS / Numbers, and how far (SwiftSheets 0.26.0)</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -99,57 +99,57 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </head>
 <body>
 <main>
-<h1>形式ごとの対応表</h1>
-<p class="lede">同じブックを <code>.xlsx</code>・<code>.ods</code>・<code>.numbers</code> に書いたとき、
-何がそのまま通り、何が形を変え、何が通らないのか。SwiftSheets の実測です（版は題名のとおり、数値は main の最新計測）。</p>
-<p class="meta">2026-08-31 時点 / 検証環境: macOS 15・LibreOffice 26.2.3・numbers-parser 4.16.3・OASIS ODF 1.3 スキーマ・Numbers 15.3.1</p>
+<h1>The format support table</h1>
+<p class="lede">When the same workbook is written to <code>.xlsx</code>, <code>.ods</code> and <code>.numbers</code>,
+what goes through unchanged, what changes shape, and what does not go through at all. Measured by SwiftSheets (the version is the one in the title; the numbers are the latest measurement on main).</p>
+<p class="meta">As of 2026-08-31 / verified with: macOS 15, LibreOffice 26.2.3, numbers-parser 4.16.3, the OASIS ODF 1.3 schema, Numbers 15.3.1</p>
 
 <hr class="rule">
 
 <section>
-<h2>この表の作り方</h2>
+<h2>How this table was made</h2>
 <p>
-  「対応しています」と書いた表はすぐ嘘になります。そこでこの表は<strong>推測ではなく測定</strong>で作りました。
-  モデルが持てる 48 の項目をすべて詰め込んだブックを 1 つ用意し、各形式に<strong>書いて、読み戻して、
-  元と比べる</strong>。○ は戻ってきたもの、× は戻らなかったもの、△ は形を変えて戻ってきたものです。
+  A table that says "supported" is soon a lie. So this one was built by <strong>measurement, not guesswork</strong>.
+  One workbook carries all 48 features the model can hold; it is <strong>written to each format, read back,
+  and compared with the original</strong>. ○ is what came home, × what did not, △ what came home in another shape.
 </p>
 <p>
-  この計測そのものがリポジトリのテストです（<code>FormatSupportTests</code>）。48 項目の生存と、
-  各形式が返す警告の数を固定してあるので、<strong>コーデックを直してこの表が古くなったら、テストが先に赤くなります。</strong>
+  That measurement is itself a test in the repository (<code>FormatSupportTests</code>). It pins which of the 48 features survive and
+  how many warnings each format returns, so <strong>if a codec changes and this table goes stale, the test goes red first.</strong>
 </p>
 
 <div class="grid">
   <div class="card score">
     <div class="num">41<small> / 48</small></div>
-    <div class="lab">Excel（.xlsx / .xlsm）</div>
-    <div class="sub">表計算の仕掛けは全部通ります。通らない 7 件は、Numbers か OpenDocument にしか無い考え方です。</div>
+    <div class="lab">Excel (.xlsx / .xlsm)</div>
+    <div class="sub">Every spreadsheet mechanism goes through. The 7 that do not are ideas that exist only in Numbers or OpenDocument.</div>
   </div>
   <div class="card score">
     <div class="num">43<small> / 48</small></div>
-    <div class="lab">ODS（OpenDocument）</div>
-    <div class="sub">Excel より 1 つ多く通ります。落とす 6 件と拾う 7 件が違うだけで、優劣ではありません。</div>
+    <div class="lab">ODS (OpenDocument)</div>
+    <div class="sub">One more than Excel. It drops 6 and picks up 7 — different ones, not better or worse.</div>
   </div>
   <div class="card score">
     <div class="num">23<small> / 48</small></div>
     <div class="lab">Numbers</div>
-    <div class="sub">値・数式・株価の関数・書式・条件付き書式・入力規則・セルの制御・集計表・複数の表・絵と図形・表の置き場所・ページの向きとヘッダー・用紙・タイトル行まで。印刷範囲や保護の仕掛けは書けません（理由は後述）。</div>
+    <div class="sub">Values, formulas, stock functions, styles, conditional formatting, data validation, cell controls, pivot tables, several tables, pictures and shapes, a table's position, page orientation and headers, paper, title rows. Print areas and protection cannot be written (the reasons are below).</div>
   </div>
 </div>
 </section>
 
 <section>
-<h2>一目で</h2>
+<h2>At a glance</h2>
 <p>
-  三つの形式は「同じものの方言」ではありません。<strong>Excel と ODS は同じ地図を別の言葉で描いており、
-  Numbers は別の地図を描いています。</strong>下の図がその関係です。
+  The three formats are not dialects of one thing. <strong>Excel and ODS draw the same map in different words;
+  Numbers draws a different map.</strong> The figure below shows the relationship.
 </p>
 
 <figure>
-<svg viewBox="0 0 900 380" role="img" aria-label="モデルを中心に、Excel・ODS・Numbers それぞれが受け取れる範囲を示した図">
+<svg viewBox="0 0 900 380" role="img" aria-label="The model in the middle, and what each of Excel, ODS and Numbers can receive from it">
   <!-- model -->
   <rect x="330" y="20" width="240" height="72" rx="14" class="sv-accent-soft"/>
-  <text x="450" y="48" class="sv-tb" text-anchor="middle">SwiftSheets のモデル</text>
-  <text x="450" y="70" class="sv-t3" text-anchor="middle">形式に依らない 1 つの表現（48 項目）</text>
+  <text x="450" y="48" class="sv-tb" text-anchor="middle">The SwiftSheets model</text>
+  <text x="450" y="70" class="sv-t3" text-anchor="middle">one format-neutral representation (48 features)</text>
 
   <!-- arrows -->
   <path d="M 400 92 L 190 150" class="sv-arrow" marker-end="url(#a1)"/>
@@ -167,11 +167,11 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="60" y="192" width="250" height="18" rx="5" class="sv-soft"/>
   <rect x="60" y="192" width="218" height="18" rx="5" class="sv-accent" opacity="0.85"/>
   <text x="169" y="205" class="sv-inv" text-anchor="middle">41 / 48</text>
-  <text x="60" y="238" class="sv-t2">値・数式・書式・条件付き書式</text>
-  <text x="60" y="260" class="sv-t2">入力規則・表・フィルタ・ピボット</text>
-  <text x="60" y="282" class="sv-t2">保護・シナリオ・印刷設定・定義名</text>
-  <text x="60" y="312" class="sv-t3">通らない: 複数の表・セルの制御・</text>
-  <text x="60" y="332" class="sv-t3">ODF 固有の 4 件（下記）</text>
+  <text x="60" y="238" class="sv-t2">values, formulas, styles, conditional formats</text>
+  <text x="60" y="260" class="sv-t2">validation, tables, filters, pivots</text>
+  <text x="60" y="282" class="sv-t2">protection, scenarios, print setup, names</text>
+  <text x="60" y="312" class="sv-t3">not carried: several tables, cell controls,</text>
+  <text x="60" y="332" class="sv-t3">the 4 ODF-only items (below)</text>
 
   <!-- ods -->
   <rect x="345" y="150" width="210" height="200" rx="14" class="sv-card"/>
@@ -179,11 +179,11 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="365" y="192" width="170" height="18" rx="5" class="sv-soft"/>
   <rect x="365" y="192" width="152" height="18" rx="5" class="sv-accent" opacity="0.85"/>
   <text x="441" y="205" class="sv-inv" text-anchor="middle">43 / 48</text>
-  <text x="365" y="238" class="sv-t2">Excel より 2 つ多い（拾う物が違う）</text>
-  <text x="365" y="260" class="sv-t2">条件付き書式は拡張名前空間</text>
-  <text x="365" y="282" class="sv-t2">ピボット表 = データパイロット</text>
-  <text x="365" y="312" class="sv-t3">通らない: 保護範囲・シナリオ・</text>
-  <text x="365" y="332" class="sv-t3">セルの制御・複数の表</text>
+  <text x="365" y="238" class="sv-t2">2 more than Excel (different ones)</text>
+  <text x="365" y="260" class="sv-t2">conditional formats: extension namespace</text>
+  <text x="365" y="282" class="sv-t2">pivot table = data pilot</text>
+  <text x="365" y="312" class="sv-t3">not carried: protected ranges, scenarios,</text>
+  <text x="365" y="332" class="sv-t3">cell controls, several tables</text>
 
   <!-- numbers -->
   <rect x="570" y="150" width="290" height="200" rx="14" class="sv-card"/>
@@ -191,339 +191,339 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   <rect x="590" y="192" width="250" height="18" rx="5" class="sv-soft"/>
   <rect x="590" y="192" width="101" height="18" rx="5" class="sv-accent" opacity="0.85"/>
   <text x="703" y="205" class="sv-t2" font-weight="700">23 / 48</text>
-  <text x="590" y="238" class="sv-t2">値・数式・セル書式・表示形式</text>
-  <text x="590" y="260" class="sv-t2">リンク・メモ・結合・複数の表</text>
-  <text x="590" y="282" class="sv-t2">条件付き書式・集計表・入力規則・制御</text>
-  <text x="590" y="312" class="sv-t3">通らない: 色の階調・データバー・</text>
-  <text x="590" y="332" class="sv-t3">印刷範囲・定義名・フィルタ …</text>
+  <text x="590" y="238" class="sv-t2">values, formulas, cell styles, number formats</text>
+  <text x="590" y="260" class="sv-t2">links, notes, merges, several tables</text>
+  <text x="590" y="282" class="sv-t2">conditional formats, pivots, validation, controls</text>
+  <text x="590" y="312" class="sv-t3">not carried: colour scales, data bars,</text>
+  <text x="590" y="332" class="sv-t3">print areas, defined names, filters …</text>
 </svg>
-<figcaption>青い帯が「そのまま通る範囲」。Numbers だけ帯が短いのは能力差ではなく、公開仕様が無いことの帰結です。</figcaption>
+<figcaption>The blue bar is what goes through unchanged. Numbers' bar is shorter not because it can do less, but because its format has no public specification.</figcaption>
 </figure>
 </section>
 <section>
-<h2>対応表</h2>
+<h2>The table</h2>
 <p>
-  ○ = そのまま往復する / △ = 形を変えて通る（右の注を読んでください）/ × = 通らない。
-  <strong>× のものは黙って消えるのではなく、書き出しのたびに警告として返ってきます</strong>（後述）。
+  ○ = round-trips unchanged / △ = goes through in another shape (read the note on the right) / × = does not go through.
+  <strong>A × is not dropped in silence: every write returns it as a warning</strong> (see below).
 </p>
 
 <div class="tablewrap"><table>
-<thead><tr><th>できること</th><th class="m">Excel</th><th class="m">ODS</th><th class="m">Numbers</th><th>注</th></tr></thead>
+<thead><tr><th>Feature</th><th class="m">Excel</th><th class="m">ODS</th><th class="m">Numbers</th><th>Note</th></tr></thead>
 <tbody>
 
-<tr class="group"><td colspan="5">中身</td></tr>
-<tr><td>値（数値・文字・日付・真偽・経過時間・エラー）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers の小数は decimal128。桁が落ちません</td></tr>
-<tr><td>数式</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>ODS は OpenFormula に翻訳（<code>of:=[.A1]</code>）。Numbers へは<strong>数式のまま</strong>書きます（式の木 → 逆ポーランドのノード列）。
-    手元のフィクスチャに実例が無い形 — <strong>別の表への参照・定義名・Numbers に無い関数・<code>A:C</code> のような列範囲・交差と合併の演算子</strong> — だけはキャッシュ値に落ち、どこがなぜ落ちたかを警告で言います</td></tr>
-<tr><td>　└ 株価・為替の関数（STOCK・CURRENCY など 6 種）</td><td class="m h">△</td><td class="m h">△</td><td class="m y">○</td>
-  <td>Numbers 固有の「相場を取ってくる」関数。Numbers へは式のまま書き、開いたときに取り直されます。
-  Excel・ODS には同名の関数が無いので、取ってあった値を書いて言います —— Numbers 自身の Excel 書き出しと同じ置き換えです（実測・付録 B.27）</td></tr>
-<tr><td>配列数式（範囲つき）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
-  <td>ODS は起点セルの <code>table:number-matrix-*-spanned</code>。Numbers は<strong>読みのみ対応</strong>：
-  Numbers 自身が Excel 取り込みで作った展開（起点の式＋覆うセルの内部関数）を範囲として読み戻します。
-  書けないのは、その内部関数が再計算で値を作れないため——Numbers 産の見本ですら、古い版に偽装して
-  再計算させると値が消えます（実測・付録 B.26）</td></tr>
-<tr><td>セル内の書式差（リッチテキスト）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>ODS は <code>text:span</code>。Numbers は文字スタイルの変わり目として持ちます</td></tr>
-<tr><td>ハイパーリンク</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>Numbers のリンクは文字列の「範囲」に付くので、1 セルに複数あり得ます（読むときは先頭を採り、その旨を警告）</td></tr>
-<tr><td>メモ（セルのコメント）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>ODS は <code>office:annotation</code>。Numbers は表のコメント一覧に置き、書いた人ごとに 1 つの「作成者」を共有します</td></tr>
-<tr><td>結合</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
+<tr class="group"><td colspan="5">Content</td></tr>
+<tr><td>Values (number, text, date, boolean, duration, error)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers' decimals are decimal128; no digits are lost</td></tr>
+<tr><td>Formulas</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>ODS gets a translation to OpenFormula (<code>of:=[.A1]</code>). Numbers gets the <strong>formula itself</strong> (the expression tree becomes a reverse-Polish node list).
+    Only shapes with no example in the local fixtures — <strong>references to another table, defined names, functions Numbers lacks, column ranges like <code>A:C</code>, the intersection and union operators</strong> — fall back to the cached value, and a warning says which and why</td></tr>
+<tr><td>　└ Stock and currency functions (STOCK, CURRENCY and four others)</td><td class="m h">△</td><td class="m h">△</td><td class="m y">○</td>
+  <td>Numbers-only functions that fetch a quote. To Numbers they are written as formulas and refreshed when the document opens.
+  Excel and ODS have no function of that name, so the value that had been fetched is written, and the warning says so — the same substitution Numbers itself makes when it exports to Excel (measured; Appendix B.27)</td></tr>
+<tr><td>Array formulas (with their range)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODS uses <code>table:number-matrix-*-spanned</code> on the anchor cell. Numbers is <strong>read only</strong>:
+  the expansion Numbers itself builds when it imports an Excel file (the formula on the anchor plus an internal function on every covered cell) is read back as a range.
+  It is not written because that internal function produces no value on recalculation — even a Numbers-made specimen, disguised as an older version so that Numbers recalculates it,
+  loses its values (measured; Appendix B.26)</td></tr>
+<tr><td>Formatting within a cell (rich text)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>ODS uses <code>text:span</code>. Numbers holds it as the points where the character style changes</td></tr>
+<tr><td>Hyperlinks</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>A Numbers link is attached to a range of characters, so one cell can carry several (reading takes the first and warns)</td></tr>
+<tr><td>Notes (cell comments)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>ODS uses <code>office:annotation</code>. Numbers keeps them in the table's comment list, with one shared "author" record per person who wrote one</td></tr>
+<tr><td>Merged cells</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
 
-<tr class="group"><td colspan="5">見た目</td></tr>
-<tr><td>セル書式（フォント・太字・色・罫線）</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>Numbers はフォントを PostScript 名で持つので相互変換します（<code>Helvetica Neue</code> ⇄ <code>HelveticaNeue</code>）</td></tr>
-<tr><td>塗り（単色・階調）</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
-  <td>階調塗りは ODF・Numbers ともセルに 1 色しか持てず、最初の色になります（警告あり）</td></tr>
-<tr><td>配置・折り返し</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
-<tr><td>表示形式（<code>#,##0.00</code> など）</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
-  <td>ODF は「データスタイル」、Numbers は「種類＋小数桁＋桁区切り」という<em>記述</em>。どちらも<strong>見え方を 1 通りしか持てない</strong>ので、Excel の複数セクション・色・条件は落ちます</td></tr>
-<tr><td>列幅・行高・非表示</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
-<tr><td>行・列のグループ化（アウトライン）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
-  <td>ODF は階層を <code>table:table-row-group</code> の入れ子で表します</td></tr>
-<tr><td>ウィンドウ枠の固定</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers ではヘッダ行／ヘッダ列がそれに当たります</td></tr>
-<tr><td>タブ色</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF 1.3 の <code>table:tab-color</code>。LibreOffice が書く物と同じ属性で、テーマ色は RGB に解決して書きます</td></tr>
+<tr class="group"><td colspan="5">Appearance</td></tr>
+<tr><td>Cell style (font, bold, colour, borders)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>Numbers holds fonts by PostScript name, so they are converted both ways (<code>Helvetica Neue</code> ⇄ <code>HelveticaNeue</code>)</td></tr>
+<tr><td>Fill (solid, gradient)</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
+  <td>Neither ODF nor Numbers can hold more than one colour per cell, so a gradient becomes its first colour (with a warning)</td></tr>
+<tr><td>Alignment and wrapping</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
+<tr><td>Number format (<code>#,##0.00</code> and the like)</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
+  <td>ODF has "data styles", Numbers a <em>description</em> (kind + decimal places + thousands separator). Neither can hold <strong>more than one way of showing a value</strong>, so Excel's multiple sections, colours and conditions are lost</td></tr>
+<tr><td>Column width, row height, hidden rows and columns</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
+<tr><td>Row and column grouping (outline)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODF expresses the levels as nested <code>table:table-row-group</code> elements</td></tr>
+<tr><td>Frozen panes</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>In Numbers the header rows and header columns play that part</td></tr>
+<tr><td>Tab colour</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF 1.3's <code>table:tab-color</code>, the same attribute LibreOffice writes; a theme colour is resolved to RGB before writing</td></tr>
 
-<tr class="group"><td colspan="5">条件付き書式（この改訂の最優先）</td></tr>
-<tr><td>比較・式・文字列・上位下位・平均比較・重複／一意・空白／エラー・期間</td>
+<tr class="group"><td colspan="5">Conditional formatting (the first priority of this revision)</td></tr>
+<tr><td>Comparison, formula, text, top/bottom, above/below average, duplicate/unique, blank/error, time period</td>
   <td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
-  <td>ODS は 18 種すべて。<strong>Numbers は 14 種</strong> — 比較 8 種（&gt; ≧ &lt; ≦ = ≠ 範囲内 範囲外）・
-    文字列 4 種（含む・含まない・で始まる・で終わる）・重複・一意。残りは Numbers 自身が
-    Excel ファイルを読み込むときに捨てるものと同じで、こちらも捨てて警告します</td></tr>
-<tr><td>カラースケール（2 色・3 色）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
-<tr><td>データバー</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は「数値を隠す」を持ちません</td></tr>
-<tr><td>アイコンセット</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+  <td>ODS carries all 18 kinds. <strong>Numbers carries 14</strong> — 8 comparisons (&gt; ≧ &lt; ≦ = ≠ between, not between),
+    4 text rules (contains, does not contain, begins with, ends with), duplicate and unique. The rest are the ones Numbers itself
+    discards when it reads an Excel file, so they are discarded here too, with a warning</td></tr>
+<tr><td>Colour scale (2- and 3-colour)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>Data bar</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF has no "hide the value"</td></tr>
+<tr><td>Icon set</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
 
-<tr class="group"><td colspan="5">仕掛け</td></tr>
-<tr><td>入力規則（ドロップダウン・範囲チェック）</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
-  <td>ODF は規則を文書の先頭に並べ、セルが名前で指します。Numbers では選択肢を書き並べたリスト型だけが
-  ポップアップメニューになります（Numbers 自身も Excel の取り込みで同じ置き換えをします）。範囲参照のリストと
-  数値条件は落として言います</td></tr>
-<tr><td>セルの制御（チェックボックス・ステッパー・スライダー・レート）</td><td class="m n">×</td><td class="m n">×</td><td class="m y">○</td>
-  <td>Numbers 固有。つまみの範囲（最小・最大・刻み）ごと読み書きします。Excel・ODS へは値だけ残し、
-  落としたことを言います</td></tr>
-<tr><td>名前付きの表</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
-  <td>ODF の「データベース範囲」になります。名前と範囲は通り、縞模様のスタイルは落ちます</td></tr>
-<tr><td>オートフィルタ（範囲）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
-  <td>Numbers 自身も Excel のフィルタを取り込みで捨てます（実測：フィルタ規則も隠し行も残らない）。
-  写す先の見本が存在しません（付録 B.26）。逆向き——<strong>Numbers 固有のフィルタを読む</strong>ときは、
-  隠している行を隠し行として保ち、規則は落として言います。Numbers 自身の Excel 書き出しと同じ取引です（付録 B.29）</td></tr>
-<tr><td>　└ 絞り込み条件・並べ替えの記録</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
-  <td>値の一覧と比較条件は通ります。色・アイコン・動的・日付グループの絞り込みは ODF に無く、落として言います。
-  Numbers の書類を<strong>読む</strong>ときは、並べ替えは適用済みの順で行が入っている（規則は列名を挙げて言う）、
-  フィルタは隠れた行が隠し行として残る（規則は数えて言う）——どちらも Numbers 自身の Excel 書き出しと同じ渡し方です（付録 B.29）</td></tr>
-<tr><td>ピボット表</td><td class="m h">△</td><td class="m h">△</td><td class="m h">△</td>
-  <td>Excel / ODS は<strong>配置だけ</strong>書き、数字は開いた側に計算させます。Numbers へは
-    <strong>本物の Numbers の集計表</strong>として書きます（生きた要約で、Numbers が元の行から数え直します）。
-    <strong>段は縦横とも複数可</strong>——組ごとの部分合計行つきで、3 段の入れ子まで実測済みです（付録 B.28）。
-    集計する値だけは 1 つまでで、2 つ目以降は最初の値を残して落として言います（再構築された集計表の
-    値レーンは共有の目印 1 つで引かれ、区別が原理的に残らないことを実測）。読み戻すときは普通の表になります</td></tr>
-<tr><td>シート保護</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
-<tr><td>保護範囲（保護シート内の編集可能な窓）</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
-  <td>ODF は表全体を守り、その中に窓を持ちません</td></tr>
-<tr><td>シナリオ</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
-  <td>ODF のシナリオは「影のシート」であって入力値の集合ではありません。書くとシートが増えてしまいます</td></tr>
+<tr class="group"><td colspan="5">Mechanisms</td></tr>
+<tr><td>Data validation (drop-down lists, range checks)</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td>
+  <td>ODF lists the rules at the head of the document and cells point at them by name. In Numbers only a list rule with its choices spelled out
+  becomes a pop-up menu (Numbers itself makes the same substitution when it imports Excel). A list that references a range, and
+  numeric conditions, are dropped with a warning</td></tr>
+<tr><td>Cell controls (checkbox, stepper, slider, rating)</td><td class="m n">×</td><td class="m n">×</td><td class="m y">○</td>
+  <td>Numbers-only. Read and written together with the control's range (minimum, maximum, step). Excel and ODS keep only the value,
+  and the warning says what was dropped</td></tr>
+<tr><td>Named tables</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
+  <td>Becomes an ODF "database range". The name and the range go through; the banded style is lost</td></tr>
+<tr><td>AutoFilter (the range)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>Numbers itself discards Excel's filters on import (measured: neither the filter rules nor the hidden rows survive).
+  There is no specimen to copy (Appendix B.26). The other way round — <strong>reading a Numbers-native filter</strong> —
+  the hidden rows stay hidden and the rules are dropped with a warning: the same deal Numbers itself makes when it exports to Excel (Appendix B.29)</td></tr>
+<tr><td>　└ Filter criteria and the recorded sort</td><td class="m y">○</td><td class="m h">△</td><td class="m n">×</td>
+  <td>Value lists and comparison criteria go through. Colour, icon, dynamic and date-group filters do not exist in ODF and are dropped with a warning.
+  When a Numbers document is <strong>read</strong>, a sort arrives as rows already in sorted order (the warning names the columns of the rule), and
+  a filter as rows that stay hidden (the warning counts the rules) — both the way Numbers itself hands them over when it exports to Excel (Appendix B.29)</td></tr>
+<tr><td>Pivot tables</td><td class="m h">△</td><td class="m h">△</td><td class="m h">△</td>
+  <td>Excel and ODS get the <strong>layout only</strong>; the application that opens the file computes the figures. Numbers gets
+    <strong>a genuine Numbers pivot table</strong> (a live summary that Numbers recounts from the source rows).
+    <strong>Several fields are allowed on both axes</strong> — with a subtotal row per group; measured to three levels of nesting (Appendix B.28).
+    Only the summarised values are limited to one: the second and later ones are dropped with a warning, the first kept (measured: the value lanes of a rebuilt
+    pivot table are drawn with a single shared marker, so the distinction cannot survive in principle). Read back, it is an ordinary table</td></tr>
+<tr><td>Sheet protection</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>Protected ranges (editable windows in a protected sheet)</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
+  <td>ODF protects the whole table and has no windows inside it</td></tr>
+<tr><td>Scenarios</td><td class="m y">○</td><td class="m n">×</td><td class="m n">×</td>
+  <td>An ODF scenario is a "shadow sheet", not a set of input values; writing one would add a sheet</td></tr>
 
-<tr class="group"><td colspan="5">印刷とブック</td></tr>
-<tr><td>ヘッダ／フッタ</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>Excel の <code>&amp;L&amp;C&amp;R</code> と ODF の 3 領域、Numbers の左中右 3 つの保管庫を相互変換。フォント指定は落ち、Numbers は <code>&amp;P</code> 以外の記号（日付・ファイル名など）も落として名指します</td></tr>
-<tr><td>向き・用紙・拡大率・余白・中央寄せ</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>ODF はシートごとのマスターページ。Numbers は向き・拡大率・余白・開始ページ番号を持ち、用紙サイズは落として名指します</td></tr>
-<tr><td>印刷範囲・タイトル行／列</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td><td>Numbers は行 1 からのタイトル行／列を「各ページで見出しを繰り返す」として運び、印刷範囲は落として名指します</td></tr>
-<tr><td>改ページ</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は行・列スタイルの <code>fo:break-before</code></td></tr>
-<tr><td>定義名（ブック・シート）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
-<tr><td>ブック保護（シート構成の固定）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF は <code>table:structure-protected</code>（旗だけ。鍵は Excel の合鍵と互換が無いので運びません）</td></tr>
-<tr><td>文書の自由項目（部署・案件番号など）</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
-  <td>ODF は <code>meta:user-defined</code>。定義名へのリンク型だけは文字に落とします</td></tr>
-<tr><td>隠しシート</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>Numbers にシートを隠す考え方がありません</td></tr>
-<tr><td>1 シートに複数の表</td><td class="m n">×</td><td class="m n">×</td><td class="m y">○</td>
-  <td><strong>ここだけ Numbers が強い</strong>。Excel と ODS は 1 シート＝1 グリッドなので、先頭以外を落として言います</td></tr>
+<tr class="group"><td colspan="5">Printing and the workbook</td></tr>
+<tr><td>Header/footer</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>Excel's <code>&amp;L&amp;C&amp;R</code>, ODF's three regions and Numbers' three left/centre/right stores are converted both ways. Font directives are lost, and Numbers also drops every code other than <code>&amp;P</code> (date, file name and so on), naming each</td></tr>
+<tr><td>Orientation, paper, scale, margins, centering</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>ODF has a master page per sheet. Numbers holds orientation, scale, margins and the first page number; the paper size is dropped and named</td></tr>
+<tr><td>Print area, title rows/columns</td><td class="m y">○</td><td class="m y">○</td><td class="m h">△</td><td>Numbers carries title rows/columns that start at row 1 as "repeat the headers on every page"; the print area is dropped and named</td></tr>
+<tr><td>Page breaks</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF uses <code>fo:break-before</code> on the row and column styles</td></tr>
+<tr><td>Defined names (workbook and sheet)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>—</td></tr>
+<tr><td>Workbook protection (locking the sheet structure)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>ODF uses <code>table:structure-protected</code> (the flag only; the key is not compatible with Excel's, so it is not carried)</td></tr>
+<tr><td>Custom document properties (department, case number and the like)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
+  <td>ODF uses <code>meta:user-defined</code>. Only the link-to-a-defined-name type is flattened to text</td></tr>
+<tr><td>Hidden sheets</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td><td>Numbers has no idea of a hidden sheet</td></tr>
+<tr><td>Several tables on one sheet</td><td class="m n">×</td><td class="m n">×</td><td class="m y">○</td>
+  <td><strong>The one place Numbers is stronger</strong>. Excel and ODS have one grid per sheet, so every table but the first is dropped with a warning</td></tr>
 
-<tr class="group"><td colspan="5">逆に、ODF にあって Excel に無いもの</td></tr>
-<tr><td>ラベル範囲（見出しを数式でそのまま使う）</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
-  <td><code>=SUM(売上)</code> の「売上」が定義名ではなく<strong>列見出し</strong>。Excel 2003 の「自然言語の数式」に当たりますが、いまの Excel 形式には置き場所がありません</td></tr>
-<tr><td>統合の定義</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
-  <td>「この範囲とこの範囲を、ここに合計する」を<strong>文書に残す</strong>。Excel の「統合」は一度きりの操作で、定義は保存されません</td></tr>
-<tr><td>探偵の矢印（参照元・参照先のトレース）</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
-  <td>Excel も同じ矢印を描きますが、閉じると消えます。ODF はファイルに残すので、監査の跡がついたまま届きます</td></tr>
-<tr><td>計算設定（正規表現・ワイルドカード・大小文字・二桁年）</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
-  <td>検索条件の<strong>意味</strong>を変える設定。Excel ではアプリ側の設定で、ファイルには入りません</td></tr>
-<tr><td>日付の原点</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>Excel は 1900 か 1904 の二択、ODF は<strong>任意の日付</strong>。その他の原点は 1900 系として読み、そう言います</td></tr>
-<tr><td>通貨のセル種別</td><td class="m h">△</td><td class="m y">○</td><td class="m h">△</td>
-  <td>ODF はセルが「どの通貨か」を<strong>データとして</strong>持ちます。Excel と Numbers では表示形式の中にしかないので、記号は残っても「これは金額だ」という区別は残りません</td></tr>
+<tr class="group"><td colspan="5">The other way round: what ODF has and Excel lacks</td></tr>
+<tr><td>Label ranges (a heading used as is in a formula)</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
+  <td>The "売上" in <code>=SUM(売上)</code> is a <strong>column heading</strong>, not a defined name. Excel 2003 had this as "natural-language formulas", but today's Excel format has nowhere to put it</td></tr>
+<tr><td>Consolidation definitions</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
+  <td>"Sum this range and this range into here", <strong>kept in the document</strong>. Excel's Consolidate is a one-off operation and the definition is not saved</td></tr>
+<tr><td>Detective arrows (tracing precedents and dependents)</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
+  <td>Excel draws the same arrows, but they vanish when the file is closed. ODF keeps them in the file, so the audit trail arrives intact</td></tr>
+<tr><td>Calculation settings (regular expressions, wildcards, case sensitivity, two-digit years)</td><td class="m n">×</td><td class="m y">○</td><td class="m n">×</td>
+  <td>Settings that change the <strong>meaning</strong> of a search criterion. In Excel they are application settings and never enter the file</td></tr>
+<tr><td>Date epoch</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
+  <td>Excel offers 1900 or 1904; ODF allows <strong>any date</strong>. Any other epoch is read as the 1900 family, with a warning saying so</td></tr>
+<tr><td>Currency cell type</td><td class="m h">△</td><td class="m y">○</td><td class="m h">△</td>
+  <td>ODF holds "which currency" on the cell <strong>as data</strong>. Excel and Numbers have it only inside the number format, so the symbol survives but the distinction "this is an amount of money" does not</td></tr>
 </tbody>
 </table></div>
 </section>
 <section>
-<h2>条件付き書式は、どこに書かれているのか</h2>
+<h2>Where the conditional formatting is written</h2>
 <p>
-  ODS で条件付き書式が通るようになったのが、この改訂でいちばん大きな変化です。ただし
-  <strong>ODF 1.3 の本体仕様には、まともな置き場所がありません</strong>。本体が持っているのは
-  「セルのスタイルに条件を 1 つ付ける」（<code>style:map</code>）だけで、カラースケールもデータバーも
-  アイコンセットも言葉がない。実際のアプリはどうしているかというと、全員が
-  <strong>LibreOffice の拡張名前空間 <code>calcext:</code></strong> を使っています。
+  Conditional formatting going through ODS is the biggest change in this revision. But
+  <strong>the ODF 1.3 core specification has no proper place for it</strong>. All the core has is
+  "attach one condition to a cell style" (<code>style:map</code>); there are no words for colour scales, data bars
+  or icon sets. What real applications do is, all of them, use
+  <strong>LibreOffice's extension namespace <code>calcext:</code></strong>.
 </p>
 
 <figure>
-<svg viewBox="0 0 900 300" role="img" aria-label="ODS ファイルの中で条件付き書式がどこに置かれるかを示した図">
+<svg viewBox="0 0 900 300" role="img" aria-label="Where the conditional formats live inside an ODS file">
   <rect x="30" y="30" width="380" height="240" rx="14" class="sv-soft"/>
   <text x="50" y="58" class="sv-tb">content.xml</text>
   <rect x="50" y="72" width="340" height="54" rx="10" class="sv-card"/>
-  <text x="66" y="94" class="sv-t2">&lt;table:table&gt; … 行と列 …</text>
-  <text x="66" y="114" class="sv-t3">セルの中身はここ</text>
+  <text x="66" y="94" class="sv-t2">&lt;table:table&gt; … rows and columns …</text>
+  <text x="66" y="114" class="sv-t3">the cell contents live here</text>
   <rect x="50" y="136" width="340" height="112" rx="10" class="sv-accent-soft"/>
   <text x="66" y="160" class="sv-tb">&lt;calcext:conditional-formats&gt;</text>
-  <text x="66" y="182" class="sv-t2">対象範囲（CF.A1:CF.A20）</text>
-  <text x="66" y="202" class="sv-t2">条件の並び ＝ 優先順位</text>
-  <text x="66" y="222" class="sv-t2">色階調・データバー・アイコン</text>
-  <text x="66" y="240" class="sv-t3">＝ SwiftSheets が「正」とする置き場所</text>
+  <text x="66" y="182" class="sv-t2">the target range (CF.A1:CF.A20)</text>
+  <text x="66" y="202" class="sv-t2">the order of the conditions = the priority</text>
+  <text x="66" y="222" class="sv-t2">colour scales, data bars, icons</text>
+  <text x="66" y="240" class="sv-t3">= the place SwiftSheets treats as authoritative</text>
 
   <rect x="490" y="30" width="380" height="240" rx="14" class="sv-soft"/>
   <text x="510" y="58" class="sv-tb">styles.xml</text>
   <rect x="510" y="72" width="340" height="80" rx="10" class="sv-card"/>
   <text x="526" y="96" class="sv-t2">&lt;style:style name="ConditionalStyle1"&gt;</text>
-  <text x="526" y="118" class="sv-t2">背景 #FFC7CE / 文字 #9C0006</text>
-  <text x="526" y="138" class="sv-t3">条件が「当たったときに塗る書式」</text>
+  <text x="526" y="118" class="sv-t2">background #FFC7CE / text #9C0006</text>
+  <text x="526" y="138" class="sv-t3">the style painted when a condition matches</text>
   <rect x="510" y="164" width="340" height="84" rx="10" class="sv-card"/>
   <text x="526" y="186" class="sv-tb">&lt;style:page-layout&gt;</text>
   <text x="526" y="204" class="sv-tb">&lt;style:master-page&gt;</text>
-  <text x="526" y="224" class="sv-t2">余白・向き・ヘッダ／フッタ</text>
-  <text x="526" y="242" class="sv-t3">シート 1 枚につき 1 組</text>
+  <text x="526" y="224" class="sv-t2">margins, orientation, header/footer</text>
+  <text x="526" y="242" class="sv-t3">one pair per sheet</text>
 
   <path d="M 395 190 C 440 190, 445 112, 505 112" class="sv-arrow" marker-end="url(#a2)"/>
   <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
     <path d="M0,0 L9,4.5 L0,9 z" class="sv-mark"/></marker></defs>
-  <text x="450" y="140" class="sv-t3" text-anchor="middle">名前で参照</text>
+  <text x="450" y="140" class="sv-t3" text-anchor="middle">referenced by name</text>
 </svg>
-<figcaption>条件は content.xml に、塗る書式は styles.xml の<strong>名前付き</strong>スタイルに。この分かれ方は ODF の決まりです。</figcaption>
+<figcaption>The conditions go in content.xml; the style they paint goes in a <strong>named</strong> style in styles.xml. That split is ODF's rule.</figcaption>
 </figure>
 
 <div class="card decide">
-<h3>決めたこと: 拡張を「正」にし、本体形式は読むだけ</h3>
+<h3>Decision: the extension is authoritative; the core form is read only</h3>
 <ul class="plain">
-  <li><strong>書くのは <code>calcext:</code> だけ。</strong>LibreOffice は両方を書きますが、両方書くと同じ規則が二重になります。</li>
-  <li><strong>読むのは両方。</strong>拡張が 1 つも無いファイル（拡張より古い生成器が書いたもの）だけ、
-    本体の <code>style:map</code> に落ちて読みます。</li>
-  <li><strong>優先順位は文書の順。</strong>ODF に順位の属性が無いため、書くときに順位で並べ替えます。</li>
+  <li><strong>Only <code>calcext:</code> is written.</strong> LibreOffice writes both, but writing both duplicates every rule.</li>
+  <li><strong>Both are read.</strong> Only a file with no extension at all (written by a generator older than the extension)
+    falls back to the core <code>style:map</code>.</li>
+  <li><strong>Priority is document order.</strong> ODF has no priority attribute, so the rules are sorted by priority when written.</li>
 </ul>
 </div>
 
 <p>
-  この綴りは記憶で書いたものではありません。SwiftSheets 自身で「18 種すべての規則が入った xlsx」を作り、
-  LibreOffice 26.2 に ODS へ変換させて、出てきた XML をそのまま仕様として使いました。
-  逆向きの確認もしています —
-  <strong>自作の ODS を LibreOffice に xlsx へ戻させると、24 個の規則がすべて復元されます。</strong>
+  This spelling was not written from memory. SwiftSheets itself produced an xlsx "with all 18 kinds of rule",
+  LibreOffice 26.2 converted it to ODS, and the XML that came out was used as the specification, as is.
+  The reverse was checked too —
+  <strong>when LibreOffice converts the ODS this library writes back to xlsx, all 24 rules are restored.</strong>
 </p>
 </section>
 
 <section>
-<h2>Numbers だけ、なぜここまで違うのか</h2>
+<h2>Why Numbers alone is so different</h2>
 <p>
-  Numbers の対応が薄いのは、機能を作らなかったからではありません。
-  <strong>Numbers のファイル形式には公開仕様が無い</strong>からです。中身は Snappy で圧縮した Protobuf の
-  オブジェクトグラフで、SwiftSheets はその設計図を
-  <a href="https://github.com/masaccio/numbers-parser">numbers-parser</a>（MIT）から<strong>機械抽出</strong>して使っています
-  （手写しは 1 行もしていません）。
+  Numbers support is thin not because the features were never built.
+  <strong>The Numbers file format has no public specification.</strong> Inside is a Snappy-compressed Protobuf
+  object graph, and SwiftSheets uses a blueprint of it taken from
+  <a href="https://github.com/masaccio/numbers-parser">numbers-parser</a> (MIT), <strong>extracted by machine</strong>
+  (not one line was copied by hand).
 </p>
 <p>
-  設計図があっても足りないものがあります。<strong>審判</strong>です。Excel なら openpyxl が、
-  ODS なら LibreOffice が「それは正しいファイルか」を答えてくれます。Numbers については長らく
-  numbers-parser と LibreOffice の取り込みしか無く、Numbers.app そのものは開発機に居ませんでした。
-  <strong>2026-08-25 に入りました</strong>（Numbers 15.3.1）。
+  A blueprint is not enough on its own. What is missing is a <strong>judge</strong>. For Excel, openpyxl answers
+  "is that a valid file"; for ODS, LibreOffice does. For Numbers there was for a long time only numbers-parser and
+  LibreOffice's import, and Numbers.app itself was not on the development machine.
+  <strong>It arrived on 2026-08-25</strong> (Numbers 15.3.1).
 </p>
 <div class="card tint">
-<h3>4 人目の審判が来て、最初にしたこと</h3>
+<h3>What the fourth judge did first</h3>
 <p>
-  それまでの 3 人（自作リーダの往復・numbers-parser・LibreOffice）は全員「読める」と言っていました。
-  Numbers.app は同じファイルを<strong>「壊れているため開けません」</strong>と拒みました。
-  1 枚のシートに 1 つの表なら開き、<strong>2 枚目のシートか 2 つ目の表</strong>を足すと開かない。
+  The three judges until then (this library's own reader round-tripping, numbers-parser, LibreOffice) all said "readable".
+  Numbers.app refused the same file: <strong>"can't be opened because it is damaged"</strong>.
+  One sheet with one table opened; add <strong>a second sheet or a second table</strong> and it did not.
 </p>
 <p>
-  原因は、複製した部品の<strong>目次の書き方</strong>でした。Numbers はパッケージの目次を信じて
-  <em>ファイルを</em>探しに行きますが、他の 3 人はオブジェクトを<strong>識別子</strong>で引くので、
-  目次が間違っていても平気で読めてしまう。だから 3 人とも見落としました
-  （詳細と直し方は実装仕様書の付録 B.18）。宛先のアプリに開かせる以外に、これを見つける方法はありません。
+  The cause was <strong>how the package index was written</strong> for the duplicated parts. Numbers trusts the package index
+  and goes looking for <em>files</em>; the other three look objects up by <strong>identifier</strong>, so they read the file
+  happily even when the index is wrong. That is why all three missed it
+  (the details and the fix are in the implementation spec, Appendix B.18). There is no way to find this other than having the target application open the file.
 </p>
 </div>
 
 <div class="card">
-<h3>判断の基準は、いつでも「確かめられるかどうか」</h3>
+<h3>The criterion is always "can it be checked"</h3>
 <p>
-  同じ Numbers 向けの機能でも、扱いが分かれます。基準は一つ — <strong>実例があるか、審判に確かめられるか</strong>。
-  Numbers.app が入るまで「入れない」としていた 2 件は、審判が来たことで両方とも入りました。
+  Features aimed at Numbers are treated differently from one another. The criterion is one — <strong>is there a real example, and can a judge check it</strong>.
+  The two that were held back until Numbers.app arrived went in together once the judge was there.
 </p>
 <div class="tablewrap"><table>
-<thead><tr><th>件</th><th>入れたか</th><th>確かめ方があったか</th></tr></thead>
+<thead><tr><th>Feature</th><th>Went in?</th><th>Was there a way to check</th></tr></thead>
 <tbody>
-<tr><td>セル書式・表示形式</td><td class="y"><strong>入れた</strong></td>
-  <td>numbers-parser がフィクスチャ 11 個の<strong>全セル</strong>で一致（太字・斜体・フォント・サイズ・文字色・配置）。
-    書いたファイルも numbers-parser が警告なしで読み、LibreOffice も開く</td></tr>
-<tr><td>ハイパーリンク・セル内書式・メモ</td><td class="y"><strong>入れた</strong></td>
-  <td>Numbers 15.3.1 に Excel ファイルを読ませて保存させ、置き方を 1 フィールドずつ観測した。
-    セルの文字は「文書エンジンの入れ物」に移り、リンクはその上の <em>スマートフィールド</em>、
-    書式の変わり目は <em>文字スタイル</em>。メモは別の一覧で、作成者ごとに 1 つの記録を共有する</td></tr>
-<tr><td>数式の書き出し</td><td class="y"><strong>入れた</strong></td>
-  <td>フィクスチャの数式アーカイブを 1 フィールドずつ読んで、書く側を起こした。
-    書いたファイルの <code>SUM(B2:B3)</code> を numbers-parser が数式として読む（付録 B.18）</td></tr>
-<tr><td><strong>条件付き書式</strong></td><td class="y"><strong>入れた</strong></td>
-  <td>下記。名無しの整数 <code>predicate_type</code> の値を、Numbers 自身に作らせた文書から<strong>観測</strong>した</td></tr>
-<tr><td>別の表を参照する数式</td><td class="y"><strong>入れた</strong></td>
-  <td>参照先は表の UUID でも依存関係の基底オーナーでもなく、表の <code>table_id</code> 文字列だった。
-    前の 2 つを書くと Numbers は <code>#REF!</code> と読む — 実機に聞くまで分からない類の話</td></tr>
-<tr><td>テンプレートの入れ替え</td><td class="n"><strong>入れない</strong></td>
-  <td>Numbers 15 で作った空の書類に差し替えると、<strong>数式が計算されなくなる</strong>（実測）。
-    いまのテンプレートは古い版で作られており、Numbers はそれを開くとき全体を計算し直す。
-    新しい版に替えるなら、依存関係の記録を自前で書けるようになってから</td></tr>
+<tr><td>Cell styles and number formats</td><td class="y"><strong>Went in</strong></td>
+  <td>numbers-parser agrees on <strong>every cell</strong> of 11 fixtures (bold, italic, font, size, text colour, alignment).
+    numbers-parser reads the written files without a warning, and LibreOffice opens them</td></tr>
+<tr><td>Hyperlinks, formatting within a cell, notes</td><td class="y"><strong>Went in</strong></td>
+  <td>Numbers 15.3.1 was given an Excel file to read and save, and the placement was observed field by field.
+    The cell's text moves into a "document engine container"; a link is a <em>smart field</em> on top of it,
+    a formatting change a <em>character style</em>. Notes are a separate list, sharing one record per author</td></tr>
+<tr><td>Writing formulas</td><td class="y"><strong>Went in</strong></td>
+  <td>The formula archives of the fixtures were read field by field, and the writer built from that.
+    numbers-parser reads the <code>SUM(B2:B3)</code> in a written file as a formula (Appendix B.18)</td></tr>
+<tr><td><strong>Conditional formatting</strong></td><td class="y"><strong>Went in</strong></td>
+  <td>Below. The values of the nameless integer <code>predicate_type</code> were <strong>observed</strong> in documents Numbers itself was made to write</td></tr>
+<tr><td>Formulas referencing another table</td><td class="y"><strong>Went in</strong></td>
+  <td>The reference is neither the table's UUID nor the base owner in the dependency records but the table's <code>table_id</code> string.
+    Write either of the first two and Numbers reads <code>#REF!</code> — the kind of thing only the real application can tell you</td></tr>
+<tr><td>Replacing the template</td><td class="n"><strong>Held back</strong></td>
+  <td>Swapping in an empty document made with Numbers 15 <strong>stops formulas from being calculated</strong> (measured).
+    The current template was made by an older version, and Numbers recalculates the whole document when it opens it.
+    A newer template can go in once the dependency records can be written by this library</td></tr>
 </tbody>
 </table></div>
 </div>
 
 <div class="card tint">
-<h3>名無しの整数を、当てずっぽうではなく観測で埋めた</h3>
+<h3>The nameless integer, filled in by observation rather than guessing</h3>
 <p>
-  設計図には<strong>存在していました</strong>（<code>TST.ConditionalStyleSetArchive</code>、リストの種別 9、
-  セル記録のフラグ <code>0x80</code>）。書けなかった理由はただ一つ、<strong>条件そのものを表す整数に名前が無い</strong>ことです。
-  Apple は条件の種類を C の列挙型で持っており、Protobuf には <code>predicate_type</code> という
-  名無しの <code>int32</code> しか残っていません。当てずっぽうの整数を書けば、良くて「修復しますか」と言われ、
-  悪くすると<strong>黙って違うセルを塗る</strong>文書ができます。
+  It <strong>was</strong> in the blueprint (<code>TST.ConditionalStyleSetArchive</code>, list kind 9,
+  cell-record flag <code>0x80</code>). The one reason it could not be written: <strong>the integer that stands for the condition has no name</strong>.
+  Apple holds the kinds of condition in a C enum, and all Protobuf keeps is a nameless <code>int32</code> called
+  <code>predicate_type</code>. Write a guessed integer and, at best, Numbers offers to repair the file; at worst you get a document that
+  <strong>silently paints the wrong cells</strong>.
 </p>
 <p>
-  Numbers.app が来たので、<strong>Numbers 自身に書かせて読み取りました</strong>。
-  1 列に 1 種類ずつ規則を置いた Excel ファイルを作り、<strong>どの規則も他とかぶらない値</strong>
-  （11・12・13〜14・15〜16・17・18・19・20・"pp"・"qq"・"rr"・"ss"）を持たせます。
-  それを Numbers に読み込ませて <code>.numbers</code> で保存させ、出てきた規則を<strong>値で</strong>元の列に突き合わせました。
-  並び順に頼っていないので、順番が入れ替わっても結論は変わりません。
+  With Numbers.app available, <strong>Numbers itself was made to write it, and the result was read</strong>.
+  An Excel file was built with one kind of rule per column, each rule given <strong>a value no other rule shares</strong>
+  (11, 12, 13–14, 15–16, 17, 18, 19, 20, "pp", "qq", "rr", "ss").
+  Numbers read it and saved it as <code>.numbers</code>, and the rules that came out were matched back to their columns <strong>by value</strong>.
+  Nothing relies on the order, so the conclusion holds even if the rules are reordered.
 </p>
 <figure>
-<svg viewBox="0 0 860 250" role="img" aria-label="Excelファイルを作りNumbersに保存させて名無しの整数を観測する手順">
+<svg viewBox="0 0 860 250" role="img" aria-label="The procedure: build an Excel file, have Numbers save it, observe the nameless integer">
   <rect x="20" y="40" width="190" height="96" rx="14" class="sv-card"/>
-  <text x="115" y="70" class="sv-tb" text-anchor="middle">Excel ファイルを作る</text>
-  <text x="115" y="96" class="sv-t2" text-anchor="middle">1 列 1 規則</text>
-  <text x="115" y="118" class="sv-t3" text-anchor="middle">値はすべて別々に</text>
+  <text x="115" y="70" class="sv-tb" text-anchor="middle">Build an Excel file</text>
+  <text x="115" y="96" class="sv-t2" text-anchor="middle">one rule per column</text>
+  <text x="115" y="118" class="sv-t3" text-anchor="middle">every value distinct</text>
 
   <path d="M220 88 H272" class="sv-arrow"/><path d="M272 88 l-9 -5 v10 z" class="sv-mark"/>
 
   <rect x="282" y="34" width="200" height="108" rx="14" class="sv-accent-soft"/>
-  <text x="382" y="66" class="sv-tb" text-anchor="middle">Numbers に読ませる</text>
-  <text x="382" y="94" class="sv-t2" text-anchor="middle">そのまま保存させる</text>
-  <text x="382" y="120" class="sv-t3" text-anchor="middle">25 種のうち 14 種が残った</text>
+  <text x="382" y="66" class="sv-tb" text-anchor="middle">Have Numbers read it</text>
+  <text x="382" y="94" class="sv-t2" text-anchor="middle">and save it as is</text>
+  <text x="382" y="120" class="sv-t3" text-anchor="middle">14 of the 25 kinds survived</text>
 
   <path d="M492 88 H544" class="sv-arrow"/><path d="M544 88 l-9 -5 v10 z" class="sv-mark"/>
 
   <rect x="554" y="40" width="286" height="96" rx="14" class="sv-soft"/>
-  <text x="697" y="70" class="sv-tb" text-anchor="middle">値で元の列に突き合わせる</text>
-  <text x="697" y="96" class="sv-t2" text-anchor="middle">「11 が付いた規則」＝より大きい</text>
+  <text x="697" y="70" class="sv-tb" text-anchor="middle">Match back to the columns by value</text>
+  <text x="697" y="96" class="sv-t2" text-anchor="middle">"the rule carrying 11" = greater than</text>
   <text x="697" y="118" class="sv-good" text-anchor="middle">→ predicate_type = 7</text>
 
-  <text x="20" y="186" class="sv-t2">残った 14 種: 比較 8 種・文字列 4 種・重複・一意。</text>
-  <text x="20" y="210" class="sv-t2">残らなかった 11 種（色の階調・データバー・アイコン・上位下位・平均比較・空白・エラー・期間・式）は、</text>
-  <text x="20" y="232" class="sv-t2">Numbers が「その規則を持っていない」と言ったということなので、こちらも書かずに警告します。</text>
+  <text x="20" y="186" class="sv-t2">The 14 that survived: 8 comparisons, 4 text rules, duplicate, unique.</text>
+  <text x="20" y="210" class="sv-t2">The 11 that did not (colour scale, data bar, icons, top/bottom, average, blank, error, period, formula)</text>
+  <text x="20" y="232" class="sv-t2">are Numbers saying "I have no such rule", so this library does not write them either, and warns.</text>
 </svg>
-<figcaption>書いたファイルは Numbers が開き、保存し直しても規則が残ります（＝Numbers が条件を理解した証拠）。</figcaption>
+<figcaption>Numbers opens the written file, and the rules survive a re-save (proof that Numbers understood the conditions).</figcaption>
 </figure>
 <p class="meta">
-  実例そのもの（Numbers 15.3.1 が書いた文書）は
-  <code>Tests/SwiftSheetsTests/Fixtures/numbers/conditional-formats-15.numbers</code> に置いてあり、
-  対応表はテストで固定されています。
+  The specimen itself (the document Numbers 15.3.1 wrote) is at
+  <code>Tests/SwiftSheetsTests/Fixtures/numbers/conditional-formats-15.numbers</code>,
+  and the mapping is pinned by a test.
 </p>
 </div>
 </section>
 <section>
-<h2>逆向き — ODF にあって Excel に無いもの</h2>
+<h2>The other way round — what ODF has and Excel lacks</h2>
 <p>
-  ここまでは「Excel にある機能が他の形式でどこまで通るか」でした。逆もあります。
-  <strong>OpenDocument が持っていて Excel 形式が持たない</strong>ものが 6 件あり、いずれも読み書きできます。
+  So far the question was "how far does an Excel feature go through the other formats". There is a reverse.
+  <strong>OpenDocument has 6 things the Excel format does not</strong>, and all of them are read and written.
 </p>
 <p>
-  一番はっきりしているのが<strong>ラベル範囲</strong>です。表の見出しが「売上」なら、定義名を作らずに
-  <code>=SUM(売上)</code> と書ける。Excel も 2003 まで同じことができましたが、いまの Excel 形式には
-  それを書く場所がありません。<strong>統合の定義</strong>と<strong>探偵の矢印</strong>も同じ性格で、
-  Excel では「操作」でしかないものを ODF は「文書の中身」として残します。
+  The clearest is the <strong>label range</strong>. If a table heading reads "売上", you can write
+  <code>=SUM(売上)</code> without creating a defined name. Excel could do the same up to 2003, but today's Excel format
+  has nowhere to write it. <strong>Consolidation definitions</strong> and <strong>detective arrows</strong> are of the same character:
+  what is only an "operation" in Excel, ODF keeps as "document content".
 </p>
 <p>
-  出典は <strong>OASIS OpenDocument 1.3 の公式スキーマ</strong>です。条件付き書式のときは仕様が存在せず
-  実物のアプリに書かせるしかありませんでしたが、こちらは正式仕様があるので、要素名も属性名も
-  そこから引いています。そのうえで<strong>書いた ODS を LibreOffice に再保存させ、6 件すべてが
-  残って出てくる</strong>ことを確認しました。
+  The source is <strong>the official OASIS OpenDocument 1.3 schema</strong>. For conditional formatting there was no specification
+  and the only way was to have the real application write it; here there is a formal specification, so every element and attribute name
+  is taken from it. On top of that, <strong>the written ODS was re-saved by LibreOffice, and all 6
+  come back out intact</strong>.
 </p>
 <div class="card tint">
-  <h3>Excel に書くとどうなるか</h3>
+  <h3>What happens when written to Excel</h3>
   <p>
-    当然落ちます。ただし<strong>黙っては落としません</strong> —
-    ただし警告を出すのは Excel の書き出し処理そのものではなく、その手前の共通部分です。
-    Excel 形式の読み書きは今回まったく変更しない方針なので、そこに手を入れずに済ませました。
-    <code>workbook.write(to:as:)</code> を通れば警告が返ります。
+    They are lost, naturally. But <strong>not in silence</strong> —
+    though the warning comes not from the Excel writer itself but from the shared layer in front of it.
+    The Excel reader and writer were not to be changed at all in this revision, so they were left alone.
+    Go through <code>workbook.write(to:as:)</code> and the warnings come back.
   </p>
 </div>
 </section>
 
 <section>
-<h2>落としたものは、必ず言う</h2>
+<h2>What is dropped is always reported</h2>
 <p>
-  この表の × は「何も起きない」という意味ではありません。<strong>書き出しは、諦めたものを 1 件ずつ返します。</strong>
-  上の全部入りブックを各形式に書いたときに返る警告の数は、Excel 7 件・ODS 8 件・Numbers 24 件です。
+  A × in this table does not mean "nothing happens". <strong>The write returns every item it gave up, one by one.</strong>
+  The number of warnings the kitchen-sink workbook above returns when written to each format is Excel 7, ODS 8, Numbers 24.
 </p>
 
 <pre><code>let result = try workbook.write(to: url, as: .numbers)
@@ -538,97 +538,97 @@ for warning in result.warnings {
 <div class="grid">
   <div class="card">
     <div class="kv">dropped</div>
-    <p>その項目は書かれなかった。形式に言葉が無いか、まだ実装していない。</p>
+    <p>The item was not written. The format has no words for it, or it is not implemented yet.</p>
   </div>
   <div class="card">
     <div class="kv">degraded</div>
-    <p>形を変えて書いた。意味は残るが、元どおりには戻らない（数式 → キャッシュ値など）。</p>
+    <p>Written in another shape. The meaning survives, but it does not come back as it was (formula → cached value, and so on).</p>
   </div>
   <div class="card">
     <div class="kv">substituted</div>
-    <p>近いもので置き換えた。階調塗り → 1 色、表示形式の複数セクション → 1 通り。</p>
+    <p>Replaced with something close. Gradient fill → one colour; a number format's several sections → one.</p>
   </div>
 </div>
 
 <p>
-  さらに <code>WriteResult.suggestion</code> が「この内容なら別の形式のほうが損が少ない」と提案します。
-  たとえば色の階調の条件付き書式とデータバーの入ったブックを Numbers に書こうとすると、xlsx か ods を勧めます。
+  On top of that, <code>WriteResult.suggestion</code> proposes "another format would lose less with this content".
+  Try to write a workbook with colour-scale conditional formats and data bars to Numbers, and it recommends xlsx or ods.
 </p>
 </section>
 
 <section>
-<h2>選び方</h2>
+<h2>Choosing a format</h2>
 <div class="grid">
   <div class="card">
-    <h3>Excel（.xlsx）</h3>
-    <p>迷ったらこれ。読み書きとも全機能で、読んだファイルの<strong>解釈しなかった部分はバイト単位で保全</strong>して書き戻します（グラフ・図形・VBA・テーマ）。</p>
+    <h3>Excel (.xlsx)</h3>
+    <p>When in doubt, this. Every feature reads and writes, and whatever a read file holds that was <strong>not interpreted is preserved byte for byte</strong> and written back (charts, shapes, VBA, themes).</p>
   </div>
   <div class="card">
     <h3>ODS</h3>
-    <p>LibreOffice を相手にするとき、あるいは公的な提出物として開いた形式が要るとき。<strong>Excel との差は 5 件</strong>で、そのどれも滅多に使わないものです。</p>
+    <p>When the other party is LibreOffice, or an open format is required for an official submission. <strong>The difference from Excel is 5 items</strong>, none of them often used.</p>
   </div>
   <div class="card">
     <h3>Numbers</h3>
-    <p>Mac や iPad で<strong>人が読む表</strong>を渡すとき。値と見た目は通ります。数式や仕掛けを残したいなら、Numbers ではなく xlsx を渡してください。</p>
+    <p>When handing a <strong>table for people to read</strong> on a Mac or iPad. Values and appearance go through. If the formulas and mechanisms must survive, hand over an xlsx, not a Numbers file.</p>
   </div>
 </div>
 
 <div class="answer">
-  <span class="q">ひとことで:</span>
-  仕掛けごと渡すなら xlsx か ods。見た目のまま人に見せるなら numbers。
+  <span class="q">In one line:</span>
+  mechanisms and all, xlsx or ods; to show people what it looks like, numbers.
 </div>
 </section>
 
 <section>
-<h2>Excel の機能は、Numbers でどこまで残るのか（実測・2026-08-26）</h2>
+<h2>How much of Excel survives in Numbers (measured, 2026-08-26)</h2>
 <p>
-  表が答えていると称している問いに、機械で答えました。この表が測る機能を<strong>全部入れた 1 冊</strong>を用意し、
-  ① SwiftSheets が <code>.numbers</code> に書いたもの と ② 同じ冊子を <code>.xlsx</code> にして
-  <strong>Numbers 自身に読み込ませて保存させたもの</strong> を、<strong>セル 1 つずつ</strong>突き合わせます。
+  The question the table claims to answer was answered by machine. <strong>One workbook with everything</strong> this table measures was prepared, and
+  ① what SwiftSheets writes as <code>.numbers</code> and ② the same workbook as <code>.xlsx</code>,
+  <strong>read and saved by Numbers itself</strong>, were compared <strong>cell by cell</strong>.
 </p>
 <div class="tablewrap"><table>
-  <tr><th>結果</th><th>中身</th></tr>
-  <tr><td><strong>値と数式が食い違ったセル: 0 件</strong>（67 セル中）</td>
-    <td>こちらの書き出しと Numbers 自身の輸入は、セルの中身について一致しています</td></tr>
-  <tr><td>Numbers 自身のほうが多く残したもの: <strong>もう無し</strong>（かつてはピボット表だけ・14 セル）</td>
-    <td>2026-08-27 から、こちらも本物の Numbers の集計表として書きます（段は縦横 1 つずつ・値 1 つまで）</td></tr>
-  <tr><td>こちらのほうが多く残したもの: 2 件</td>
-    <td><strong>結合</strong>（Numbers 自身の輸入は失う）と、<strong>1 シートに 2 つ目の表</strong></td></tr>
-  <tr><td>配列数式の展開</td>
-    <td>Numbers は配列数式を覆うセルすべてに内部の式を撒く。こちらは起点の式と各セルの値を書く——
-    撒かれた式は再計算で値を作れないことが実測で判明した（付録 B.26）。読みは 2026-08-27 から範囲ごと戻る</td></tr>
-  <tr><td>キャッシュ値を持たない数式: 2 件</td>
-    <td>こちらの文書には値が保存されていないが、<strong>Numbers が開いたときに計算します</strong>（実機で確認）</td></tr>
+  <tr><th>Result</th><th>Detail</th></tr>
+  <tr><td><strong>Cells whose value or formula disagreed: 0</strong> (of 67 cells)</td>
+    <td>This library's export and Numbers' own import agree on the contents of every cell</td></tr>
+  <tr><td>What Numbers itself kept and this library did not: <strong>nothing any more</strong> (once only the pivot table, 14 cells)</td>
+    <td>Since 2026-08-27 this library writes a genuine Numbers pivot table too (one field per axis, one value)</td></tr>
+  <tr><td>What this library kept and Numbers itself did not: 2</td>
+    <td><strong>Merged cells</strong> (Numbers' own import loses them) and <strong>a second table on one sheet</strong></td></tr>
+  <tr><td>The expansion of array formulas</td>
+    <td>Numbers scatters an internal formula over every cell an array formula covers. This library writes the anchor's formula and each cell's value —
+    the scattered formulas were measured to produce no value on recalculation (Appendix B.26). Since 2026-08-27 reading brings the range back whole</td></tr>
+  <tr><td>Formulas without a cached value: 2</td>
+    <td>No value is stored in this library's document, but <strong>Numbers computes it when it opens the file</strong> (checked on the real application)</td></tr>
 </table></div>
 <p class="meta">
-  一覧の「項目数」で比べても意味がありません — Numbers はセルごとに 1 項目持ち、こちらは同じものを 1 項目に
-  まとめるので、同じ文書で書式が 13 対 2 になります。掃引はセルの中身で比べ、項目数は参考として並べるだけです。
+  Comparing "item counts" in the listings means nothing — Numbers holds one item per cell and this library folds the same thing into one,
+  so the same document shows 13 styles against 2. The sweep compares cell contents; the item counts are listed for reference only.
 </p>
 </section>
 
 <section>
-<h2>この表を自分で測り直す</h2>
-<p>数字が古くなっていないか確かめるには、リポジトリでテストを回してください。</p>
-<pre><code>swift test                          # 形式ごとの往復と、LibreOffice を審判にした確認を含む全部
-swift test --filter FormatSupport   # <strong>この表そのもの</strong>。48 項目の生存と警告の数、そして<strong>このページの ○ と ×</strong> を固定している
-swift test --filter CrossFormat     # <strong>方向ごと</strong>の点検（相互運用ガイドの土台）と 3 世代テスト
-swift test --filter ODFOnly         # ODF にあって Excel に無い 6 件
-swift test --filter ODS             # ODS の条件付き書式・入力規則・印刷設定・ピボット表
-swift test --filter Numbers         # Numbers のセル書式・数式（numbers-parser の期待値と突き合わせ）
+<h2>Measuring this table again yourself</h2>
+<p>To check that the numbers have not gone stale, run the tests in the repository.</p>
+<pre><code>swift test                          # everything: the round trip per format, and the checks with LibreOffice as the judge
+swift test --filter FormatSupport   # <strong>this table itself</strong>: pins which of the 48 survive, the warning counts, and <strong>the ○ and × on this page</strong>
+swift test --filter CrossFormat     # the <strong>per-direction</strong> checks (the basis of the interoperability guide) and the three-generation test
+swift test --filter ODFOnly         # the 6 things ODF has and Excel lacks
+swift test --filter ODS             # ODS conditional formats, validation, print setup, pivot tables
+swift test --filter Numbers         # Numbers cell styles and formulas (against numbers-parser's expectations)
 
-python3 Tests/NumbersParity/verify_with_numbers_app.py   # <strong>Numbers.app 本人</strong>に開かせ、計算させ、保存し直させる
-python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # 同じ 1 冊を「こちらの書き出し」と「Numbers 自身の輸入」で突き合わせる</code></pre>
+python3 Tests/NumbersParity/verify_with_numbers_app.py   # has <strong>Numbers.app itself</strong> open, calculate and re-save
+python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # compares the same workbook as "this library's export" and "Numbers' own import"</code></pre>
 <p class="meta">
-  実装の判断とその理由は <code>docs/implementation-spec.html</code> の付録 B.16（Excel → ODS / Numbers）と
-  B.17（ODF → Excel）に、
-  リリース前に人が手で確かめる項目は <code>MAINTENANCE.md</code> にあります。
+  The implementation decisions and their reasons are in <code>docs/implementation-spec.html</code>, Appendix B.16 (Excel → ODS / Numbers) and
+  B.17 (ODF → Excel);
+  what a person checks by hand before a release is in <code>MAINTENANCE.md</code>.
 </p>
 </section>
 
 <footer>
-SwiftSheets — 形式ごとの対応表。数字は 2026-08-27 の実測（全 48 項目を書いて読み戻した結果）。<br>
-方向ごと（A → B）の挙動は <a href="interoperability.html">相互運用ガイド</a> に。<br>
-実装の決定記録は docs/implementation-spec.html 付録 B.16・B.17・B.22、保守手順は MAINTENANCE.md。
+SwiftSheets — the format support table. The numbers are the measurement of 2026-08-27 (all 48 features written and read back).<br>
+The behaviour per direction (A → B) is in <a href="interoperability.html">the interoperability guide</a>.<br>
+The decision records are in docs/implementation-spec.html, Appendix B.16, B.17 and B.22; the maintenance procedure is in MAINTENANCE.md.
 </footer>
 </main>
 </body>
