@@ -1929,7 +1929,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
-    <tr><td>4.82 Draft</td><td>2026-09-11</td><td>Cells, faster: the default style answered without hashing or copying, numbers trimmed only when needed, a cell stored once, dense rows written from the extent, dated cells sharing a style, bounded style caches. ODS cell facts per style, CSV rules on bytes, Numbers integers without long division. On a million cells, measured alternately: XLSX write −29%, read −29%, edit −33%; ODS write −34%; CSV read −25%; Numbers write −44% (B.91).</td></tr>
+    <tr><td>4.82 Draft</td><td>2026-09-11</td><td>Cells, faster: the default style answered without hashing or copying, numbers trimmed only when needed, a cell stored once, dense rows written from the extent, dated cells sharing a style, bounded style caches. ODS cell facts per style, CSV rules on bytes, Numbers integers without long division. On a million cells, measured alternately: XLSX write −29%, read −29%, edit −33%; ODS write −34%; CSV read −25%; Numbers write −44%; cells made without the default-style comparison and a CSV table reserved up front, CSV read peak memory −31% (B.91).</td></tr>
     <tr><td>4.81 Draft</td><td>2026-09-11</td><td>The cell limit counts in every reader that holds cells: XLSX, Numbers and delimited text join ODS, through one budget shared by the sheets parsed side by side (B.90).</td></tr>
     <tr><td>4.80 Draft</td><td>2026-09-11</td><td>The last look at the surface before 1.0. <code>SheetImage.Anchor.absolute(CanvasRect)</code>; <code>addSparkline(_:dataRange:at:)</code> with a typed twin, and <code>Sparkline(dataRange:at:)</code>; <code>addTable(named:at:)</code> for a cell as for a point; <code>IconSet.Icon.setName</code>; <code>PhoneticText.Run.range</code>; <code>DataBar.gradient</code>; <code>Alignment.wrapsText</code> and <code>shrinksToFit</code>, with a naming scan over the whole public surface; five codec tools become package; <code>Cell.init(thread:)</code>; the preserved-parts warning names what the parts hold (B.89).</td></tr>
     <tr><td>4.79 Draft</td><td>2026-09-11</td><td>Numbers charts. The series ranges are read from the formulas in <code>TSCH.ChartDrawableArchive</code> and the mediator <code>TN.ChartMediatorArchive</code>; writing creates the template's style presets, non-style presets, the cache grid and the mediator, and registers with the calculation engine as an owner (kind 2). <code>Chart.frame</code> (<code>CanvasRect</code>) added (B.88).</td></tr>
@@ -7248,10 +7248,31 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   </table>
   <p>Measured the same way as the XLSX table, against the build with the XLSX changes already in; the load average was
   near 6. Both builds computed the same sums.</p>
+  <p><strong>The model's own cells.</strong> Every cell a reader or an append creates went through the public initialiser,
+  whose <code>style:</code> argument compared the default style with itself; the package-only <code>Cell()</code> and
+  <code>Cell(value:)</code> make the same cell without the comparison, and a test holds them equal to the public
+  initialiser's cells for every kind of value. Delimited text reserves its table for exactly the fields it has
+  parsed, so the dictionary is not copied at every doubling. Measured the same way, against the build with the other
+  codecs' changes in:</p>
+  <table>
+    <thead><tr><th>Operation</th><th>Time before → after</th><th>Peak memory before → after</th></tr></thead>
+    <tbody>
+      <tr><td>build the model</td><td>0.57 → 0.47 s (−18%)</td><td>203 → 203 MB</td></tr>
+      <tr><td>read CSV</td><td>1.27 → 1.12 s (−12%)</td><td>238 → 165 MB (−31%)</td></tr>
+      <tr><td>read Numbers</td><td>1.34 → 1.24 s (−7%)</td><td>279 → 279 MB</td></tr>
+      <tr><td>read ODS</td><td>2.95 → 2.81 s (−5%)</td><td>219 → 219 MB</td></tr>
+      <tr><td>read XLSX</td><td>1.85 → 1.75 s (−6%)</td><td>216 → 216 MB</td></tr>
+      <tr><td>streaming write XLSX</td><td>1.44 → 1.35 s (−6%)</td><td>11.0 → 10.9 MB</td></tr>
+      <tr><td>streaming write ODS</td><td>2.31 → 2.33 s (no change)</td><td>21.4 → 21.5 MB</td></tr>
+      <tr><td>streaming write Numbers</td><td>3.24 → 3.13 s (−3%)</td><td>25.2 → 25.2 MB</td></tr>
+      <tr><td>streaming write CSV</td><td>0.88 → 0.82 s (−7%)</td><td>7.8 → 7.8 MB</td></tr>
+    </tbody>
+  </table>
   <p><strong>Left.</strong> Building each cell's XML by appending instead of interpolating (confirmed, but it needs a
   fixed test of every value kind first); formatting a <code>Decimal</code> from its mantissa (not shown to cost enough);
-  one pass over the cells instead of four before a sheet is written (small); reserving the cell dictionary from the
-  declared dimension (no memory shown to be saved); keeping the Numbers writer's records in one buffer per row instead
+  one pass over the cells instead of four before a sheet is written (small); reserving an XLSX sheet's cell dictionary from its
+  declared dimension (a sparse sheet would reserve several times what it needs; a projection from the bytes read so
+  far is the safe form); keeping the Numbers writer's records in one buffer per row instead
   of a <code>Data</code> per cell (about 85 bytes a cell, but it touches every use of the records); and writing a
   non-integral decimal128 without the long division.</p>
 </section>

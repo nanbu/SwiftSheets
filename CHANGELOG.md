@@ -98,6 +98,10 @@ compiler points at; no alias is kept.
   CSV 0.88 → 0.65 s, write Numbers 3.90 → 2.20 s, row-by-row write Numbers 3.57 → 3.07 s, each at the peak memory it
   had. The ODS writer works out a cell's style facts once per style, delimited text tests its rules on bytes with one
   locale, and the Numbers writer encodes an integer without long division and its style keys once per style.
+- **Fewer copies in the model's own cells** (spec Appendix B.91): a cell a reader or an append creates is made without
+  comparing the default style with itself, and delimited text reserves its table for the fields it parsed. Building
+  the model 0.57 → 0.47 s at 203 MB; read CSV 1.27 → 1.12 s and 238 → 165 MB peak; the XLSX, ODS and Numbers readers
+  5–7% faster at the same peak.
 
 ## [0.26.0] — 2026-09-11
 

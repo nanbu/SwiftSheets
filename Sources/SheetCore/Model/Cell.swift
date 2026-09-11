@@ -124,6 +124,15 @@ public struct Cell: Hashable, Sendable {
             ? nil : CellExtras(hyperlink: hyperlink, note: note, control: control, phonetic: phonetic, thread: thread)
     }
 
+    /// An empty cell, made without comparing the default style with itself as the public initialiser's `style:` does:
+    /// every cell a reader or an append creates starts here (spec Appendix B.91).
+    package init() {}
+    /// A cell holding `value` and nothing else, made the same way.
+    package init(value: CellValue?) {
+        storedValue = value
+        applyDateFormat()
+    }
+
     public init(value: CellValue? = nil, style: CellStyle = .default, hyperlink: Hyperlink? = nil, note: CellNote? = nil,
                 control: CellControl? = nil, phonetic: PhoneticText? = nil, thread: CommentThread? = nil) {
         storedValue = value

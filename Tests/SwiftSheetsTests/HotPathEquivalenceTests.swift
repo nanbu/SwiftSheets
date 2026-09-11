@@ -162,4 +162,32 @@ struct HotPathEquivalenceTests {
             #expect(CellStorage.encodeDecimal128(integer: i) == CellStorage.encodeDecimal128(Decimal(i)), Comment(rawValue: "\(i)"))
         }
     }
+
+    /// The package initialisers make exactly the cells the public one makes with its defaults.
+    @Test func bareCellsAreThePublicInitialisersCells() {
+        #expect(Cell() == Cell(value: nil, style: .default, hyperlink: nil, note: nil))
+        #expect(Cell().sharedStyle == nil)
+        let day = CivilDate(year: 2026, month: 9, day: 11)!
+        let values: [CellValue] = [.integer(3), .text("x"), .number(Decimal(string: "1.5")!), .bool(true), .error("#N/A"),
+                                   .date(CivilDateTime(date: day)), .date(CivilDateTime(date: day, time: TimeOfDay(hour: 9, minute: 30))),
+                                   .time(TimeOfDay(hour: 9, minute: 30)), .duration(.seconds(90))]
+        for v in values {
+            let bare = Cell(value: v), full = Cell(value: v, style: .default, hyperlink: nil, note: nil)
+            #expect(bare == full, Comment(rawValue: "\(v)"))
+            #expect(bare.style.numberFormat == full.style.numberFormat, Comment(rawValue: "\(v)"))
+        }
+    }
+
+    /// A delimited-text read that reserves its table up front holds the same table.
+    @Test func aReservedCSVTableIsTheSameTable() throws {
+        var text = ""
+        for r in 1...300 { text += "\(r),x\(r),,\(Double(r) / 4)\n" }
+        let read = try Workbook.read(Data(text.utf8), format: .csv, options: ReadOptions(csv: CSVReadOptions(inferTypes: true))).workbook
+        var expected = Table()
+        for r in 1...300 { expected.append([.integer(r), .text("x\(r)"), nil, CellValue.number(Decimal(string: "\(Double(r) / 4)")!)]) }
+        let table = read.sheets[0].table
+        #expect(table.cells.count == 900)
+        #expect(table.extent == expected.extent && table.nextAppendRow == 301)
+        #expect(table.cells == expected.cells)
+    }
 }

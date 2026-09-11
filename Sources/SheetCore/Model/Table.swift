@@ -86,6 +86,12 @@ public struct Table: Equatable, Sendable {
     /// Stores a cell exactly as given — a reader keeps `<c r="A1"/>` even though it carries nothing — without the
     /// blank-dropping the subscripts do, and with the used range kept up to date.
     package mutating func store(_ cell: Cell, at ref: CellRef) { put(cell, at: ref) }
+    /// Room for about `count` cells before they arrive, for a reader that knows how many are coming (spec Appendix B.91):
+    /// a dictionary that grows by doubling holds its old and its new storage together at every step.
+    package mutating func reserveCells(_ count: Int) {
+        guard count > storage.capacity else { return }
+        storage.reserveCapacity(count)
+    }
 
     public static func == (a: Table, b: Table) -> Bool {
         a.name == b.name && a.anchor == b.anchor && a.position == b.position && a.storage == b.storage && a.rowDimensions == b.rowDimensions

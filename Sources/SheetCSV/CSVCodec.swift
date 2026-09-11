@@ -38,6 +38,10 @@ package enum CSVCodec: SpreadsheetCodec {
 
         var sheet = Sheet(name: "Sheet1")
         let inference = csv.inferTypes ? TypeInference(dateFormats: csv.dateFormats) : nil
+        // every record is parsed already and each non-empty field is exactly one cell: room for them all up front, so the
+        // table is not copied at every doubling (spec Appendix B.91)
+        let fieldCount = records.reduce(0) { n, record in record.reduce(n) { $0 + ($1.isEmpty ? 0 : 1) } }
+        sheet.table.reserveCells(Swift.min(fieldCount, options.cellLimit))
         // ReadOptions.cellLimit (spec Appendix B.90): each non-empty field is a cell, and reading stops at the limit
         var remaining = options.cellLimit
         var stoppedAtCellLimit = false
