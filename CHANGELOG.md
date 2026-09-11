@@ -7,7 +7,12 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.26.0] — 2026-09-11
+
+The remaining entrances the 2026-09-10 review proposed are all in: shapes and text boxes, sparklines, threaded
+comments, a link on part of a cell's text, Excel 2010's conditional-format extension, the sheet view's remaining
+words and the calculation mode, an inventory of preserved parts, and the external-link list — plus the tab colour
+in ODS. Every addition is additive; existing calls are unchanged.
 
 ### Added
 
@@ -1281,7 +1286,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...HEAD
+[0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0
 [0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/nanbu/SwiftSheets/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/nanbu/SwiftSheets/compare/0.22.0...0.23.0
