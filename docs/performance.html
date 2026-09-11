@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>速さの記録 — 100 列 × 10,000 行 / 100,000 行 の読み書きにかかる時間とメモリ（SwiftSheets 0.26.0）</title>
+<title>The performance record — time and memory to read and write 100 columns x 10,000 rows / 100,000 rows (SwiftSheets 0.26.0)</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -99,141 +99,141 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </head>
 <body>
 <main>
-<h1>速さの記録</h1>
-<p class="lead">列数を 100 に固定し、10,000 行 / 100,000 行（1,000,000 マス / 10,000,000 マス）の合成データで、読み書きにかかる時間とピークメモリを測った値（付録 B.39.11 の基準）。この数字は覚えたものでなく <code>scripts/bench.sh</code> が測ったもので、README が名乗る数字は 10,000 行の段の物で、このページの出所と機械で照合される。測れなかった升には理由がある — この機械の実メモリと空きディスクで足りない操作は、落ちる前に測らないと決めて記録する。</p>
-<div style="overflow-x:auto"><table><thead><tr><th>計測</th>
-<th colspan="2">10,000 行（1,000,000 マス）</th>
-<th colspan="2">100,000 行（10,000,000 マス）</th>
-</tr><tr><th>何をしたか</th><th>時間</th><th>ピークメモリ</th><th>時間</th><th>ピークメモリ</th></tr></thead><tbody>
-<tr><td>模型を組み立てる<br><small>Workbook に全マスを入れる（ファイルなし）</small></td>
-<td>0.97 秒</td><td>193.4 MB</td>
-<td>7.18 秒</td><td>921.3 MB</td>
+<h1>The performance record</h1>
+<p class="lead">The time and peak memory of reading and writing synthetic data at a fixed width of 100 columns and 10,000 rows / 100,000 rows (1,000,000 cells / 10,000,000 cells) — the standard of Appendix B.39.11. These numbers are not remembered but measured by <code>scripts/bench.sh</code>; the numbers the README quotes are those of the 10,000-row tier, and they are checked by machine against this page's source. A cell that could not be measured says why — an operation this machine's physical memory or free disk cannot hold is decided against, and recorded, before it can fall over.</p>
+<div style="overflow-x:auto"><table><thead><tr><th>Measurement</th>
+<th colspan="2">10,000 rows (1,000,000 cells)</th>
+<th colspan="2">100,000 rows (10,000,000 cells)</th>
+</tr><tr><th>What was done</th><th>Time</th><th>Peak memory</th><th>Time</th><th>Peak memory</th></tr></thead><tbody>
+<tr><td>Build the model<br><small>put every cell into a Workbook (no file)</small></td>
+<td>0.97 s</td><td>193.4 MB</td>
+<td>7.18 s</td><td>921.3 MB</td>
 </tr>
-<tr><td>書き出し（xlsx）<br><small>模型 → .xlsx</small></td>
-<td>2.00 秒</td><td>216.1 MB<br><small>うち模型 172.7 MB</small></td>
-<td>20.80 秒</td><td>1067.5 MB<br><small>うち模型 1067.5 MB</small></td>
+<tr><td>Write (xlsx)<br><small>model -&gt; .xlsx</small></td>
+<td>2.00 s</td><td>216.1 MB<br><small>of which the model: 172.7 MB</small></td>
+<td>20.80 s</td><td>1067.5 MB<br><small>of which the model: 1067.5 MB</small></td>
 </tr>
-<tr><td>読み込み（xlsx）<br><small>.xlsx → 模型、全マスの合計</small></td>
-<td>3.76 秒</td><td>201.1 MB</td>
-<td>34.47 秒</td><td>953.3 MB</td>
+<tr><td>Read (xlsx)<br><small>.xlsx -&gt; model, then sum every cell</small></td>
+<td>3.76 s</td><td>201.1 MB</td>
+<td>34.47 s</td><td>953.3 MB</td>
 </tr>
-<tr><td>逐次読み（xlsx）<br><small>StreamingReader で 1 行ずつ、全マスの合計</small></td>
-<td>2.51 秒</td><td>13.0 MB</td>
-<td>18.94 秒</td><td>19.2 MB</td>
+<tr><td>Streaming read (xlsx)<br><small>StreamingReader, row by row, then sum every cell</small></td>
+<td>2.51 s</td><td>13.0 MB</td>
+<td>18.94 s</td><td>19.2 MB</td>
 </tr>
-<tr><td>開いて 1 マス直して保存<br><small>.xlsx → 模型 → .xlsx</small></td>
-<td>4.43 秒</td><td>235.9 MB</td>
-<td>44.23 秒</td><td>978.8 MB</td>
+<tr><td>Open, change one cell, save<br><small>.xlsx -&gt; model -&gt; .xlsx</small></td>
+<td>4.43 s</td><td>235.9 MB</td>
+<td>44.23 s</td><td>978.8 MB</td>
 </tr>
-<tr><td>形式の判定<br><small>SheetFormat.detect(contentsOf:)、1 回あたり</small></td>
-<td>1 ミリ秒未満</td><td>7.1 MB</td>
-<td>1 ミリ秒未満</td><td>7.0 MB</td>
+<tr><td>Format detection<br><small>SheetFormat.detect(contentsOf:), per call</small></td>
+<td>under 1 ms</td><td>7.1 MB</td>
+<td>under 1 ms</td><td>7.0 MB</td>
 </tr>
-<tr><td>読む前の問い合わせ<br><small>Workbook.inspect(contentsOf:)</small></td>
-<td>2.0 ミリ秒</td><td>10.5 MB</td>
-<td>3.0 ミリ秒</td><td>10.5 MB</td>
+<tr><td>Inspect before reading<br><small>Workbook.inspect(contentsOf:)</small></td>
+<td>2.0 ms</td><td>10.5 MB</td>
+<td>3.0 ms</td><td>10.5 MB</td>
 </tr>
-<tr><td>逐次書き（xlsx）<br><small>StreamingWriter で 1 行ずつ</small></td>
-<td>2.30 秒</td><td>10.3 MB</td>
-<td>19.18 秒</td><td>10.0 MB</td>
+<tr><td>Streaming write (xlsx)<br><small>StreamingWriter, row by row</small></td>
+<td>2.30 s</td><td>10.3 MB</td>
+<td>19.18 s</td><td>10.0 MB</td>
 </tr>
-<tr><td>逐次読み（xlsx）（逐次で書いたファイル）<br><small>StreamingReader で 1 行ずつ、全マスの合計</small></td>
-<td>2.28 秒</td><td>12.5 MB</td>
-<td>19.37 秒</td><td>12.4 MB</td>
+<tr><td>Streaming read (xlsx) (the streaming writer&#x27;s file)<br><small>StreamingReader, row by row, then sum every cell</small></td>
+<td>2.28 s</td><td>12.5 MB</td>
+<td>19.37 s</td><td>12.4 MB</td>
 </tr>
-<tr><td>形式の判定（逐次で書いたファイル）<br><small>SheetFormat.detect(contentsOf:)、1 回あたり</small></td>
-<td>1 ミリ秒未満</td><td>7.0 MB</td>
-<td>1 ミリ秒未満</td><td>7.0 MB</td>
+<tr><td>Format detection (the streaming writer&#x27;s file)<br><small>SheetFormat.detect(contentsOf:), per call</small></td>
+<td>under 1 ms</td><td>7.0 MB</td>
+<td>under 1 ms</td><td>7.0 MB</td>
 </tr>
-<tr><td>読む前の問い合わせ（逐次で書いたファイル）<br><small>Workbook.inspect(contentsOf:)</small></td>
-<td>2.0 ミリ秒</td><td>10.4 MB</td>
-<td>3.0 ミリ秒</td><td>10.4 MB</td>
+<tr><td>Inspect before reading (the streaming writer&#x27;s file)<br><small>Workbook.inspect(contentsOf:)</small></td>
+<td>2.0 ms</td><td>10.4 MB</td>
+<td>3.0 ms</td><td>10.4 MB</td>
 </tr>
-<tr><td>書き出し（xlsx・8 シート）<br><small>同じマス数を 8 シートに分けた模型 → .xlsx</small></td>
-<td>2.00 秒</td><td>208.4 MB<br><small>うち模型 194.1 MB</small></td>
-<td>18.58 秒</td><td>820.7 MB<br><small>うち模型 820.7 MB</small></td>
+<tr><td>Write (xlsx, 8 sheets)<br><small>the same cells split across 8 sheets, model -&gt; .xlsx</small></td>
+<td>2.00 s</td><td>208.4 MB<br><small>of which the model: 194.1 MB</small></td>
+<td>18.58 s</td><td>820.7 MB<br><small>of which the model: 820.7 MB</small></td>
 </tr>
-<tr><td>読み込み（xlsx・8 シート・1 枚ずつ）<br><small>ReadOptions(concurrency: 1)、全マスの合計</small></td>
-<td>3.46 秒</td><td>135.2 MB</td>
-<td>28.74 秒</td><td>432.3 MB</td>
+<tr><td>Read (xlsx, 8 sheets, one at a time)<br><small>ReadOptions(concurrency: 1), then sum every cell</small></td>
+<td>3.46 s</td><td>135.2 MB</td>
+<td>28.74 s</td><td>432.3 MB</td>
 </tr>
-<tr><td>読み込み（xlsx・8 シート・同時）<br><small>既定（シートを同時に読む）、全マスの合計</small></td>
-<td>1.45 秒</td><td>227.5 MB</td>
-<td>12.96 秒</td><td>1029.8 MB</td>
+<tr><td>Read (xlsx, 8 sheets, side by side)<br><small>the default (sheets read concurrently), then sum every cell</small></td>
+<td>1.45 s</td><td>227.5 MB</td>
+<td>12.96 s</td><td>1029.8 MB</td>
 </tr>
-<tr><td>書き出し（ods）<br><small>模型 → .ods</small></td>
-<td>3.81 秒</td><td>212.5 MB<br><small>うち模型 202.8 MB</small></td>
-<td>36.20 秒</td><td>985.4 MB<br><small>うち模型 985.4 MB</small></td>
+<tr><td>Write (ods)<br><small>model -&gt; .ods</small></td>
+<td>3.81 s</td><td>212.5 MB<br><small>of which the model: 202.8 MB</small></td>
+<td>36.20 s</td><td>985.4 MB<br><small>of which the model: 985.4 MB</small></td>
 </tr>
-<tr><td>読み込み（ods）<br><small>.ods → 模型</small></td>
-<td>5.37 秒</td><td>177.5 MB</td>
-<td>40.06 秒</td><td>989.9 MB</td>
+<tr><td>Read (ods)<br><small>.ods -&gt; model</small></td>
+<td>5.37 s</td><td>177.5 MB</td>
+<td>40.06 s</td><td>989.9 MB</td>
 </tr>
-<tr><td>逐次読み（ods）<br><small>StreamingReader で 1 行ずつ、全マスの合計</small></td>
-<td>4.44 秒</td><td>15.0 MB</td>
-<td>44.83 秒</td><td>14.1 MB</td>
+<tr><td>Streaming read (ods)<br><small>StreamingReader, row by row, then sum every cell</small></td>
+<td>4.44 s</td><td>15.0 MB</td>
+<td>44.83 s</td><td>14.1 MB</td>
 </tr>
-<tr><td>逐次書き（ods）<br><small>StreamingWriter で 1 行ずつ</small></td>
-<td>3.78 秒</td><td>16.6 MB</td>
-<td>40.27 秒</td><td>16.6 MB</td>
+<tr><td>Streaming write (ods)<br><small>StreamingWriter, row by row</small></td>
+<td>3.78 s</td><td>16.6 MB</td>
+<td>40.27 s</td><td>16.6 MB</td>
 </tr>
-<tr><td>逐次読み（ods）（逐次で書いたファイル）<br><small>StreamingReader で 1 行ずつ、全マスの合計</small></td>
-<td>4.28 秒</td><td>14.2 MB</td>
-<td>42.52 秒</td><td>14.9 MB</td>
+<tr><td>Streaming read (ods) (the streaming writer&#x27;s file)<br><small>StreamingReader, row by row, then sum every cell</small></td>
+<td>4.28 s</td><td>14.2 MB</td>
+<td>42.52 s</td><td>14.9 MB</td>
 </tr>
-<tr><td>書き出し（csv）<br><small>模型 → .csv</small></td>
-<td>0.99 秒</td><td>234.5 MB<br><small>うち模型 202.8 MB</small></td>
-<td>15.47 秒</td><td>930.5 MB<br><small>うち模型 930.5 MB</small></td>
+<tr><td>Write (csv)<br><small>model -&gt; .csv</small></td>
+<td>0.99 s</td><td>234.5 MB<br><small>of which the model: 202.8 MB</small></td>
+<td>15.47 s</td><td>930.5 MB<br><small>of which the model: 930.5 MB</small></td>
 </tr>
-<tr><td>読み込み（csv）<br><small>.csv → 模型（型の推定つき）</small></td>
-<td>1.90 秒</td><td>237.5 MB</td>
-<td>48.59 秒</td><td>925.9 MB</td>
+<tr><td>Read (csv)<br><small>.csv -&gt; model (with type inference)</small></td>
+<td>1.90 s</td><td>237.5 MB</td>
+<td>48.59 s</td><td>925.9 MB</td>
 </tr>
-<tr><td>逐次読み（csv）<br><small>CSVStreamingReader で 1 行ずつ</small></td>
-<td>1.28 秒</td><td>10.2 MB</td>
-<td>14.79 秒</td><td>10.3 MB</td>
+<tr><td>Streaming read (csv)<br><small>CSVStreamingReader, row by row</small></td>
+<td>1.28 s</td><td>10.2 MB</td>
+<td>14.79 s</td><td>10.3 MB</td>
 </tr>
-<tr><td>逐次書き（csv）<br><small>CSVStreamingWriter で 1 行ずつ</small></td>
-<td>0.81 秒</td><td>7.5 MB</td>
-<td>9.69 秒</td><td>7.4 MB</td>
+<tr><td>Streaming write (csv)<br><small>CSVStreamingWriter, row by row</small></td>
+<td>0.81 s</td><td>7.5 MB</td>
+<td>9.69 s</td><td>7.4 MB</td>
 </tr>
-<tr><td>逐次読み（csv）（逐次で書いたファイル）<br><small>CSVStreamingReader で 1 行ずつ</small></td>
-<td>1.69 秒</td><td>10.4 MB</td>
-<td>14.62 秒</td><td>10.1 MB</td>
+<tr><td>Streaming read (csv) (the streaming writer&#x27;s file)<br><small>CSVStreamingReader, row by row</small></td>
+<td>1.69 s</td><td>10.4 MB</td>
+<td>14.62 s</td><td>10.1 MB</td>
 </tr>
-<tr><td>書き出し（numbers）<br><small>模型 → .numbers</small></td>
-<td>3.78 秒</td><td>314.9 MB<br><small>うち模型 195.3 MB</small></td>
-<td>68.35 秒</td><td>1210.8 MB<br><small>うち模型 983.6 MB</small></td>
+<tr><td>Write (numbers)<br><small>model -&gt; .numbers</small></td>
+<td>3.78 s</td><td>314.9 MB<br><small>of which the model: 195.3 MB</small></td>
+<td>68.35 s</td><td>1210.8 MB<br><small>of which the model: 983.6 MB</small></td>
 </tr>
-<tr><td>読み込み（numbers）<br><small>.numbers → 模型、全マスの合計</small></td>
-<td>1.42 秒</td><td>278.9 MB</td>
-<td>18.93 秒</td><td>1197.5 MB</td>
+<tr><td>Read (numbers)<br><small>.numbers -&gt; model, then sum every cell</small></td>
+<td>1.42 s</td><td>278.9 MB</td>
+<td>18.93 s</td><td>1197.5 MB</td>
 </tr>
-<tr><td>逐次読み（numbers）<br><small>StreamingReader で 1 行ずつ、全マスの合計</small></td>
-<td>0.79 秒</td><td>26.0 MB</td>
-<td>10.03 秒</td><td>61.0 MB</td>
+<tr><td>Streaming read (numbers)<br><small>StreamingReader, row by row, then sum every cell</small></td>
+<td>0.79 s</td><td>26.0 MB</td>
+<td>10.03 s</td><td>61.0 MB</td>
 </tr>
-<tr><td>逐次書き（numbers）<br><small>StreamingWriter で 1 行ずつ</small></td>
-<td>3.83 秒</td><td>22.8 MB</td>
-<td>55.79 秒</td><td>59.4 MB</td>
+<tr><td>Streaming write (numbers)<br><small>StreamingWriter, row by row</small></td>
+<td>3.83 s</td><td>22.8 MB</td>
+<td>55.79 s</td><td>59.4 MB</td>
 </tr>
-<tr><td>逐次読み（numbers）（逐次で書いたファイル）<br><small>StreamingReader で 1 行ずつ、全マスの合計</small></td>
-<td>0.79 秒</td><td>24.6 MB</td>
-<td>12.16 秒</td><td>58.1 MB</td>
+<tr><td>Streaming read (numbers) (the streaming writer&#x27;s file)<br><small>StreamingReader, row by row, then sum every cell</small></td>
+<td>0.79 s</td><td>24.6 MB</td>
+<td>12.16 s</td><td>58.1 MB</td>
 </tr>
 </tbody></table></div>
-<h2>計測の条件</h2><ul>
-<li>日付: 2026-09-05、コミット: <code>a758803</code></li>
-<li>機械: Apple M2、メモリ 8 GB、26.6.2</li>
-<li>ツールチェーン: swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)、release ビルド</li>
-<li>素材: synthetic, 100 columns: a label, five integers, three decimals and a Japanese category, repeated across the width with the numbers offset per block; the text columns past the first block draw on a vocabulary of fifty; one sheet; no formatting。<strong>合成データの数字は合成データの数字</strong>で、書式や図の多い実務のブックはこれより重い。</li>
-<li>ピークメモリはプロセス生涯の最大値（<code>ru_maxrss</code>）。だから計測は 1 つずつ別のプロセスで走らせる。</li>
-<li>読みの値は、全載せで書いたファイル（アプリが書く形のファイル）を読んだ物。逐次で書いたファイルを読んだ値は「逐次で書いたファイル」の行に別に出す。</li>
+<h2>Conditions of measurement</h2><ul>
+<li>Date: 2026-09-05, commit: <code>a758803</code></li>
+<li>Machine: Apple M2, 8 GB of memory, 26.6.2</li>
+<li>Toolchain: swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101), release build</li>
+<li>Material: synthetic, 100 columns: a label, five integers, three decimals and a Japanese category, repeated across the width with the numbers offset per block; the text columns past the first block draw on a vocabulary of fifty; one sheet; no formatting. <strong>Synthetic data gives synthetic numbers</strong>: a real workbook, heavy with formatting and drawings, is heavier than this.</li>
+<li>Peak memory is the process's lifetime maximum (<code>ru_maxrss</code>), which is why every measurement runs in a process of its own.</li>
+<li>A reading figure is taken on the file the whole-model writer wrote (the file an application writes). The figure taken on the streaming writer's file is shown separately, in the row marked "the streaming writer's file".</li>
 </ul>
-<h2>自分の機械で測るには</h2>
-<pre><code>scripts/bench.sh                # 両方の段。Benchmarks/ を release で作り直して測り、docs/performance.json を書く
-scripts/bench.sh --rows 10000   # 1 段だけ
-python3 scripts/build-performance-page.py --check   # このページと README の数字が出所と一致しているか</code></pre>
+<h2>Measuring on your own machine</h2>
+<pre><code>scripts/bench.sh                # both tiers: rebuilds Benchmarks/ in release, measures, writes docs/performance.json
+scripts/bench.sh --rows 10000   # one tier only
+python3 scripts/build-performance-page.py --check   # this page and the README's numbers match the source</code></pre>
 </main>
 </body>
 </html>

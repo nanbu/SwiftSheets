@@ -72,11 +72,11 @@ def decide(op, cells, memory_bytes, free_bytes):
     if op in WHOLE_MODEL:
         need = cells * BYTES_PER_CELL_PEAK
         if need > memory_bytes * MEMORY_SHARE:
-            return "見込みピーク %.1f GB が実メモリ %d GB の 6 割を超える" % (need / 2**30, round(memory_bytes / 2**30))
+            return "the projected peak of %.1f GB exceeds 60%% of the %d GB of physical memory" % (need / 2**30, round(memory_bytes / 2**30))
     if op in DISK_PER_CELL:
         need = cells * DISK_PER_CELL[op] * DISK_MARGIN
         if need > free_bytes:
-            return "空きディスク %.1f GB では足りない（%.1f GB 要る）" % (free_bytes / 2**30, need / 2**30)
+            return "%.1f GB of free disk is not enough (%.1f GB needed)" % (free_bytes / 2**30, need / 2**30)
     return None
 
 
@@ -97,7 +97,7 @@ def measure(binary, rows, outdir, log):
             continue
         seen.add(key)
         if needs and not done.get((needs, name)):
-            skipped.append({"op": op, "file": name, "reason": "%s を測っていないので材料が無い" % needs}); continue
+            skipped.append({"op": op, "file": name, "reason": "no input: %s was not measured" % needs}); continue
         reason = decide(op, cells, memory, shutil.disk_usage(outdir).free)
         if reason:
             skipped.append({"op": op, "file": name, "reason": reason})
@@ -106,7 +106,7 @@ def measure(binary, rows, outdir, log):
         path = os.path.join(outdir, name)
         proc = subprocess.run([binary, op, str(rows), path], env=env, capture_output=True, text=True)
         if proc.returncode != 0:
-            skipped.append({"op": op, "file": name, "reason": "落ちた: " + proc.stderr.strip()[-200:]})
+            skipped.append({"op": op, "file": name, "reason": "failed: " + proc.stderr.strip()[-200:]})
             print("FAIL %-20s %s" % (op, proc.stderr.strip()[-200:]), file=sys.stderr)
             continue
         line = json.loads(proc.stdout.strip().splitlines()[-1])
@@ -232,20 +232,20 @@ def self_test():
         nonlocal ok
         print("  %s %s" % ("✅" if cond else "❌", name)); ok = ok and cond
     gb = 2**30
-    t("100 万マスの全載せは 8 GB の機械で測る", decide("read", 1_000_000, 8 * gb, 100 * gb) is None)
-    t("1,000 万マスの全載せは 8 GB の機械で測る（3.2 GB < 4.8 GB）", decide("read", 10_000_000, 8 * gb, 100 * gb) is None)
-    t("1,000 万マスの全載せは 4 GB の機械では測らない、と理由を言う", "6 割" in (decide("read", 10_000_000, 4 * gb, 100 * gb) or ""))
-    t("1,000 万マスの逐次読みはメモリの検査を受けない", decide("streamRead", 10_000_000, 4 * gb, 100 * gb) is None)
-    t("空きディスクが足りない書き出しは測らない、と理由を言う", "ディスク" in (decide("streamWriteODS", 10_000_000, 8 * gb, 1 * gb) or ""))
-    t("空きディスクが足りていれば測る", decide("streamWriteODS", 10_000_000, 8 * gb, 2 * gb) is None)
-    t("計画の材料はすべて先に作られる", all(needs is None or any(o == needs and n == name for o, n, _ in PLAN[:i]) for i, (op, name, needs) in enumerate(PLAN)))
+    t("a whole-model operation on a million cells is measured on an 8 GB machine", decide("read", 1_000_000, 8 * gb, 100 * gb) is None)
+    t("a whole-model operation on ten million cells is measured on an 8 GB machine (3.2 GB < 4.8 GB)", decide("read", 10_000_000, 8 * gb, 100 * gb) is None)
+    t("a whole-model operation on ten million cells is not measured on a 4 GB machine, and says why", "60%" in (decide("read", 10_000_000, 4 * gb, 100 * gb) or ""))
+    t("a streaming read of ten million cells is not subject to the memory guard", decide("streamRead", 10_000_000, 4 * gb, 100 * gb) is None)
+    t("a write the free disk cannot hold is not measured, and says why", "disk" in (decide("streamWriteODS", 10_000_000, 8 * gb, 1 * gb) or ""))
+    t("a write the free disk can hold is measured", decide("streamWriteODS", 10_000_000, 8 * gb, 2 * gb) is None)
+    t("every input of the plan is made before it is needed", all(needs is None or any(o == needs and n == name for o, n, _ in PLAN[:i]) for i, (op, name, needs) in enumerate(PLAN)))
     numbers = readme_numbers({"rows": 1, "results": [
         {"op": op, "file": "stream.x" if op.startswith("streamWrite") else "bench.x", "peakMB": 1.4}
         for op in ["streamWrite", "streamWriteODS", "streamWriteNumbers", "streamRead", "streamReadODS", "streamReadNumbers", "read", "readSheetsSerial", "readSheets"]]
         + [{"op": "streamRead", "file": "stream.x", "peakMB": 9}]})
-    t("README の読みの数字は全載せで書いたファイルの読みから採る", numbers["streaming_read_peak_mb"] == 1)
-    t("README の書きの数字は、その書きが作ったファイルの名前によらず採る", numbers["streaming_write_peak_mb"] == 1)
-    print("✅ self-test 全緑" if ok else "❌ self-test 赤")
+    t("the README's reading numbers come from the reading of the whole-model writer's file", numbers["streaming_read_peak_mb"] == 1)
+    t("the README's writing numbers are taken whatever the name of the file that write made", numbers["streaming_write_peak_mb"] == 1)
+    print("✅ self-test: all green" if ok else "❌ self-test: red")
     return 0 if ok else 1
 
 
