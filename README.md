@@ -12,7 +12,7 @@ has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+
 the same suite runs on all of them, on every push.
 
 The design is written down in [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html)
-(Japanese; the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
+(the spec is revised first, then the code), and what each format carries — measured, not claimed — is in
 [the format support table](https://nanbu.github.io/SwiftSheets/format-support.html). The same question from the other
 side — every feature each format's own specification names, how far this library carries it, and the API for each — is
 [the spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html) (196 rows; read and write kept
