@@ -1914,6 +1914,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>API を 3 件</strong>を付録 B.39.10 に記録。<code>ReadOptions.sheets</code>（XLSX は読まないシートをバイト列のまま運び、共有文字列表と cellXfs の番号を保って書き戻す。ODS / Numbers は空で運び、読み書きとも言う）、<code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>、<code>rows(inSheet:)</code> / <code>rows()</code> の <code>for try await</code>。テスト 1,017 件</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>並列読み</strong>を付録 B.41 に記録して本体へ。XLSX / XLSM のシートを同時に読む（書式表の遅延辞書を先に埋め、シート 1 枚の仕事を読むだけの入れ物に移し、結果はシート順に並べ直す）。<code>ReadOptions.concurrency</code>（nil = 2 枚以上・申告 4 MiB 以上で自動、1 = 1 枚ずつ、n = 最大 n 枚）。増えるメモリは同時に走る枚の作業領域だけなので、この整数が手綱になる。計測台に 8 シートの列: 1 枚ずつ 2.7 秒・145 MB → 同時 1.2 秒・257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>付録 B.38 に追記: <strong>「別の符号化を名乗る部品は素通し」が穴だった</strong>。0.14.0 の Linux 審判が同じ関数でもう 1 度落ち、原因は宣言の名前が壊れた部品を libxml2 が復旧モードで生バイトのまま読み続けることだった（先に疑った Snappy は無関係で、書き換えは硬化として残す）。素通しは parser が知っている 8 ビットの名前に限り、知らない名前は <code>malformedPart</code>。fuzz は読んでいる変異をディスクに置き、落ちたときだけ CI が持ち帰る</td></tr>
+    <tr><td>4.74 Draft</td><td>2026-09-11</td><td>Numbers のキャンバスに絵と図形・テキストボックスを読み書きする。<code>TSD.ImageArchive</code> と <code>Data/</code> の実体、<code>TSWP.ShapeInfoArchive</code> と文の保管庫。錨はキャンバス上の点（<code>.absolute</code>）で読み、セル錨は最初の表の寸法で点に直して書く（B.83）。</td></tr>
     <tr><td>4.73 Draft</td><td>2026-09-11</td><td>拡張の条件付き書式。<code>DataBar</code> に負の色・軸の色と位置・向き・単色・枠、<code>IconSet</code> に <code>customIcons</code>。XLSX は x14 の拡張を規則に畳み込んで読み、規則と並べて作り直す。ODS は LibreOffice のデータバーが言える分を運ぶ（B.82）。</td></tr>
     <tr><td>4.72 Draft</td><td>2026-09-11</td><td>書式付き文字の区間ごとのリンク。<code>TextRun.hyperlink</code> を足し、ODS と Numbers は 1 セルの複数のリンクを run ごとに読み書きする。Excel は先頭を採って言う（B.81）。</td></tr>
     <tr><td>4.71 Draft</td><td>2026-09-11</td><td>スレッド形式のコメント。<code>CommentThread</code>（本文・返信・解決済み・日時）を <code>cell.thread</code> に持ち、XLSX の threadedComments / persons 部品を読み書きし（写しの規則・人の id は保つ・古い読み手向けの鏡のメモは隠す）、ODS・Numbers はメモに置き換えて言う（B.80）。</td></tr>
@@ -6655,6 +6656,9 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
 </section>
 
 <section>
+  <p><strong>ODS の測定（2026-09-11 追記）。</strong>ODF には <code>text:ruby</code>（<code>text:ruby-base</code> と <code>text:ruby-text</code>）があり、セルの <code>text:p</code> の中に置ける。
+  手作りの ODS を LibreOffice 26.2.3 に開かせて保存し直すと、ODS でも XLSX 書き出しでも読みは消え、本文だけが残った（Calc はセルの中のルビを持たない）。
+  読む側がいない形で書けば、いま出している dropped の警告を黙らせるだけになるので、ODS のふりがなは落として言うままにする。</p>
   <h3>B.71 テーマを読む——<code>Workbook.theme</code> と <code>rgb(of:)</code>（Rev 4.62）</h3>
   <p>2026-09-11 決定。<code>Color.theme(_:tint:)</code> は「テーマの n 番の色を濃淡 tint で」という参照で、答えは <code>xl/theme/theme1.xml</code> にある。
   これまで読み手はこの部品を保全するだけで解釈せず、ODS と Numbers の書き手は参照を解決できずに黒を書いて「theme/indexed colours written as default」と言っていた
@@ -6961,6 +6965,37 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>検査。</strong><code>ConditionalExtensionTests</code> 5 件: LibreOffice が書いた x14 のデータバー（検体 <code>libreoffice-databar-x14.xlsx</code>）を
   規則として読む・書き戻しで規則と拡張が同じ id を持つ・データバーの全項目と独自アイコンの往復と 2 度目の保存・ODS が言える分と言えない分・
   書いた拡張を LibreOffice が読む（gated）。</p>
+
+  <h3>B.83 Numbers のキャンバスの絵と図形（Rev 4.74）</h3>
+  <p>2026-09-11 決定。Numbers のシートはキャンバスで、表の横に絵・図形・テキストボックス・グラフが立つ。今までは読みで「an image」「a shape」と dropped で名指し、
+  書きでは「not implemented yet」と落としていた。模型には B.72 の <code>SheetImage</code> と B.75 の <code>Shape</code> が既にあるので、Numbers でも同じ物を読み書きする。
+  グラフ（<code>TSCH.ChartDrawableArchive</code>）は今回も入れない——系列・軸・様式が別の大きな図で、表を継ぎ足す今の書き方の外にあるから。ムービー・グループ・接続線も従来どおり名指しで落とす。</p>
+  <p><strong>実測（Numbers 15.3.1 に AppleScript で作らせた書類 <code>canvas-15.numbers</code>）。</strong>絵は <code>TSD.ImageArchive</code>:
+  <code>super.geometry</code>（<code>position</code>・<code>size</code> は pt、<code>flags 3</code>）、<code>parent</code> はシート、<code>style</code> は雛形の
+  <code>image-0-imageStyle</code>（<code>TSD.MediaStyleArchive</code>）、<code>originalSize</code> / <code>naturalSize</code> は画素数をそのまま pt に、<code>data</code> は
+  <code>TSP.DataReference</code>。実体は <code>Data/&lt;名前&gt;-&lt;番号&gt;.&lt;拡張子&gt;</code> に置き、<code>Index/Metadata.iwa</code> の <code>TSP.PackageMetadata.datas</code> に
+  <code>TSP.DataInfo</code>（<code>identifier</code>＝既存の data 番号の最大＋1・object の番号とは別の列、<code>digest</code>＝実体の SHA-1、<code>preferred_file_name</code>、
+  <code>file_name</code>、<code>attributes.pixel_size</code>、<code>materialized_length</code>）を 1 件足す。<code>data_metadata_map</code> には Numbers 自身も足していないので触らない。
+  題名と説明（<code>StandinCaptionArchive</code>）と <code>traced_path</code> は任意で、書かない。</p>
+  <p>図形とテキストボックスはどちらも <code>TSWP.ShapeInfoArchive</code>（<code>TSD.ShapeArchive</code> ではない——読みの名前表はこれで直す）:
+  <code>super.super.geometry</code> と <code>parent</code>、<code>style</code> は雛形の <code>textbox-0-shapestyle</code> か <code>shape-0-shapestyle</code>、
+  <code>pathsource.bezier_path_source</code> は 0,0→100,0→100,100→0,100 の閉じた四角に <code>naturalSize</code>＝寸法、<code>owned_storage</code> と <code>deprecated_storage</code> が同じ
+  <code>TSWP.StorageArchive</code>（<code>kind</code> は書かない——既定の BODY。セル用の CELL を書いても、BODY＝0 を明示しても、Numbers は保存時に TSText で abort する。
+  実測 2026-09-11: 文の無い図形と絵は保存でき、文のある図形だけが落ちたので、保管庫の差分を 1 つずつ戻して突き止めた。<code>table_drop_cap_style</code> は Numbers と同じく空の 1 行を書く。
+  段落様式は選んだ図形様式の <code>shape_properties.paragraph_style</code> から取る）、
+  <code>is_text_box</code>。Numbers はこれらの様式への参照を Document 部品の外部参照として 1 つずつ登録しているので、同じように登録する（登録が無い参照は Numbers が書類を拒む）。</p>
+  <p><strong>書き。</strong>絵は上記のとおり。図形は四角とテキストボックスだけ実測どおりに書き、それ以外の geometry は四角で書いて degraded で名指す（Numbers の楕円・矢印は AppleScript では作れず、
+  <code>scalar_path_source</code> / <code>point_path_source</code> の数の意味を測れていないため）。塗りと線は雛形の様式を写して <code>fill.color</code> と <code>stroke.color</code> / <code>width</code> を
+  書き換えた <code>TSD.ShapeStyleArchive</code> を様式表に足す。文の書体は B.18 のセルの文と同じ <code>TSWP.CharacterStyleArchive</code> を 1 つ作って全文に当てる。<code>textAlignment</code> は書かず degraded で言う。
+  錨: Numbers はキャンバス上の点しか持たないので、<code>.absolute</code> はそのまま、<code>.cell</code> / <code>.span</code> は最初の表の位置（書き手が並べた y）と列幅・行高（既定 98 pt / 20 pt、幅は文字数 × 5.7 pt）を足して点に直す。
+  <code>.fitCell</code> はそのセルの寸法、<code>.original</code> / <code>.scaled</code> は画素数を pt に。</p>
+  <p><strong>読み。</strong>シートの <code>drawable_infos</code> のうち <code>TSD.ImageArchive</code> は <code>data</code> → <code>datas</code> の <code>file_name</code> → <code>Data/</code> の実体を
+  <code>SheetImage(data:)</code> に通し、PNG / JPEG / GIF でない物（PDF・HEIC）は従来どおり「an image」で落として言う。<code>TSWP.ShapeInfoArchive</code> は文（保管庫の <code>text</code>）・
+  <code>is_text_box</code> → <code>.textBox</code>、四隅の bezier → <code>.rectangle</code>、それ以外は <code>Geometry(rawValue: "numbers-path")</code>（プリセットでない名なので、XLSX / ODS へ書くときは四角＋degraded）。
+  塗りと線は様式の <code>shape_properties</code> から。書体は読まない（nil）。錨はどれも <code>.absolute</code>。読んだ絵と図形は、Numbers へ書き戻すときも雛形に新しく作り直す（B.73 の ODS と同じ。写しの規則は使わない）。</p>
+  <p><strong>審判。</strong>書いた書類を Numbers 自身に開かせ・保存し直させ、戻った書類から絵の SHA-1 とテキストボックスの文を読み戻す gated テスト（<code>NumbersCanvasTests</code>）。
+  Numbers が無い機械では理由つきで飛ぶ。MAINTENANCE の手動一覧にも 1 行。</p>
+
 </section>
 
 </div><!-- /.container -->

@@ -149,6 +149,16 @@ import SwiftSheets
         controls.sheets[0] = q
         out.append(("18-cell-controls", controls))
 
+        // a picture, a text box and a filled shape on the canvas (Appendix B.83)
+        var canvas = Workbook()
+        canvas.sheets[0]["A1"] = "canvas"
+        canvas.sheets[0].addImage(try! SheetImage(data: try! Data(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Fixtures/images/tiny.png"))), at: "B2")
+        canvas.sheets[0].addTextBox("Boxed by SwiftSheets", over: "B4:D5")
+        var shape = Shape(.rectangle, text: "Shape")
+        shape.fill = .rgb("FF3366")
+        canvas.sheets[0].addShape(shape, over: "F2:G4")
+        out.append(("19-canvas", canvas))
+
         return out
     }
 

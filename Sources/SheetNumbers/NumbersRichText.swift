@@ -30,10 +30,13 @@ enum NumbersRichText {
     /// - Parameters:
     ///   - runs: where each run of its own formatting starts, and the character style it uses (nil = back to plain).
     ///   - fields: where a smart field starts, and the object it points at (a hyperlink).
+    ///   - kind: `CELL` for a cell's text; a shape's text is `BODY` (Appendix B.83).
     static func storage(text: String, stylesheet: Int?, paragraphStyle: Int?, listStyle: Int?,
-                        runs: [(index: Int, style: Int?)], fields: [(index: Int, object: Int?)]) -> ProtoMessage {
+                        runs: [(index: Int, style: Int?)], fields: [(index: Int, object: Int?)], kind: String = "CELL") -> ProtoMessage {
         var storage = ProtoMessage(typeName: "TSWP.StorageArchive")
-        storage.set("kind", int: NumbersSchema.shared.enums["TSWP.StorageArchive.KindType"]?["CELL"] ?? 5)
+        // a shape's storage carries no kind at all (BODY is the default); Numbers writes none and aborts on save
+        // when one is spelt out (Appendix B.83)
+        if kind != "BODY" { storage.set("kind", int: NumbersSchema.shared.enums["TSWP.StorageArchive.KindType"]?[kind] ?? 5) }
         if let stylesheet { storage.set("style_sheet", reference: stylesheet) }
         storage.set("text", string: text)
         // Numbers writes the paragraph tables even for a single line of cell text, and will not open a document

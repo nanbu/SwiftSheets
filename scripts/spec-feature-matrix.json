@@ -2872,26 +2872,32 @@
             {
               "id": "num.canvas.image",
               "name": "画像",
-              "spec_anchor": "TSD.ImageArchive",
-              "read": "none",
-              "write": "none",
+              "spec_anchor": "B.83（TSD.ImageArchive・TSP.DataInfo）",
+              "read": "full",
+              "write": "full",
               "api": [
-                "sheet.addImage(_:at:sizing:)"
+                "sheet.images",
+                "sheet.addImage(_:at:sizing:)",
+                "sheet.addImage(_:over:)"
               ],
-              "warning": "読みは「an image」／書きは「N image(s) added by addImage dropped …」",
+              "warning": "PNG / JPEG / GIF でない絵（PDF・HEIC）は読みで「an image」のまま",
               "evidence": "measured",
-              "note": null
+              "note": "錨はキャンバス上の点で読む（.absolute）。セル錨は最初の表の列幅・行高で点に直して書く。Numbers 15.3.1 が開いて保存し直す（gated テスト）。"
             },
             {
               "id": "num.canvas.shape",
               "name": "図形・テキストボックス",
-              "spec_anchor": "TSD.ShapeArchive",
-              "read": "none",
-              "write": "none",
-              "api": [],
-              "warning": "読みで「a shape」を dropped で名指し",
+              "spec_anchor": "B.83（TSWP.ShapeInfoArchive）",
+              "read": "partial",
+              "write": "partial",
+              "api": [
+                "sheet.shapes",
+                "sheet.addShape(_:over:)",
+                "sheet.addTextBox(_:over:font:)"
+              ],
+              "warning": "四角とテキストボックス以外の geometry は「a shape of geometry … was written as a rectangle」／textAlignment は「not written」（degraded）",
               "evidence": "measured",
-              "note": "テキストボックスは文字を持つ図形として同じ扱い。"
+              "note": "文・塗り・線・書体（書きのみ）を運ぶ。読みは四隅の bezier を rect、それ以外を numbers-path（プリセット外）にする。"
             },
             {
               "id": "num.canvas.movie",

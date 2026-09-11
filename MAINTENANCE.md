@@ -136,7 +136,7 @@ date should be read with this in mind. Two things stop it, and the second is the
   reporting. **A mismatch is a failed measurement, never a fact about the file** — which is the whole point: the
   cheap slate can in principle miss, and this cannot.
 
-`NumbersProbeTests` writes a corpus of thirteen documents into `.build/numbers-judge/probes`, each one thing more
+`NumbersProbeTests` writes a corpus of nineteen documents into `.build/numbers-judge/probes`, each one thing more
 than the last, starting from the template itself. When Numbers refuses one, the first refusal names the feature
 that broke it — which is how the two copy defects in Appendix B.18 were found.
 
@@ -226,6 +226,11 @@ per-application checklist (`READ-ME-FIRST.md`, written in Japanese for the maint
   and confirm both open their targets; put two links into one cell in Numbers, save, and confirm
   `sheet["A1"]` reads as rich text with a link on each run. `RunHyperlinkTests` covers the round trip through
   this library's own writer and reader.
+- **Pictures, shapes and text boxes in Numbers (Appendix B.83).** `NumbersCanvasTests` already has Numbers open a
+  document written here, save it again and hand the picture's bytes and the text box's text back — what it cannot
+  say is how it looks. Open `.build/numbers-judge/probes/19-canvas.numbers` and confirm the picture sits at B2 at
+  its own size, the text box reads "Boxed by SwiftSheets" over B4:D5, and the shape at F2:G4 is filled `#FF3366`
+  with the word "Shape" on it.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
 ### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers

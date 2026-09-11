@@ -202,7 +202,9 @@ is reported, never dropped in silence.
   rating** are read with their dial's bounds and written back as real controls — Numbers, asked cell by cell over
   AppleScript, answers with the control's own name for every one. A control cell always holds a value (Numbers
   itself fills an untouched checkbox with false, a dial with its minimum, a rating with 0, and so does the
-  writer). The objects on the canvas have no place in the model: they are reported as `dropped`.
+  writer). Pictures, shapes and text boxes on the canvas are read into `sheet.images` / `sheet.shapes` and written
+  back as canvas objects at a point (a cell anchor is placed against the first table); a shape other than a
+  rectangle is drawn as one and said so. Charts, movies and groups have no place in the model and are reported.
 - Everything else Numbers has no word for — range-sourced and numeric validations, named tables, auto-filters,
   sheet protection, scenarios, print setup, defined names, tab colours, outline grouping — is reported as a
   warning, and so is the second and every further summarised value of a pivot table (the value lanes of a rebuilt

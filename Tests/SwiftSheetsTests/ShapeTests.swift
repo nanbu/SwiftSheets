@@ -195,9 +195,22 @@ import SwiftSheets
         #expect(!Shape.Geometry(rawValue: "smiley-from-somewhere").isPreset && Shape.Geometry.rightArrow.isPreset && Shape.Geometry.textBox.isPreset)
     }
 
-    @Test func numbersSaysShapesAreDropped() throws {
+    /// Numbers keeps all five (spec Appendix B.83): the rectangle and the text box as they are, the arrow, the
+    /// line and the ellipse as rectangles — each of those named — and the rectangle's centred text is said to lose
+    /// its alignment. Nothing is dropped.
+    @Test func numbersKeepsShapesAsRectanglesAndTextBoxes() throws {
         let result = try Self.workbook().write(as: .numbers)
-        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("5 shape(s) / text box(es) dropped") }, "\(result.warnings.map(\.message))")
+        #expect(!result.warnings.contains { $0.kind == .dropped && $0.message.contains("shape") }, "\(result.warnings.map(\.message))")
+        for name in ["rightArrow", "line", "ellipse"] {
+            #expect(result.warnings.contains { $0.kind == .degraded && $0.message.contains("geometry \(name) was written as a rectangle") }, Comment(rawValue: name))
+        }
+        #expect(result.warnings.filter { $0.message.contains("text alignment of a shape") }.count == 1)
+        let back = try Workbook(data: result.data).sheets[0].shapes
+        #expect(back.map(\.geometry) == [.rectangle, .rectangle, .textBox, .rectangle, .rectangle])
+        #expect(back.map(\.text) == ["Hello\nWorld", nil, "A note\non two lines", nil, "free"])
+        #expect(back[0].fill == Color(hex: "FFFF0000") && back[0].outline == Shape.Outline(color: Color(hex: "FF0000FF"), width: 2))
+        #expect(back[1].fill == Color(hex: "FF4472C4"), "the theme colour is resolved before it is written")
+        #expect(back[4].anchor == .absolute(x: 300, y: 20, width: 120, height: 60))
     }
 
     @Test func shapesAreCarriedBetweenTheFormats() throws {

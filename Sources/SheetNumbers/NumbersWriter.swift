@@ -133,10 +133,6 @@ struct NumbersWriter {
         if workbook.preserved.hasVBAProject {
             warnings.append(ConversionWarning(.dropped, subject: .macros, message: "VBA project dropped: Numbers has no place for it (write .xlsm to keep the macros)"))
         }
-        for sheet in workbook.sheets where !sheet.images.isEmpty {
-            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
-                                              message: "\(sheet.images.count) image(s) added by addImage dropped: writing pictures into Numbers is not implemented yet (write .xlsx to keep them)"))
-        }
         for sheet in workbook.sheets where !sheet.charts.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.charts.count) chart(s) added by addChart dropped: writing charts into Numbers is not implemented yet (write .xlsx to keep them)"))
@@ -156,10 +152,6 @@ struct NumbersWriter {
         for sheet in workbook.sheets where !sheet.sparklines.isEmpty {
             warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                               message: "\(sheet.sparklines.count) sparkline group(s) dropped: Numbers has no sparklines (write .xlsx or .ods to keep them)"))
-        }
-        for sheet in workbook.sheets where !sheet.shapes.isEmpty {
-            warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
-                                              message: "\(sheet.shapes.count) shape(s) / text box(es) dropped: writing shapes into Numbers is not implemented yet (write .xlsx or .ods to keep them)"))
         }
         for sheet in workbook.sheets {
             let phonetics = sheet.tables.reduce(0) { $0 + $1.cells.values.filter { $0.phonetic != nil }.count }
@@ -309,12 +301,74 @@ struct NumbersWriter {
                     m.set("header_rows_frozen", bool: fp.row > 1); m.set("header_columns_frozen", bool: fp.column > 1)
                 }
             }
+            // the pictures, shapes and text boxes on the canvas (Appendix B.83), placed against the first table
+            try writeCanvas(of: sheet, sheetID: sid, firstTable: tables[0], firstTableInfo: infos[0])
         }
         flushComponents()
         registerPendingCrossings()
         doc.update(NumbersDocument.documentID) { $0.set("sheets", references: sheetIDs) }
         doc.setBlob("Metadata/DocumentIdentifier", Data(UUID().uuidString.utf8))
         return doc.encoded()
+    }
+
+    // MARK: - The canvas (Appendix B.83)
+
+    /// Writes the sheet's pictures, shapes and text boxes as objects on its canvas. A picture becomes a
+    /// `TSD.ImageArchive` over a data record; a shape or a text box a `TSWP.ShapeInfoArchive` with a text storage
+    /// of its own. Only the rectangle and the text box are drawn as measured; any other geometry is written as a
+    /// rectangle and named. Every reference into the stylesheet is declared as a crossing, as Numbers declares them.
+    private mutating func writeCanvas(of sheet: Sheet, sheetID sid: Int, firstTable: Table, firstTableInfo: Int) throws {
+        guard !sheet.images.isEmpty || !sheet.shapes.isEmpty else { return }
+        let file = doc.locations[sid]?.0 ?? "Index/Document.iwa"
+        let model = doc.object(firstTableInfo)?.reference("tableModel").flatMap { doc.object($0) }
+        let grid = NumbersCanvas.TableGrid(origin: (0, 0), table: firstTable,
+                                           defaultRowHeight: model?.double("default_row_height") ?? NumbersWriter.defaultRowHeight,
+                                           defaultColumnWidth: model?.double("default_column_width") ?? NumbersWriter.defaultColumnWidth)
+        let imageStyle = NumbersCanvas.templateStyle("image-0-imageStyle", ofType: "TSD.MediaStyleArchive", in: doc)
+        for (i, image) in sheet.images.enumerated() {
+            let dataID = NumbersCanvas.addData(image, name: "image\(i + 1)", to: doc)
+            let frame = grid.frame(image.anchor, pixelWidth: image.pixelWidth, pixelHeight: image.pixelHeight)
+            let id = try doc.add(NumbersCanvas.imageArchive(image, frame: frame, data: dataID, style: imageStyle, parent: sid), file: file)
+            doc.update(sid) { $0.append("drawable_infos", reference: id) }
+            if let imageStyle { pendingCrossings.append((from: id, to: [imageStyle])) }
+        }
+        guard !sheet.shapes.isEmpty else { return }
+        let textBoxStyle = NumbersCanvas.templateStyle("textbox-0-shapestyle", ofType: "TSWP.ShapeStyleArchive", in: doc)
+        let shapeStyle = NumbersCanvas.templateStyle("shape-0-shapestyle", ofType: "TSWP.ShapeStyleArchive", in: doc)
+        let plainRun = NumbersRichText.templateCharacterStyle("character-style-null", in: doc)
+        let listStyle = NumbersRichText.templateListStyle(in: doc)
+        var styleWriter = model.map { NumbersStyleWriter(doc: doc, model: $0) }
+        for shape in sheet.shapes {
+            let isTextBox = shape.geometry == .textBox
+            if !isTextBox, shape.geometry != .rectangle {
+                warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
+                                                  message: "a shape of geometry \(shape.geometry.rawValue) was written as a rectangle: Numbers shapes are written as rectangles and text boxes only"))
+            }
+            if shape.textAlignment != nil, shape.text != nil {
+                warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
+                                                  message: "the text alignment of a shape is not written: the shape's text takes Numbers' own paragraph style"))
+            }
+            guard let template = isTextBox ? textBoxStyle : shapeStyle else {
+                warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name, message: "a shape was dropped: the template has no shape style to draw it with"))
+                continue
+            }
+            let style = try NumbersCanvas.shapeStyle(for: shape, from: template, in: doc) ?? template
+            let frame = grid.frame(shape.anchor, pixelWidth: 100, pixelHeight: 100)
+            var storage: Int?
+            var storageCrossings: [Int] = []
+            if let text = shape.text {
+                var run: Int?
+                if let font = shape.font, let parent = plainRun { run = try styleWriter?.characterArchive(for: font, parent: parent) }
+                let paragraph = NumbersCanvas.paragraphStyle(ofShapeStyle: template, in: doc)
+                let stylesheet = styleWriter?.stylesheetID ?? doc.object(template)?.message("super")?.message("super")?.reference("stylesheet")
+                storage = try doc.add(NumbersCanvas.storage(text: text, stylesheet: stylesheet, paragraphStyle: paragraph, listStyle: listStyle, run: run), file: file)
+                storageCrossings = [stylesheet, paragraph, listStyle, run].compactMap { $0 }
+            }
+            let id = try doc.add(NumbersCanvas.shapeArchive(shape, frame: frame, style: style, storage: storage, parent: sid), file: file)
+            doc.update(sid) { $0.append("drawable_infos", reference: id) }
+            pendingCrossings.append((from: id, to: [style]))
+            if let storage, !storageCrossings.isEmpty { pendingCrossings.append((from: storage, to: storageCrossings)) }
+        }
     }
 
     // MARK: - Cloning (further sheets / tables)

@@ -129,17 +129,17 @@ import SwiftSheets
         }
     }
 
-    /// The formats that cannot hold a picture say what they lost, counted, never in silence. (ODS holds one
-    /// since spec Appendix B.43 — `ODSImageTests`.)
+    /// The format that cannot hold a picture says what it lost, counted, never in silence. (ODS holds one
+    /// since spec Appendix B.43 — `ODSImageTests`; Numbers since B.83 — `NumbersCanvasTests`.)
     @Test func formatsWithoutPicturesCountTheLoss() throws {
         var wb = Workbook()
         wb.sheets[0]["A1"] = "x"
         wb.sheets[0].addImage(try Self.image("tiny.png"), at: "B2")
         wb.sheets[0].addImage(try Self.image("tiny.gif"), over: "C3:D4")
-        for format in [SheetFormat.numbers, .csv] {
-            let result = try wb.write(to: URL(filePath: NSTemporaryDirectory() + "img-drop.\(format.rawValue)"), as: format)
-            #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("2 image(s)") },
-                    "\(format.rawValue) must count both images out loud")
-        }
+        let result = try wb.write(to: URL(filePath: NSTemporaryDirectory() + "img-drop.csv"), as: .csv)
+        #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("2 image(s)") }, "csv must count both images out loud")
+        let numbers = try wb.write(as: .numbers)
+        #expect(!numbers.warnings.contains { $0.message.contains("image") }, "Numbers keeps them now")
+        #expect(try Workbook(data: numbers.data).sheets[0].images.count == 2)
     }
 }

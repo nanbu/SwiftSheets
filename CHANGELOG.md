@@ -7,6 +7,22 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+### Added
+
+- **Pictures, shapes and text boxes in Numbers** (spec Appendix B.83). `sheet.images` and `sheet.shapes` are read
+  from a Numbers sheet's canvas — the `TSD.ImageArchive` with its bytes under `Data/`, the `TSWP.ShapeInfoArchive`
+  with its text, fill and outline — and written back as canvas objects: a picture becomes a data record and an
+  image archive, a shape or a text box a rectangle path with a text storage of its own, every reference into the
+  stylesheet declared the way Numbers declares it. Numbers places objects at a point, so an anchor reads back as
+  `.absolute`; a cell anchor is written by summing the first table's rows and columns. Only the rectangle and the
+  text box are drawn as measured — any other geometry is written as a rectangle and named (`degraded`), as is a
+  text alignment. The reader's report for what stays out (a chart, a movie, a group, a picture that is not PNG /
+  JPEG / GIF) is unchanged. ODS furigana was measured and stays reported: LibreOffice Calc discards `text:ruby`
+  in a cell (spec Appendix B.70).
+
+
 ## [0.26.0] — 2026-09-11
 
 The remaining entrances the 2026-09-10 review proposed are all in: shapes and text boxes, sparklines, threaded
@@ -1286,6 +1302,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...HEAD
 [0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0
 [0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/nanbu/SwiftSheets/compare/0.23.0...0.24.0

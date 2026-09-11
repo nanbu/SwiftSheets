@@ -109,7 +109,8 @@ struct NumbersReader {
             }
             // A Numbers sheet is a canvas. Whatever else is standing on it cannot come into the model, and until
             // this was added it went without a word — the one thing the library promises never to do.
-            for (kind, count) in nonTableDrawables(inSheet: sid) {
+            let modelled = readCanvas(inSheet: sid, into: &sheet)
+            for (kind, count) in nonTableDrawables(inSheet: sid, excluding: modelled) {
                 warnings.append(ConversionWarning(.dropped, subject: .objects, sheet: sheet.name,
                                                   message: count == 1 ? "the sheet holds \(kind), which the model has no place for"
                                                                       : "the sheet holds \(count) × \(kind), which the model has no place for"))
@@ -148,20 +149,62 @@ struct NumbersReader {
         "TSCH.ChartDrawableArchive": "a chart",
         "TSD.ImageArchive": "an image",
         "TSD.ShapeArchive": "a shape",              // a text box is a shape carrying text
+        "TSWP.ShapeInfoArchive": "a shape",         // what Numbers actually writes for both (Appendix B.83)
         "TSD.MovieArchive": "a movie",
         "TSD.GroupArchive": "a group of objects",
         "TSD.ConnectionLineArchive": "a connection line",
         "TSD.DrawableArchive": "a drawing"
     ]
 
-    /// Everything on a sheet's canvas that is not a table, counted by kind.
-    func nonTableDrawables(inSheet sid: Int) -> [(kind: String, count: Int)] {
+    /// Everything on a sheet's canvas that is not a table, counted by kind — leaving out what was read into the
+    /// model (`excluding`: the pictures, shapes and text boxes of Appendix B.83).
+    func nonTableDrawables(inSheet sid: Int, excluding modelled: Set<Int> = []) -> [(kind: String, count: Int)] {
         guard let sheet = doc.object(sid) else { return [] }
         var counts: [String: Int] = [:]
-        for did in sheet.references("drawable_infos") where doc.typeName(did) != "TST.TableInfoArchive" {
+        for did in sheet.references("drawable_infos") where doc.typeName(did) != "TST.TableInfoArchive" && !modelled.contains(did) {
             counts[doc.typeName(did) ?? "an object of an unknown kind", default: 0] += 1
         }
         return counts.sorted { $0.key < $1.key }.map { (NumbersReader.drawableNames[$0.key] ?? $0.key, $0.value) }
+    }
+
+    /// The pictures, shapes and text boxes on a sheet's canvas, read into `sheet.images` / `sheet.shapes`
+    /// (Appendix B.83). Returns the drawables that were read, so the rest can still be reported. A picture whose
+    /// bytes are not PNG / JPEG / GIF is not read and stays "an image" in that report.
+    func readCanvas(inSheet sid: Int, into sheet: inout Sheet) -> Set<Int> {
+        guard let archive = doc.object(sid) else { return [] }
+        var modelled = Set<Int>()
+        for did in archive.references("drawable_infos") {
+            guard let obj = doc.object(did) else { continue }
+            switch doc.typeName(did) {
+            case "TSD.ImageArchive":
+                guard let drawable = obj.message("super"), let frame = NumbersCanvas.frame(of: drawable),
+                      let dataID = obj.message("data")?.int("identifier"),
+                      let record = NumbersCanvas.data(dataID, in: doc),
+                      var image = try? SheetImage(data: record.bytes) else { continue }
+                image.anchor = SheetImage.Anchor.absolute(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
+                sheet.images.append(image)
+                modelled.insert(did)
+            case "TSWP.ShapeInfoArchive":
+                guard let shapeArchive = obj.message("super"), let drawable = shapeArchive.message("super"),
+                      let frame = NumbersCanvas.frame(of: drawable) else { continue }
+                let isTextBox = obj.bool("is_text_box") == true
+                let rectangle = shapeArchive.message("pathsource").map(NumbersCanvas.isRectangle) ?? false
+                var shape = Shape(isTextBox ? .textBox : rectangle ? .rectangle : NumbersCanvas.unknownPath)
+                if let storage = obj.reference("owned_storage") ?? obj.reference("deprecated_storage"),
+                   let text = doc.object(storage)?.string("text"), !text.isEmpty {
+                    shape.text = text
+                }
+                if let style = shapeArchive.reference("style") {
+                    let look = NumbersCanvas.fillAndOutline(ofStyle: style, in: doc)
+                    shape.fill = look.fill; shape.outline = look.outline
+                }
+                shape.anchor = .absolute(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
+                sheet.shapes.append(shape)
+                modelled.insert(did)
+            default: continue
+            }
+        }
+        return modelled
     }
 
     /// TableModelArchive ids of the tables drawn on a sheet, in canvas order.
