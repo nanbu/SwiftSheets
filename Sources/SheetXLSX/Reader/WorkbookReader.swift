@@ -323,11 +323,14 @@ final class SheetReadContext: @unchecked Sendable {
     let workbookPath: String
     /// Person id → display name, from `xl/persons/person.xml` (B.80).
     let persons: [String: String]
+    /// The cells the whole read may hold, shared by every sheet (spec Appendix B.90); nil when no limit is set.
+    let cellBudget: CellBudget?
     init(zip: ZipArchive, sst: [CellValue], phonetics: [PhoneticText?] = [], styles: StylesParser, epoch: DateEpoch, options: ReadOptions, contentTypes: [String: String],
          rels: [Relationship], base: String, pivotCaches: [Int: PivotCache], workbookPath: String, persons: [String: String] = [:]) {
         self.zip = zip; self.sst = sst; self.phonetics = phonetics; self.styles = styles; self.epoch = epoch; self.options = options
         self.contentTypes = contentTypes; self.rels = rels; self.base = base; self.pivotCaches = pivotCaches; self.workbookPath = workbookPath
         self.persons = persons
+        self.cellBudget = CellBudget(limit: options.cellLimit)
     }
 
     /// One sheet's outcome: the sheet, the parts it consumed, what it had to report — or the error that stopped it.
@@ -399,7 +402,14 @@ final class SheetReadContext: @unchecked Sendable {
         }
 
         let p = SheetParser(name: info.name, sst: sst, phonetics: phonetics, styles: styles, epoch: epoch, dataOnly: options.formulaCells == .cachedValues, rels: sheetRels)
-        try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
+        p.budget = cellBudget
+        do {
+            try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
+        } catch where p.stoppedAtCellLimit {
+            result.warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: info.name,
+                message: "reading stopped at ReadOptions.cellLimit (\(cellBudget?.limit ?? 0) cells in the workbook): the sheet holds the cells read before it, and what follows them in its part was not read"))
+        }
+        p.returnUnusedAllowance()
         var sheet = p.sheet
         sheet.state = info.state
         sheet.preserved.partPath = part

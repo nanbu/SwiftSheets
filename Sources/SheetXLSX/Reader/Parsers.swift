@@ -591,6 +591,22 @@ final class SheetParser: SAXHandler {
     private var unmodelledValidation = false
     /// The cell between `<c>` and `</c>`: its style is known at the start, its value at the end.
     private var pendingCell = Cell()
+    /// The cells the read may still hold, shared with the sheets parsed beside this one, and the part of it this
+    /// sheet has taken (spec Appendix B.90); nil when no limit is set.
+    var budget: CellBudget?
+    private var allowance = 0
+    /// Whether the walk stopped because the budget was spent — the one stop that is not an error.
+    private(set) var stoppedAtCellLimit = false
+    /// Gives the budget back what this sheet took and did not use, once its part has been read.
+    func returnUnusedAllowance() { budget?.giveBack(allowance); allowance = 0 }
+    /// One cell from the budget for a cell stored outside `</c>`; false once it is spent, and the next `</c>` stops the walk.
+    private func takeFromCellBudget() -> Bool {
+        guard let budget else { return true }
+        if allowance == 0 { allowance = budget.take() }
+        guard allowance > 0 else { return false }
+        allowance -= 1
+        return true
+    }
 
     /// Whether a cell's text could carry whitespace to trim: an end that is not a printable ASCII byte. Values
     /// written by applications have none, and Foundation's trim costs an allocation per cell; anything else —
@@ -652,7 +668,7 @@ final class SheetParser: SAXHandler {
             if !d.isDefault { sheet.table.rowDimensions[currentRow] = d }
         case "c":
             // a <c> a malformed file never closed: stored as it was opened, the way every <c> used to be
-            if let open = cellRef { sheet.table.store(pendingCell, at: open) }
+            if let open = cellRef, takeFromCellBudget() { sheet.table.store(pendingCell, at: open) }
             if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
             else { cellRef = CellRef(row: currentRow, column: lastColumn + 1) }
             lastColumn = cellRef!.column
@@ -883,6 +899,11 @@ final class SheetParser: SAXHandler {
         case "is": inIS = false
         case "c":
             guard let ref = cellRef else { return }
+            if let budget {
+                if allowance == 0 { allowance = budget.take() }
+                guard allowance > 0 else { stoppedAtCellLimit = true; cellRef = nil; fail(.invalidWorkbook("the cell limit was reached")); return }
+                allowance -= 1
+            }
             var cell = pendingCell
             pendingPhonetic = nil
             cell.value = value(at: ref)
@@ -937,7 +958,7 @@ final class SheetParser: SAXHandler {
         case "filterColumn": if let c = filterColumn { sheet.filterColumns.append(c) }; filterColumn = nil
         case "sortState": inSortState = false
         case "sheetData":
-            if let open = cellRef { sheet.table.store(pendingCell, at: open); cellRef = nil }   // a last <c> never closed
+            if let open = cellRef, takeFromCellBudget() { sheet.table.store(pendingCell, at: open); cellRef = nil }   // a last <c> never closed
             if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount + 1 }   // cells, not trailing empty rows, decide where `append` continues
         case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
         default: break

@@ -21,7 +21,8 @@ package enum CSVCodec: SpreadsheetCodec {
 
     static func readParsing(_ data: Data, options: ReadOptions = ReadOptions()) throws -> (workbook: Workbook, warnings: [ConversionWarning]) {
         let csv = options.csv
-        let (text, warnings) = try decode(data, options: csv)
+        let (text, decodeWarnings) = try decode(data, options: csv)
+        var warnings = decodeWarnings
         var body = Substring(text)
         let delimiter: Character
         if let dialect = csv.dialect {
@@ -37,12 +38,23 @@ package enum CSVCodec: SpreadsheetCodec {
 
         var sheet = Sheet(name: "Sheet1")
         let inference = csv.inferTypes ? TypeInference(dateFormats: csv.dateFormats) : nil
-        for (r, record) in records.enumerated() {
+        // ReadOptions.cellLimit (spec Appendix B.90): each non-empty field is a cell, and reading stops at the limit
+        var remaining = options.cellLimit
+        var stoppedAtCellLimit = false
+        rows: for (r, record) in records.enumerated() {
             for (c, field) in record.enumerated() where !field.isEmpty {   // r, c are offsets; the sheet counts from 1
+                guard remaining > 0 else { stoppedAtCellLimit = true; break rows }
+                remaining -= 1
                 sheet[r + 1, c + 1] = inference?.value(for: field) ?? .text(field)
             }
         }
-        sheet.nextAppendRow = records.count + 1
+        if stoppedAtCellLimit {
+            sheet.nextAppendRow = (sheet.extent?.maxRow ?? 0) + 1
+            warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheet.name,
+                message: "reading stopped at ReadOptions.cellLimit (\(options.cellLimit) cells): the sheet holds the cells read before it, and the rest of the text was not read"))
+        } else {
+            sheet.nextAppendRow = records.count + 1
+        }
 
         var wb = Workbook(sheets: [sheet])
         wb.sourceInfo = SourceInfo(format: .csv)

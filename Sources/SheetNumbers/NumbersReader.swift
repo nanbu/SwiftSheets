@@ -16,7 +16,9 @@ struct NumbersReader {
     var warnings: [ConversionWarning] = []
     private var tableUUIDToName: [String: String] = [:]
 
-    init(doc: any NumbersObjectStore, options: ReadOptions) { self.doc = doc; self.options = options }
+    /// The cells this read may still hold, shared by every table (spec Appendix B.90); nil when no limit is set.
+    let cellBudget: CellBudget?
+    init(doc: any NumbersObjectStore, options: ReadOptions) { self.doc = doc; self.options = options; cellBudget = CellBudget(limit: options.cellLimit) }
 
     mutating func workbook() throws -> Workbook {
         guard let document = doc.object(NumbersDocument.documentID), document.typeName == "TN.DocumentArchive" else {
@@ -421,15 +423,21 @@ struct NumbersReader {
         var sharedStyles: [Int: SharedStyle] = [:]
         /// Cells covered by an array formula, by the anchor their spill formula names (Appendix B.26).
         var spillCells: [CellRef: [CellRef]] = [:]
+        // the budget of ReadOptions.cellLimit (B.90): an allowance taken a chunk at a time, and a stop that is not an error
+        var allowance = 0
+        var stoppedAtCellLimit = false
         for (base, tileID) in NumbersCells.tiles(of: store).tiles {
+            if stoppedAtCellLimit { break }
             guard let tile = doc.object(tileID) else { continue }
             if tile.bool("last_saved_in_BNC") != true {
                 warnings.append(ConversionWarning(.dropped, sheet: sheetName, message: "table \(t.name ?? "") uses pre-BNC cell storage, which is not supported; its cells were skipped"))
                 continue
             }
             for rowInfo in tile.messages("rowInfos") {
+                if stoppedAtCellLimit { break }
                 let row = base + (rowInfo.int("tile_row_index") ?? 0)      // the file's numbering, from 0
                 NumbersCells.forEachRecord(in: rowInfo, columns: cols) { col, record in
+                    if stoppedAtCellLimit { return }
                     let ref = CellRef(row: row + 1, column: col + 1)           // the model's, from 1 (B.61)
                     let s: CellStorage
                     switch record {
@@ -461,6 +469,11 @@ struct NumbersReader {
                     let rich = s.richID.flatMap { richTexts[$0] }
                     let note = s.commentID.flatMap { comments[$0] }
                     if value != nil || style != .default || note != nil || control != nil {
+                        if let budget = cellBudget {
+                            if allowance == 0 { allowance = budget.take() }
+                            guard allowance > 0 else { stoppedAtCellLimit = true; return }
+                            allowance -= 1
+                        }
                         var cell = Cell(value: value)
                         cell.note = note
                         cell.control = control
@@ -481,6 +494,11 @@ struct NumbersReader {
                     }
                 }
             }
+        }
+        cellBudget?.giveBack(allowance)
+        if stoppedAtCellLimit {
+            warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheetName,
+                message: "reading stopped at ReadOptions.cellLimit (\(cellBudget?.limit ?? 0) cells in the document): table \"\(t.name ?? "")\" holds the cells read before it"))
         }
         for p in decoder.problems.prefix(20) { warnings.append(ConversionWarning(.degraded, sheet: sheetName, message: "formula: \(p)")) }
         let (rules, unreadableControls) = validations(controls: controlledCells, store: store)

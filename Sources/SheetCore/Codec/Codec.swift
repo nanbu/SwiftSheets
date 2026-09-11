@@ -99,8 +99,11 @@ public struct ReadOptions: Sendable, Hashable {
     public var csv = CSVReadOptions()
     /// The original file name, when known — an extension hint for text files (`.tsv` → tab dialect).
     public var filename: String?
-    /// The most cells one document may expand to before reading stops (with a `degraded` warning naming the
-    /// sheet). ODS compresses runs of rows and cells, so a kilobyte of XML can ask for 16,384 × 1,048,576 of them.
+    /// The most cells one document may expand to before reading stops, with a `degraded` warning naming the sheet —
+    /// in every reader that holds cells: XLSX, ODS, Numbers and delimited text, with one budget for the workbook even
+    /// when its sheets are parsed side by side (spec Appendix B.90). ODS compresses runs of rows and cells, so a
+    /// kilobyte of XML can ask for 16,384 × 1,048,576 of them; an XLSX or Numbers package inside the default `limits`
+    /// can still hold hundreds of millions. The row-by-row readers hold no cells and ignore it.
     ///
     /// There is no ceiling by default: how many cells are worth holding is the caller's decision, and
     /// `Workbook.inspect` says how many a file declares before any of them is read. Set it for input you do not

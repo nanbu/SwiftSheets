@@ -77,6 +77,13 @@ compiler points at; no alias is kept.
 - `Cell.init` takes `thread:` like every other extra; `CanvasPoint` and `CanvasRect` are `Codable`;
   `PreservationSummary` is `Hashable`; assigning `Theme.colors` normalises to `AARRGGBB`, as the initialiser does.
 
+### Fixed
+
+- **`ReadOptions.cellLimit` stops XLSX, Numbers and delimited-text reads too** (spec Appendix B.90). It was documented
+  as the cell budget for untrusted input in every format, but only the ODS reader counted. One budget covers the
+  workbook, sheets parsed side by side included; a sheet that reaches it keeps the cells read so far and says so
+  with a `degraded` warning. With no limit set, nothing is counted.
+
 ### Performance
 
 - **XLSX reads and writes a quarter to a third faster** (spec Appendix B.91). Measured on a million cells, the old
