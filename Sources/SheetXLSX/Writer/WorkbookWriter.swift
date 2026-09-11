@@ -1,6 +1,9 @@
 import Foundation
 import SheetCore
 
+/// For tests only: write every sheet's rows by the sparse walk, so a test can compare it with the dense one.
+package nonisolated(unsafe) var xlsxWriterForcesSparseRowWalk = false
+
 enum XMLWriter {
     static let header = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
     static let nsMain = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -1054,12 +1057,45 @@ enum WorkbookWriter {
         let sheetName = ws.name
         let rows: (PieceBuffer) throws -> Void = { out in
         var s = "<sheetData>"
-        // grouped by row, but only the *keys*: grouping the cells themselves would copy every `Cell` (each carries
-        // its whole style — 496 bytes), which is half a gigabyte on a million cells
-        var byRow: [Int: [CellRef]] = [:]
-        for ref in table.cells.keys { byRow[ref.row, default: []].append(ref) }
-        let rowNumbers = Set(byRow.keys).union(table.rowDimensions.filter { !$0.value.isDefault }.keys).sorted()
-        for r in rowNumbers {
+        let cells = table.cells
+        // one cell, the same for both walks below
+        func cellXML(_ ref: CellRef, _ c: Cell) {
+            let styleIndex = styles.index(for: c)
+            let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
+            let a1 = ref.address
+            switch c.value {
+            case nil: s += "<c r=\"\(a1)\"\(st)/>"
+            case .formula(let f, let cached)?:
+                var flattened: String?
+                if case .unparsed(_, let dialect) = f, dialect != .xlsx {
+                    flattened = "formula in \(dialect.rawValue) dialect could not be translated; cached value written"
+                } else if let fn = f.remoteDataFunction {
+                    // the mapping Numbers itself applies on Excel export: a quote function becomes the
+                    // value it last fetched, because Excel has no function to recompute one with
+                    flattened = "\(fn) fetches live data and Excel has no such function; the cached value is written, the way Numbers itself exports it"
+                }
+                if let flattened {
+                    sink.add(.degraded, subject: .formulas, sheet: ws.name, at: ref, flattened)
+                    if let cached {
+                        let (t, body) = valueXML(cached, epoch: epoch, strings: strings, inline: false)
+                        s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"
+                    } else { s += "<c r=\"\(a1)\"\(st)/>" }
+                    return
+                }
+                var t = "", cv = ""
+                if let cached { (t, cv) = valueXML(cached, epoch: epoch, strings: strings, inline: true) }
+                // an array formula fills a range from one cell; without t="array" and the range Excel reads it
+                // as an ordinary formula, which computes something else
+                let array = table.arrayFormulas[ref].map { " t=\"array\" ref=\"\($0.address)\"" } ?? ""
+                s += "<c r=\"\(a1)\"\(st)\(t)><f\(array)>\(XML.esc(f.rendered(as: .xlsx)))</f>\(cv)</c>"
+            case let v?:
+                let (t, body) = valueXML(v, epoch: epoch, strings: strings, inline: false, phonetic: c.phonetic)
+                s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"
+            }
+        
+        }
+        // a row's opening tag with its dimension
+        func openRow(_ r: Int) {
             s += "<row r=\"\(r)\""
             if let d = table.rowDimensions[r] {
                 if let h = d.height { s += " ht=\"\(XML.num(h))\" customHeight=\"1\"" }
@@ -1070,43 +1106,36 @@ enum WorkbookWriter {
                 s += XML.attr("thickTop", d.thickTop) + XML.attr("thickBot", d.thickBottom)
             }
             s += ">"
-            for ref in (byRow[r] ?? []).sorted(by: { $0.column < $1.column }) {
-                guard let c = table.cells[ref] else { continue }
-                let styleIndex = styles.index(for: c)
-                let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
-                let a1 = ref.address
-                switch c.value {
-                case nil: s += "<c r=\"\(a1)\"\(st)/>"
-                case .formula(let f, let cached)?:
-                    var flattened: String?
-                    if case .unparsed(_, let dialect) = f, dialect != .xlsx {
-                        flattened = "formula in \(dialect.rawValue) dialect could not be translated; cached value written"
-                    } else if let fn = f.remoteDataFunction {
-                        // the mapping Numbers itself applies on Excel export: a quote function becomes the
-                        // value it last fetched, because Excel has no function to recompute one with
-                        flattened = "\(fn) fetches live data and Excel has no such function; the cached value is written, the way Numbers itself exports it"
+        }
+        let dimensionRows = table.rowDimensions.filter { !$0.value.isDefault }.keys
+        if let e = table.extent, !xlsxWriterForcesSparseRowWalk,
+           cells.count == (e.maxRow - e.minRow + 1) * (e.maxColumn - e.minColumn + 1) {
+            // a dense rectangle, the common shape of an export: rows and columns come from the extent, so nothing is
+            // grouped or sorted, and no index of every key is held while the rows go out
+            let rowNumbers = (Array(e.minRow...e.maxRow) + dimensionRows.filter { $0 < e.minRow || $0 > e.maxRow }).sorted()
+            for r in rowNumbers {
+                openRow(r)
+                if r >= e.minRow && r <= e.maxRow {
+                    for column in e.minColumn...e.maxColumn {
+                        let ref = CellRef(row: r, column: column)
+                        if let c = cells[ref] { cellXML(ref, c) }
                     }
-                    if let flattened {
-                        sink.add(.degraded, subject: .formulas, sheet: ws.name, at: ref, flattened)
-                        if let cached {
-                            let (t, body) = valueXML(cached, epoch: epoch, strings: strings, inline: false)
-                            s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"
-                        } else { s += "<c r=\"\(a1)\"\(st)/>" }
-                        continue
-                    }
-                    var t = "", cv = ""
-                    if let cached { (t, cv) = valueXML(cached, epoch: epoch, strings: strings, inline: true) }
-                    // an array formula fills a range from one cell; without t="array" and the range Excel reads it
-                    // as an ordinary formula, which computes something else
-                    let array = table.arrayFormulas[ref].map { " t=\"array\" ref=\"\($0.address)\"" } ?? ""
-                    s += "<c r=\"\(a1)\"\(st)\(t)><f\(array)>\(XML.esc(f.rendered(as: .xlsx)))</f>\(cv)</c>"
-                case let v?:
-                    let (t, body) = valueXML(v, epoch: epoch, strings: strings, inline: false, phonetic: c.phonetic)
-                    s += "<c r=\"\(a1)\"\(st)\(t)>\(body)</c>"
                 }
+                s += "</row>"
+                if s.utf8.count >= PieceBuffer.pieceSize { try out.write(s); s = "" }
             }
-            s += "</row>"
-            if s.utf8.count >= PieceBuffer.pieceSize { try out.write(s); s = "" }
+        } else {
+            // grouped by row, but only the *keys*: grouping the cells themselves would copy every `Cell`
+            var byRow: [Int: [CellRef]] = [:]
+            for ref in cells.keys { byRow[ref.row, default: []].append(ref) }
+            for r in Set(byRow.keys).union(dimensionRows).sorted() {
+                openRow(r)
+                for ref in (byRow[r] ?? []).sorted(by: { $0.column < $1.column }) {
+                    if let c = cells[ref] { cellXML(ref, c) }
+                }
+                s += "</row>"
+                if s.utf8.count >= PieceBuffer.pieceSize { try out.write(s); s = "" }
+            }
         }
         try out.write(s + "</sheetData>")
         }

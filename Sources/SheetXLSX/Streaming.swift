@@ -249,24 +249,27 @@ final class StreamingSheetParser: StreamingRowParser {
     private func cachedValue() -> CellValue? {
         switch cellType {
         case "s":
-            guard let i = Int(vText.trimmingCharacters(in: .whitespaces)), sst.indices.contains(i) else { return nil }
+            guard let i = Int(SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText), sst.indices.contains(i) else { return nil }
             return sst[i]
         case "inlineStr":
             if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .text(isRuns.map(\.text).joined()) }
             return .text(isText)
         case "str": return .text(vText)
-        case "b": return .bool(vText.trimmingCharacters(in: .whitespaces) == "1")
+        case "b": return .bool((SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText) == "1")
         case "e": return .error(vText)
         case "d": return CellValue(iso8601: vText)
         default:
-            let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !raw.isEmpty, let d = Double(raw) else { return nil }
-            switch styles.numericKind(cellStyle) {
+            let raw = SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespacesAndNewlines) : vText
+            guard !raw.isEmpty else { return nil }
+            let kind = styles.numericKind(cellStyle)
+            // as in SheetParser: Int accepts only a sign and digits, and whatever it accepts Double does too
+            if kind == .plain, let i = Int(raw) { return .integer(i) }
+            guard let d = Double(raw) else { return nil }
+            switch kind {
             case .duration: return Duration(serialDays: d).map { .duration($0) }
             case .date: return CellValue(serial: d, epoch: epoch)
             case .plain: break
             }
-            if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
             return .number(Decimal(string: raw, locale: nil).flatMap { $0.isNaN ? nil : $0 } ?? Decimal(d))
         }
     }

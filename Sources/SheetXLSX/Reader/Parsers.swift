@@ -511,15 +511,16 @@ final class StylesParser: SAXHandler {
     /// table answers with the default and is not cached.
     func prefill() { for i in cellXfs.indices { _ = sharedStyle(i); _ = numericKind(i) } }
 
-    private var sharedStyles: [Int: SharedStyle] = [:]
-    /// One shared instance per `xf`: a sheet's cells reference a handful of styles between them, and each of those
-    /// is 384 bytes.
+    /// One shared instance per `xf`, or nil for an `xf` whose style is the default: a sheet's cells reference a
+    /// handful of styles between them, each of them 384 bytes. The answer is cached either way, so a cell pointing
+    /// at the default — most cells of a data export — neither copies nor compares a style. Only existing indices are
+    /// cached, so after `prefill()` readers running side by side only read.
+    private var sharedStyles: [Int: SharedStyle?] = [:]
     func sharedStyle(_ index: Int) -> SharedStyle? {
+        if let known = sharedStyles[index] { return known }
         let s = style(index)
-        guard s != .default else { return nil }
-        if let existing = sharedStyles[index] { return existing }
-        let made = SharedStyle(s)
-        sharedStyles[index] = made
+        let made = s == .default ? nil : SharedStyle(s)
+        if cellXfs.indices.contains(index) { sharedStyles[index] = .some(made) }
         return made
     }
     /// The number-format codes in use, custom ones only (openpyxl `stylesheet.number_formats`).
@@ -588,6 +589,16 @@ final class SheetParser: SAXHandler {
     private var validationFormula: Int?          // 1 or 2 while inside <formula1> / <formula2>
     private var validationFormulaText = ""
     private var unmodelledValidation = false
+    /// The cell between `<c>` and `</c>`: its style is known at the start, its value at the end.
+    private var pendingCell = Cell()
+
+    /// Whether a cell's text could carry whitespace to trim: an end that is not a printable ASCII byte. Values
+    /// written by applications have none, and Foundation's trim costs an allocation per cell; anything else —
+    /// a space, a newline, a non-breaking space — still goes through it.
+    @inline(__always) static func needsTrimming(_ s: String) -> Bool {
+        guard let first = s.utf8.first, let last = s.utf8.last else { return false }
+        return !(0x21...0x7E).contains(first) || !(0x21...0x7E).contains(last)
+    }
 
     init(name: String, sst: [CellValue], phonetics: [PhoneticText?] = [], styles: StylesParser, epoch: DateEpoch, dataOnly: Bool, rels: [Relationship]) {
         self.sheet = Sheet(name: name); self.sst = sst; self.phonetics = phonetics; self.styles = styles; self.epoch = epoch; self.dataOnly = dataOnly
@@ -640,14 +651,17 @@ final class SheetParser: SAXHandler {
             if let st = Int(a["s"] ?? ""), st > 0 { d.style = styles.style(st) }
             if !d.isDefault { sheet.table.rowDimensions[currentRow] = d }
         case "c":
+            // a <c> a malformed file never closed: stored as it was opened, the way every <c> used to be
+            if let open = cellRef { sheet.table.store(pendingCell, at: open) }
             if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
             else { cellRef = CellRef(row: currentRow, column: lastColumn + 1) }
             lastColumn = cellRef!.column
             cellType = a["t"] ?? "n"; cellStyle = Int(a["s"] ?? "0") ?? 0
             vText = ""; fText = ""; isText = ""; formulaType = nil; formulaRef = nil; sharedFormulaIndex = nil
-            var cell = Cell()
-            cell.sharedStyle = styles.sharedStyle(cellStyle)
-            sheet.table.store(cell, at: cellRef!)   // every <c> exists, even without a value
+            // every <c> exists, even without a value: the cell is kept here and stored once, when it ends — value(at:)
+            // never reads the table's cell, and hyperlinks, which do, are read after sheetData
+            pendingCell = Cell()
+            pendingCell.sharedStyle = styles.sharedStyle(cellStyle)
         case "v": inV = true
         case "f": inF = true; formulaType = a["t"]; formulaRef = a["ref"]; sharedFormulaIndex = a["si"]
         case "is": inIS = true; isRuns = []; isHasRuns = false; isPhonetic.reset()
@@ -869,7 +883,7 @@ final class SheetParser: SAXHandler {
         case "is": inIS = false
         case "c":
             guard let ref = cellRef else { return }
-            var cell = sheet.table[cell: ref]
+            var cell = pendingCell
             pendingPhonetic = nil
             cell.value = value(at: ref)
             if let pendingPhonetic { cell.phonetic = pendingPhonetic }
@@ -922,7 +936,9 @@ final class SheetParser: SAXHandler {
             validation = nil
         case "filterColumn": if let c = filterColumn { sheet.filterColumns.append(c) }; filterColumn = nil
         case "sortState": inSortState = false
-        case "sheetData": if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount + 1 }   // cells, not trailing empty rows, decide where `append` continues
+        case "sheetData":
+            if let open = cellRef { sheet.table.store(pendingCell, at: open); cellRef = nil }   // a last <c> never closed
+            if !sheet.table.cells.isEmpty { sheet.table.nextAppendRow = sheet.table.rowCount + 1 }   // cells, not trailing empty rows, decide where `append` continues
         case "mergeCells": for r in sheet.table.merges { sheet.table.cleanMergedRange(r) }   // openpyxl `bind_merged_cells`
         default: break
         }
@@ -994,7 +1010,7 @@ final class SheetParser: SAXHandler {
     private func cachedValue() -> CellValue? {
         switch cellType {
         case "s":
-            guard let i = Int(vText.trimmingCharacters(in: .whitespaces)), sst.indices.contains(i) else { return nil }
+            guard let i = Int(SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText), sst.indices.contains(i) else { return nil }
             if phonetics.indices.contains(i) { pendingPhonetic = phonetics[i] }
             return sst[i]
         case "inlineStr":
@@ -1002,18 +1018,22 @@ final class SheetParser: SAXHandler {
             if isHasRuns { return isRuns.contains { $0.font != nil } ? .richText(isRuns) : .text(isRuns.map(\.text).joined()) }
             return .text(isText)
         case "str": return .text(vText)
-        case "b": return .bool(vText.trimmingCharacters(in: .whitespaces) == "1")
+        case "b": return .bool((SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespaces) : vText) == "1")
         case "e": return .error(vText)
         case "d": return CellValue(iso8601: vText)
         default:
-            let raw = vText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !raw.isEmpty, let d = Double(raw) else { return nil }
-            switch styles.numericKind(cellStyle) {
+            let raw = SheetParser.needsTrimming(vText) ? vText.trimmingCharacters(in: .whitespacesAndNewlines) : vText
+            guard !raw.isEmpty else { return nil }
+            let kind = styles.numericKind(cellStyle)
+            // Int accepts only an optional sign and digits — no ".", "e" or "E" — and whatever it accepts Double does
+            // too, so trying it first under a plain format gives the answer the Double-then-Int order gave
+            if kind == .plain, let i = Int(raw) { return .integer(i) }
+            guard let d = Double(raw) else { return nil }
+            switch kind {
             case .duration: return Duration(serialDays: d).map { .duration($0) }
             case .date: return CellValue(serial: d, epoch: epoch)
             case .plain: break
             }
-            if !raw.contains("."), !raw.contains("E"), !raw.contains("e"), let i = Int(raw) { return .integer(i) }
             return .number(Decimal(string: raw, locale: nil).flatMap { $0.isNaN ? nil : $0 } ?? Decimal(d))
         }
     }

@@ -120,13 +120,19 @@ final class StyleRegistry {
     }
 
     /// The `xf` index of a cell's formatting, by the shared style object the cell points at when it has one: the
-    /// same object answers from a small identity table instead of hashing a 384-byte style per cell.
+    /// same object answers from a small identity table instead of hashing a 384-byte style per cell. A cell without
+    /// one has the default style (`Cell.style` says so), which has an index from the start — most cells of a data
+    /// export answer from `defaultIndex` without hashing anything.
     private var sharedIndex: [ObjectIdentifier: (style: SharedStyle, index: Int)] = [:]
+    private lazy var defaultIndex = index(for: CellStyle.default)
     func index(for cell: Cell) -> Int {
-        guard let shared = cell.sharedStyle else { return index(for: cell.style) }
+        guard let shared = cell.sharedStyle else { return defaultIndex }
         let id = ObjectIdentifier(shared)
         if let known = sharedIndex[id], known.style === shared { return known.index }
         let i = index(for: shared.style)
+        // bounded: cells given their own style one by one would otherwise keep every one of those objects alive until
+        // the file is done — a streaming write's memory growing with its rows
+        if sharedIndex.count >= 4096 { sharedIndex.removeAll(keepingCapacity: true) }
         sharedIndex[id] = (shared, i)
         return i
     }

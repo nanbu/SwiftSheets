@@ -114,6 +114,7 @@ final class ODSStyleRegistry {
         let id = ObjectIdentifier(shared)
         if let known = sharedCells[id], known.style === shared { return known.name }
         let name = self.cell(shared.style)
+        if sharedCells.count >= 4096 { sharedCells.removeAll(keepingCapacity: true) }   // bounded, as the XLSX registry is
         sharedCells[id] = (shared, name)
         return name
     }

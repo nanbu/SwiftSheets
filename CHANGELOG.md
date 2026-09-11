@@ -77,6 +77,16 @@ compiler points at; no alias is kept.
 - `Cell.init` takes `thread:` like every other extra; `CanvasPoint` and `CanvasRect` are `Codable`;
   `PreservationSummary` is `Hashable`; assigning `Theme.colors` normalises to `AARRGGBB`, as the initialiser does.
 
+### Performance
+
+- **XLSX reads and writes a quarter to a third faster** (spec Appendix B.91). Measured on a million cells, the old
+  and the new build run alternately five times each at the same time: write 1.54 → 1.09 s and 254 → 214 MB peak,
+  read 2.61 → 1.85 s at 216 MB, row-by-row read 1.85 → 1.35 s at 13 MB, row-by-row write 1.84 → 1.51 s at 11 MB,
+  open-edit-save 3.87 → 2.59 s and 255 → 211 MB. A cell with the default style is written without hashing its style
+  and read without copying one, a number is trimmed only when its ends are not plain ASCII, a read cell is stored
+  once, a dense sheet's rows are written straight from its extent, dated cells share one style per format, and the
+  writers' style caches are bounded. The bytes written are unchanged.
+
 ## [0.26.0] — 2026-09-11
 
 The remaining entrances the 2026-09-10 review proposed are all in: shapes and text boxes, sparklines, threaded

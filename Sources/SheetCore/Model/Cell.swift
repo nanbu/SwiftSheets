@@ -151,10 +151,28 @@ public struct Cell: Hashable, Sendable {
         hasher.combine(extras?.thread)
     }
 
+    private static func sharedStyle(numberFormat: String) -> SharedStyle { var s = CellStyle.default; s.numberFormat = numberFormat; return SharedStyle(s) }
+    private static let isoDateStyle = sharedStyle(numberFormat: NumberFormat.isoDate)
+    private static let isoDateTimeStyle = sharedStyle(numberFormat: NumberFormat.isoDateTime)
+    private static let timeStyle = sharedStyle(numberFormat: NumberFormat.time24Seconds)
+    private static let elapsedStyle = sharedStyle(numberFormat: NumberFormat.elapsed)
+
     /// Assigning a date / time / duration sets a matching number format unless the cell already has a date format
     /// (openpyxl `_bind_value`): date → "yyyy-mm-dd", datetime → "yyyy-mm-dd h:mm:ss", time → "h:mm:ss", duration → "[hh]:mm:ss".
     private mutating func applyDateFormat() {
-        guard let v = storedValue, v.isDated, !NumberFormat.isDateFormat(style.numberFormat) else { return }
+        guard let v = storedValue, v.isDated else { return }
+        // a cell with the default style — most dated cells of an export — takes one of four shared styles instead of
+        // a new 400-byte object apiece: General is no date format, so the answer is known without scanning a code
+        if styleRef == nil {
+            switch v {
+            case .date(let dt): styleRef = dt.isMidnight ? Cell.isoDateStyle : Cell.isoDateTimeStyle
+            case .time: styleRef = Cell.timeStyle
+            case .duration: styleRef = Cell.elapsedStyle
+            default: break
+            }
+            return
+        }
+        guard !NumberFormat.isDateFormat(style.numberFormat) else { return }
         switch v {
         case .date(let dt): style.numberFormat = dt.isMidnight ? NumberFormat.isoDate : NumberFormat.isoDateTime
         case .time: style.numberFormat = NumberFormat.time24Seconds

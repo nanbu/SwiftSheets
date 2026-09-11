@@ -58,7 +58,8 @@ package enum XML {
 
     /// Strips a namespace prefix ("x:si" → "si").
     @inline(__always) package static func local(_ qualified: String) -> String {
-        if let i = qualified.lastIndex(of: ":") { return String(qualified[qualified.index(after: i)...]) }
+        // the colon is ASCII, so a UTF-8 index is also a character boundary; walking Characters costs a grapheme check per byte
+        if let i = qualified.utf8.lastIndex(of: UInt8(ascii: ":")) { return String(qualified[qualified.utf8.index(after: i)...]) }
         return qualified
     }
 }
