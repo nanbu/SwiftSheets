@@ -1,145 +1,145 @@
 {
  "openpyxl": "3.1.5",
  "statuses": {
-  "ported": "同じ入力と期待値を Swift で検証",
-  "adapted": "同じ振る舞いを Swift の形で検証（例外→nil、XML 比較→読み戻し など）",
-  "na_api": "対応する API が SwiftSheets に無い（ロードマップ）",
-  "na_python": "Python 固有で Swift に概念が無い"
+  "ported": "Same inputs and expectations, checked in Swift",
+  "adapted": "Same behaviour, checked in Swift's form (exception → nil, XML comparison → read-back, etc.)",
+  "na_api": "No corresponding API in SwiftSheets (roadmap)",
+  "na_python": "Python-specific; not applicable in Swift"
  },
  "modules": {
   "chart": {
    "default": "na_api",
-   "reason": "グラフ（chart パート）は未実装",
+   "reason": "Charts (the chart part) are not implemented",
    "api": "Charts"
   },
   "chartsheet": {
    "default": "na_api",
-   "reason": "チャートシートは未実装",
+   "reason": "Chartsheets are not implemented",
    "api": "Chartsheet"
   },
   "comments": {
    "default": "na_api",
-   "reason": "openpyxl 内部の Comment / Shape 表現（bind・merge_comments_vml・Google Docs 由来の異形）に相当する型は無い",
+   "reason": "No type corresponds to openpyxl's internal Comment / Shape representation (bind, merge_comments_vml, variants from Google Docs)",
    "api": "CellNote"
   },
   "compat": {
    "default": "na_python",
-   "reason": "Python 互換層（numpy / 文字列型）",
+   "reason": "Python compatibility layer (numpy / string types)",
    "api": "—"
   },
   "descriptors": {
    "default": "na_python",
-   "reason": "openpyxl 内部の属性ディスクリプタ機構",
+   "reason": "openpyxl's internal attribute descriptor mechanism",
    "api": "—"
   },
   "drawing": {
    "default": "na_api",
-   "reason": "図形・画像（drawing パート）は未実装",
+   "reason": "Shapes and images (the drawing part) are not implemented",
    "api": "Drawings / Images"
   },
   "formatting": {
    "default": "na_api",
-   "reason": "条件付き書式は未実装",
+   "reason": "Conditional formatting is not implemented",
    "api": "Conditional formatting"
   },
   "formula": {
    "default": "na_api",
-   "reason": "数式トークナイザ / 翻訳は未実装（数式は文字列として保持）",
+   "reason": "Formula tokenizer / translation are not implemented (formulas are kept as strings)",
    "api": "Formula tokenizer"
   },
   "pivot": {
    "default": "na_api",
-   "reason": "ピボットテーブルは未実装",
+   "reason": "Pivot tables are not implemented",
    "api": "Pivot tables"
   },
   "packaging": {
    "default": "na_api",
-   "reason": "パッケージ manifest / 拡張プロパティ / カスタムプロパティは未実装",
+   "reason": "Package manifest / extended properties / custom properties are not implemented",
    "api": "Packaging"
   },
   "xml": {
    "default": "na_python",
-   "reason": "lxml / ElementTree の関数",
+   "reason": "lxml / ElementTree functions",
    "api": "—"
   },
   "workbook/external_link": {
    "default": "na_api",
-   "reason": "外部リンクは未実装",
+   "reason": "External links are not implemented",
    "api": "External links"
   },
   "openpyxl": {
    "default": "na_api",
-   "reason": "read_only / VBA / カスタム文書プロパティは未実装",
+   "reason": "read_only / VBA / custom document properties are not implemented",
    "api": "read_only / VBA"
   },
   "utils": {
    "default": "na_python",
-   "reason": "Python 固有のユーティリティ",
+   "reason": "Python-specific utilities",
    "api": "—"
   },
   "styles": {
    "default": "na_api",
-   "reason": "未実装のスタイル機能",
+   "reason": "Unimplemented style features",
    "api": "Styles"
   },
   "cell": {
    "default": "na_api",
-   "reason": "未実装",
+   "reason": "Not implemented",
    "api": "Cell"
   },
   "workbook": {
    "default": "na_api",
-   "reason": "未実装",
+   "reason": "Not implemented",
    "api": "Workbook"
   },
   "worksheet": {
    "default": "na_api",
-   "reason": "未実装",
+   "reason": "Not implemented",
    "api": "Worksheet"
   },
   "reader": {
    "default": "na_api",
-   "reason": "未実装",
+   "reason": "Not implemented",
    "api": "Reader"
   },
   "writer": {
    "default": "na_api",
-   "reason": "未実装",
+   "reason": "Not implemented",
    "api": "Writer"
   }
  },
  "files": {
   "cell/tests/test_cell.py": {
    "default": "na_python",
-   "reason": "pandas / numpy / エンコーディング / pivotButton・quotePrefix（StyleArray）",
+   "reason": "pandas / numpy / encodings / pivotButton, quotePrefix (StyleArray)",
    "api": "—",
    "tests": {
     "test_ctor": {
      "status": "adapted",
-     "reason": "セルは値型で位置を持たない — 位置は CellRef で検証"
+     "reason": "A cell is a value type with no position — the position is checked via CellRef"
     },
     "test_null": {
      "status": "adapted",
-     "reason": "data_type の直接代入は無い — 値から導出"
+     "reason": "No direct assignment of data_type — derived from the value"
     },
     "test_string": {
      "status": "adapted",
-     "reason": "`CellValue(inferring:)` で推論"
+     "reason": "Inferred with `CellValue(inferring:)`"
     },
     "test_formula": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_not_formula": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_boolean": {
      "status": "ported"
     },
     "test_error_codes": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_insert_date": {
      "status": "ported"
@@ -150,15 +150,15 @@
     },
     "test_time_format_datetime_subclass": {
      "status": "adapted",
-     "reason": "サブクラスは無い — 時刻付き日付で検証"
+     "reason": "No subclasses — checked with a date that carries a time"
     },
     "test_time_format_date_subclass": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_time_format_no_date_subclass": {
      "status": "adapted",
-     "reason": "文字列は書式を変えない"
+     "reason": "A string does not change the format"
     },
     "test_not_overwrite_time_format": {
      "status": "ported"
@@ -168,26 +168,26 @@
     },
     "test_illegal_characters": {
      "status": "adapted",
-     "reason": "例外ではなく `containsIllegalCharacters` と書き出し時の除去で検証"
+     "reason": "Checked via `containsIllegalCharacters` and removal on write, instead of an exception"
     },
     "test_timedelta": {
      "status": "adapted",
-     "reason": "`Duration` で検証（openpyxl では xfail）"
+     "reason": "Checked with `Duration` (xfail in openpyxl)"
     },
     "test_repr": {
      "status": "adapted",
-     "reason": "repr は無い — 同じ文字列を組み立てて検証"
+     "reason": "No repr — checked by building the same string"
     },
     "test_repr_object": {
      "status": "na_python",
-     "reason": "任意オブジェクトの代入"
+     "reason": "Assigning an arbitrary object"
     },
     "test_comment_assignment": {
      "status": "ported"
     },
     "test_only_one_cell_per_comment": {
      "status": "adapted",
-     "reason": "Comment は値型なので親の付け替えは起きない"
+     "reason": "Comment is a value type, so re-parenting cannot occur"
     },
     "test_remove_comment": {
      "status": "ported"
@@ -197,69 +197,69 @@
     },
     "TestEncoding::test_bad_encoding": {
      "status": "na_python",
-     "reason": "bytes のエンコーディング"
+     "reason": "Encoding of bytes"
     },
     "TestEncoding::test_good_encoding": {
      "status": "na_python",
-     "reason": "bytes のエンコーディング"
+     "reason": "Encoding of bytes"
     },
     "test_font": {
      "status": "adapted",
-     "reason": "IndexedList は無い — 代入と取得で検証"
+     "reason": "No IndexedList — checked by assignment and retrieval"
     },
     "test_fill": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_border": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_number_format": {
      "status": "ported"
     },
     "test_alignment": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_protection": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_pivot_button": {
      "status": "na_python",
-     "reason": "StyleArray の内部フラグ"
+     "reason": "Internal flag of StyleArray"
     },
     "test_quote_prefix": {
      "status": "na_python",
-     "reason": "StyleArray の内部フラグ"
+     "reason": "Internal flag of StyleArray"
     },
     "test_remove_hyperlink": {
      "status": "ported"
     },
     "TestMergedCell::test_value": {
      "status": "adapted",
-     "reason": "MergedCell 型は無い — 結合で非アンカーの値が消えることを検証"
+     "reason": "No MergedCell type — checks that merging clears the values of non-anchor cells"
     },
     "TestMergedCell::test_data_type": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestMergedCell::test_comment": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestMergedCell::test_coordinate": {
      "status": "adapted",
-     "reason": "同上。値型 API: セルは値型で位置を持たない — 位置は CellRef で検証"
+     "reason": "Same as above. Value-type API: a cell is a value type with no position — the position is checked via CellRef"
     },
     "TestMergedCell::test_repr": {
      "status": "na_python",
-     "reason": "repr（MergedCell 型は無い）"
+     "reason": "repr (no MergedCell type)"
     },
     "TestMergedCell::test_hyperlink": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_write_numpy_to_cell": {
      "status": "na_python",
@@ -267,18 +267,18 @@
     },
     "test_write_cell": {
      "status": "adapted",
-     "reason": "数式は AST で保持し関数名を大文字に正規化するため sum(1+1) は SUM(1+1) として書かれる"
+     "reason": "Formulas are kept as an AST with function names normalised to upper case, so sum(1+1) is written as SUM(1+1)"
     }
    }
   },
   "cell/tests/test_read_only.py": {
    "default": "na_api",
-   "reason": "read_only モードは未実装",
+   "reason": "read_only mode is not implemented",
    "api": "read_only"
   },
   "cell/tests/test_rich_text.py": {
    "default": "na_python",
-   "reason": "CellRichText のリスト操作（append / extend / setitem / inline / opt）",
+   "reason": "CellRichText list operations (append / extend / setitem / inline / opt)",
    "api": "—",
    "tests": {
     "TestTextBlock::test_ctor": {
@@ -292,7 +292,7 @@
     },
     "TestTextBlock::test_str": {
      "status": "adapted",
-     "reason": "stringValue で検証"
+     "reason": "Checked via stringValue"
     },
     "TestCellRichText::test_rich_text_create_single": {
      "status": "ported"
@@ -305,47 +305,47 @@
     },
     "TestCellRichText::test_rich_text_from_element_simple_text": {
      "status": "adapted",
-     "reason": "SharedStringsParser で読む"
+     "reason": "Read with SharedStringsParser"
     },
     "TestCellRichText::test_rich_text_from_element_rich_text_only_text": {
      "status": "adapted",
-     "reason": "書式の無いランは平文に畳む"
+     "reason": "Runs without formatting collapse into plain text"
     },
     "TestCellRichText::test_rich_text_from_element_rich_text_only_text_block": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestCellRichText::test_rich_text_from_element_rich_text_mixed": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestCellRichText::test_str": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestCellRichText::test_to_tree": {
      "status": "adapted",
-     "reason": "sharedStrings.xml で検証"
+     "reason": "Checked via sharedStrings.xml"
     }
    }
   },
   "cell/tests/test_text.py": {
    "default": "na_api",
-   "reason": "InlineFont / PhoneticText の XML オブジェクトは持たない（ふりがな <rPh> は Cell.phonetic として読み書きする — B.70）",
+   "reason": "No XML objects for InlineFont / PhoneticText (furigana <rPh> is read and written as Cell.phonetic — B.70)",
    "api": "Phonetic text"
   },
   "cell/tests/test_writer.py": {
    "default": "na_api",
-   "reason": "ArrayFormula / DataTableFormula / tz 付き日時 は未実装",
+   "reason": "ArrayFormula / DataTableFormula / tz-aware datetimes are not implemented",
    "api": "Array formulas",
    "tests": {
     "test_write_cell": {
      "status": "adapted",
-     "reason": "文字列は常に共有文字列テーブル（inlineStr ではない）、空セルは `t` 属性なし"
+     "reason": "Strings always go to the shared string table (not inlineStr); empty cells have no `t` attribute"
     },
     "test_write_date": {
      "status": "adapted",
-     "reason": "ISO 日付書き出し（iso_dates）は無い — シリアル値のみ"
+     "reason": "No ISO date output (iso_dates) — serial values only"
     },
     "test_write_epoch": {
      "status": "ported"
@@ -355,26 +355,26 @@
     },
     "test_attributes": {
      "status": "adapted",
-     "reason": "`_set_attributes` は無い — 書き出した `<c>` で検証"
+     "reason": "No `_set_attributes` — checked on the written `<c>`"
     },
     "test_whitespace": {
      "status": "adapted",
-     "reason": "sharedStrings.xml で検証"
+     "reason": "Checked via sharedStrings.xml"
     },
     "test_rich_text": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     }
    }
   },
   "packaging/tests/test_core.py": {
    "default": "na_python",
-   "reason": "名前空間プレフィックスの登録（lxml）",
+   "reason": "Namespace prefix registration (lxml)",
    "api": "—",
    "tests": {
     "test_ctor": {
      "status": "adapted",
-     "reason": "部分文字列で検証"
+     "reason": "Checked by substring"
     },
     "test_from_tree": {
      "status": "adapted",
@@ -382,14 +382,14 @@
     },
     "test_qualified_datetime": {
      "status": "adapted",
-     "reason": "秒まで"
+     "reason": "Whole seconds only"
     },
     "test_settable_times": {
      "status": "ported"
     },
     "test_qualified_datetime_ns": {
      "status": "na_python",
-     "reason": "lxml の名前空間登録"
+     "reason": "lxml namespace registration"
     }
    }
   },
@@ -400,11 +400,11 @@
    "tests": {
     "test_ctor": {
      "status": "adapted",
-     "reason": "RelsParser で読む（書き出しは固定）"
+     "reason": "Read with RelsParser (the written output is fixed)"
     },
     "test_sequence": {
      "status": "adapted",
-     "reason": "workbook.xml.rels で検証"
+     "reason": "Checked via workbook.xml.rels"
     },
     "TestRelationshipList::test_read": {
      "status": "adapted",
@@ -412,7 +412,7 @@
     },
     "TestRelationshipList::test_to_dict": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_get_dependents": {
      "status": "adapted",
@@ -430,7 +430,7 @@
    "tests": {
     "TestWorkbookPackage::test_ctor": {
      "status": "adapted",
-     "reason": "書き出した workbook.xml"
+     "reason": "The written workbook.xml"
     },
     "TestWorkbookPackage::test_from_xml": {
      "status": "adapted",
@@ -444,36 +444,36 @@
   },
   "reader/tests/test_drawings.py": {
    "default": "na_api",
-   "reason": "図形・画像は未実装",
+   "reason": "Shapes and images are not implemented",
    "api": "Drawings"
   },
   "reader/tests/test_excel.py": {
    "default": "na_api",
-   "reason": "manifest / 拡張子検査 / VBA / 外部リンク / テーマ / チャートシート / read_only は未実装",
+   "reason": "manifest / file-extension check / VBA / external links / themes / chartsheets / read_only are not implemented",
    "api": "Packaging",
    "tests": {
     "test_read_empty_file": {
      "status": "adapted",
-     "reason": "BadZipfile ではなく SheetsError"
+     "reason": "SheetsError instead of BadZipfile"
     },
     "test_load_workbook_from_fileobj": {
      "status": "ported"
     },
     "test_invalid_file_extension": {
      "status": "na_python",
-     "reason": "ファイル名の拡張子検査（Data から読むので拡張子は無い）"
+     "reason": "File-name extension check (reading from Data, there is no extension)"
     },
     "test_style_assignment": {
      "status": "adapted",
-     "reason": "スタイルシートの表で数える（結合セルの中間 Border は数えない）"
+     "reason": "Counted in the stylesheet's tables (the intermediate Borders of merged cells are not counted)"
     },
     "test_close_read": {
      "status": "na_python",
-     "reason": "close / ファイルハンドル"
+     "reason": "close / file handles"
     },
     "test_close_write": {
      "status": "na_python",
-     "reason": "close / ファイルハンドル"
+     "reason": "close / file handles"
     },
     "test_read_stringio": {
      "status": "adapted",
@@ -481,11 +481,11 @@
     },
     "test_file_closes": {
      "status": "na_python",
-     "reason": "close / ファイルハンドル"
+     "reason": "close / file handles"
     },
     "TestExcelReader::test_ctor": {
      "status": "adapted",
-     "reason": "ZipArchive のエントリ集合"
+     "reason": "The ZipArchive entry set"
     },
     "TestExcelReader::test_read_strings": {
      "status": "adapted",
@@ -510,13 +510,13 @@
     },
     "test_formatted_string_table": {
      "status": "adapted",
-     "reason": "InlineFont ではなく Font"
+     "reason": "Font instead of InlineFont"
     }
    }
   },
   "reader/tests/test_workbook.py": {
    "default": "na_api",
-   "reason": "外部リンク / ワークブック保護 / 壊れた sheet 参照の警告 / 印刷範囲の警告は未実装",
+   "reason": "External links / workbook protection / warnings on broken sheet references / print-area warnings are not implemented",
    "api": "Workbook protection",
    "tests": {
     "TestWorkbookParser::test_ctor": {
@@ -525,11 +525,11 @@
     },
     "TestWorkbookParser::test_parse_calendar": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorkbookParser::test_find_sheets": {
      "status": "adapted",
-     "reason": "rels と突き合わせて検証"
+     "reason": "Checked against the rels"
     },
     "TestWorkbookParser::test_print_area_title": {
      "status": "ported"
@@ -540,7 +540,7 @@
     },
     "TestWorkbookParser::test_name_invalid_index": {
      "status": "adapted",
-     "reason": "警告なしで捨てる"
+     "reason": "Dropped without a warning"
     },
     "TestWorkbookParser::test_book_views": {
      "status": "adapted",
@@ -552,15 +552,15 @@
    "tests": {
     "test_default": {
      "status": "adapted",
-     "reason": "dict ではなく既定値で検証"
+     "reason": "Checked against defaults instead of a dict"
     },
     "test_round_trip": {
      "status": "adapted",
-     "reason": "書き出し→読み戻しで検証"
+     "reason": "Checked by write → read back"
     },
     "test_alias": {
      "status": "adapted",
-     "reason": "属性名の別名は無い — 書き出し XML で検証"
+     "reason": "No attribute-name aliases — checked on the written XML"
     }
    }
   },
@@ -568,27 +568,27 @@
    "tests": {
     "TestBorder::test_create": {
      "status": "adapted",
-     "reason": "`<borders>` 断片を StylesParser で読む"
+     "reason": "A `<borders>` fragment read with StylesParser"
     },
     "TestBorder::test_serialise": {
      "status": "adapted",
-     "reason": "styles.xml の部分文字列で検証"
+     "reason": "Checked by substring of styles.xml"
     }
    }
   },
   "styles/tests/test_cell_style.py": {
    "default": "na_python",
-   "reason": "StyleArray（内部インデックス配列）",
+   "reason": "StyleArray (internal index array)",
    "api": "—"
   },
   "styles/tests/test_colors.py": {
    "default": "na_python",
-   "reason": "Color ディスクリプタ / 演算子（Python 固有）",
+   "reason": "Color descriptors / operators (Python-specific)",
    "api": "—",
    "tests": {
     "test_argb": {
      "status": "adapted",
-     "reason": "`Color(hex:)` が 8 桁 ARGB に正規化することを検証"
+     "reason": "Checks that `Color(hex:)` normalises to 8-digit ARGB"
     },
     "TestColor::test_rgb": {
      "status": "ported"
@@ -607,52 +607,52 @@
     },
     "TestColor::test_highlander": {
      "status": "adapted",
-     "reason": "属性の優先順位 rgb > theme > indexed > auto で検証"
+     "reason": "Checked by the attribute precedence rgb > theme > indexed > auto"
     },
     "TestColorList::test_ctor_indexed": {
      "status": "adapted",
-     "reason": "StylesParser で読み、6 桁→8 桁の補正は行わない"
+     "reason": "Read with StylesParser; no 6-digit → 8-digit correction"
     },
     "TestColorList::test_write": {
      "status": "adapted",
-     "reason": "`<colors>` を styles.xml の部分文字列で検証"
+     "reason": "`<colors>` checked by substring of styles.xml"
     },
     "TestColorList::test_from_xml": {
      "status": "adapted",
-     "reason": "StylesParser で `<colors>` を読む"
+     "reason": "`<colors>` read with StylesParser"
     },
     "TestColorList::test_empty": {
      "status": "adapted",
-     "reason": "空リスト"
+     "reason": "Empty list"
     },
     "TestColorList::test_no_colors": {
      "status": "adapted",
-     "reason": "空なら `<colors>` を書かない"
+     "reason": "`<colors>` is not written when empty"
     }
    }
   },
   "styles/tests/test_differential.py": {
    "default": "na_api",
-   "reason": "差分スタイル（dxf）は未実装",
+   "reason": "Differential styles (dxf) are not implemented",
    "api": "DifferentialStyle",
    "tests": {
     "test_parse": {
      "status": "adapted",
-     "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）"
+     "reason": "Differential formats are read and written as DifferentialStyle; unedited items are written back as the original XML (Rev 1.9)"
     },
     "test_serialise": {
      "status": "adapted",
-     "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）"
+     "reason": "Differential formats are read and written as DifferentialStyle; unedited items are written back as the original XML (Rev 1.9)"
     },
     "TestDifferentialStyleList::test_ctor": {
      "status": "adapted",
-     "reason": "差分書式は DifferentialStyle として読み書きし、未編集の項目は元の XML のまま書き戻す（Rev 1.9）"
+     "reason": "Differential formats are read and written as DifferentialStyle; unedited items are written back as the original XML (Rev 1.9)"
     }
    }
   },
   "styles/tests/test_fills.py": {
    "default": "na_api",
-   "reason": "GradientFill / Stop は未実装",
+   "reason": "GradientFill / Stop are not implemented",
    "api": "GradientFill",
    "tests": {
     "TestPatternFill::test_ctor": {
@@ -660,30 +660,30 @@
     },
     "TestPatternFill::test_dict_interface": {
      "status": "adapted",
-     "reason": "dict インターフェースは無い — 値型の等価性で検証"
+     "reason": "No dict interface — checked by value-type equality"
     },
     "TestPatternFill::test_serialise": {
      "status": "adapted",
-     "reason": "styles.xml の部分文字列で検証"
+     "reason": "Checked by substring of styles.xml"
     },
     "TestPatternFill::test_create": {
      "status": "adapted",
-     "reason": "`<fills>` 断片を StylesParser で読む"
+     "reason": "A `<fills>` fragment read with StylesParser"
     },
     "test_create_empty_fill": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_read_fills": {
      "status": "ported"
     },
     "TestGradientFill::test_ctor": {
      "status": "adapted",
-     "reason": "階調塗りは Fill.gradient として読み書きする（Rev 1.9）"
+     "reason": "Gradient fills are read and written as Fill.gradient (Rev 1.9)"
     },
     "TestGradientFill::test_serialise": {
      "status": "adapted",
-     "reason": "階調塗りは Fill.gradient として読み書きする（Rev 1.9）"
+     "reason": "Gradient fills are read and written as Fill.gradient (Rev 1.9)"
     }
    }
   },
@@ -694,38 +694,38 @@
     },
     "TestFont::test_serialise": {
      "status": "adapted",
-     "reason": "XML 比較ではなく要素の部分文字列で検証"
+     "reason": "Checked by element substrings instead of XML comparison"
     },
     "TestFont::test_create": {
      "status": "adapted",
-     "reason": "`<fonts>` 断片を StylesParser で読む"
+     "reason": "A `<fonts>` fragment read with StylesParser"
     },
     "TestFont::test_nested_empty": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     }
    }
   },
   "styles/tests/test_named_style.py": {
    "default": "na_api",
-   "reason": "openpyxl 内部の NamedStyle 表現（_style タプル・bind・recalculate・xf 生成）に相当する型は無い",
+   "reason": "No type corresponds to openpyxl's internal NamedStyle representation (_style tuple, bind, recalculate, xf generation)",
    "api": "NamedStyle",
    "tests": {
     "TestNamedCellStyle::test_from_xml": {
      "status": "adapted",
-     "reason": "XML 比較ではなく、openpyxl が書いたファイルを読んで NamedStyle の中身を検証"
+     "reason": "Instead of XML comparison, reads a file written by openpyxl and checks the contents of NamedStyle"
     },
     "TestNamedCellStyleList::test_from_xml": {
      "status": "adapted",
-     "reason": "同上 — cellStyles の一覧を Workbook.namedStyles として検証"
+     "reason": "Same as above — the cellStyles list is checked as Workbook.namedStyles"
     },
     "TestNamedCellStyleList::test_duplicate_names": {
      "status": "adapted",
-     "reason": "重複した名前は先勝ち（openpyxl は番号で読み替える）"
+     "reason": "Among duplicate names the first wins (openpyxl renames them with a number)"
     },
     "TestNamedStyleList::test_append_valid": {
      "status": "adapted",
-     "reason": "addNamedStyle は同名を置き換える（openpyxl は例外）"
+     "reason": "addNamedStyle replaces one of the same name (openpyxl raises)"
     },
     "TestNamedStyleList::test_names": {
      "status": "adapted",
@@ -733,17 +733,17 @@
     },
     "TestNamedStyleList::test_key": {
      "status": "adapted",
-     "reason": "namedStyle(_:) は Optional を返す"
+     "reason": "namedStyle(_:) returns an Optional"
     },
     "TestNamedStyleList::test_key_error": {
      "status": "adapted",
-     "reason": "例外ではなく nil"
+     "reason": "nil instead of an exception"
     }
    }
   },
   "styles/tests/test_number_style.py": {
    "default": "na_python",
-   "reason": "ディスクリプタ",
+   "reason": "Descriptors",
    "api": "—",
    "tests": {
     "test_builtin_format": {
@@ -751,11 +751,11 @@
     },
     "test_number_descriptor": {
      "status": "adapted",
-     "reason": "ディスクリプタは無い — `CellStyle().numberFormat` の既定値 General で検証"
+     "reason": "No descriptors — checked via the default General of `CellStyle().numberFormat`"
     },
     "test_strip_quotes": {
      "status": "adapted",
-     "reason": "正規表現ではなく `NumberFormat.stripLiterals` で同じ入出力を検証"
+     "reason": "The same inputs and outputs checked with `NumberFormat.stripLiterals` instead of a regular expression"
     },
     "test_is_date_format": {
      "status": "ported"
@@ -772,27 +772,27 @@
    "tests": {
     "test_default": {
      "status": "adapted",
-     "reason": "dict ではなく既定値で検証"
+     "reason": "Checked against defaults instead of a dict"
     },
     "test_round_trip": {
      "status": "adapted",
-     "reason": "書き出し→読み戻しで検証"
+     "reason": "Checked by write → read back"
     }
    }
   },
   "styles/tests/test_proxy.py": {
    "default": "na_python",
-   "reason": "スタイルプロキシ（内部）",
+   "reason": "Style proxy (internal)",
    "api": "—"
   },
   "styles/tests/test_styleable.py": {
    "default": "na_python",
-   "reason": "StyleableObject（内部）",
+   "reason": "StyleableObject (internal)",
    "api": "—"
   },
   "styles/tests/test_stylesheet.py": {
    "default": "na_api",
-   "reason": "名前付きスタイル",
+   "reason": "Named styles",
    "api": "NamedStyle",
    "tests": {
     "TestStylesheet::test_from_simple": {
@@ -803,78 +803,78 @@
     },
     "TestStylesheet::test_unprotected_cell": {
      "status": "adapted",
-     "reason": "StyleArray ではなく解決済み `CellStyle` で検証"
+     "reason": "Checked on the resolved `CellStyle` instead of StyleArray"
     },
     "TestStylesheet::test_read_cell_style": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestStylesheet::test_read_xf_no_number_format": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestStylesheet::test_none_values": {
      "status": "ported"
     },
     "TestStylesheet::test_alignment": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestStylesheet::test_rgb_colors": {
      "status": "ported"
     },
     "TestStylesheet::test_custom_number_formats": {
      "status": "adapted",
-     "reason": "`customNumberFormats` と isDateFormat で検証"
+     "reason": "Checked via `customNumberFormats` and isDateFormat"
     },
     "TestStylesheet::test_remove_duplicate_number_formats": {
      "status": "adapted",
-     "reason": "組み込み書式は custom に数えない"
+     "reason": "Built-in formats are not counted as custom"
     },
     "TestStylesheet::test_assign_number_formats": {
      "status": "adapted",
-     "reason": "組み込み id を上書きした書式は書き出し時に 164+ へ"
+     "reason": "A format that overrides a built-in id is moved to 164+ on write"
     },
     "test_no_stylesheet": {
      "status": "adapted",
-     "reason": "styles パートの無いパッケージを手組みで読む"
+     "reason": "Reads a hand-assembled package with no styles part"
     },
     "test_no_styles": {
      "status": "adapted",
-     "reason": "警告は出さず既定値にフォールバック"
+     "reason": "No warning; falls back to defaults"
     },
     "test_write_worksheet": {
      "status": "adapted",
-     "reason": "既定 styles.xml の要素を部分文字列で検証"
+     "reason": "Elements of the default styles.xml checked by substring"
     },
     "test_simple_styles": {
      "status": "adapted",
-     "reason": "登録順を合わせて同じ cellXfs になることを検証"
+     "reason": "Checks that matching the registration order gives the same cellXfs"
     },
     "test_no_default_style": {
      "status": "adapted",
-     "reason": "書き出し側が常に Normal を補う"
+     "reason": "The writer always supplies Normal"
     }
    }
   },
   "styles/tests/test_table.py": {
    "default": "na_api",
-   "reason": "テーブルスタイルは未実装",
+   "reason": "Table styles are not implemented",
    "api": "Table styles"
   },
   "tests/test_backend.py": {
    "default": "na_python",
-   "reason": "lxml バックエンド",
+   "reason": "lxml backend",
    "api": "—"
   },
   "tests/test_iter.py": {
    "default": "na_api",
-   "reason": "read_only モード（ReadOnlyWorksheet）/ 1024 シートの遅延読み込み / ファイル記述子は未実装",
+   "reason": "read_only mode (ReadOnlyWorksheet) / lazy loading of 1024 sheets / file descriptors are not implemented",
    "api": "read_only",
    "tests": {
     "test_open_many_sheets": {
      "status": "na_api",
-     "reason": "read_only（bigfoot.xlsx は 1024 シート）"
+     "reason": "read_only (bigfoot.xlsx has 1024 sheets)"
     },
     "test_ctor": {
      "status": "na_api",
@@ -886,15 +886,15 @@
     },
     "test_calculate_dimension": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_file_descriptor_leak": {
      "status": "na_python",
-     "reason": "ファイル記述子"
+     "reason": "File descriptors"
     },
     "test_nonstandard_name": {
      "status": "adapted",
-     "reason": "read_only は無い"
+     "reason": "No read_only"
     },
     "test_get_max_cell": {
      "status": "na_api",
@@ -905,7 +905,7 @@
     },
     "TestRead::test_getitem": {
      "status": "adapted",
-     "reason": "`rows(...)` と `ws[range:]`"
+     "reason": "`rows(...)` and `ws[range:]`"
     },
     "TestRead::test_max_row": {
      "status": "ported"
@@ -936,11 +936,11 @@
     },
     "test_read_single_cell_formula": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_read_style_iter": {
      "status": "adapted",
-     "reason": "read_only は無い — 通常読み込み"
+     "reason": "No read_only — a normal read"
     },
     "test_read_hyperlinks_read_only": {
      "status": "adapted",
@@ -948,31 +948,31 @@
     },
     "test_read_with_missing_cells": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_read_empty_sheet": {
      "status": "adapted",
-     "reason": "rows() が空"
+     "reason": "rows() is empty"
     },
     "test_read_mac_date": {
      "status": "adapted",
-     "reason": "read_only は無い"
+     "reason": "No read_only"
     },
     "test_read_empty_rows": {
      "status": "adapted",
-     "reason": "rows() は 1 行目から"
+     "reason": "rows() starts at row 1"
     },
     "test_getitem": {
      "status": "adapted",
-     "reason": "同一性ではなく値の等価で検証（値型）"
+     "reason": "Checked by value equality instead of identity (value types)"
     },
     "test_read_boolean": {
      "status": "adapted",
-     "reason": "セルは位置を持たない — CellRef の往復で検証"
+     "reason": "A cell has no position — checked by a CellRef round trip"
     },
     "test_read_single_cell": {
      "status": "adapted",
-     "reason": "同一性ではなく値の等価で検証（値型）"
+     "reason": "Checked by value equality instead of identity (value types)"
     }
    }
   },
@@ -986,23 +986,23 @@
     },
     "test_read_no_theme": {
      "status": "adapted",
-     "reason": "theme パートは読まない"
+     "reason": "The theme part is not read"
     }
    }
   },
   "tests/test_read_write_custom_doc_props.py": {
    "default": "na_api",
-   "reason": "カスタム文書プロパティは未実装",
+   "reason": "Custom document properties are not implemented",
    "api": "Custom doc props"
   },
   "tests/test_vba.py": {
    "default": "na_api",
-   "reason": "VBA の保持は未実装",
+   "reason": "Keeping VBA is not implemented",
    "api": "VBA"
   },
   "utils/tests/test_bound_dictionary.py": {
    "default": "na_python",
-   "reason": "Python の辞書ラッパー",
+   "reason": "Python dict wrapper",
    "api": "—"
   },
   "utils/tests/test_cell.py": {
@@ -1012,7 +1012,7 @@
     },
     "test_invalid_coordinate": {
      "status": "adapted",
-     "reason": "例外ではなく nil を返す（Swift の失敗可能イニシャライザ）"
+     "reason": "Returns nil instead of raising (Swift failable initializer)"
     },
     "test_absolute": {
      "status": "ported"
@@ -1025,11 +1025,11 @@
     },
     "test_bad_column_index": {
      "status": "adapted",
-     "reason": "例外ではなく nil を返す"
+     "reason": "Returns nil instead of raising"
     },
     "test_column_letter_boundries": {
      "status": "adapted",
-     "reason": "例外ではなく `columnLetter(validating:)` が nil を返す"
+     "reason": "`columnLetter(validating:)` returns nil instead of raising"
     },
     "test_column_letter": {
      "status": "ported"
@@ -1042,7 +1042,7 @@
     },
     "test_invalid_range": {
      "status": "adapted",
-     "reason": "`range_to_tuple` 相当は `CellRange.splitSheetTitle` — シート名の無い文字列は nil"
+     "reason": "The counterpart of `range_to_tuple` is `CellRange.splitSheetTitle` — nil for a string without a sheet name"
     },
     "test_quote_sheetname": {
      "status": "ported"
@@ -1058,13 +1058,13 @@
     },
     "test_invalid_bounds": {
      "status": "adapted",
-     "reason": "例外ではなく `RangeBounds(_:)` が nil"
+     "reason": "`RangeBounds(_:)` returns nil instead of raising"
     }
    }
   },
   "utils/tests/test_dataframe.py": {
    "default": "na_python",
-   "reason": "pandas DataFrame 連携",
+   "reason": "pandas DataFrame integration",
    "api": "—"
   },
   "utils/tests/test_datetime.py": {
@@ -1074,7 +1074,7 @@
     },
     "test_iso_regex": {
      "status": "adapted",
-     "reason": "正規表現グループではなく `ExcelDate.fromISO8601` の型（date / time）で判定"
+     "reason": "Classified by the type from `ExcelDate.fromISO8601` (date / time) instead of regular-expression groups"
     },
     "test_from_iso": {
      "status": "ported"
@@ -1102,7 +1102,7 @@
     },
     "test_days_to_time": {
      "status": "adapted",
-     "reason": "`timedelta` が無いので日の端数 → `TimeOfDay`（ミリ秒丸め）で検証"
+     "reason": "No `timedelta`, so checked as a fraction of a day → `TimeOfDay` (rounded to milliseconds)"
     }
    }
   },
@@ -1118,27 +1118,27 @@
   },
   "utils/tests/test_formulas.py": {
    "default": "na_api",
-   "reason": "Excel 関数名の一覧（FORMULAE）は持たない",
+   "reason": "No list of Excel function names (FORMULAE)",
    "api": "Formula names"
   },
   "utils/tests/test_indexed_list.py": {
    "default": "na_python",
-   "reason": "内部コレクション",
+   "reason": "Internal collection",
    "api": "—"
   },
   "utils/tests/test_inference.py": {
    "default": "na_api",
-   "reason": "文字列からの型推測（guess_types）は提供しない",
+   "reason": "No type guessing from strings (guess_types)",
    "api": "Type inference"
   },
   "utils/tests/test_protection.py": {
    "default": "na_api",
-   "reason": "シート保護のパスワードハッシュは未実装",
+   "reason": "Password hashing for sheet protection is not implemented",
    "api": "Sheet protection",
    "tests": {
     "test_password": {
      "status": "adapted",
-     "reason": "旧来の 16 ビット合鍵を LegacyPasswordHash として実装（Rev 1.9）"
+     "reason": "The legacy 16-bit password hash is implemented as LegacyPasswordHash (Rev 1.9)"
     }
    }
   },
@@ -1193,7 +1193,7 @@
   },
   "workbook/tests/test_child.py": {
    "default": "na_python",
-   "reason": "bytes タイトル",
+   "reason": "bytes titles",
    "api": "—",
    "tests": {
     "test_invalid_chars": {
@@ -1204,7 +1204,7 @@
     },
     "TestWorkbookChild::test_ctor": {
      "status": "adapted",
-     "reason": "既定名は既存と重複するので Sheet1"
+     "reason": "The default name clashes with an existing one, so Sheet1"
     },
     "TestWorkbookChild::test_repr": {
      "status": "na_python",
@@ -1212,184 +1212,184 @@
     },
     "TestWorkbookChild::test_invalid_title": {
      "status": "adapted",
-     "reason": "例外ではなく以前の名前を維持"
+     "reason": "Keeps the previous name instead of raising"
     },
     "TestWorkbookChild::test_reassign_title": {
      "status": "ported"
     },
     "TestWorkbookChild::test_title_too_long": {
      "status": "adapted",
-     "reason": "警告なしで受理"
+     "reason": "Accepted without a warning"
     },
     "TestWorkbookChild::test_set_encoded_title": {
      "status": "na_python",
-     "reason": "bytes タイトル"
+     "reason": "bytes titles"
     },
     "TestWorkbookChild::test_empty_title": {
      "status": "adapted",
-     "reason": "例外ではなく以前の名前を維持"
+     "reason": "Keeps the previous name instead of raising"
     },
     "test_ctor": {
      "status": "adapted",
-     "reason": "シートはワークブックへの逆参照を持たない — 収納の有無で検証"
+     "reason": "A sheet has no back-reference to its workbook — checked by membership"
     }
    }
   },
   "workbook/tests/test_defined_name.py": {
    "default": "na_api",
-   "reason": "DefinedName オブジェクト（destinations / 型判定 / 予約名）は無く、名前→文字列のみ",
+   "reason": "No DefinedName object (destinations / type detection / reserved names); name → string only",
    "api": "DefinedName",
    "tests": {
     "TestDefinition::test_write": {
      "status": "adapted",
-     "reason": "workbook.xml の部分文字列で検証"
+     "reason": "Checked by substring of workbook.xml"
     },
     "TestDefinitionList::test_read": {
      "status": "adapted",
-     "reason": "WorkbookXMLParser で読む"
+     "reason": "Read with WorkbookXMLParser"
     },
     "TestDefinitionList::test_by_sheet": {
      "status": "adapted",
-     "reason": "localSheetId ごとの辞書で検証"
+     "reason": "Checked with a dictionary per localSheetId"
     },
     "test_read": {
      "status": "adapted",
-     "reason": "断片保持のため <workbook> で包んで解析"
+     "reason": "The fixture is a fragment, so it is wrapped in <workbook> for parsing"
     },
     "test_by_sheet": {
      "status": "adapted",
-     "reason": "断片保持のため <workbook> で包んで解析"
+     "reason": "The fixture is a fragment, so it is wrapped in <workbook> for parsing"
     }
    }
   },
   "workbook/tests/test_external_reference.py": {
    "default": "na_api",
-   "reason": "外部参照は未実装",
+   "reason": "External references are not implemented",
    "api": "External links"
   },
   "workbook/tests/test_function_group.py": {
    "default": "na_api",
-   "reason": "functionGroups は未実装",
+   "reason": "functionGroups is not implemented",
    "api": "Function groups"
   },
   "workbook/tests/test_properties.py": {
    "default": "na_api",
-   "reason": "fileVersion は書かない",
+   "reason": "fileVersion is not written",
    "api": "FileVersion",
    "tests": {
     "TestWorkbookProperties::test_ctor": {
      "status": "adapted",
-     "reason": "workbook.xml の `<workbookPr>` で検証"
+     "reason": "Checked on `<workbookPr>` in workbook.xml"
     },
     "TestWorkbookProperties::test_from_xml": {
      "status": "adapted",
-     "reason": "date1904 のみ"
+     "reason": "date1904 only"
     },
     "TestCalcProperties::test_ctor": {
      "status": "adapted",
-     "reason": "固定の `<calcPr>` を検証"
+     "reason": "Checks the fixed `<calcPr>`"
     }
    }
   },
   "workbook/tests/test_protection.py": {
    "default": "na_api",
-   "reason": "ワークブック保護は未実装",
+   "reason": "Workbook protection is not implemented",
    "api": "Workbook protection",
    "tests": {
     "TestWorkbookProtection::test_ctor": {
      "status": "adapted",
-     "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）"
+     "reason": "Workbook protection is read and written as WorkbookProtection (Rev 1.9)"
     },
     "TestWorkbookProtection::test_ctor_with_passwords": {
      "status": "adapted",
-     "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）"
+     "reason": "Workbook protection is read and written as WorkbookProtection (Rev 1.9)"
     },
     "TestWorkbookProtection::test_from_xml": {
      "status": "adapted",
-     "reason": "帳簿の保護は WorkbookProtection として読み書きする（Rev 1.9）"
+     "reason": "Workbook protection is read and written as WorkbookProtection (Rev 1.9)"
     }
    }
   },
   "workbook/tests/test_smart_tags.py": {
    "default": "na_api",
-   "reason": "smartTags は未実装",
+   "reason": "smartTags is not implemented",
    "api": "Smart tags"
   },
   "workbook/tests/test_views.py": {
    "default": "na_api",
-   "reason": "CustomWorkbookView は未実装",
+   "reason": "CustomWorkbookView is not implemented",
    "api": "CustomWorkbookView",
    "tests": {
     "TestBookView::test_ctor": {
      "status": "adapted",
-     "reason": "`<workbookView activeTab>` のみ"
+     "reason": "`<workbookView activeTab>` only"
     },
     "TestBookView::test_from_xml": {
      "status": "adapted",
-     "reason": "activeTab のみ"
+     "reason": "activeTab only"
     }
    }
   },
   "workbook/tests/test_web.py": {
    "default": "na_api",
-   "reason": "webPublishing は未実装",
+   "reason": "webPublishing is not implemented",
    "api": "Web publishing"
   },
   "workbook/tests/test_workbook.py": {
    "default": "na_api",
-   "reason": "テンプレート / VBA / テーブル / チャートシート / read_only / write_only は未実装",
+   "reason": "Templates / VBA / tables / chartsheets / read_only / write_only are not implemented",
    "api": "Templates / VBA",
    "tests": {
     "TestWorkbook::test_template": {
      "status": "na_api",
-     "reason": "テンプレート / VBA の MIME タイプは未実装"
+     "reason": "MIME types for templates / VBA are not implemented"
     },
     "TestWorkbook::test_named_styles": {
      "status": "adapted",
-     "reason": "Normal のみ — styles.xml で検証"
+     "reason": "Normal only — checked via styles.xml"
     },
     "TestWorkbook::test_immutable_builtins": {
      "status": "na_api",
-     "reason": "名前付きスタイルは未実装"
+     "reason": "Named styles are not implemented"
     },
     "TestWorkbook::test_duplicate_table_name": {
      "status": "na_api",
-     "reason": "テーブルは未実装"
+     "reason": "Tables are not implemented"
     },
     "TestWorkbook::test_duplicate_defined_name": {
      "status": "adapted",
-     "reason": "`_duplicate_name` は無い — 大文字小文字を無視した照合で検証"
+     "reason": "No `_duplicate_name` — checked by case-insensitive matching"
     },
     "test_get_active_sheet": {
      "status": "adapted",
-     "reason": "同一性ではなく activeIndex と値の等価で検証"
+     "reason": "Checked by activeIndex and value equality instead of identity"
     },
     "test_set_active_by_sheet": {
      "status": "adapted",
-     "reason": "オブジェクトではなく名前→添字で active を指定"
+     "reason": "The active sheet is set by name → index instead of by object"
     },
     "test_set_active_by_index": {
      "status": "ported"
     },
     "test_set_invalid_active_index": {
      "status": "na_python",
-     "reason": "Python のインデックス検証（openpyxl でも xfail）"
+     "reason": "Python index validation (xfail in openpyxl too)"
     },
     "test_set_invalid_sheet_by_name": {
      "status": "na_python",
-     "reason": "文字列代入の TypeError"
+     "reason": "TypeError on assigning a string"
     },
     "test_set_invalid_child_as_active": {
      "status": "adapted",
-     "reason": "例外ではなく無視。値型 API: 他ブックのシート＝存在しない名前。無変更／クランプで検証（例外ではない）"
+     "reason": "Ignored instead of raising. Value-type API: a sheet of another workbook = a name that does not exist. Checked as no change / clamping (not an exception)"
     },
     "test_set_hidden_sheet_as_active": {
      "status": "adapted",
-     "reason": "例外ではなく無視"
+     "reason": "Ignored instead of raising"
     },
     "test_no_active": {
      "status": "na_api",
-     "reason": "write_only モードは未実装"
+     "reason": "write_only mode is not implemented"
     },
     "test_create_sheet": {
      "status": "ported"
@@ -1399,7 +1399,7 @@
     },
     "test_add_correct_sheet": {
      "status": "adapted",
-     "reason": "`_add_sheet` は無い — createSheet の位置で検証"
+     "reason": "No `_add_sheet` — checked by the position from createSheet"
     },
     "test_add_sheetname": {
      "status": "na_python",
@@ -1407,25 +1407,25 @@
     },
     "test_add_sheet_from_other_workbook": {
      "status": "na_python",
-     "reason": "非公開 `_add_sheet`"
+     "reason": "Private `_add_sheet`"
     },
     "test_create_sheet_readonly": {
      "status": "na_api",
-     "reason": "read_only モードは未実装"
+     "reason": "read_only mode is not implemented"
     },
     "test_remove_sheet": {
      "status": "ported"
     },
     "test_move_sheet": {
      "status": "adapted",
-     "reason": "既定シート名が Sheet1 なので連番が変わる。移動は名前＋絶対位置で指定"
+     "reason": "The default sheet name is Sheet1, so the numbering differs. A move is given by name + absolute position"
     },
     "test_getitem": {
      "status": "ported"
     },
     "test_get_chartsheet": {
      "status": "na_api",
-     "reason": "チャートシートは未実装"
+     "reason": "Chartsheets are not implemented"
     },
     "test_del_worksheet": {
      "status": "adapted",
@@ -1433,7 +1433,7 @@
     },
     "test_del_chartsheet": {
      "status": "na_api",
-     "reason": "チャートシートは未実装"
+     "reason": "Chartsheets are not implemented"
     },
     "test_contains": {
      "status": "ported"
@@ -1446,11 +1446,11 @@
     },
     "test_get_sheet_names": {
      "status": "adapted",
-     "reason": "既定シート名が Sheet1 なので連番は Sheet1, Sheet, Sheet2… になる"
+     "reason": "The default sheet name is Sheet1, so the sequence is Sheet1, Sheet, Sheet2…"
     },
     "test_add_invalid_worksheet_class_instance": {
      "status": "na_python",
-     "reason": "型検査"
+     "reason": "Type checking"
     },
     "TestCopy::test_worksheet_copy": {
      "status": "ported"
@@ -1474,22 +1474,22 @@
     },
     "TestCopy::test_invalid_epoch": {
      "status": "adapted",
-     "reason": "DateEpoch は閉じた enum なので不正値を表現できない"
+     "reason": "DateEpoch is a closed enum, so an invalid value cannot be expressed"
     }
    }
   },
   "workbook/tests/test_writer.py": {
    "default": "na_api",
-   "reason": "ワークブック保護は未実装",
+   "reason": "Workbook protection is not implemented",
    "api": "Workbook protection",
    "tests": {
     "TestWorkbookWriter::test_hidden_worksheet": {
      "status": "adapted",
-     "reason": "workbookProtection / workbookView の既定属性は書かない"
+     "reason": "Default attributes of workbookProtection / workbookView are not written"
     },
     "TestWorkbookWriter::test_workbook": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorkbookWriter::test_workbook_code_name": {
      "status": "ported"
@@ -1502,7 +1502,7 @@
     },
     "TestWorkbookWriter::test_autofilter": {
      "status": "adapted",
-     "reason": "読み戻しで `_FilterDatabase` を捨てることも検証"
+     "reason": "Also checks that `_FilterDatabase` is discarded on read-back"
     },
     "TestWorkbookWriter::test_defined_name_global": {
      "status": "ported"
@@ -1512,7 +1512,7 @@
     },
     "test_hidden_worksheet": {
      "status": "adapted",
-     "reason": "既定シート名が Sheet1"
+     "reason": "The default sheet name is Sheet1"
     }
    }
   },
@@ -1526,15 +1526,15 @@
     },
     "TestCellRange::test_dict": {
      "status": "adapted",
-     "reason": "bounds で検証"
+     "reason": "Checked via bounds"
     },
     "TestCellRange::test_max_row_too_small": {
      "status": "adapted",
-     "reason": "例外ではなく nil"
+     "reason": "nil instead of an exception"
     },
     "TestCellRange::test_max_col_too_small": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestCellRange::test_from_string": {
      "status": "ported"
@@ -1554,14 +1554,14 @@
     },
     "TestCellRange::test_copy": {
      "status": "adapted",
-     "reason": "値型"
+     "reason": "Value type"
     },
     "TestCellRange::test_shift": {
      "status": "ported"
     },
     "TestCellRange::test_shift_negative": {
      "status": "adapted",
-     "reason": "`shifted` が nil"
+     "reason": "`shifted` returns nil"
     },
     "TestCellRange::test_union": {
      "status": "ported"
@@ -1628,7 +1628,7 @@
     },
     "TestCellRange::test_different_worksheets": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestCellRange::test_lt": {
      "status": "ported"
@@ -1693,7 +1693,7 @@
     },
     "TestMultiCellRange::test_remove_invalid": {
      "status": "adapted",
-     "reason": "例外ではなく false"
+     "reason": "false instead of an exception"
     },
     "TestMultiCellRange::test_iter": {
      "status": "adapted",
@@ -1701,35 +1701,35 @@
     },
     "TestMultiCellRange::test_copy": {
      "status": "adapted",
-     "reason": "値型"
+     "reason": "Value type"
     }
    }
   },
   "worksheet/tests/test_controls.py": {
    "default": "na_api",
-   "reason": "フォームコントロールは未実装",
+   "reason": "Form controls are not implemented",
    "api": "Controls"
   },
   "worksheet/tests/test_datavalidation.py": {
    "default": "na_api",
-   "reason": "データ検証は未実装",
+   "reason": "Data validation is not implemented",
    "api": "Data validation",
    "tests": {
     "TestDataValidation::test_parser": {
      "status": "adapted",
-     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+     "reason": "Reading data validation is implemented too (Rev 1.9, revising the decision in Appendix B.13)"
     },
     "TestDataValidation::test_from_xml": {
      "status": "adapted",
-     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+     "reason": "Reading data validation is implemented too (Rev 1.9, revising the decision in Appendix B.13)"
     },
     "TestDataValidation::test_read_formula": {
      "status": "adapted",
-     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+     "reason": "Reading data validation is implemented too (Rev 1.9, revising the decision in Appendix B.13)"
     },
     "TestDataValidationList::test_from_xml": {
      "status": "adapted",
-     "reason": "データ検証は読み取りも実装（Rev 1.9・付録 B.13 の決定を改めた）"
+     "reason": "Reading data validation is implemented too (Rev 1.9, revising the decision in Appendix B.13)"
     }
    }
   },
@@ -1740,70 +1740,70 @@
    "tests": {
     "TestDimension::test_dimension_interface": {
      "status": "adapted",
-     "reason": "dict ではなくプロパティ"
+     "reason": "Properties instead of a dict"
     },
     "TestDimension::test_repr": {
      "status": "adapted",
-     "reason": "等価性で検証"
+     "reason": "Checked by equality"
     },
     "TestRowDimension::test_row_dimension": {
      "status": "adapted",
-     "reason": "書き出した `<row>` 属性で検証"
+     "reason": "Checked on the written `<row>` attributes"
     },
     "TestRowDimension::test_row_auto_assign": {
      "status": "adapted",
-     "reason": "既定値を返す"
+     "reason": "Returns defaults"
     },
     "TestRowDimension::test_copy": {
      "status": "adapted",
-     "reason": "値型"
+     "reason": "Value type"
     },
     "TestColDimension::test_col_dimensions": {
      "status": "adapted",
-     "reason": "bestFit は幅 13 を自動設定しない"
+     "reason": "bestFit does not set a width of 13 automatically"
     },
     "TestColDimension::test_column_dimension": {
      "status": "ported"
     },
     "TestColDimension::test_col_reindex": {
      "status": "adapted",
-     "reason": "書き出した `<col>` で検証"
+     "reason": "Checked on the written `<col>`"
     },
     "TestColDimension::test_col_width": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestColDimension::test_col_style": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestColDimension::test_outline_cols": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestColDimension::test_copy": {
      "status": "adapted",
-     "reason": "値型"
+     "reason": "Value type"
     },
     "TestColDimension::test_empty_col": {
      "status": "adapted",
-     "reason": "既定の dimension は書かない"
+     "reason": "Default dimensions are not written"
     },
     "TestColDimension::test_range": {
      "status": "adapted",
-     "reason": "`columnGroups` で検証"
+     "reason": "Checked via `columnGroups`"
     },
     "TestGrouping::test_group_columns_simple": {
      "status": "adapted",
-     "reason": "`groupColumns`（列ごとに保持）"
+     "reason": "`groupColumns` (kept per column)"
     },
     "TestGrouping::test_group_columns_collapse": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestGrouping::test_no_cols": {
      "status": "adapted",
-     "reason": "書き出しで検証"
+     "reason": "Checked on the written output"
     },
     "TestGrouping::test_group_rows_simple": {
      "status": "adapted",
@@ -1811,50 +1811,50 @@
     },
     "TestGrouping::test_group_rows_collapse": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestGrouping::test_no_rows": {
      "status": "adapted",
-     "reason": "書き出しで検証"
+     "reason": "Checked on the written output"
     },
     "TestGrouping::test_to_tree": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestDimension::test_invalid_dimension_ctor": {
      "status": "na_python",
-     "reason": "引数必須の TypeError（Swift は型で保証）"
+     "reason": "TypeError for a required argument (Swift guarantees it through types)"
     },
     "TestColDimension::test_no_named_style": {
      "status": "na_api",
-     "reason": "名前付きスタイルは未実装"
+     "reason": "Named styles are not implemented"
     }
    }
   },
   "worksheet/tests/test_filters.py": {
    "default": "na_api",
-   "reason": "色 / アイコン / 動的 / 上位 10 / 日付グループのフィルタと、openpyxl が文字列条件を組み立てるヘルパ（startswith 等）は持たない。前者はソースの XML をそのまま保全する",
+   "reason": "No colour / icon / dynamic / top 10 / date-group filters, nor openpyxl's helpers that build string conditions (startswith, etc.). The former are preserved as the source XML, unchanged",
    "api": "Sheet.filterColumns / sortState",
    "tests": {
     "TestFilterColumn::test_from_xml": {
      "status": "adapted",
-     "reason": "XML 比較ではなく往復で検証"
+     "reason": "Checked by a round trip instead of XML comparison"
     },
     "TestFilters::test_from_xml": {
      "status": "adapted",
-     "reason": "<filters blank> と <filter val> を FilterColumn へ"
+     "reason": "<filters blank> and <filter val> into FilterColumn"
     },
     "TestFilters::test_write_filters": {
      "status": "adapted",
-     "reason": "生成した <filters> の中身を検証"
+     "reason": "Checks the contents of the generated <filters>"
     },
     "TestCustomFilters::test_from_xml": {
      "status": "adapted",
-     "reason": "<customFilters and> を FilterColumn.matchesAllConditions へ"
+     "reason": "<customFilters and> into FilterColumn.matchesAllConditions"
     },
     "TestCustomFilter::test_from_xml": {
      "status": "adapted",
-     "reason": "operator / val を FilterCondition へ"
+     "reason": "operator / val into FilterCondition"
     },
     "TestSortState::test_from_xml": {
      "status": "adapted",
@@ -1866,75 +1866,75 @@
     },
     "TestAutoFilter::test_from_xml": {
      "status": "adapted",
-     "reason": "ref と子要素をまとめて"
+     "reason": "ref and the child elements together"
     },
     "TestAutoFilter::test_add_filter_column": {
      "status": "adapted",
-     "reason": "filterColumns への追加（値型なので配列を組み立てる）"
+     "reason": "Appending to filterColumns (a value type, so the array is built up)"
     },
     "TestAutoFilter::test_add_sort_condition": {
      "status": "adapted",
-     "reason": "sortState.conditions への追加"
+     "reason": "Appending to sortState.conditions"
     },
     "TestColorFilter::test_from_xml": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestColorFilter::test_ctor": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestIconFilter::test_ctor": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestIconFilter::test_from_xml": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestTop10::test_ctor": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestTop10::test_from_xml": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestDynamicFilter::test_ctor": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestDynamicFilter::test_from_xml": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestDateGroupItem::test_ctor": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     },
     "TestDateGroupItem::test_from_xml": {
      "status": "adapted",
-     "reason": "色・アイコン・上位10・動的・日付グループの絞り込みを FilterColumn に取り込んだ（Rev 1.9）"
+     "reason": "Colour, icon, top 10, dynamic and date-group filters were brought into FilterColumn (Rev 1.9)"
     }
    }
   },
   "worksheet/tests/test_formula.py": {
    "default": "na_api",
-   "reason": "ArrayFormula / DataTableFormula は未実装",
+   "reason": "ArrayFormula / DataTableFormula are not implemented",
    "api": "Array formulas"
   },
   "worksheet/tests/test_header.py": {
    "default": "na_api",
-   "reason": "&L / &C / &R をセクションに分解する openpyxl の HeaderFooterPart は持たない — Excel の符号つき文字列のまま運ぶ",
+   "reason": "No counterpart of openpyxl's HeaderFooterPart, which splits &L / &C / &R into sections — Excel's coded string is carried as is",
    "api": "Sheet.headerFooter",
    "tests": {
     "TestHeaderFooterItem::test_write": {
      "status": "adapted",
-     "reason": "文字列をそのまま書く（分解しない）"
+     "reason": "Writes the string as is (not split)"
     },
     "TestHeaderFooter::test_from_xml": {
      "status": "adapted",
-     "reason": "differentOddEven / differentFirst / scaleWithDoc / alignWithMargins と 6 つの本文を読む"
+     "reason": "Reads differentOddEven / differentFirst / scaleWithDoc / alignWithMargins and the 6 header and footer texts"
     },
     "TestHeaderFooter::test_bool": {
      "status": "adapted",
@@ -1946,19 +1946,19 @@
    "tests": {
     "TestHyperlink::test_ctor": {
      "status": "adapted",
-     "reason": "書き出した `<hyperlink>` で検証"
+     "reason": "Checked on the written `<hyperlink>`"
     },
     "TestHyperlink::test_from_xml": {
      "status": "adapted",
-     "reason": "SheetParser で読む"
+     "reason": "Read with SheetParser"
     },
     "TestHyperlinkList::test_ctor": {
      "status": "adapted",
-     "reason": "リンクが無ければ要素を書かない"
+     "reason": "No element is written when there are no links"
     },
     "TestHyperlinkList::test_from_xml": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     }
    }
   },
@@ -1969,15 +1969,15 @@
    "tests": {
     "TestMergeCell::test_ctor": {
      "status": "adapted",
-     "reason": "書き出した `<mergeCells>` で検証"
+     "reason": "Checked on the written `<mergeCells>`"
     },
     "TestMergeCell::test_from_xml": {
      "status": "adapted",
-     "reason": "SheetParser で読む"
+     "reason": "Read with SheetParser"
     },
     "TestMergeCell::test_copy": {
      "status": "adapted",
-     "reason": "値型"
+     "reason": "Value type"
     },
     "TestMergedCellRange::test_ctor": {
      "status": "adapted",
@@ -2000,7 +2000,7 @@
     },
     "TestMergedCellRange::test_copy": {
      "status": "adapted",
-     "reason": "配列の等価性"
+     "reason": "Array equality"
     },
     "TestMergedCellRange::test_contains": {
      "status": "adapted",
@@ -2008,7 +2008,7 @@
     },
     "TestMergedCellRange::test_not_contained": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestMergedCellRange::test_empty_side": {
      "status": "ported"
@@ -2017,22 +2017,22 @@
   },
   "worksheet/tests/test_ole.py": {
    "default": "na_api",
-   "reason": "OLE オブジェクトは未実装",
+   "reason": "OLE objects are not implemented",
    "api": "OLE objects"
   },
   "worksheet/tests/test_page.py": {
    "tests": {
     "TestPageMargins::test_ctor": {
      "status": "adapted",
-     "reason": "プロパティで検証"
+     "reason": "Checked via properties"
     },
     "TestPageMargins::test_write": {
      "status": "adapted",
-     "reason": "書き出し XML で検証"
+     "reason": "Checked on the written XML"
     },
     "TestPageSetup::test_ctor": {
      "status": "adapted",
-     "reason": "paperHeight / id は無い"
+     "reason": "No paperHeight / id"
     },
     "TestPageSetup::test_fitToPage": {
      "status": "adapted",
@@ -2040,38 +2040,38 @@
     },
     "TestPageSetup::test_write": {
      "status": "adapted",
-     "reason": "書き出し XML で検証"
+     "reason": "Checked on the written XML"
     },
     "TestPrintOptions::test_ctor": {
      "status": "adapted",
-     "reason": "プロパティで検証"
+     "reason": "Checked via properties"
     },
     "TestPrintOptions::test_write": {
      "status": "adapted",
-     "reason": "書き出し XML で検証"
+     "reason": "Checked on the written XML"
     },
     "TestPageSetup::test_autoPageBreaks": {
      "status": "na_api",
-     "reason": "autoPageBreaks は未実装"
+     "reason": "autoPageBreaks is not implemented"
     }
    }
   },
   "worksheet/tests/test_pagebreak.py": {
    "default": "na_api",
-   "reason": "openpyxl の Break / BreakList 型に相当するものは無い — 改ページは 0 始まりの索引の配列",
+   "reason": "Nothing corresponds to openpyxl's Break / BreakList types — page breaks are an array of 0-based indices",
    "api": "Sheet.rowBreaks / columnBreaks",
    "tests": {
     "TestRowBreak::test_to_tree": {
      "status": "adapted",
-     "reason": "XML 比較ではなく、生成した <rowBreaks> の中身と往復で検証"
+     "reason": "Checked by the contents of the generated <rowBreaks> and a round trip, instead of XML comparison"
     },
     "TestColBreak::test_to_tree": {
      "status": "adapted",
-     "reason": "同上（<colBreaks>）"
+     "reason": "Same as above (<colBreaks>)"
     },
     "TestRowBreak::test_no_brks": {
      "status": "adapted",
-     "reason": "空なら要素ごと書かない"
+     "reason": "The whole element is omitted when empty"
     }
    }
   },
@@ -2079,7 +2079,7 @@
    "tests": {
     "TestColRange::test_from_string": {
      "status": "adapted",
-     "reason": "ColRange 型は無い — `printTitleColumns`"
+     "reason": "No ColRange type — `printTitleColumns`"
     },
     "TestColRange::test_str": {
      "status": "adapted",
@@ -2107,7 +2107,7 @@
     },
     "TestPrintTitles::test_eq": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestPrintArea::test_from_string": {
      "status": "adapted",
@@ -2115,15 +2115,15 @@
     },
     "TestPrintArea::test_empty": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestPrintArea::test_str": {
      "status": "adapted",
-     "reason": "シート名を含めて書く（openpyxl は '' ）"
+     "reason": "Written with the sheet name included (openpyxl gives '')"
     },
     "TestPrintArea::test_eq": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestColRange::test_repr": {
      "status": "na_python",
@@ -2139,88 +2139,88 @@
    "tests": {
     "test_ctor": {
      "status": "adapted",
-     "reason": "dict ではなくプロパティ"
+     "reason": "Properties instead of a dict"
     },
     "test_write_properties": {
      "status": "adapted",
-     "reason": "書き出し XML"
+     "reason": "The written XML"
     },
     "test_parse_properties": {
      "status": "adapted",
-     "reason": "SheetParser で読む"
+     "reason": "Read with SheetParser"
     }
    }
   },
   "worksheet/tests/test_protection.py": {
    "default": "na_api",
-   "reason": "シート保護は未実装",
+   "reason": "Sheet protection is not implemented",
    "api": "Sheet protection",
    "tests": {
     "TestSheetProtection::test_ctor": {
      "status": "adapted",
-     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+     "reason": "Protection is read and written as SheetProtection (named for what it allows; Rev 1.9)"
     },
     "TestSheetProtection::test_bool": {
      "status": "adapted",
-     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+     "reason": "Protection is read and written as SheetProtection (named for what it allows; Rev 1.9)"
     },
     "test_ctor_with_password": {
      "status": "adapted",
-     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+     "reason": "Protection is read and written as SheetProtection (named for what it allows; Rev 1.9)"
     },
     "test_explicit_password": {
      "status": "adapted",
-     "reason": "保護は SheetProtection として読み書きする（許可の向きで命名。Rev 1.9）"
+     "reason": "Protection is read and written as SheetProtection (named for what it allows; Rev 1.9)"
     }
    }
   },
   "worksheet/tests/test_read_only.py": {
    "default": "na_api",
-   "reason": "read_only モードは未実装",
+   "reason": "read_only mode is not implemented",
    "api": "read_only",
    "tests": {
     "TestReadOnlyWorksheet::test_read_rows": {
      "status": "adapted",
-     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+     "reason": "Streaming reads use StreamingReader (each row is discarded as soon as it is handed over; Rev 1.9)"
     },
     "TestReadOnlyWorksheet::test_iter": {
      "status": "adapted",
-     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+     "reason": "Streaming reads use StreamingReader (each row is discarded as soon as it is handed over; Rev 1.9)"
     },
     "TestReadOnlyWorksheet::test_pad_row": {
      "status": "adapted",
-     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+     "reason": "Streaming reads use StreamingReader (each row is discarded as soon as it is handed over; Rev 1.9)"
     },
     "TestReadOnlyWorksheet::test_empty_cell": {
      "status": "adapted",
-     "reason": "逐次読み取りは StreamingReader（行を渡したそばから捨てる。Rev 1.9）"
+     "reason": "Streaming reads use StreamingReader (each row is discarded as soon as it is handed over; Rev 1.9)"
     }
    }
   },
   "worksheet/tests/test_reader.py": {
    "default": "na_api",
-   "reason": "シート保護 / 共有数式 / 配列数式 / 条件付き書式 / テーブル / 改ページ / シナリオ / legacyDrawing / customSheetViews は未実装",
+   "reason": "Sheet protection / shared formulas / array formulas / conditional formatting / tables / page breaks / scenarios / legacyDrawing / customSheetViews are not implemented",
    "api": "Sheet parts",
    "tests": {
     "test_number_convesion": {
      "status": "adapted",
-     "reason": "`_cast_number` は非公開 — 読んだ値で検証"
+     "reason": "`_cast_number` is private — checked on the values read"
     },
     "TestWorksheetParser::test_read_dimension": {
      "status": "adapted",
-     "reason": "不正な dimension は nil"
+     "reason": "An invalid dimension gives nil"
     },
     "TestWorksheetParser::test_col_width": {
      "status": "adapted",
-     "reason": "dict ではなく ColumnDimension"
+     "reason": "ColumnDimension instead of a dict"
     },
     "TestWorksheetParser::test_hidden_col": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_styled_col": {
      "status": "adapted",
-     "reason": "style は解決済み CellStyle"
+     "reason": "style is a resolved CellStyle"
     },
     "TestWorksheetParser::test_row_dimensions": {
      "status": "ported"
@@ -2231,7 +2231,7 @@
     },
     "TestWorksheetParser::test_styled_row": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_read_row_with_exponent": {
      "status": "adapted",
@@ -2243,27 +2243,27 @@
     },
     "TestWorksheetParser::test_sheet_protection": {
      "status": "na_api",
-     "reason": "シート保護は未実装"
+     "reason": "Sheet protection is not implemented"
     },
     "TestWorksheetParser::test_formula": {
      "status": "adapted",
-     "reason": "Cell で検証"
+     "reason": "Checked via Cell"
     },
     "TestWorksheetParser::test_formula_data_only": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_string_formula_data_only": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_number": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_datetime": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_timedelta": {
      "status": "adapted",
@@ -2271,134 +2271,134 @@
     },
     "TestWorksheetParser::test_mac_date": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_out_of_range_datetime": {
      "status": "adapted",
-     "reason": "警告は無い — 先発グレゴリオ暦で保持"
+     "reason": "No warning — kept in the proleptic Gregorian calendar"
     },
     "TestWorksheetParser::test_string": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_boolean": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_inline_string": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_inline_richtext": {
      "status": "adapted",
-     "reason": "同上（rich_text フラグは無く常に保持）"
+     "reason": "Same as above (no rich_text flag; always kept)"
     },
     "TestWorksheetParser::test_parse_richtext": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_sheet_views": {
      "status": "adapted",
-     "reason": "view / freezePanes で検証"
+     "reason": "Checked via view / freezePanes"
     },
     "TestWorksheetParser::test_shared_formula": {
      "status": "na_api",
-     "reason": "共有数式の展開（数式翻訳）は未実装"
+     "reason": "Expanding shared formulas (formula translation) is not implemented"
     },
     "TestWorksheetParser::test_array_formula": {
      "status": "na_api",
-     "reason": "配列数式は未実装"
+     "reason": "Array formulas are not implemented"
     },
     "TestWorksheetParser::test_table_formula": {
      "status": "na_api",
-     "reason": "データテーブル数式は未実装"
+     "reason": "Data table formulas are not implemented"
     },
     "TestWorksheetParser::test_extended_conditional_formatting": {
      "status": "na_api",
-     "reason": "条件付き書式は未実装"
+     "reason": "Conditional formatting is not implemented"
     },
     "TestWorksheetParser::test_bad_conditional_format_rule": {
      "status": "na_api",
-     "reason": "条件付き書式は未実装"
+     "reason": "Conditional formatting is not implemented"
     },
     "TestWorksheetParser::test_cell_without_coordinates": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_row_and_cell_without_coordinates": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_row_and_cell_skipping_coordinates": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_second_row_cell_index_without_coordinates": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_external_hyperlinks": {
      "status": "adapted",
-     "reason": "セルのリンクで検証"
+     "reason": "Checked via cell links"
     },
     "TestWorksheetParser::test_local_hyperlinks": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_merge_cells": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_conditonal_formatting": {
      "status": "na_api",
-     "reason": "条件付き書式は未実装"
+     "reason": "Conditional formatting is not implemented"
     },
     "TestWorksheetParser::test_sheet_properties": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_sheet_format": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetParser::test_tables": {
      "status": "na_api",
-     "reason": "テーブルは未実装"
+     "reason": "Tables are not implemented"
     },
     "TestWorksheetParser::test_auto_filter": {
      "status": "adapted",
-     "reason": "sortState は読まない"
+     "reason": "sortState is not read"
     },
     "TestWorksheetParser::test_page_row_break": {
      "status": "na_api",
-     "reason": "改ページは未実装"
+     "reason": "Page breaks are not implemented"
     },
     "TestWorksheetParser::test_col_break": {
      "status": "na_api",
-     "reason": "改ページは未実装"
+     "reason": "Page breaks are not implemented"
     },
     "TestWorksheetParser::test_scenarios": {
      "status": "na_api",
-     "reason": "シナリオは未実装"
+     "reason": "Scenarios are not implemented"
     },
     "TestWorksheetParser::test_legacy": {
      "status": "na_api",
-     "reason": "legacyDrawing は未実装"
+     "reason": "legacyDrawing is not implemented"
     },
     "TestWorksheetParser::test_custom_views_breaks": {
      "status": "na_api",
-     "reason": "customSheetViews は未実装"
+     "reason": "customSheetViews is not implemented"
     },
     "TestWorksheetReader::test_cell": {
      "status": "ported"
     },
     "TestWorksheetReader::test_array_formula": {
      "status": "na_api",
-     "reason": "配列数式は未実装"
+     "reason": "Array formulas are not implemented"
     },
     "TestWorksheetReader::test_formatting": {
      "status": "na_api",
-     "reason": "条件付き書式は未実装"
+     "reason": "Conditional formatting is not implemented"
     },
     "TestWorksheetReader::test_merged": {
      "status": "ported"
@@ -2418,19 +2418,19 @@
     },
     "TestWorksheetReader::test_tables": {
      "status": "na_api",
-     "reason": "テーブルは未実装"
+     "reason": "Tables are not implemented"
     },
     "TestWorksheetReader::test_cols": {
      "status": "adapted",
-     "reason": "dimension の parent は無い"
+     "reason": "No parent on a dimension"
     },
     "TestWorksheetReader::test_rows": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetReader::test_properties": {
      "status": "adapted",
-     "reason": "値で検証"
+     "reason": "Checked by value"
     },
     "TestWorksheetReader::test_more_rows_than_cells": {
      "status": "adapted",
@@ -2440,76 +2440,76 @@
   },
   "worksheet/tests/test_related.py": {
    "default": "na_api",
-   "reason": "関連パーツ（related）は未実装",
+   "reason": "Related parts (related) are not implemented",
    "api": "Related parts"
   },
   "worksheet/tests/test_scenario.py": {
    "default": "na_api",
-   "reason": "シナリオは未実装",
+   "reason": "Scenarios are not implemented",
    "api": "Scenarios",
    "tests": {
     "TestScenario::test_ctor": {
      "status": "adapted",
-     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+     "reason": "Scenarios are read and written as ScenarioList (Rev 1.9)"
     },
     "TestScenario::test_from_xml": {
      "status": "adapted",
-     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+     "reason": "Scenarios are read and written as ScenarioList (Rev 1.9)"
     },
     "TestScenarios::test_ctor": {
      "status": "adapted",
-     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+     "reason": "Scenarios are read and written as ScenarioList (Rev 1.9)"
     },
     "TestScenarios::test_from_xml": {
      "status": "adapted",
-     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+     "reason": "Scenarios are read and written as ScenarioList (Rev 1.9)"
     },
     "TestInputCells::test_ctor": {
      "status": "adapted",
-     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+     "reason": "Scenarios are read and written as ScenarioList (Rev 1.9)"
     },
     "TestInputCells::test_from_xml": {
      "status": "adapted",
-     "reason": "シナリオは ScenarioList として読み書きする（Rev 1.9）"
+     "reason": "Scenarios are read and written as ScenarioList (Rev 1.9)"
     }
    }
   },
   "worksheet/tests/test_table.py": {
    "default": "na_api",
-   "reason": "テーブル（ListObject）は未実装",
+   "reason": "Tables (ListObject) are not implemented",
    "api": "Tables",
    "tests": {
     "TestTable::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTable::test_write": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTable::test_path": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTablePartList::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTableColumn::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTableColumn::test_from_xml": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTableInfo::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     },
     "TestTableFormula::test_ctor": {
      "status": "adapted",
-     "reason": "名前付きの表は Sheet.structuredTables として読み書きする（Rev 1.9）"
+     "reason": "Structured tables are read and written as Sheet.structuredTables (Rev 1.9)"
     }
    }
   },
@@ -2517,19 +2517,19 @@
    "tests": {
     "test_show_gridlines": {
      "status": "adapted",
-     "reason": "書き出し XML で検証"
+     "reason": "Checked on the written XML"
     },
     "test_parse": {
      "status": "adapted",
-     "reason": "SheetParser で読む（selection は最後のものだけ）"
+     "reason": "Read with SheetParser (only the last selection)"
     },
     "test_serialise": {
      "status": "adapted",
-     "reason": "書き出し XML"
+     "reason": "The written XML"
     },
     "TestSheetViews::test_ctor": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestSheetViews::test_from_xml": {
      "status": "adapted",
@@ -2539,12 +2539,12 @@
   },
   "worksheet/tests/test_worksheet.py": {
    "default": "na_api",
-   "reason": "数式翻訳 / テーブル / グラフ / 画像は未実装",
+   "reason": "Formula translation / tables / charts / images are not implemented",
    "api": "Formula translation",
    "tests": {
     "TestWorksheet::test_path": {
      "status": "na_python",
-     "reason": "内部パス属性"
+     "reason": "Internal path attribute"
     },
     "TestWorksheet::test_new_worksheet": {
      "status": "ported"
@@ -2554,7 +2554,7 @@
     },
     "TestWorksheet::test_invalid_cell": {
      "status": "adapted",
-     "reason": "例外ではなく CellReference が nil"
+     "reason": "CellReference is nil instead of an exception"
     },
     "TestWorksheet::test_worksheet_dimension": {
      "status": "ported"
@@ -2570,7 +2570,7 @@
     },
     "TestWorksheet::test_cell_insufficient_coordinates": {
      "status": "na_python",
-     "reason": "TypeError（Swift は引数必須）"
+     "reason": "TypeError (the arguments are required in Swift)"
     },
     "TestWorksheet::test_hyperlink_value": {
      "status": "ported"
@@ -2596,14 +2596,14 @@
     },
     "TestWorksheet::test_append_iterator": {
      "status": "adapted",
-     "reason": "イテレータは配列に畳む"
+     "reason": "An iterator is collapsed into an array"
     },
     "TestWorksheet::test_append_2d_list": {
      "status": "ported"
     },
     "TestWorksheet::test_append_cell": {
      "status": "adapted",
-     "reason": "Cell ではなく値を渡す"
+     "reason": "Values are passed instead of a Cell"
     },
     "TestWorksheet::test_rows": {
      "status": "ported"
@@ -2634,7 +2634,7 @@
     },
     "TestWorksheet::test_getitem_invalid": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheet::test_setitem": {
      "status": "ported"
@@ -2666,7 +2666,7 @@
     },
     "TestWorksheet::test_merge_range_string": {
      "status": "adapted",
-     "reason": "MergedCell 型は無い — 値が消えることを検証"
+     "reason": "No MergedCell type — checks that the values are cleared"
     },
     "TestWorksheet::test_merge_coordinate": {
      "status": "ported"
@@ -2682,7 +2682,7 @@
     },
     "TestWorksheet::test_unmerge_coordinate": {
      "status": "adapted",
-     "reason": "`unmergeCells` は Bool を返す"
+     "reason": "`unmergeCells` returns a Bool"
     },
     "TestWorksheet::test_print_titles": {
      "status": "adapted",
@@ -2700,53 +2700,53 @@
     },
     "TestWorksheet::test_gridlines": {
      "status": "adapted",
-     "reason": "既定は Excel の表示（openpyxl は未設定＝偽）"
+     "reason": "Defaults to shown, as in Excel (in openpyxl, unset = false)"
     },
     "TestWorksheet::test_add_table": {
      "status": "na_api",
-     "reason": "テーブルは未実装"
+     "reason": "Tables are not implemented"
     },
     "TestWorksheet::test_column_groups": {
      "status": "adapted",
-     "reason": "列ごとの dimension から `columnGroups` を導出"
+     "reason": "`columnGroups` derived from the per-column dimensions"
     },
     "test_freeze_panes_horiz": {
      "status": "adapted",
-     "reason": "sheet_view オブジェクトは無い — 書き出した `<pane>` で検証（activePane は常に bottomRight）"
+     "reason": "No sheet_view object — checked on the written `<pane>` (activePane is always bottomRight)"
     },
     "test_freeze_panes_vert": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_freeze_panes_both": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "test_min_column": {
      "status": "adapted",
-     "reason": "空シートの extent は nil（openpyxl は 1）"
+     "reason": "An empty sheet's extent is nil (1 in openpyxl)"
     },
     "test_max_column": {
      "status": "ported"
     },
     "test_min_row": {
      "status": "adapted",
-     "reason": "空シートの extent は nil（openpyxl は 1）"
+     "reason": "An empty sheet's extent is nil (1 in openpyxl)"
     },
     "test_max_row": {
      "status": "ported"
     },
     "test_add_chart": {
      "status": "na_api",
-     "reason": "グラフは未実装"
+     "reason": "Charts are not implemented"
     },
     "test_add_image": {
      "status": "na_api",
-     "reason": "画像は未実装"
+     "reason": "Images are not implemented"
     },
     "TestEditableWorksheet::test_move_row_down": {
      "status": "adapted",
-     "reason": "`_move_cells` は非公開 — `insertRows` で検証"
+     "reason": "`_move_cells` is private — checked via `insertRows`"
     },
     "TestEditableWorksheet::test_move_col_right": {
      "status": "adapted",
@@ -2788,11 +2788,11 @@
     },
     "TestEditableWorksheet::test_move_cell": {
      "status": "adapted",
-     "reason": "内部 API `moveCell`"
+     "reason": "Internal API `moveCell`"
     },
     "TestEditableWorksheet::test_move_translated_fomula": {
      "status": "adapted",
-     "reason": "数式の変換（translate=True）は無い — translate=False の 1 ケースのみ"
+     "reason": "No formula translation (translate=True) — only 1 case, with translate=False"
     },
     "TestEditableWorksheet::test_move_nothing": {
      "status": "ported"
@@ -2817,46 +2817,46 @@
     },
     "TestEditableWorksheet::test_move_range_with_formula": {
      "status": "na_api",
-     "reason": "数式の翻訳は未実装"
+     "reason": "Formula translation is not implemented"
     },
     "test_deleta_all_rows": {
      "status": "adapted",
-     "reason": "空シートの rowCount は 0（openpyxl の max_row は 1）"
+     "reason": "An empty sheet's rowCount is 0 (openpyxl's max_row is 1)"
     },
     "test_move_cell": {
      "status": "adapted",
-     "reason": "_move_cell は無い — 1 セルの moveRange で検証"
+     "reason": "No _move_cell — checked with a 1-cell moveRange"
     },
     "test_move_translated_fomula": {
      "status": "adapted",
-     "reason": "_move_cell は無い — 1 セルの moveRange で検証"
+     "reason": "No _move_cell — checked with a 1-cell moveRange"
     },
     "test_new_worksheet": {
      "status": "adapted",
-     "reason": "シートはワークブックへの逆参照を持たない — 収納の有無で検証"
+     "reason": "A sheet holds no back-reference to its workbook — checked by the workbook containing it"
     },
     "test_one_cell": {
      "status": "adapted",
-     "reason": "読み取りはセルを作らない — 書式だけのセルで検証、同一性は値の等価に"
+     "reason": "Reading a cell does not create it — checked with a formatting-only cell; identity becomes value equality"
     },
     "test_remainder": {
      "status": "adapted",
-     "reason": "_gutter は無い — 削除後に remainder 行が空であることで検証"
+     "reason": "No _gutter — checked by the remainder rows being empty after the deletion"
     }
    }
   },
   "worksheet/tests/test_worksheet_copy.py": {
    "default": "na_api",
-   "reason": "別ブック間コピーの検証は無い（同一ブックのみ）",
+   "reason": "No check of copying between workbooks (same workbook only)",
    "api": "copyWorksheet",
    "tests": {
     "TestWorksheetCopy::test_ctor": {
      "status": "adapted",
-     "reason": "WorksheetCopy 型は無い — `copyWorksheet`"
+     "reason": "No WorksheetCopy type — `copyWorksheet`"
     },
     "TestWorksheetCopy::test_cannot_copy_between_workbooks": {
      "status": "na_api",
-     "reason": "copyWorksheet は同一ブック内のみ"
+     "reason": "copyWorksheet works within one workbook only"
     },
     "TestWorksheetCopy::test_cannot_copy_to_self": {
      "status": "na_python",
@@ -2892,211 +2892,211 @@
     },
     "TestWorksheetCopy::test_copy_page_setup": {
      "status": "adapted",
-     "reason": "`draft` は無い — orientation で検証"
+     "reason": "No `draft` — checked via orientation"
     },
     "TestWorksheetCopy::test_copy_print_options": {
      "status": "ported"
     },
     "test_copy_worksheet": {
      "status": "adapted",
-     "reason": "`compare_cells` 相当を値・型・注釈・リンク・スタイルで"
+     "reason": "The equivalent of `compare_cells`, on values, types, notes, links and styles"
     },
     "test_ctor": {
      "status": "adapted",
-     "reason": "シートは値型 — 複製が別名で収納されることを検証"
+     "reason": "A sheet is a value type — checks that the copy is stored under a name of its own"
     }
    }
   },
   "worksheet/tests/test_write_only.py": {
    "default": "na_api",
-   "reason": "write_only モードは未実装",
+   "reason": "write_only mode is not implemented",
    "api": "write_only",
    "tests": {
     "test_append": {
      "status": "adapted",
-     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+     "reason": "Streaming write goes through StreamingWriter (each row is compressed and released as soon as it is written; Rev 1.9)"
     },
     "test_close": {
      "status": "adapted",
-     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+     "reason": "Streaming write goes through StreamingWriter (each row is compressed and released as soon as it is written; Rev 1.9)"
     },
     "test_write_only_cell": {
      "status": "adapted",
-     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+     "reason": "Streaming write goes through StreamingWriter (each row is compressed and released as soon as it is written; Rev 1.9)"
     },
     "test_path": {
      "status": "adapted",
-     "reason": "逐次書き出しは StreamingWriter（行を書いたそばから圧縮して捨てる。Rev 1.9）"
+     "reason": "Streaming write goes through StreamingWriter (each row is compressed and released as soon as it is written; Rev 1.9)"
     }
    }
   },
   "worksheet/tests/test_writer.py": {
    "default": "na_api",
-   "reason": "シート保護 / シナリオ / 条件付き書式 / データ検証 / ヘッダー / 改ページ / 図形 / コメント / VBA / テーブル は未実装",
+   "reason": "Sheet protection / scenarios / conditional formatting / data validation / headers / page breaks / shapes / comments / VBA / tables are not implemented",
    "api": "Sheet parts",
    "tests": {
     "TestWorksheetWriter::test_setup": {
      "status": "adapted",
-     "reason": "内部リストは無い"
+     "reason": "No internal lists"
     },
     "TestWorksheetWriter::test_properties": {
      "status": "adapted",
-     "reason": "部分文字列"
+     "reason": "By substring"
     },
     "TestWorksheetWriter::test_dimensions": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_format": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_views": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_cols": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_write_top": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_filter": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_merged_cells": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_hyperlinks": {
      "status": "adapted",
-     "reason": "rels 文字列で検証"
+     "reason": "Checked via the rels string"
     },
     "TestWorksheetWriter::test_print": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_margins": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_page_setup": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_write_tail": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_row_dimensons": {
      "status": "adapted",
-     "reason": "書き出し順で検証"
+     "reason": "Checked by write order"
     },
     "TestWorksheetWriter::test_rows_sort": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_write_rows": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_write_rows_comment": {
      "status": "na_api",
-     "reason": "コメントの書き出しは未実装"
+     "reason": "Writing comments is not implemented"
     },
     "TestWorksheetWriter::test_write_row": {
      "status": "adapted",
-     "reason": "同上"
+     "reason": "Same as above"
     },
     "TestWorksheetWriter::test_write_sheet": {
      "status": "adapted",
-     "reason": "完全一致"
+     "reason": "Exact match"
     },
     "TestWorksheetWriter::test_cleanup": {
      "status": "na_python",
-     "reason": "一時ファイル"
+     "reason": "Temporary files"
     }
    }
   },
   "writer/tests/test_excel.py": {
    "default": "na_api",
-   "reason": "テーブル / 図形 / グラフ / 画像 / チャートシート / コメント / VBA は未実装",
+   "reason": "Tables / shapes / charts / images / chartsheets / comments / VBA are not implemented",
    "api": "Drawings / Charts",
    "tests": {
     "test_worksheet": {
      "status": "adapted",
-     "reason": "manifest オブジェクトは無い — [Content_Types].xml の文字列で検証"
+     "reason": "No manifest object — checked via the [Content_Types].xml string"
     },
     "test_write_empty_workbook": {
      "status": "ported"
     },
     "test_modified": {
      "status": "adapted",
-     "reason": "保存時に modified を更新しない（再現可能な出力を優先）"
+     "reason": "modified is not updated on save (reproducible output takes priority)"
     }
    }
   },
   "writer/tests/test_template.py": {
    "default": "na_api",
-   "reason": "テンプレート（xltx / xltm）は未実装",
+   "reason": "Templates (xltx / xltm) are not implemented",
    "api": "Templates"
   },
   "comments/tests/test_comment_reader.py": {
    "default": "na_api",
-   "reason": "コメント読みは対応。イテレータ経由の読みだけ非対応（read_only が無い）",
+   "reason": "Reading comments is supported. Only reading through an iterator is not (there is no read_only)",
    "api": "CellNote",
    "tests": {
     "test_read_comments": {
      "status": "adapted",
-     "reason": "openpyxl のフィクスチャではなく、コメント入りブックを読んで Cell.comment を検証"
+     "reason": "Instead of openpyxl's fixture, reads a workbook with comments and checks Cell.comment"
     },
     "test_comments_cell_association": {
      "status": "adapted",
-     "reason": "メモはセルに載る（別テーブルを持たない）"
+     "reason": "Notes are carried on the cell (no separate table)"
     }
    }
   },
   "comments/tests/test_comment_sheet.py": {
    "default": "na_api",
-   "reason": "openpyxl の CommentSheet / CommentRecord に相当する型は無い（メモはセルに載る）",
+   "reason": "No type corresponds to openpyxl's CommentSheet / CommentRecord (notes are carried on the cell)",
    "api": "CellNote",
    "tests": {
     "TestCommentSheet::test_read_comments": {
      "status": "adapted",
-     "reason": "comments パートの読み"
+     "reason": "Reading the comments part"
     },
     "TestCommentSheet::test_from_comments": {
      "status": "adapted",
-     "reason": "comments パートの書き出し（authors 表を含む）"
+     "reason": "Writing the comments part (including the authors table)"
     }
    }
   },
   "comments/tests/test_shape_writer.py": {
    "default": "na_api",
-   "reason": "openpyxl の ShapeWriter に相当する型は無い。既存 VML への統合（merge_comments_vml）は非対応 — 作り直して警告する",
+   "reason": "No type corresponds to openpyxl's ShapeWriter. Merging into existing VML (merge_comments_vml) is not supported — the VML is rebuilt with a warning",
    "api": "CellNote",
    "tests": {
     "test_write_comments_vml": {
      "status": "adapted",
-     "reason": "VML の生成 — XML 比較ではなく、openpyxl と LibreOffice が読み戻せることで検証"
+     "reason": "Generating VML — instead of XML comparison, checked by openpyxl and LibreOffice reading it back"
     },
     "test_shape_with_custom_size": {
      "status": "adapted",
-     "reason": "CellNote.width / height が VML の style に出て、読みで戻る"
+     "reason": "CellNote.width / height are written to the VML style and come back on read"
     }
    }
   },
   "comments/tests/test_author.py": {
    "default": "na_api",
-   "reason": "作成者は文字列で、専用の型を持たない",
+   "reason": "The author is a string, with no dedicated type",
    "api": "CellNote",
    "tests": {
     "TestAuthor::test_from_xml": {
      "status": "adapted",
-     "reason": "authors 表は CellNote.author に畳まれる"
+     "reason": "The authors table collapses into CellNote.author"
     }
    }
   },
@@ -3104,11 +3104,11 @@
    "tests": {
     "TestConditionalFormatting::test_ctor": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "test_conditional_formatting_read": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     }
    }
   },
@@ -3116,63 +3116,63 @@
    "tests": {
     "TestRule::test_create": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestRule::test_serialise": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "test_cellis_rule": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "test_formula_rule": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestFormatObject::test_create": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestFormatObject::test_serialise": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestColorScale::test_create": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestColorScale::test_serialise": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestColorScale::test_three_colors": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestDataBar::test_create": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestDataBar::test_serialise": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "test_databar_rule": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestIconSet::test_create": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "TestIconSet::test_serialise": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     },
     "test_iconset_rule": {
      "status": "adapted",
-     "reason": "条件付き書式は Sheet.conditionalFormatting として読み書きする（Rev 1.9）"
+     "reason": "Conditional formatting is read and written as Sheet.conditionalFormatting (Rev 1.9)"
     }
    }
   },
@@ -3180,23 +3180,23 @@
    "tests": {
     "TestPivotTableDefinition::test_ctor": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestPivotTableDefinition::test_write": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestLocation::test_ctor": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestPageField::test_ctor": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestPivotTableStyle::test_ctor": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     }
    }
   },
@@ -3204,19 +3204,19 @@
    "tests": {
     "TestPivotCacheDefinition::test_write": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestPivotCacheDefinition::test_path": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestWorksheetSource::test_ctor": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     },
     "TestCacheSource::test_ctor": {
      "status": "adapted",
-     "reason": "ピボット表は配置と元データの記述を読み書きする（集計は開いた側が行う。Rev 1.9・付録 B.15）"
+     "reason": "Pivot tables: the placement and the source-data description are read and written (the opening application does the aggregation; Rev 1.9, Appendix B.15)"
     }
    }
   },
@@ -3224,43 +3224,43 @@
    "tests": {
     "TestCustomDocumentProperty::test_ctor": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestCustomDocumentProperty::test_from_xml": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestCustomDocumentProperyList::test_ctor": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestCustomDocumentProperyList::test_from_xml": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestTypedPropertyList::test_string": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestTypedPropertyList::test_int": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestTypedPropertyList::test_float": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestTypedPropertyList::test_bool": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestTypedPropertyList::test_datetime": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     },
     "TestTypedPropertyList::test_link": {
      "status": "adapted",
-     "reason": "文書の自由項目は Workbook.customProperties として読み書きする（Rev 1.9）"
+     "reason": "Custom document properties are read and written as Workbook.customProperties (Rev 1.9)"
     }
    }
   }
