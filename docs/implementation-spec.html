@@ -941,7 +941,7 @@ pre .vr { color: var(--code-var); }
 }
 
 <span class="kw">public struct</span> <span class="ty">ConversionWarning</span>: <span class="ty">Sendable</span> {
-    <span class="kw">public enum</span> <span class="ty">Kind</span> { <span class="kw">case</span> dropped, degraded, substituted }
+    <span class="kw">public enum</span> <span class="ty">Kind</span> { <span class="kw">case</span> dropped, degraded, substituted, truncated }
     <span class="kw">public let</span> kind: <span class="ty">Kind</span>
     <span class="kw">public let</span> location: <span class="ty">CellRef</span>?
     <span class="kw">public let</span> message: <span class="ty">String</span>   <span class="cm">// e.g. "STYLE() at Sheet1!C3 cannot be expressed in XLSX"</span>
@@ -1929,6 +1929,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.83 Draft</td><td>2026-09-12</td><td>What two migrations found (B.92): row 0 and column 0 stop when read, as they stop when written; <code>ConversionWarning.Kind.truncated</code> for a read stopped at the cell limit; <code>SourceInfo.isVerifiedVersion</code>; <code>streamingReader(contentsOf:format:)</code>; <code>CivilDate(serial:epoch:)</code>; the migration guide's missing entries. Labels on the integer subscripts were considered and not added. The ODS writer names a dropped filter by its sheet column.</td></tr>
     <tr><td>4.82 Draft</td><td>2026-09-11</td><td>Cells, faster: the default style answered without hashing or copying, numbers trimmed only when needed, a cell stored once, dense rows written from the extent, dated cells sharing a style, bounded style caches. ODS cell facts per style, CSV rules on bytes, Numbers integers without long division. On a million cells, measured alternately: XLSX write −29%, read −29%, edit −33%; ODS write −34%; CSV read −25%; Numbers write −44%; cells made without the default-style comparison and a CSV table reserved up front, CSV read peak memory −31% (B.91).</td></tr>
     <tr><td>4.81 Draft</td><td>2026-09-11</td><td>The cell limit counts in every reader that holds cells: XLSX, Numbers and delimited text join ODS, through one budget shared by the sheets parsed side by side (B.90).</td></tr>
     <tr><td>4.80 Draft</td><td>2026-09-11</td><td>The last look at the surface before 1.0. <code>SheetImage.Anchor.absolute(CanvasRect)</code>; <code>addSparkline(_:dataRange:at:)</code> with a typed twin, and <code>Sparkline(dataRange:at:)</code>; <code>addTable(named:at:)</code> for a cell as for a point; <code>IconSet.Icon.setName</code>; <code>PhoneticText.Run.range</code>; <code>DataBar.gradient</code>; <code>Alignment.wrapsText</code> and <code>shrinksToFit</code>, with a naming scan over the whole public surface; five codec tools become package; <code>Cell.init(thread:)</code>; the preserved-parts warning names what the parts hold (B.89).</td></tr>
@@ -5872,7 +5873,7 @@ public var contentState: SheetContentState { get }</code></pre>
   Holding the bytes of an unread XLSX worksheet does not make it nonGrid.
   However, <strong>a chart sheet left out of the selection stays nonGrid</strong> — its kind is declared by the relationship type in the workbook,
   and is known without parsing the part. Calling it unread would throw away information the reader already has (the warning text in Appendix B.35 also says "a chart sheet").
-  A grid that could only be partly read because of cellLimit and the like is also grid; this is not a guarantee of a complete read. Check readWarnings for read losses.</p>
+  A grid that could only be partly read because of cellLimit and the like is also grid; this is not a guarantee of a complete read. Check readWarnings for read losses; a read stopped at cellLimit gives a <code>truncated</code> warning naming the sheet (B.92).</p>
   <p>Sheet.state is visibility and is independent of this state. contentState is a computed property read from the preservation information, and follows the sheet after a rename or move.
   <strong>Duplication does not follow</strong> — <code>duplicateSheet</code> rebuilds the copy's preservation information (it cannot claim the original's part path, r:id or sheetId), so
   duplicating an unread / non-grid sheet yields an ordinary grid carrying only the cells the model holds. The original bytes are written once, on the original sheet's side.
@@ -7275,6 +7276,67 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   far is the safe form); keeping the Numbers writer's records in one buffer per row instead
   of a <code>Data</code> per cell (about 85 bytes a cell, but it touches every use of the records); and writing a
   non-integral decimal128 without the long division.</p>
+  <h3>B.92 What two migrations found (Rev 4.83)</h3>
+  <p>Decided 2026-09-12. Before the release candidate, the two applications that depend on the library — one reads and
+  writes work-breakdown workbooks, one compares tables — moved from 0.19.1 and 0.18.0 to 0.27.0. It was the first use
+  of the surface 1.0 freezes by code written for its own purposes rather than for this library's tests, and it
+  reported thirteen points of friction. Six are acted on; the rest are kept, with the reasons below.</p>
+  <ul>
+    <li><strong>Row 0 and column 0 stop when read, as they stop when written.</strong> Since B.61 a write to row 0 or
+    column 0 stopped, but a read answered "nothing": <code>sheet[0, 1]</code> was nil, <code>rowDimension(0)</code> a
+    default, and <code>CellRef.columnName(0)</code> an empty string, which put <code>$$2:$$4</code> into a formula. The
+    integer subscripts compile unchanged across B.61, so a missed <code>- 1</code> became an empty value, and a test
+    comparing two empty values passed. The integer and <code>CellRef</code> subscripts, <code>cell(_:)</code>,
+    <code>rowDimension(_:)</code> and <code>columnDimension(_:)</code> (and so the setters built on them) and
+    <code>CellRef.columnName(_:)</code> now stop on a number below 1. A cell named by A1 text that does not parse still
+    answers nil (B.53), and <code>columnName(validating:)</code> stays the form that answers nil. The library formats
+    addresses through a package function that does not stop, so a malformed file still never stops the process (§12),
+    and an invalid <code>CellRef</code> built by a caller can still be printed in a message.</li>
+    <li><strong>Labels on the integer subscripts were considered and not added.</strong> Neither migration's compiler
+    pointed at a single line B.61 changed the meaning of — Stream reread about seventy by hand. But the numbering
+    changes once; <code>sheet[row: r, column: c]</code> would make every caller rewrite again, and two spellings of one
+    subscript would break B.62–B.67. The stop above catches the same mistake the first time the line runs.</li>
+    <li><strong>A read that stopped at the cell limit says so by kind.</strong> <code>ConversionWarning.Kind.truncated</code>:
+    reading stopped at a limit the caller set, and what follows is absent. The four readers that count (B.90) give it
+    with the subject <code>sheets</code>. Before, XLSX, Numbers and delimited text gave <code>degraded</code> with
+    <code>sheets</code> — the pair a sheet left unread also gives — and ODS <code>degraded</code> with no subject, so only
+    the English message told them apart, and a caller refusing oversized files had to match its wording. A new case
+    breaks an exhaustive <code>switch</code> over <code>Kind</code>; the library has none, and the CHANGELOG says so.</li>
+    <li><strong>Whether a Numbers document's version was verified.</strong> <code>SourceInfo.isVerifiedVersion</code>
+    (<code>Bool?</code>): true or false when the document declares a version the reader can parse, nil otherwise and for
+    every other format. It is on <code>WorkbookSummary.producer</code> as well as <code>Workbook.sourceInfo</code>, so a
+    row-by-row reader, which has no warnings, asks <code>inspect</code> first. A caller used to copy the internal range
+    11…15 and match it by hand at every release. The warning a whole-workbook read gives for a newer version is
+    unchanged.</li>
+    <li><strong>A file walked row by row takes the format it was already detected as.</strong>
+    <code>CodecSet.streamingReader(contentsOf:format:limits:csv:)</code> and
+    <code>StreamingReader(contentsOf:format:limits:csv:)</code>, as the forms over bytes already had: a given format
+    skips detection, and a compound file (an encrypted package, a legacy .xls) is still refused by name. A Numbers
+    document saved as a folder accepts only <code>.numbers</code>. The SheetDecrypt form with a password is unchanged.</li>
+    <li><strong>A date from a serial.</strong> <code>CivilDate(serial:epoch:)</code> is the day
+    <code>CellValue(serial:epoch:)</code> gives, and nil where that is not a date: a time of day ([0, 1)), NaN or an
+    infinity. A caller wanting the day took three steps through <code>CellValue</code>.</li>
+    <li><strong>The migration guide.</strong> Its 0.20.0 section gains the eight per-format row-by-row readers and
+    writers that became internal and where their callers go, and <code>tableNames(inSheet:)</code> answering
+    <code>[String?]</code> where the Numbers reader answered <code>[String]</code>.</li>
+  </ul>
+  <p><strong>Found on the way.</strong> The ODS writer's warning for a filter it drops named the column from the filter's
+  offset (B.61 made it an offset, not a coordinate): a filter on the first column of its range read "the filter on
+  column " and one on the second column of C1:E9 said "A". It names the sheet's column.</p>
+  <p><strong>Kept.</strong> Renamed declarations are not kept as <code>@available(*, unavailable, renamed:)</code>: they
+  would offer a fix-it, and they would also keep every old name in the surface 1.0 freezes; the migration guide maps
+  each compile error to its new name. <code>stringValue</code> keeps its name, and its documentation already says it
+  spells a value as Python's <code>str()</code> does. <code>StreamingWriter.close()</code> still returns a result that
+  must be used (B.51). <code>SheetFormat.detect(_:filename:)</code> keeps no first label, the shape of
+  <code>probe</code>.</p>
+  <p><strong>Verification.</strong> Each stop runs in its own process (<code>processExitsWith:</code>): both subscripts,
+  <code>cell(_:)</code>, the dimension lookups, <code>setWidth(_:ofColumn:)</code> and <code>columnName(_:)</code> with 0,
+  while "A0" read as text still answers nil. The cell-limit test reads XLSX, ODS, Numbers and delimited text and finds
+  one <code>truncated</code> warning naming the sheet. A Numbers fixture inspects as verified, an XLSX as nil, and the
+  version parser answers nil for text it cannot read. A CSV file named <code>rows.bin</code> is walked with
+  <code>format: .csv</code>, and <code>legacy.xls</code> given as XLSX is still refused by name.
+  <code>CivilDate(serial:epoch:)</code> agrees with <code>CellValue(serial:epoch:)</code> across both epochs, the phantom
+  1900-02-29 and the time-of-day range. The ODS warning names column C for a filter on the first column of C1:E9.</p>
 </section>
 
 </div><!-- /.container -->
