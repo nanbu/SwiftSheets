@@ -262,7 +262,11 @@ public struct SourceInfo: Sendable, Hashable {
     /// The generating application as the file declares it (docProps/app.xml `Application`), when present.
     public var application: String?
     public var version: String?
-    public init(format: SheetFormat, application: String? = nil, version: String? = nil) {
-        self.format = format; self.application = application; self.version = version
+    /// Whether `version` lies in the range this release was verified against — Numbers only (spec Appendix B.92). Nil
+    /// for every other format, and when the document declares no version or one that does not parse. It is on
+    /// `WorkbookSummary.producer` too, so a row-by-row reader, which has no warnings, can ask `inspect` first.
+    public var isVerifiedVersion: Bool?
+    public init(format: SheetFormat, application: String? = nil, version: String? = nil, isVerifiedVersion: Bool? = nil) {
+        self.format = format; self.application = application; self.version = version; self.isVerifiedVersion = isVerifiedVersion
     }
 }

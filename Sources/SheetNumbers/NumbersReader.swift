@@ -134,17 +134,22 @@ struct NumbersReader {
     }
 
     static let verifiedMajorVersions = 11...15
-    static func isKnownVersion(_ build: String) -> Bool {
-        // "M14.0-7040-1" → 14
-        guard let m = build.split(separator: "-").first, let major = Int(m.dropFirst().split(separator: ".").first ?? "") else { return true }
-        return verifiedMajorVersions.contains(major)
+    /// The major version of a build: "M14.0-7040-1" is 14, "T15.3 (7375.0.54)" 15. Nil when it does not parse.
+    static func majorVersion(_ build: String) -> Int? {
+        guard let m = build.split(separator: "-").first, let major = Int(m.dropFirst().split(separator: ".").first ?? "") else { return nil }
+        return major
     }
+    /// Whether a build lies in the verified range; nil when its version does not parse (spec Appendix B.92).
+    static func isVerifiedVersion(_ build: String) -> Bool? { majorVersion(build).map { verifiedMajorVersions.contains($0) } }
+    /// The warning's question: a version that does not parse is read without one, as before.
+    static func isKnownVersion(_ build: String) -> Bool { isVerifiedVersion(build) ?? true }
 
     func sourceInfo() -> SourceInfo {
         var info = SourceInfo(format: .numbers, application: "Numbers")
         if let plist = doc.blob("Metadata/BuildVersionHistory.plist"),
            let list = try? PropertyListSerialization.propertyList(from: plist, format: nil) as? [String], let last = list.last {
             info.version = last
+            info.isVerifiedVersion = NumbersReader.isVerifiedVersion(last)
         }
         return info
     }

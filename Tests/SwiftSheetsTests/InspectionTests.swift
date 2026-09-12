@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import SheetCore
 @testable import SheetXLSX
+@testable import SheetNumbers
 import SwiftSheets
 
 /// `Workbook.inspect` (spec Appendix B.39.3): what a file declares about itself before any cell is read, so the
@@ -30,6 +31,28 @@ import SwiftSheets
         #expect(summary.sheets[0].countedCellCount == nil, "not counted unless asked")
         #expect(summary.partCount > 5 && summary.expandedBytes > 0)
         #expect(summary.producer?.application == "SwiftSheets")
+        #expect(summary.producer?.isVerifiedVersion == nil, "only Numbers has a verified range")
+    }
+
+    /// A Numbers document says whether its declared version lies in the range this release was verified against, on
+    /// the summary as on the workbook (spec Appendix B.92). A caller used to copy the internal range by hand.
+    @Test func aNumbersDocumentSaysWhetherItsVersionWasVerified() throws {
+        let url = Self.fixtures.appendingPathComponent("numbers/test-2.numbers")
+        let summary = try Workbook.inspect(contentsOf: url)
+        #expect(summary.producer?.version == "M12.0-7033.0.134-2")
+        #expect(summary.producer?.isVerifiedVersion == true)
+        #expect(try Workbook(contentsOf: url).sourceInfo?.isVerifiedVersion == true)
+    }
+
+    /// Judged by the major number; text that does not parse is not judged at all, rather than counted as verified.
+    @Test func aBuildIsJudgedByItsMajorNumber() {
+        #expect(NumbersReader.majorVersion("M15.3.1-7050.1.1-2") == 15)
+        #expect(NumbersReader.majorVersion("T15.3 (7375.0.54)") == 15)
+        #expect(NumbersReader.isVerifiedVersion("M11.0-7030.0.94-2") == true)
+        #expect(NumbersReader.isVerifiedVersion("M16.0-8000.0.1-1") == false)
+        #expect(NumbersReader.isVerifiedVersion("garbage") == nil)
+        #expect(NumbersReader.isVerifiedVersion("") == nil)
+        #expect(NumbersReader.isKnownVersion("garbage"), "the warning still reads an unparsable version without complaint")
     }
 
     /// Counting walks the markup and finds what a read would hold — the same number the model has after reading.
