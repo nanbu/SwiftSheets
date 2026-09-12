@@ -7,6 +7,40 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+What the two applications that depend on the library found when they moved to 0.27.0 (spec Appendix B.92).
+
+### Added
+
+- **`ConversionWarning.Kind.truncated`.** A read that stops at `ReadOptions.cellLimit` gives it, about the sheet, in
+  XLSX, ODS, Numbers and delimited text, so a caller refusing oversized files checks the kind rather than the wording.
+- **`SourceInfo.isVerifiedVersion`** says whether a Numbers document's declared version lies in the range this release
+  was verified against; it is nil for the other formats and for a version that does not parse. It is on
+  `WorkbookSummary.producer` too, so a row-by-row reader, which has no warnings, can ask `inspect` first.
+- **`CodecSet.streamingReader(contentsOf:format:limits:csv:)`** and `StreamingReader(contentsOf:format:limits:csv:)`:
+  a file walked row by row takes a format, as bytes already could. A compound file is still refused by name, and a
+  folder is only ever a Numbers document. The SheetDecrypt form with a password is unchanged.
+- **`CivilDate(serial:epoch:)`** is the day `CellValue(serial:epoch:)` gives, and nil for a time of day, NaN or an
+  infinity.
+
+### Changed
+
+- **Reading row 0 or column 0 stops, as writing there already did.** The integer and `CellRef` subscripts, `cell(_:)`,
+  `rowDimension(_:)` and `columnDimension(_:)` (with `setWidth(_:ofColumn:)` and `setHeight(_:ofRow:)`, which are built
+  on them) and `CellRef.columnName(_:)` stop on a number below 1. A `- 1` left over from before 0.23.0 used to read an
+  empty cell, and `columnName(0)` put `$$2:$$4` into a formula. Text that does not parse still answers nil, as does
+  `columnName(validating:)`, and a malformed file never stops the process.
+- **A read stopped at `ReadOptions.cellLimit` gives `truncated` instead of `degraded`**, with the subject `sheets` and
+  the same wording in every reader. A `switch` that lists every case of `ConversionWarning.Kind` needs the new one.
+
+### Fixed
+
+- The ODS writer's warning for a filter it drops names the sheet's column. It printed the filter's offset as a column,
+  so a filter on the first column of C1:E9 read "the filter on column ".
+- The migration guide names the per-format row-by-row readers and writers that became internal in 0.20.0 and where
+  their callers go, and says that `tableNames(inSheet:)` answers `[String?]`.
+
 ## [0.27.0] — 2026-09-12
 
 The last minor release before the 1.0 release candidate. Numbers gains pictures, shapes, text boxes, charts, the
@@ -1389,6 +1423,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...HEAD
 [0.27.0]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...0.27.0
 [0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0
 [0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0

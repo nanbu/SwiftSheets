@@ -23,7 +23,7 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 - The format is named explicitly on conversion (`as: .ods`) and detected from bytes on read; the extension is a hint only.
 - Bool properties are predicative (`allowsBlank`, `showsGridLines`, `includesBOM`); typed and A1-string twins share labels (`cell(ref)` / `cell("B2")`, `setStyle(at:)` / `setStyle("A1")`).
 - Formulas are `.formula("=SUM(A1:A3)")`, parsed into a tree; they follow row inserts and sheet renames. The library does not evaluate formulas.
-- Untrusted input: call `Workbook.inspect` first, then read with `ReadOptions.cellLimit` and `ReadOptions.limits`.
+- Untrusted input: call `Workbook.inspect` first, then read with `ReadOptions.cellLimit` and `ReadOptions.limits`; a read that stops at the limit gives a `truncated` warning.
 
 ## Documents
 

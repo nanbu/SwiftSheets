@@ -120,6 +120,7 @@ let result = try CodecSet.all.withStreamingWriter(to: url, as: .xlsx, sheetName:
 let summary = try Workbook.inspect(contentsOf: url)      // sheets, declared cells, expanded size, producer
 var options = ReadOptions(); options.cellLimit = 1_000_000
 let read = try Workbook.read(contentsOf: url, options: options)
+if read.warnings.contains(where: { $0.kind == .truncated }) { /* the file holds more cells than you allow */ }
 ```
 
 The numbers — seconds and megabytes for a million and ten million cells — are in the

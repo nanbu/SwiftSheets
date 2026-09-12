@@ -101,6 +101,8 @@ to row 0 or column 0 stops with a message. `rowNumber` is gone (it is `row`), `F
 - `workbook.data(as:)` → `try workbook.write(as:).data`.
 - An unused `WriteResult` is a warning: keep it, or write `_ = try workbook.write(to: url)`.
 - `Workbook.preserved`, `Sheet.preserved` and the preservation types are internal; read `workbook.preservationSummary`.
+- The per-format row-by-row types are internal: `XLSXStreamingReader`, `ODSStreamingReader`, `NumbersStreamingReader` and `CSVStreamingReader` → `codecs.streamingReader(contentsOf:)` or `codecs.streamingReader(_:format:)` (with the umbrella product, `StreamingReader(contentsOf:)`); `XLSXStreamingWriter`, `ODSStreamingWriter`, `NumbersStreamingWriter` and `CSVStreamingWriter` → `codecs.streamingWriter(to:as:)` (or `StreamingWriter(to:as:)`).
+- `NumbersStreamingReader.tableNames(inSheet:) -> [String]` → `StreamingReader.tableNames(inSheet:) -> [String?]`, for every format; a table with no name is nil rather than absent, so the positions match `table:`.
 
 The complete entries, with the reasons, are in the [CHANGELOG](../CHANGELOG.md); the decisions are in Appendix B of
 the [implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html). What 1.0 promises from here
