@@ -233,6 +233,13 @@ extension CivilDateTime {
 }
 
 extension CivilDate {
+    /// The day `CellValue(serial:epoch:)` gives, and nil where that is not a date: a time of day (a serial in [0, 1)),
+    /// NaN or an infinity (spec Appendix B.92). A caller wanting the day took three steps through `CellValue`.
+    public init?(serial: Double, epoch: DateEpoch = .windows1900) {
+        guard case .date(let dateTime)? = CellValue(serial: serial, epoch: epoch) else { return nil }
+        self = dateTime.date
+    }
+
     /// The Excel serial of midnight on this day.
     public func serial(epoch: DateEpoch = .windows1900) -> Int {
         Int(CivilDateTime(date: self).serial(epoch: epoch))
