@@ -1929,6 +1929,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.84 Draft</td><td>2026-09-12</td><td>A shared-string table keeps a phonetic slot only where there is furigana (B.93): the row-by-row read of ten million XLSX cells peaked 16 MB higher for slots it never read.</td></tr>
     <tr><td>4.83 Draft</td><td>2026-09-12</td><td>What two migrations found (B.92): row 0 and column 0 stop when read, as they stop when written; <code>ConversionWarning.Kind.truncated</code> for a read stopped at the cell limit; <code>SourceInfo.isVerifiedVersion</code>; <code>streamingReader(contentsOf:format:)</code>; <code>CivilDate(serial:epoch:)</code>; the migration guide's missing entries. Labels on the integer subscripts were considered and not added. The ODS writer names a dropped filter by its sheet column.</td></tr>
     <tr><td>4.82 Draft</td><td>2026-09-11</td><td>Cells, faster: the default style answered without hashing or copying, numbers trimmed only when needed, a cell stored once, dense rows written from the extent, dated cells sharing a style, bounded style caches. ODS cell facts per style, CSV rules on bytes, Numbers integers without long division. On a million cells, measured alternately: XLSX write −29%, read −29%, edit −33%; ODS write −34%; CSV read −25%; Numbers write −44%; cells made without the default-style comparison and a CSV table reserved up front, CSV read peak memory −31% (B.91).</td></tr>
     <tr><td>4.81 Draft</td><td>2026-09-11</td><td>The cell limit counts in every reader that holds cells: XLSX, Numbers and delimited text join ODS, through one budget shared by the sheets parsed side by side (B.90).</td></tr>
@@ -7337,6 +7338,26 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>format: .csv</code>, and <code>legacy.xls</code> given as XLSX is still refused by name.
   <code>CivilDate(serial:epoch:)</code> agrees with <code>CellValue(serial:epoch:)</code> across both epochs, the phantom
   1900-02-29 and the time-of-day range. The ODS warning names column C for a filter on the first column of C1:E9.</p>
+  <h3>B.93 A shared-string table keeps a phonetic slot only where there is furigana (Rev 4.84)</h3>
+  <p>Decided 2026-09-12. Measured again with Swift 6.4, the row-by-row read of ten million XLSX cells peaked at 35 MB
+  where the record of 2026-09-05 said 19 MB. Old and new builds run alternately on the same machine ruled out the
+  compiler (Swift 6.3.3 and 6.4: 35.0 and 34.8 MB) and the changes after 0.27.0 (34.7 and 34.8 MB). A bisection of the
+  92 commits between the record and 0.27.0 put the step at the commit that brought furigana (B.70): the commit before
+  it read at 19.3 MB, that commit at 35 MB.</p>
+  <p><strong>Why.</strong> The shared-string parser appended a phonetic collector for every entry, <code>nil</code>
+  where the string has no furigana. An optional struct is as large as the struct — about 80 bytes here — so a table of
+  100,052 strings held some 9 MB of empty slots, and the array's growth past 65,536 entries briefly held the old buffer
+  and the new one together: about 17 MB at the peak. The row-by-row reader never reads the phonetics; it built the
+  slots and let them go. At a million cells the table holds about ten thousand strings, and the cost stayed inside the
+  record's noise.</p>
+  <p><strong>What.</strong> The parser keeps a collector only for an entry that carries furigana, by its index, and
+  <code>resolvedPhonetics(fonts:)</code> answers an empty array when there are none — the form the sheet parser and the
+  writer already read as "no phonetic guide". A table with furigana resolves to the same array as before, aligned with
+  the strings. Nothing a reader returns or a writer produces changes.</p>
+  <p><strong>Verification.</strong> A table without furigana resolves to no slots; a table with furigana on its second
+  entry resolves to three, the reading on the second; the furigana suite is unchanged. The same change, measured before
+  it was written — main and main with it, alternately, three times each — read the ten-million-cell file at 34.8 and
+  20.6 MB with the same checksum.</p>
 </section>
 
 </div><!-- /.container -->
