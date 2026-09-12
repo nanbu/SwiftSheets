@@ -254,7 +254,7 @@ import SwiftSheets
         let (wb, warnings) = (result.workbook, result.warnings)
         #expect(Date().timeIntervalSince(start) < 30.0)
         #expect(wb.sheets[0].cells.count <= 1_000_000)
-        #expect(warnings.contains { $0.kind == .degraded && $0.message.contains("stopped there") })
+        #expect(warnings.contains { $0.kind == .truncated && $0.subject == .sheets && $0.message.contains("ReadOptions.cellLimit") })
         #expect(wb.sheets[0]["A1"] == .text("x"))
     }
 
