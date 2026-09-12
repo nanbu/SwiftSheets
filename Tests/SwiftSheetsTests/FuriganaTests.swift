@@ -25,6 +25,24 @@ struct FuriganaTests {
         return wb
     }
 
+    /// A shared-string table without furigana keeps no phonetic slot at all, rather than an empty one per entry (spec
+    /// Appendix B.93). Each empty slot cost about 80 bytes: 16 MB more at the peak of a row-by-row read of ten million
+    /// cells holding a hundred thousand strings. With furigana the slots stay aligned with the strings.
+    @Test func aTableWithoutFuriganaKeepsNoPhoneticSlots() throws {
+        let ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        let plain = SharedStringsParser()
+        try plain.run(Data("<sst xmlns=\"\(ns)\"><si><t>a</t></si><si><t>b</t></si><si><r><t>c</t></r></si></sst>".utf8), part: "sst")
+        #expect(plain.strings.count == 3)
+        #expect(plain.resolvedPhonetics(fonts: []).isEmpty)
+
+        let mixed = SharedStringsParser()
+        try mixed.run(Data("<sst xmlns=\"\(ns)\"><si><t>a</t></si><si><t>漢字</t><rPh sb=\"0\" eb=\"2\"><t>カンジ</t></rPh><phoneticPr fontId=\"0\"/></si><si><t>b</t></si></sst>".utf8), part: "sst")
+        let phonetics = mixed.resolvedPhonetics(fonts: [])
+        #expect(phonetics.count == 3, "aligned with the strings")
+        #expect(phonetics[0] == nil && phonetics[2] == nil)
+        #expect(phonetics[1]?.runs.first?.text == "カンジ")
+    }
+
     @Test func theTableCarriesRunsAndProperties() throws {
         let data = try Self.workbook().write(as: .xlsx).data
         let sst = try Package.part("xl/sharedStrings.xml", of: data)

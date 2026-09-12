@@ -155,8 +155,9 @@ final class SharedStringsParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
     var strings: [CellValue] = []
-    /// The phonetic guide of each entry of `strings`, nil where there is none; resolved by `resolvedPhonetics(fonts:)`.
-    private var collectors: [PhoneticCollector?] = []
+    /// The phonetic guides of the entries of `strings` that carry one, by entry index; resolved by
+    /// `resolvedPhonetics(fonts:)`. Only those entries: a slot per entry cost about 80 bytes each (spec Appendix B.93).
+    private var collectors: [Int: PhoneticCollector] = [:]
     private var runs: [TextRun] = []
     private var plain = ""
     private var current = ""
@@ -191,13 +192,19 @@ final class SharedStringsParser: SAXHandler {
         case "r": runs.append(TextRun(current, font: runFont)); inR = false
         case "si":
             strings.append(hasRuns ? (runs.contains { $0.font != nil } ? .richText(runs) : .text(runs.map(\.text).joined())) : .text(plain))
-            collectors.append(phonetic.isEmpty ? nil : phonetic)
+            if !phonetic.isEmpty { collectors[strings.count - 1] = phonetic }
             inSI = false
         default: break
         }
     }
-    /// The phonetic guides, `phoneticPr@fontId` resolved against the workbook's font table.
-    func resolvedPhonetics(fonts: [Font]) -> [PhoneticText?] { collectors.map { $0?.phonetic(fonts: fonts) } }
+    /// The phonetic guides aligned with `strings`, `phoneticPr@fontId` resolved against the workbook's font table; empty
+    /// when no entry carries one, which the sheet parser and the writer read as "no phonetic guide".
+    func resolvedPhonetics(fonts: [Font]) -> [PhoneticText?] {
+        guard !collectors.isEmpty else { return [] }
+        var resolved = [PhoneticText?](repeating: nil, count: strings.count)
+        for (index, collector) in collectors { resolved[index] = collector.phonetic(fonts: fonts) }
+        return resolved
+    }
 }
 
 /// Accumulates `<font>` / `<rPr>` children into a Font.
