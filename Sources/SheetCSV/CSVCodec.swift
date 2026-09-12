@@ -54,7 +54,7 @@ package enum CSVCodec: SpreadsheetCodec {
         }
         if stoppedAtCellLimit {
             sheet.nextAppendRow = (sheet.extent?.maxRow ?? 0) + 1
-            warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheet.name,
+            warnings.append(ConversionWarning(.truncated, subject: .sheets, sheet: sheet.name,
                 message: "reading stopped at ReadOptions.cellLimit (\(options.cellLimit) cells): the sheet holds the cells read before it, and the rest of the text was not read"))
         } else {
             sheet.nextAppendRow = records.count + 1

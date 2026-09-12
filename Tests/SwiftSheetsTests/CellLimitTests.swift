@@ -4,7 +4,8 @@ import Testing
 import SwiftSheets
 
 /// `ReadOptions.cellLimit` in every reader that holds cells (spec Appendix B.90). Only ODS used to count; a limit set
-/// on an XLSX, Numbers or delimited-text read did nothing.
+/// on an XLSX, Numbers or delimited-text read did nothing. A read that stops says so by kind — `truncated`, about the
+/// sheet — so a caller refusing oversized files does not match the wording (Appendix B.92).
 struct CellLimitTests {
     static func grid(rows: Int, sheets: Int = 1) -> Workbook {
         var wb = Workbook()
@@ -14,7 +15,7 @@ struct CellLimitTests {
         }
         return wb
     }
-    static func stops(_ warnings: [ConversionWarning]) -> [ConversionWarning] { warnings.filter { $0.message.contains("ReadOptions.cellLimit") } }
+    static func stops(_ warnings: [ConversionWarning]) -> [ConversionWarning] { warnings.filter { $0.kind == .truncated } }
 
     @Test(arguments: [SheetFormat.xlsx, .numbers, .csv])
     func aReadStopsAtTheLimitAndSaysWhere(_ format: SheetFormat) throws {
@@ -23,7 +24,19 @@ struct CellLimitTests {
         #expect(read.workbook.sheets[0].table.cells.count == 100, "\(format): \(read.workbook.sheets[0].table.cells.count) cells")
         let stops = Self.stops(read.warnings)
         #expect(stops.count == 1, "\(format): \(read.warnings.map(\.message))")
-        #expect(stops.first?.kind == .degraded && stops.first?.sheet == read.workbook.sheets[0].name)
+        #expect(stops.first?.subject == .sheets && stops.first?.sheet == read.workbook.sheets[0].name)
+        #expect(stops.first?.message.contains("ReadOptions.cellLimit") == true, "\(stops.map(\.message))")
+    }
+
+    /// ODS counts the cells its rows and repeats describe (Appendix B.9), so where it stops is its own; the warning it
+    /// gives has the same kind, subject and wording as the other readers'.
+    @Test func odsSaysSoWithTheSameWarning() throws {
+        let data = try Self.grid(rows: 200).write(as: .ods).data
+        let read = try Workbook.read(data, format: .ods, options: ReadOptions(cellLimit: 100))
+        let stops = Self.stops(read.warnings)
+        #expect(stops.count == 1, "\(read.warnings.map(\.message))")
+        #expect(stops.first?.subject == .sheets && stops.first?.sheet == read.workbook.sheets[0].name)
+        #expect(stops.first?.message.contains("ReadOptions.cellLimit") == true, "\(stops.map(\.message))")
     }
 
     @Test(arguments: [SheetFormat.xlsx, .numbers, .csv])

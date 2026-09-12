@@ -32,7 +32,7 @@ import SwiftSheets
         let data = Self.rleBomb()
         let result = try ODSCodec.read(data, options: ReadOptions(cellLimit: 10_000))
         #expect(!result.warnings.isEmpty)
-        #expect(result.warnings.allSatisfy { $0.kind == .degraded })
+        #expect(result.warnings.allSatisfy { $0.kind == .truncated && $0.subject == .sheets })
         #expect(result.workbook.readWarnings == result.warnings)
 
         // the same file through the facade: the warnings are still there

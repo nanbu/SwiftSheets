@@ -223,6 +223,8 @@ public struct ConversionWarning: Sendable, Hashable, CustomStringConvertible {
         case degraded
         /// Replaced by the nearest equivalent.
         case substituted
+        /// Reading stopped at a limit the caller set (`ReadOptions.cellLimit`): what follows is absent (spec Appendix B.92).
+        case truncated
     }
     /// What the warning is about. Enough to group warnings in a user interface, and enough for `WriteResult.suggest`
     /// to name a format that would have kept the thing rather than guessing from the target.

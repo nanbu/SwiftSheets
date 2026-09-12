@@ -406,7 +406,7 @@ final class SheetReadContext: @unchecked Sendable {
         do {
             try p.run(stream: try zip.stream(part), part: part)   // a piece at a time: the sheet's XML is never held whole
         } catch where p.stoppedAtCellLimit {
-            result.warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: info.name,
+            result.warnings.append(ConversionWarning(.truncated, subject: .sheets, sheet: info.name,
                 message: "reading stopped at ReadOptions.cellLimit (\(cellBudget?.limit ?? 0) cells in the workbook): the sheet holds the cells read before it, and what follows them in its part was not read"))
         }
         p.returnUnusedAllowance()

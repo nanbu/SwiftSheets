@@ -497,7 +497,7 @@ struct NumbersReader {
         }
         cellBudget?.giveBack(allowance)
         if stoppedAtCellLimit {
-            warnings.append(ConversionWarning(.degraded, subject: .sheets, sheet: sheetName,
+            warnings.append(ConversionWarning(.truncated, subject: .sheets, sheet: sheetName,
                 message: "reading stopped at ReadOptions.cellLimit (\(cellBudget?.limit ?? 0) cells in the document): table \"\(t.name ?? "")\" holds the cells read before it"))
         }
         for p in decoder.problems.prefix(20) { warnings.append(ConversionWarning(.degraded, sheet: sheetName, message: "formula: \(p)")) }

@@ -773,8 +773,8 @@ final class ContentParser: SAXHandler {
             }
             if truncated {
                 truncated = false
-                warnings.append(ConversionWarning(.degraded, sheet: sheet?.name,
-                                                  message: "the repeated rows / cells of this sheet describe more than \(cellLimit) cells; reading stopped there"))
+                warnings.append(ConversionWarning(.truncated, subject: .sheets, sheet: sheet?.name,
+                                                  message: "reading stopped at ReadOptions.cellLimit (\(cellLimit) cells): the rows and repeats of this sheet describe more, and the sheet holds the cells read before it"))
             }
             // the rules are declared once for the document; the cells that named them are this sheet's
             for (name, runs) in validationCells.sorted(by: { $0.key < $1.key }) {
