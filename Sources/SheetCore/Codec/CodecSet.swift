@@ -173,11 +173,19 @@ public struct CodecSet: Sendable {
     /// Appendix B.40). The file is read through positioned reads rather than mapped, so a workbook far larger than
     /// memory can be walked (Appendix B.39.8). `limits` is what the container may declare about itself before it is
     /// refused (`ReadOptions.limits`); `csv` is the dialect and encoding of a text file. A protected XLSX or ODS is
-    /// refused by name — the SheetDecrypt product adds `StreamingReader(contentsOf:password:)`.
-    public func streamingReader(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
+    /// refused by name — the SheetDecrypt product adds `StreamingReader(contentsOf:password:)`. `format` skips
+    /// detection, as it does over bytes (spec Appendix B.92): a compound file is still refused by name, and a folder is
+    /// only ever a Numbers document.
+    public func streamingReader(contentsOf url: URL, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
+                                csv: CSVReadOptions = CSVReadOptions()) throws -> StreamingReader {
         if url.isDirectoryOnDisk {
-            guard NumbersBundle.isBundle(url) else { throw SheetError.unrecognizedFormat }
+            guard NumbersBundle.isBundle(url), format == nil || format == .numbers else { throw SheetError.unrecognizedFormat }
             return try implementation(for: .numbers).streamingReader(contentsOf: url, limits: limits, csv: csv)
+        }
+        if let format {
+            // a compound file is refused by name before the named reader sees a package that is not one
+            if let unopenable = try UnopenableInput.probe(source: try FileByteSource(url: url)) { throw unopenable.error }
+            return try implementation(for: format).streamingReader(contentsOf: url, limits: limits, csv: csv)
         }
         // the same answer `SheetFormat.probe(contentsOf:)` gives, with this reader's limits: the format, or the
         // name of what cannot be opened

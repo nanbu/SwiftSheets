@@ -9,9 +9,10 @@ extension StreamingReader {
     /// detected from the bytes, as `Workbook(contentsOf:)` does; a Numbers document saved as a folder is opened as
     /// one. `limits` is what the container may declare about itself before it is refused (`ReadOptions.limits`);
     /// `csv` is the dialect and encoding of a text file. A protected XLSX or ODS is refused by name — the
-    /// SheetDecrypt product adds `StreamingReader(contentsOf:password:)`.
-    public init(contentsOf url: URL, limits: ZipLimits = ZipLimits(), csv: CSVReadOptions = CSVReadOptions()) throws {
-        self = try CodecSet.all.streamingReader(contentsOf: url, limits: limits, csv: csv)
+    /// SheetDecrypt product adds `StreamingReader(contentsOf:password:)`. `format` overrides detection, as over bytes.
+    public init(contentsOf url: URL, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
+                csv: CSVReadOptions = CSVReadOptions()) throws {
+        self = try CodecSet.all.streamingReader(contentsOf: url, format: format, limits: limits, csv: csv)
     }
 
     /// Reads from bytes. `format` overrides detection; `filename` only breaks ties for plain text (`.tsv`).
