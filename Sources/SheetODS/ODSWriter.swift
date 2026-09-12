@@ -719,7 +719,7 @@ enum ODSWriter {
                 conditions.append("<table:filter-condition table:field-number=\"\(column.columnOffset)\" table:operator=\"\(op)\" table:value=\"\(XML.num(top.count))\"/>")
             } else if column.dynamicFilter != nil || column.colorFilter != nil || column.iconFilter != nil || !column.dateGroups.isEmpty {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name,
-                         "the filter on column \(CellRef.columnName(column.columnOffset)) is dropped: ODF has no colour, icon, dynamic or date-group filter")
+                         "the filter on column \(sheet.autoFilter.map { CellRef.columnName($0.minColumn + column.columnOffset) } ?? "offset \(column.columnOffset)") is dropped: ODF has no colour, icon, dynamic or date-group filter")
                 continue
             }
             guard !conditions.isEmpty else { continue }

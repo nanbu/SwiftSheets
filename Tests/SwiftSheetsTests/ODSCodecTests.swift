@@ -755,6 +755,21 @@ import SwiftSheets
 
     // MARK: - tab colour (spec Appendix B.74)
 
+    /// A filter ODF cannot hold is named by the sheet's column, not by its offset in the filter range (spec Appendix B.92).
+    /// The offset used to be printed as a column number: the first column of C1:E9 read "column " and the second "A".
+    @Test func aDroppedFilterIsNamedByItsSheetColumn() throws {
+        var wb = Workbook()
+        wb.sheets[0]["C1"] = "Head"
+        wb.sheets[0]["C2"] = 1
+        wb.sheets[0].autoFilter = CellRange("C1:E9")
+        wb.sheets[0].filterColumns = [FilterColumn(columnOffset: 0, dynamicFilter: DynamicFilter(kind: .aboveAverage)),
+                                      FilterColumn(columnOffset: 1, dynamicFilter: DynamicFilter(kind: .aboveAverage))]
+        let messages = try wb.write(as: .ods).warnings.map(\.message).filter { $0.contains("the filter on column") }
+        #expect(messages.count == 2, "\(messages)")
+        #expect(messages.contains { $0.contains("the filter on column C is dropped") }, "\(messages)")
+        #expect(messages.contains { $0.contains("the filter on column D is dropped") }, "\(messages)")
+    }
+
     /// The tab colour is `table:tab-color` on the table style — the attribute LibreOffice writes — and a theme
     /// colour is resolved to RGB before it is written, so nothing about the tab is reported any more.
     @Test func theTabColourIsWrittenAndReadBack() throws {
