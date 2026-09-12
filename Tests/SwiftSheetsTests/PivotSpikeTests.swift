@@ -369,7 +369,7 @@ import SwiftSheets
         print("SPIKE read back sheets: \(back.sheetNames)")
         for s in back.sheets where s.name == "Pivot" {
             for t in s.tables { print("SPIKE   table \(t.name ?? "?") \(t.rowCount)x\(t.columnCount): "
-                                      + (0..<t.rowCount).map { r in (0..<t.columnCount).map { c in t[r, c]?.stringValue ?? "_" }.joined(separator: " ") }.joined(separator: " / ")) }
+                                      + (0..<t.rowCount).map { r in (0..<t.columnCount).map { c in t[r + 1, c + 1]?.stringValue ?? "_" }.joined(separator: " ") }.joined(separator: " / ")) }
         }
     }
 
@@ -421,7 +421,7 @@ import SwiftSheets
             for s in back.sheets where s.name == "Pivot" {
                 for t in s.tables where t.rowCount > 0 {
                     print("SPIKE \(label)   \(t.name ?? "?") \(t.rowCount)x\(t.columnCount): "
-                          + (0..<t.rowCount).map { r in (0..<t.columnCount).map { c in t[r, c]?.stringValue ?? "_" }.joined(separator: " ") }.joined(separator: " / "))
+                          + (0..<t.rowCount).map { r in (0..<t.columnCount).map { c in t[r + 1, c + 1]?.stringValue ?? "_" }.joined(separator: " ") }.joined(separator: " / "))
                 }
             }
         }
