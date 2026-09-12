@@ -24,7 +24,10 @@ def main():
     binary = Path(subprocess.check_output(['swift', 'build', '--show-bin-path'], cwd=ROOT, text=True).strip())
     with tempfile.TemporaryDirectory(prefix='swiftsheets-write-result-') as tmp:
         source = Path(tmp) / 'Client.swift'
-        command = ['swiftc', '-typecheck', '-I', str(binary / 'Modules'),
+        # SwiftPM before 6.4 puts the .swiftmodule files in Modules/ under the bin path; the build system of 6.4 puts
+        # them in the bin path itself (.build/out/Products/Debug).
+        modules = binary / 'Modules' if (binary / 'Modules').is_dir() else binary
+        command = ['swiftc', '-typecheck', '-I', str(modules),
                    '-I', str(ROOT / 'Sources/CZlib'), str(source)]
         for name, module, call in CALLS:
             prefix = f'import Foundation\n{module}\nfunc probe(_ workbook: Workbook, _ codecs: CodecSet, _ url: URL) throws {{\n'

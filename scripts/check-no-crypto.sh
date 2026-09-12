@@ -45,7 +45,15 @@ literals() { grep -vE '(^| )[lL]_\.str|(^| )\.L\.str|(^| )l___unnamed'; }
 symbols() { "$NM" "$1" 2>/dev/null | literals | swift demangle; }
 objects() {
     # every object of a module, defined and undefined symbols alike
-    find "$BIN/$1.build" -name '*.o' -exec "$NM" {} \; 2>/dev/null | literals | swift demangle
+    # SwiftPM before 6.4 keeps a module's objects in <bin>/<Module>.build; the build system of 6.4 keeps them under
+    # out/Intermediates.noindex/<project>.build/Debug/<Module>-t.build, and <bin> is out/Products/Debug. Only one of
+    # the two is read: folders of the other layout left by an older toolchain must not stand in for this build's.
+    local dir="$BIN/$1.build"
+    if [ ! -d "$dir" ]; then
+        dir=$(find "$SCRATCH/out/Intermediates.noindex" -type d \( -name "$1-t.build" -o -name "$1.build" \) -path '*/Debug/*' 2>/dev/null | head -1)
+    fi
+    [ -n "$dir" ] || return 0
+    find "$dir" -name '*.o' -exec "$NM" {} \; 2>/dev/null | literals | swift demangle
 }
 # a name is a whole word: `legacyCompoundFile` (a case in SheetCore) is not `CompoundFile`, `AESTests` is not `AES`
 CRYPTO_TYPES='\b(AES|OOXMLEncryption|ODSEncryption|CompoundFile)\b'
