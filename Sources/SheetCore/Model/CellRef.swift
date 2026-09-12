@@ -43,7 +43,7 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
     public var address: String { columnName + String(row) }
     public var description: String { address }
     /// "A".
-    public var columnName: String { CellRef.columnName(column) }
+    public var columnName: String { CellRef.columnLetters(column) }
     /// "$A$1".
     public var absoluteAddress: String { "$" + columnName + "$" + String(row) }
 
@@ -55,14 +55,23 @@ public struct CellRef: Hashable, Sendable, Comparable, CustomStringConvertible, 
     // MARK: - Column names (bijective base-26)
 
     /// 1 → "A", 28 → "AB". Zero and negative numbers give "".
+    /// The letters of a column counted from 1 (`1` is "A"). Stops below 1 (spec Appendix B.92): a column 0 used to answer
+    /// "" and put `$$2:$$4` into a formula. `columnName(validating:)` answers nil instead.
     public static func columnName(_ column: Int) -> String {
+        precondition(column >= 1, "columns count from 1 (column \(column))")
+        return columnLetters(column)
+    }
+
+    /// `columnName(_:)` without the stop: "" below 1. The library formats addresses through this, so a malformed file or
+    /// an invalid reference printed in a message never stops the process (spec §12).
+    package static func columnLetters(_ column: Int) -> String {
         var n = column, s = ""
         while n > 0 { let r = (n - 1) % 26; s = String(UnicodeScalar(UInt8(65 + r))) + s; n = (n - 1) / 26 }
         return s
     }
 
     /// Like `columnName(_:)` but nil outside 1…18,278 (openpyxl raises `ValueError`).
-    public static func columnName(validating column: Int) -> String? { (1...maxParsedCol).contains(column) ? columnName(column) : nil }
+    public static func columnName(validating column: Int) -> String? { (1...maxParsedCol).contains(column) ? columnLetters(column) : nil }
 
     /// "AB" → 28. Case-insensitive; nil for more than three letters or non-letters. The length is checked while
     /// scanning so that a long run of letters cannot overflow `n`.
@@ -215,9 +224,9 @@ public struct CellRange: Hashable, Sendable, CustomStringConvertible, Codable {
 
     /// "A1:C3", or "A1" for a single cell.
     public var address: String {
-        let a = CellRef.columnName(minColumn) + String(minRow)
+        let a = CellRef.columnLetters(minColumn) + String(minRow)
         if minColumn == maxColumn, minRow == maxRow { return a }
-        return a + ":" + CellRef.columnName(maxColumn) + String(maxRow)
+        return a + ":" + CellRef.columnLetters(maxColumn) + String(maxRow)
     }
     public var description: String { address }
     /// "'Sheet 1'!A1:B4" when a sheet is set, else the plain A1 form.

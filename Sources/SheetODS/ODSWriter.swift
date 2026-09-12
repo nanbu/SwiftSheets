@@ -649,7 +649,7 @@ enum ODSWriter {
             s += "<table:named-range table:name=\"_xlnm.Print_Titles\" table:base-cell-address=\"\(XML.esc(prefix)).$A$1\" table:cell-range-address=\"\(XML.esc(address))\" table:range-usable-as=\"repeat-row\"/>"
         }
         if let cols = sheet.printTitleColumns {
-            let address = "\(prefix).$\(CellRef.columnName(cols.lowerBound)):.$\(CellRef.columnName(cols.upperBound))"
+            let address = "\(prefix).$\(CellRef.columnLetters(cols.lowerBound)):.$\(CellRef.columnLetters(cols.upperBound))"
             let name = both ? "_xlnm.Print_Titles_Columns" : "_xlnm.Print_Titles"
             s += "<table:named-range table:name=\"\(name)\" table:base-cell-address=\"\(XML.esc(prefix)).$A$1\" table:cell-range-address=\"\(XML.esc(address))\" table:range-usable-as=\"repeat-column\"/>"
         }
@@ -719,7 +719,7 @@ enum ODSWriter {
                 conditions.append("<table:filter-condition table:field-number=\"\(column.columnOffset)\" table:operator=\"\(op)\" table:value=\"\(XML.num(top.count))\"/>")
             } else if column.dynamicFilter != nil || column.colorFilter != nil || column.iconFilter != nil || !column.dateGroups.isEmpty {
                 sink.add(.dropped, subject: .formatting, sheet: sheet.name,
-                         "the filter on column \(sheet.autoFilter.map { CellRef.columnName($0.minColumn + column.columnOffset) } ?? "offset \(column.columnOffset)") is dropped: ODF has no colour, icon, dynamic or date-group filter")
+                         "the filter on column \(sheet.autoFilter.map { CellRef.columnLetters($0.minColumn + column.columnOffset) } ?? "offset \(column.columnOffset)") is dropped: ODF has no colour, icon, dynamic or date-group filter")
                 continue
             }
             guard !conditions.isEmpty else { continue }

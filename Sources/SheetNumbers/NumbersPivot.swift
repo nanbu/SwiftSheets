@@ -61,6 +61,7 @@ enum NumbersPivot {
     static func source(of pivot: PivotTable, in workbook: Workbook) -> [SourceColumn]? {
         guard let sheet = workbook.sheets[pivot.cache.sourceSheet] else { return nil }
         let ref = pivot.cache.sourceRef
+        guard ref.minRow >= 1, ref.minColumn >= 1 else { return nil }   // a range from a file is not trusted to count from 1
         guard ref.maxRow > ref.minRow else { return nil }          // a header row and nothing under it is not a source
         var columns: [SourceColumn] = []
         for col in ref.minColumn...ref.maxColumn {

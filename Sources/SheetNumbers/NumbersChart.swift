@@ -110,8 +110,8 @@ enum NumbersChart {
     }
 
     static func cellsText(_ r: CellRange) -> String {
-        let a = "$" + CellRef.columnName(r.minColumn) + "$\(r.minRow)"
-        let b = "$" + CellRef.columnName(r.maxColumn) + "$\(r.maxRow)"
+        let a = "$" + CellRef.columnLetters(r.minColumn) + "$\(r.minRow)"
+        let b = "$" + CellRef.columnLetters(r.maxColumn) + "$\(r.maxRow)"
         return a == b ? a : a + ":" + b
     }
 

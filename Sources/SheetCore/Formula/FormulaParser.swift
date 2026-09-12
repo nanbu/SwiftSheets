@@ -508,7 +508,7 @@ struct FormulaEmitter {
         case .ref(let r, let s, let ar, let ac):
             let prefix = s != nil && s != omitSheet ? sheetPrefix(s!) : ""
             return prefix + (ac ? "$" : "") + r.columnName + (ar ? "$" : "") + String(r.row)
-        case .column(let c, let s, let a): return (s != nil && s != omitSheet ? sheetPrefix(s!) : "") + (a ? "$" : "") + CellRef.columnName(c)
+        case .column(let c, let s, let a): return (s != nil && s != omitSheet ? sheetPrefix(s!) : "") + (a ? "$" : "") + CellRef.columnLetters(c)
         case .row(let r, let s, let a): return (s != nil && s != omitSheet ? sheetPrefix(s!) : "") + (a ? "$" : "") + String(r)
         default: return emit(e)
         }
@@ -523,7 +523,7 @@ struct FormulaEmitter {
         }
         switch e {
         case .ref(let r, let s, let ar, let ac): return prefix(s) + (ac ? "$" : "") + r.columnName + (ar ? "$" : "") + String(r.row)
-        case .column(let c, let s, let a): return prefix(s) + (a ? "$" : "") + CellRef.columnName(c)
+        case .column(let c, let s, let a): return prefix(s) + (a ? "$" : "") + CellRef.columnLetters(c)
         case .row(let r, let s, let a): return prefix(s) + (a ? "$" : "") + String(r)
         default: return emit(e)
         }

@@ -394,7 +394,7 @@ public struct Sheet: Equatable, Sendable {
             var parts: [String] = []
             let q = CellRef.quoteSheetName(name)
             if let r = printTitleRows { parts.append("\(q)!$\(r.lowerBound):$\(r.upperBound)") }
-            if let c = printTitleColumns { parts.append("\(q)!$\(CellRef.columnName(c.lowerBound)):$\(CellRef.columnName(c.upperBound))") }
+            if let c = printTitleColumns { parts.append("\(q)!$\(CellRef.columnLetters(c.lowerBound)):$\(CellRef.columnLetters(c.upperBound))") }
             return parts.isEmpty ? nil : parts.joined(separator: ",")
         }
         set {

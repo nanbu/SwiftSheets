@@ -140,10 +140,10 @@ struct NumbersFormulaDecoder {
             let ar0 = sticky?.bool("begin_row_is_absolute") ?? false, ar1 = sticky?.bool("end_row_is_absolute") ?? false
             let ac0 = sticky?.bool("begin_column_is_absolute") ?? false, ac1 = sticky?.bool("end_column_is_absolute") ?? false
             // the file counts from 0; A1 text (and the model) from 1
-            if rowsOpen { return prefix + (ac0 ? "$" : "") + CellRef.columnName(c0 + 1) + ":" + (ac1 ? "$" : "") + CellRef.columnName(c1 + 1) }
+            if rowsOpen { return prefix + (ac0 ? "$" : "") + CellRef.columnLetters(c0 + 1) + ":" + (ac1 ? "$" : "") + CellRef.columnLetters(c1 + 1) }
             if colsOpen { return prefix + (ar0 ? "$" : "") + String(r0 + 1) + ":" + (ar1 ? "$" : "") + String(r1 + 1) }
-            let a = (ac0 ? "$" : "") + CellRef.columnName(c0 + 1) + (ar0 ? "$" : "") + String(r0 + 1)
-            let b = (ac1 ? "$" : "") + CellRef.columnName(c1 + 1) + (ar1 ? "$" : "") + String(r1 + 1)
+            let a = (ac0 ? "$" : "") + CellRef.columnLetters(c0 + 1) + (ar0 ? "$" : "") + String(r0 + 1)
+            let b = (ac1 ? "$" : "") + CellRef.columnLetters(c1 + 1) + (ar1 ? "$" : "") + String(r1 + 1)
             return prefix + (a == b && !(ac0 != ac1 || ar0 != ar1) ? a : a + ":" + b)
         }
         let rowNode = node.message("AST_row"), colNode = node.message("AST_column")
@@ -151,8 +151,8 @@ struct NumbersFormulaDecoder {
         let r = rowNode.map { absRow ? ($0.int("row") ?? 0) : row + ($0.int("row") ?? 0) }
         let c = colNode.map { absCol ? ($0.int("column") ?? 0) : column + ($0.int("column") ?? 0) }
         if let r, colNode == nil { return prefix + (absRow ? "$" : "") + String(r + 1) + ":" + (absRow ? "$" : "") + String(r + 1) }
-        if let c, rowNode == nil { return prefix + (absCol ? "$" : "") + CellRef.columnName(c + 1) + ":" + (absCol ? "$" : "") + CellRef.columnName(c + 1) }
-        return prefix + (absCol ? "$" : "") + CellRef.columnName((c ?? 0) + 1) + (absRow ? "$" : "") + String((r ?? 0) + 1)
+        if let c, rowNode == nil { return prefix + (absCol ? "$" : "") + CellRef.columnLetters(c + 1) + ":" + (absCol ? "$" : "") + CellRef.columnLetters(c + 1) }
+        return prefix + (absCol ? "$" : "") + CellRef.columnLetters((c ?? 0) + 1) + (absRow ? "$" : "") + String((r ?? 0) + 1)
     }
 }
 

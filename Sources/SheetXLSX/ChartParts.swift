@@ -72,7 +72,7 @@ enum ChartParts {
     static func qualify(_ ref: String, sheet: String) -> String {
         if ref.contains("!") { return ref }
         let absolute = CellRange(ref).map { range in
-            "$\(CellRef.columnName(range.minColumn))$\(range.minRow):$\(CellRef.columnName(range.maxColumn))$\(range.maxRow)"
+            "$\(CellRef.columnLetters(range.minColumn))$\(range.minRow):$\(CellRef.columnLetters(range.maxColumn))$\(range.maxRow)"
         } ?? ref
         let needsQuotes = sheet.contains(where: { !$0.isLetter && !$0.isNumber && $0 != "_" })
         let name = needsQuotes ? "'\(sheet.replacingOccurrences(of: "'", with: "''"))'" : sheet

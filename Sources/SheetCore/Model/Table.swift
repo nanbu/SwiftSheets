@@ -128,12 +128,12 @@ public struct Table: Equatable, Sendable {
 
     /// Row and column as the sheet shows them (`table[1, 1]` is A1).
     public subscript(_ row: Int, _ column: Int) -> CellValue? {
-        get { cells[CellRef(row: row, column: column)]?.value }
+        get { precondition(row >= 1 && column >= 1, "rows and columns count from 1 (row \(row), column \(column))"); return cells[CellRef(row: row, column: column)]?.value }
         set { self[CellRef(row: row, column: column)] = newValue }
     }
 
     public subscript(_ ref: CellRef) -> CellValue? {
-        get { cells[ref]?.value }
+        get { precondition(ref.row >= 1 && ref.column >= 1, "rows and columns count from 1 (row \(ref.row), column \(ref.column))"); return cells[ref]?.value }
         set {
             precondition(ref.row >= 1 && ref.column >= 1, "rows and columns count from 1 (row \(ref.row), column \(ref.column))")
             if newValue == nil, storage[ref] == nil { return }
@@ -146,7 +146,7 @@ public struct Table: Equatable, Sendable {
 
     /// The whole cell (value + style + link + note); an empty `Cell()` when absent. Assigning a blank cell removes it.
     public subscript(cell ref: CellRef) -> Cell {
-        get { cells[ref] ?? Cell() }
+        get { precondition(ref.row >= 1 && ref.column >= 1, "rows and columns count from 1 (row \(ref.row), column \(ref.column))"); return cells[ref] ?? Cell() }
         set { put(newValue.isBlank ? nil : newValue, at: ref); nextAppendRow = Swift.max(nextAppendRow, ref.row + 1) }
     }
     public subscript(cell a1: String) -> Cell {
@@ -155,7 +155,7 @@ public struct Table: Equatable, Sendable {
     }
 
     /// The cell if it exists, without creating it.
-    public func cell(_ ref: CellRef) -> Cell? { cells[ref] }
+    public func cell(_ ref: CellRef) -> Cell? { precondition(ref.row >= 1 && ref.column >= 1, "rows and columns count from 1 (row \(ref.row), column \(ref.column))"); return cells[ref] }
     public func cell(_ a1: String) -> Cell? { CellRef(a1).flatMap { cells[$0] } }
 
     /// Removes a cell entirely.
@@ -509,11 +509,17 @@ public struct Table: Equatable, Sendable {
 
     // MARK: - Dimensions
 
-    public func rowDimension(_ row: Int) -> RowDimension { rowDimensions[row] ?? RowDimension() }
+    /// Stops below 1, as a cell does (spec Appendix B.92).
+    public func rowDimension(_ row: Int) -> RowDimension {
+        precondition(row >= 1, "rows count from 1 (row \(row))"); return rowDimensions[row] ?? RowDimension()
+    }
     public mutating func setRowDimension(_ row: Int, _ update: (inout RowDimension) -> Void) {
         var d = rowDimension(row); update(&d); rowDimensions[row] = d.isDefault ? nil : d
     }
-    public func columnDimension(_ column: Int) -> ColumnDimension { columnDimensions[column] ?? ColumnDimension() }
+    /// Stops below 1, as a cell does (spec Appendix B.92).
+    public func columnDimension(_ column: Int) -> ColumnDimension {
+        precondition(column >= 1, "columns count from 1 (column \(column))"); return columnDimensions[column] ?? ColumnDimension()
+    }
     public func columnDimension(_ name: String) -> ColumnDimension { CellRef.columnIndex(name).map(columnDimension) ?? ColumnDimension() }
     public mutating func setColumnDimension(_ column: Int, _ update: (inout ColumnDimension) -> Void) {
         var d = columnDimension(column); update(&d); columnDimensions[column] = d.isDefault ? nil : d
@@ -551,6 +557,6 @@ public struct Table: Equatable, Sendable {
         for c in outlined {
             if let last = groups.last, last.1 == c - 1 { groups[groups.count - 1].1 = c } else { groups.append((c, c)) }
         }
-        return groups.map { "\(CellRef.columnName($0.0)):\(CellRef.columnName($0.1))" }
+        return groups.map { "\(CellRef.columnLetters($0.0)):\(CellRef.columnLetters($0.1))" }
     }
 }
