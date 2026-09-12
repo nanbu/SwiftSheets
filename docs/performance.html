@@ -106,40 +106,40 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <th colspan="2">100,000 rows (10,000,000 cells)</th>
 </tr><tr><th>What was done</th><th>Time</th><th>Peak memory</th><th>Time</th><th>Peak memory</th></tr></thead><tbody>
 <tr><td>Build the model<br><small>put every cell into a Workbook (no file)</small></td>
-<td>0.39 s</td><td>203.0 MB</td>
-<td>4.05 s</td><td>1043.6 MB</td>
+<td>0.36 s</td><td>203.0 MB</td>
+<td>3.88 s</td><td>1047.5 MB</td>
 </tr>
 <tr><td>Write (xlsx)<br><small>model -&gt; .xlsx</small></td>
-<td>1.10 s</td><td>212.2 MB<br><small>of which the model: 202.8 MB</small></td>
-<td>10.84 s</td><td>1222.1 MB<br><small>of which the model: 1084.2 MB</small></td>
+<td>0.94 s</td><td>214.6 MB<br><small>of which the model: 202.9 MB</small></td>
+<td>10.08 s</td><td>1184.0 MB<br><small>of which the model: 1044.7 MB</small></td>
 </tr>
 <tr><td>Read (xlsx)<br><small>.xlsx -&gt; model, then sum every cell</small></td>
-<td>1.49 s</td><td>215.5 MB</td>
-<td>16.23 s</td><td>997.2 MB</td>
+<td>1.45 s</td><td>213.3 MB</td>
+<td>16.08 s</td><td>1026.0 MB</td>
 </tr>
 <tr><td>Streaming read (xlsx)<br><small>StreamingReader, row by row, then sum every cell</small></td>
-<td>1.03 s</td><td>13.2 MB</td>
-<td>10.65 s</td><td>34.7 MB</td>
+<td>1.01 s</td><td>13.2 MB</td>
+<td>10.74 s</td><td>19.5 MB</td>
 </tr>
 <tr><td>Open, change one cell, save<br><small>.xlsx -&gt; model -&gt; .xlsx</small></td>
-<td>2.28 s</td><td>211.0 MB</td>
-<td>24.41 s</td><td>1021.7 MB</td>
+<td>2.17 s</td><td>210.5 MB</td>
+<td>24.04 s</td><td>1136.2 MB</td>
 </tr>
 <tr><td>Format detection<br><small>SheetFormat.detect(contentsOf:), per call</small></td>
 <td>under 1 ms</td><td>7.0 MB</td>
 <td>under 1 ms</td><td>7.0 MB</td>
 </tr>
 <tr><td>Inspect before reading<br><small>Workbook.inspect(contentsOf:)</small></td>
-<td>2.0 ms</td><td>10.6 MB</td>
-<td>3.0 ms</td><td>10.6 MB</td>
+<td>2.0 ms</td><td>10.7 MB</td>
+<td>3.0 ms</td><td>10.7 MB</td>
 </tr>
 <tr><td>Streaming write (xlsx)<br><small>StreamingWriter, row by row</small></td>
-<td>1.12 s</td><td>10.8 MB</td>
-<td>11.68 s</td><td>10.9 MB</td>
+<td>1.11 s</td><td>10.8 MB</td>
+<td>11.33 s</td><td>10.8 MB</td>
 </tr>
 <tr><td>Streaming read (xlsx) (the streaming writer&#x27;s file)<br><small>StreamingReader, row by row, then sum every cell</small></td>
-<td>1.08 s</td><td>12.7 MB</td>
-<td>11.15 s</td><td>12.7 MB</td>
+<td>1.07 s</td><td>12.7 MB</td>
+<td>10.73 s</td><td>12.8 MB</td>
 </tr>
 <tr><td>Format detection (the streaming writer&#x27;s file)<br><small>SheetFormat.detect(contentsOf:), per call</small></td>
 <td>under 1 ms</td><td>7.0 MB</td>
@@ -147,83 +147,83 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 </tr>
 <tr><td>Inspect before reading (the streaming writer&#x27;s file)<br><small>Workbook.inspect(contentsOf:)</small></td>
 <td>2.0 ms</td><td>10.6 MB</td>
-<td>3.0 ms</td><td>10.6 MB</td>
+<td>2.0 ms</td><td>10.6 MB</td>
 </tr>
 <tr><td>Write (xlsx, 8 sheets)<br><small>the same cells split across 8 sheets, model -&gt; .xlsx</small></td>
-<td>0.87 s</td><td>207.4 MB<br><small>of which the model: 196.5 MB</small></td>
-<td>10.29 s</td><td>1232.1 MB<br><small>of which the model: 1232.1 MB</small></td>
+<td>0.84 s</td><td>207.4 MB<br><small>of which the model: 196.6 MB</small></td>
+<td>10.48 s</td><td>1593.7 MB<br><small>of which the model: 1307.3 MB</small></td>
 </tr>
 <tr><td>Read (xlsx, 8 sheets, one at a time)<br><small>ReadOptions(concurrency: 1), then sum every cell</small></td>
-<td>1.41 s</td><td>141.3 MB</td>
-<td>15.20 s</td><td>940.8 MB</td>
+<td>1.34 s</td><td>139.1 MB</td>
+<td>15.57 s</td><td>820.6 MB</td>
 </tr>
 <tr><td>Read (xlsx, 8 sheets, side by side)<br><small>the default (sheets read concurrently), then sum every cell</small></td>
-<td>0.71 s</td><td>231.5 MB</td>
-<td>7.82 s</td><td>1063.5 MB</td>
+<td>0.64 s</td><td>228.5 MB</td>
+<td>7.88 s</td><td>907.3 MB</td>
 </tr>
 <tr><td>Write (ods)<br><small>model -&gt; .ods</small></td>
-<td>1.83 s</td><td>215.8 MB<br><small>of which the model: 202.8 MB</small></td>
-<td>19.89 s</td><td>1036.9 MB<br><small>of which the model: 1036.9 MB</small></td>
+<td>1.78 s</td><td>213.0 MB<br><small>of which the model: 202.9 MB</small></td>
+<td>19.41 s</td><td>995.8 MB<br><small>of which the model: 879.2 MB</small></td>
 </tr>
 <tr><td>Read (ods)<br><small>.ods -&gt; model</small></td>
-<td>2.59 s</td><td>219.5 MB</td>
-<td>28.36 s</td><td>1187.4 MB</td>
+<td>2.66 s</td><td>210.1 MB</td>
+<td>28.20 s</td><td>1150.8 MB</td>
 </tr>
 <tr><td>Streaming read (ods)<br><small>StreamingReader, row by row, then sum every cell</small></td>
-<td>2.43 s</td><td>14.5 MB</td>
-<td>24.67 s</td><td>16.2 MB</td>
+<td>2.45 s</td><td>14.6 MB</td>
+<td>24.50 s</td><td>14.4 MB</td>
 </tr>
 <tr><td>Streaming write (ods)<br><small>StreamingWriter, row by row</small></td>
-<td>1.79 s</td><td>21.5 MB</td>
-<td>17.21 s</td><td>16.8 MB</td>
+<td>1.71 s</td><td>21.5 MB</td>
+<td>17.05 s</td><td>16.7 MB</td>
 </tr>
 <tr><td>Streaming read (ods) (the streaming writer&#x27;s file)<br><small>StreamingReader, row by row, then sum every cell</small></td>
-<td>2.45 s</td><td>14.5 MB</td>
-<td>25.21 s</td><td>15.5 MB</td>
+<td>2.47 s</td><td>14.5 MB</td>
+<td>24.93 s</td><td>14.4 MB</td>
 </tr>
 <tr><td>Write (csv)<br><small>model -&gt; .csv</small></td>
-<td>0.61 s</td><td>233.5 MB<br><small>of which the model: 202.8 MB</small></td>
-<td>6.46 s</td><td>1153.5 MB<br><small>of which the model: 1129.2 MB</small></td>
+<td>0.48 s</td><td>237.5 MB<br><small>of which the model: 202.9 MB</small></td>
+<td>5.41 s</td><td>1557.3 MB<br><small>of which the model: 843.3 MB</small></td>
 </tr>
 <tr><td>Read (csv)<br><small>.csv -&gt; model (with type inference)</small></td>
 <td>0.81 s</td><td>165.2 MB</td>
-<td>9.18 s</td><td>1195.4 MB</td>
+<td>9.43 s</td><td>1173.3 MB</td>
 </tr>
 <tr><td>Streaming read (csv)<br><small>CSVStreamingReader, row by row</small></td>
-<td>0.51 s</td><td>10.7 MB</td>
-<td>5.31 s</td><td>10.9 MB</td>
+<td>0.51 s</td><td>10.6 MB</td>
+<td>5.31 s</td><td>10.8 MB</td>
 </tr>
 <tr><td>Streaming write (csv)<br><small>CSVStreamingWriter, row by row</small></td>
-<td>0.48 s</td><td>7.7 MB</td>
-<td>5.08 s</td><td>7.7 MB</td>
+<td>0.49 s</td><td>7.6 MB</td>
+<td>5.12 s</td><td>7.6 MB</td>
 </tr>
 <tr><td>Streaming read (csv) (the streaming writer&#x27;s file)<br><small>CSVStreamingReader, row by row</small></td>
-<td>0.50 s</td><td>10.7 MB</td>
-<td>5.25 s</td><td>10.9 MB</td>
+<td>0.50 s</td><td>10.5 MB</td>
+<td>5.29 s</td><td>10.6 MB</td>
 </tr>
 <tr><td>Write (numbers)<br><small>model -&gt; .numbers</small></td>
-<td>2.14 s</td><td>333.5 MB<br><small>of which the model: 202.8 MB</small></td>
-<td>23.71 s</td><td>1362.2 MB<br><small>of which the model: 1173.1 MB</small></td>
+<td>2.01 s</td><td>339.2 MB<br><small>of which the model: 195.4 MB</small></td>
+<td>36.62 s</td><td>1240.0 MB<br><small>of which the model: 904.0 MB</small></td>
 </tr>
 <tr><td>Read (numbers)<br><small>.numbers -&gt; model, then sum every cell</small></td>
-<td>1.04 s</td><td>279.2 MB</td>
-<td>11.05 s</td><td>1446.7 MB</td>
+<td>1.04 s</td><td>274.6 MB</td>
+<td>10.84 s</td><td>1278.2 MB</td>
 </tr>
 <tr><td>Streaming read (numbers)<br><small>StreamingReader, row by row, then sum every cell</small></td>
-<td>0.53 s</td><td>24.8 MB</td>
-<td>4.74 s</td><td>60.5 MB</td>
+<td>0.52 s</td><td>24.9 MB</td>
+<td>4.85 s</td><td>59.8 MB</td>
 </tr>
 <tr><td>Streaming write (numbers)<br><small>StreamingWriter, row by row</small></td>
-<td>2.87 s</td><td>26.4 MB</td>
-<td>28.36 s</td><td>61.7 MB</td>
+<td>2.80 s</td><td>23.9 MB</td>
+<td>27.58 s</td><td>61.5 MB</td>
 </tr>
 <tr><td>Streaming read (numbers) (the streaming writer&#x27;s file)<br><small>StreamingReader, row by row, then sum every cell</small></td>
-<td>0.62 s</td><td>24.9 MB</td>
-<td>4.65 s</td><td>59.7 MB</td>
+<td>0.50 s</td><td>24.8 MB</td>
+<td>4.93 s</td><td>59.6 MB</td>
 </tr>
 </tbody></table></div>
 <h2>Conditions of measurement</h2><ul>
-<li>Date: 2026-09-12, commit: <code>44fbaf7</code></li>
+<li>Date: 2026-09-12, commit: <code>18ad435</code></li>
 <li>Machine: Apple M2, 8 GB of memory, 27.0</li>
 <li>Toolchain: swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1), release build</li>
 <li>Material: synthetic, 100 columns: a label, five integers, three decimals and a Japanese category, repeated across the width with the numbers offset per block; the text columns past the first block draw on a vocabulary of fifty; one sheet; no formatting. <strong>Synthetic data gives synthetic numbers</strong>: a real workbook, heavy with formatting and drawings, is heavier than this.</li>

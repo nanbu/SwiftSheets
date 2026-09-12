@@ -41,14 +41,18 @@ What the two applications that depend on the library found when they moved to 0.
 - The migration guide names the per-format row-by-row readers and writers that became internal in 0.20.0 and where
   their callers go, and says that `tableNames(inSheet:)` answers `[String?]`.
 
+- **A row-by-row read of a large XLSX file no longer holds an empty furigana slot for every shared string** (spec
+  Appendix B.93). The shared-string parser kept one of about 80 bytes per string whether or not it had furigana, and
+  the row-by-row reader never read them: ten million cells with a hundred thousand strings peaked at 34.7 MB, and now
+  peak at 19.6 MB in the same 10.2 s (the old and the new build run alternately five times each).
+
 ### Performance
 
 - **The performance record is measured again with Swift 6.4 (Xcode 27, macOS 27).** At a million cells it follows
-  the speed-ups of 0.27.0: reading XLSX takes 1.49 s at a 216 MB peak (3.76 s and 201 MB in the Swift 6.3.3 record),
-  and eight sheets side by side 0.71 s at 232 MB (1.45 s and 228 MB). At ten million cells every operation is faster,
-  but several peak higher: the XLSX row-by-row read 10.6 s at 35 MB (18.9 s and 19 MB before), eight sheets read one
-  at a time 15.2 s at 941 MB (28.7 s and 432 MB), delimited text 9.2 s at 1,195 MB (48.6 s and 926 MB). The two
-  records differ in the code and in the compiler at once, so neither is named as the cause.
+  the speed-ups of 0.27.0: reading XLSX takes 1.45 s at a 213 MB peak (3.76 s and 201 MB in the Swift 6.3.3 record),
+  and eight sheets side by side 0.64 s at 228 MB (1.45 s and 228 MB). At ten million cells every operation is faster.
+  Some whole-model operations there peaked higher than in the Swift 6.3.3 record; alternating runs of the old and the
+  new build on a busy machine could not separate that from run-to-run variation, so those peaks are not compared here.
 
 ## [0.27.0] — 2026-09-12
 
