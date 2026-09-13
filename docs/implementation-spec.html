@@ -7374,7 +7374,9 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   (<code>'#</code>), then sorts those by reference. The order, and so the numbering, is the same; ExternalLinkTests holds
   it with two linked documents.</p>
   <p><strong>Verification.</strong> The change measured before it was written, main and main with it alternately three
-  times each: 26.9 s at 1,624 MB and 25.2 s at 1,361 MB, the row-by-row ODS read unchanged at 15 MB.</p>
+  times each: 26.9 s at 1,624 MB and 25.2 s at 1,361 MB, the row-by-row ODS read unchanged at 15 MB. As committed, the old and the
+  new build alternately five times each: 27.5 s at 1,339 MB and 25.3 s at 1,091 MB, the two ranges apart; the row-by-row
+  read 14.6 MB in both.</p>
 </section>
 
 </div><!-- /.container -->
