@@ -1,17 +1,19 @@
 # API stability — what 1.0 promises
 
-> **Draft for 1.0.** Until the 1.0 tag exists, this page describes the intended policy; the pre-1.0 caveat in the
-> [CHANGELOG](../CHANGELOG.md) (minor versions may break the API) still applies.
+> **The policy 1.0 keeps** (spec Appendix B.95). It takes effect with the 1.0 tag; until then the pre-1.0 caveat in
+> the [CHANGELOG](../CHANGELOG.md) (minor versions may break the API) still applies.
 
 ## Versioning
 
 SwiftSheets follows [Semantic Versioning](https://semver.org/). From 1.0:
 
 - **Patch** (1.0.x): bug fixes, performance, documentation. No source-breaking change.
-- **Minor** (1.x): additions — new types, members, formats, warning kinds. Existing code compiles and behaves the
-  same, with one deliberate exception below.
-- **Major** (2.0): anything that breaks source. Announced in the CHANGELOG at least one minor release ahead, with
-  the old name deprecated and the new one available side by side for that release.
+- **Minor** (1.x): additions — new types, members, formats, new cases of the error and warning enumerations — and a
+  raised minimum Swift. Existing code keeps compiling and behaving the same, with the exceptions named on this page:
+  a `switch` that lists every case of such an enumeration needs a `default:`, and a file that holds something the
+  library could not read before may read differently.
+- **Major** (2.0): anything that breaks source. Announced in the CHANGELOG one minor release ahead, with the old
+  name deprecated and the new one available side by side for that release.
 
 The version is `SwiftSheetsInfo.version`, stamped into every file the library writes, and a test keeps it equal
 to the README's pin and the CHANGELOG's newest section.
@@ -28,7 +30,8 @@ The public surface of the products `SwiftSheets`, `SheetCore`, `SheetXLSX`, `She
   `StreamingReader`, `StreamingWriter`, `SheetFormat.detect` / `probe`, and the `SheetDecrypt` / `SheetEncrypt`
   password variants.
 - **The error and warning vocabulary.** The cases of `SheetError` and `UnopenableInput`, and the `kind` and
-  `subject` of `ConversionWarning`. A new case or kind is a minor change; a removed one is major.
+  `subject` of `ConversionWarning`. A new case or kind is a minor change, so a `switch` over them keeps a
+  `default:`; a removed one is major.
 - **The preservation promise (F3).** A part the model does not read is written back byte for byte when the file is
   saved in the same format.
 - **The naming rules** of Appendix B.62–B.67 (typed / A1-string twins share labels, predicative Bools, one name per
@@ -45,9 +48,10 @@ The public surface of the products `SwiftSheets`, `SheetCore`, `SheetXLSX`, `She
   what the file *means*, judged by those applications and by the parity scripts under `Tests/`.
 - **Performance numbers.** They are measured and published, not promised; a release that regresses one says so in
   the CHANGELOG.
-- **The one behavioural exception in a minor release:** a file that a *new* codec feature reads now and did not
-  read before (say, a chart kind that used to be preserved as bytes and is now modelled) changes what
-  `sheet.charts` returns and what the write warns about. Such a change is listed under *Changed* in the CHANGELOG.
+- **What a reader returns for the same file, in two cases.** Releases keep it, except that a minor release may read
+  something the library could not read before (a chart kind that used to be preserved as bytes and is now modelled
+  changes what `sheet.charts` returns and what a write warns about), listed under *Changed* in the CHANGELOG; and a
+  patch release may correct a result that was wrong, listed under *Fixed*. Nothing else changes what a file reads as.
 
 ## Platforms and toolchains
 
@@ -58,8 +62,8 @@ not part of CI.
 
 ## Deprecation
 
-A name that is going away is marked `@available(*, deprecated, renamed:)` for at least one minor release, the
-CHANGELOG lists `old → new`, and `APIContractTests.everyRenameTheChangelogAnnouncesExistsInTheCode` checks that the
+A name that is going away is marked `@available(*, deprecated, renamed:)` in one minor release before the major
+release that removes it, the CHANGELOG lists `old → new`, and `APIContractTests.everyRenameTheChangelogAnnouncesExistsInTheCode` checks that the
 new name exists. Before 1.0 no aliases are kept; the compiler, with [Migrating to 1.0](migrating-to-1.0.md), is the migration guide.
 
 ## File formats
