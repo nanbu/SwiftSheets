@@ -22,6 +22,13 @@ last column. Search your code for `- 1` and `+ 1` next to a `CellRef`, a row or 
 to row 0 or column 0 stops with a message. `rowNumber` is gone (it is `row`), `FilterColumn.column` is
 `columnOffset`, and `RangeView`'s relative subscript is `view[rowOffset:columnOffset:]`.
 
+## 0.28.0 — what two migrations found (B.92)
+
+Neither change is a rename, so the compiler points at neither.
+
+- **Reading row 0 or column 0 stops, as writing there already did.** `sheet[0, c]`, `sheet[r, 0]`, `sheet[CellRef(row: 0, column: c)]`, `cell(_:)`, `rowDimension(0)`, `columnDimension(0)`, `setWidth(_:ofColumn: 0)`, `setHeight(_:ofRow: 0)` and `CellRef.columnName(0)` stop the program instead of answering nothing. A stop here is usually a `- 1` left over from before 0.23.0 (the section above). `CellRef.columnName(validating:)` still answers nil, and a cell named by A1 text that does not parse still reads as nil.
+- **`ConversionWarning.Kind` has a fourth case, `truncated`.** A read stopped at `ReadOptions.cellLimit` gives it, about the sheet, where it gave `degraded`; a `switch` that lists every case of `Kind` needs the new one. Check `warnings.contains { $0.kind == .truncated }` rather than the message's wording.
+
 ## 0.27.0 — the last look before 1.0 (B.89)
 
 - `SheetImage.Anchor.absolute(x:y:width:height:)` → `SheetImage.Anchor.absolute(CanvasRect)`; match with `case .absolute(let frame)`.

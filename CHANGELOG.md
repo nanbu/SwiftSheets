@@ -7,9 +7,12 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
-## [Unreleased]
+## [0.28.0] — 2026-09-13
 
-What the two applications that depend on the library found when they moved to 0.27.0 (spec Appendix B.92).
+What the two applications that depend on the library found when they moved to 0.27.0 (spec Appendix B.92), and two
+peaks that had grown at ten million cells (Appendices B.93 and B.94). Two changes compile unchanged and behave
+differently: reading row 0 or column 0 now stops, and a read stopped at `ReadOptions.cellLimit` gives the new warning
+kind `truncated`. Both are under *Changed* and in [Migrating to 1.0](docs/migrating-to-1.0.md).
 
 ### Added
 
@@ -1440,7 +1443,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...HEAD
+[0.28.0]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...0.28.0
 [0.27.0]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...0.27.0
 [0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0
 [0.25.0]: https://github.com/nanbu/SwiftSheets/compare/0.24.0...0.25.0
