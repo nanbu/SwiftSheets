@@ -1117,10 +1117,14 @@ extension ODSReader {
         let pattern = /'((?:[^']|'')+)'#\$?('(?:[^']|'')+'|[^.\]\s:']+)\./
         for sheet in wb.sheets {
             for table in sheet.tables {
-                for (_, cell) in table.cells.sorted(by: { $0.key < $1.key }) {   // document order, so the numbering is stable
-                    guard case .formula(let expr, _)? = cell.value else { continue }
+                // only the formulas that name another document, then in document order so the numbering is stable: sorting
+                // every cell built an array of the whole sheet to find a few formulas (spec Appendix B.94)
+                let linked = table.cells.compactMap { ref, cell -> (CellRef, String)? in
+                    guard case .formula(let expr, _)? = cell.value else { return nil }
                     let text = expr.text
-                    guard text.contains("'#") else { continue }
+                    return text.contains("'#") ? (ref, text) : nil
+                }
+                for (_, text) in linked.sorted(by: { $0.0 < $1.0 }) {
                     for m in text.matches(of: pattern) {
                         let doc = String(m.1).replacingOccurrences(of: "''", with: "'")
                         var name = String(m.2)
