@@ -1929,6 +1929,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.85 Draft</td><td>2026-09-13</td><td>The ODS reader finds external links without sorting every cell (B.94): the whole-model read of ten million ODS cells built an array of every cell to find a few formulas.</td></tr>
     <tr><td>4.84 Draft</td><td>2026-09-12</td><td>A shared-string table keeps a phonetic slot only where there is furigana (B.93): the row-by-row read of ten million XLSX cells peaked 16 MB higher for slots it never read.</td></tr>
     <tr><td>4.83 Draft</td><td>2026-09-12</td><td>What two migrations found (B.92): row 0 and column 0 stop when read, as they stop when written; <code>ConversionWarning.Kind.truncated</code> for a read stopped at the cell limit; <code>SourceInfo.isVerifiedVersion</code>; <code>streamingReader(contentsOf:format:)</code>; <code>CivilDate(serial:epoch:)</code>; the migration guide's missing entries. Labels on the integer subscripts were considered and not added. The ODS writer names a dropped filter by its sheet column.</td></tr>
     <tr><td>4.82 Draft</td><td>2026-09-11</td><td>Cells, faster: the default style answered without hashing or copying, numbers trimmed only when needed, a cell stored once, dense rows written from the extent, dated cells sharing a style, bounded style caches. ODS cell facts per style, CSV rules on bytes, Numbers integers without long division. On a million cells, measured alternately: XLSX write −29%, read −29%, edit −33%; ODS write −34%; CSV read −25%; Numbers write −44%; cells made without the default-style comparison and a CSV table reserved up front, CSV read peak memory −31% (B.91).</td></tr>
@@ -7359,6 +7360,21 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   it was written — main and main with it, alternately, three times each — read the ten-million-cell file at 34.8 and
   20.6 MB with the same checksum. As committed, the old and the new build alternately five times each: 34.7 and
   19.6 MB in the same 10.2 s; the whole-model read of the same file stayed within its run-to-run range.</p>
+  <h3>B.94 The ODS reader finds external links without sorting every cell (Rev 4.85)</h3>
+  <p>Decided 2026-09-13. Measured alternately on the same machine, the whole-model read of ten million ODS cells peaked
+  at 1,679 MB where the commit of the 2026-09-05 record peaked at 1,419 MB, in less time (26.9 against 35.5 s). The
+  other seven whole-model operations stayed within their run-to-run ranges, so the growth between the two records was
+  the machine, not the code, except here. A bisection put the step at the commit that brought threaded comments
+  (B.80): 1,161 MB before it, 1,643 MB with it. The cell did not grow — it is 24 bytes at every commit measured, the
+  thread living behind the extras reference.</p>
+  <p><strong>Why.</strong> That commit made the external-link scan of B.78 walk each table in document order, so the
+  numbering of the linked documents is stable, by sorting <code>table.cells</code>: an array of every reference and
+  cell of the sheet — ten million of them — built to find the few formulas that name another document.</p>
+  <p><strong>What.</strong> The scan first keeps the formula cells whose text names another document
+  (<code>'#</code>), then sorts those by reference. The order, and so the numbering, is the same; ExternalLinkTests holds
+  it with two linked documents.</p>
+  <p><strong>Verification.</strong> The change measured before it was written, main and main with it alternately three
+  times each: 26.9 s at 1,624 MB and 25.2 s at 1,361 MB, the row-by-row ODS read unchanged at 15 MB.</p>
 </section>
 
 </div><!-- /.container -->
