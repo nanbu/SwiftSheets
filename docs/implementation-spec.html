@@ -1929,6 +1929,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.87 Draft</td><td>2026-09-15</td><td>The builds the Swift Package Index runs (B.96): the password-protected write works on WASI, and the files that call the C library import it on Android.</td></tr>
     <tr><td>4.86 Draft</td><td>2026-09-13</td><td>What 1.0 promises, settled (B.95): new error and warning cases, a raised minimum Swift and newly read content in minor releases; one minor release of deprecation before a major removes a name.</td></tr>
     <tr><td>4.85 Draft</td><td>2026-09-13</td><td>The ODS reader finds external links without sorting every cell (B.94): the whole-model read of ten million ODS cells built an array of every cell to find a few formulas.</td></tr>
     <tr><td>4.84 Draft</td><td>2026-09-12</td><td>A shared-string table keeps a phonetic slot only where there is furigana (B.93): the row-by-row read of ten million XLSX cells peaked 16 MB higher for slots it never read.</td></tr>
@@ -5840,7 +5841,7 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     <li><strong>Threads</strong>: there is no <code>DispatchQueue.concurrentPerform</code>. The parallel sheet read of XLSX (B.41) is
       serial on WASI. The <code>workers</code> value is accepted as the caller's wish and not honoured.</li>
     <li><strong>Temporary files and atomic writes</strong>: <code>Data.write(options: .atomic)</code> is unavailable on WASI.
-      <code>CodecSet.write(to:)</code> writes directly on WASI. <code>TextSpill</code> (B.39.7) fails in an environment with no temporary area
+      <code>CodecSet.write(to:)</code> writes directly on WASI, and so does SheetEncrypt's <code>write(to:as:options:password:)</code> (B.96). <code>TextSpill</code> (B.39.7) fails in an environment with no temporary area
       and falls back to the normal path.</li>
     <li><strong>Resource bundles</strong>: the generated code for <code>Bundle.module</code> bakes in a path on the build machine. The SheetNumbers resources
       (the schema, the registry, the empty template) go through <code>NumbersResources.swift</code>, which on WASI reads the fixed
@@ -7391,6 +7392,19 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
     <li><strong>What a file reads as changes only when the library reads something it could not read before</strong>
     (a minor release, under <em>Changed</em>), or when a patch release corrects a wrong result (under <em>Fixed</em>).
     Other changes to what a reader returns for the same file are avoided.</li>
+  </ul>
+  <h3>B.96 The builds the Swift Package Index runs: WASI and Android (Rev 4.87)</h3>
+  <p>Found 2026-09-15 in the index's first builds of 0.28.0 and <code>main</code>. The Apple platforms and Linux build
+  with Swift 6.3 and 6.2; Swift 6.1 and 6.0 fail by design, since the manifest needs tools version 6.2.</p>
+  <ul>
+    <li><strong>WASI.</strong> SheetEncrypt's <code>write(to:as:options:password:)</code> called
+    <code>Data.write(options: .atomic)</code>, which is unavailable on WASI. SheetEncrypt was split out (B.39.9) after
+    B.45 was verified, and the WASI build is not part of CI, so nothing had built it there. It now writes directly on
+    WASI, as <code>CodecSet.write(to:)</code> does (B.45).</li>
+    <li><strong>Android.</strong> The three files that call the C library themselves (<code>ByteSource</code>,
+    <code>TextSpill</code>, <code>AtomicFileTarget</code>) imported Glibc, Musl or WASILibc; the Android SDK names that
+    module <code>Android</code>. Each now imports it too. The README does not list Android: this machine has no Android
+    SDK, and a platform is named only once a build has shown it compiles.</li>
   </ul>
 </section>
 
