@@ -1929,6 +1929,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.88 Draft</td><td>2026-09-15</td><td>A WebAssembly build in CI (B.97): every product is built for WASI on every push, with the swift.org toolchain and Wasm SDK of one version.</td></tr>
     <tr><td>4.87 Draft</td><td>2026-09-15</td><td>The builds the Swift Package Index runs (B.96): the password-protected write works on WASI, and the files that call the C library import it on Android.</td></tr>
     <tr><td>4.86 Draft</td><td>2026-09-13</td><td>What 1.0 promises, settled (B.95): new error and warning cases, a raised minimum Swift and newly read content in minor releases; one minor release of deprecation before a major removes a name.</td></tr>
     <tr><td>4.85 Draft</td><td>2026-09-13</td><td>The ODS reader finds external links without sorting every cell (B.94): the whole-model read of ten million ODS cells built an array of every cell to find a few formulas.</td></tr>
@@ -5855,8 +5856,8 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
     The full native test suite (1,071 tests) is unchanged. For the WebAssembly build, Stream's <code>scripts/wasm-smoke.mjs</code> (node's WASI)
     confirmed that importing an xlsx matches the reference JSON byte for byte, and that writing and reading back xlsx / ods / numbers round-trips.
     LibreOffice converted the written files of all three formats to PDF. Not confirmed in Numbers itself or Excel itself (stored-block DEFLATE is
-    to the standard, but B.9 has an example of a lenient reader letting something through). There is no WASI job in the Linux CI — the toolchain is
-    limited to the swift.org distribution, and keeping its version in step with the CI's Swift would be a separate chore. The local verification steps are
+    to the standard, but B.9 has an example of a lenient reader letting something through). CI builds the package for WASI on every push (B.97);
+    the suite is not run there. The local verification steps are
     written at the top of Stream's <code>scripts/build-wasm.sh</code>.
   </p>
   <h3>B.46 The boundary between the preservation structures and the editing model (Rev 4.35)</h3>
@@ -7405,6 +7406,18 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
     <code>TextSpill</code>, <code>AtomicFileTarget</code>) imported Glibc, Musl or WASILibc; the Android SDK names that
     module <code>Android</code>. Each now imports it too. The README does not list Android: this machine has no Android
     SDK, and a platform is named only once a build has shown it compiles.</li>
+  </ul>
+  <h3>B.97 A WebAssembly build in CI (Rev 4.88)</h3>
+  <p>Decided 2026-09-15, after B.96: SheetEncrypt had not compiled for WASI for ten days, and nothing here noticed. A
+  third CI job builds the package for WASI on every push. It runs in the swift.org Linux image of the same version as
+  the Wasm SDK it installs, because an SDK made for one Swift version does not serve another, and Xcode's Swift has
+  no WebAssembly backend (B.45). The install checks the SDK against the checksum swift.org publishes for it. The two
+  versions are raised together, by hand.</p>
+  <ul>
+    <li><strong>What is built:</strong> every product, as the Swift Package Index builds it. The test targets are not
+    built: some start processes (<code>Process</code>, to run the Python cross-checks), which WASI does not have.</li>
+    <li><strong>What is not judged:</strong> behaviour. The suite does not run under a WASI runtime; Stream's smoke
+    test (B.45) remains the check that WASI reads and writes correctly.</li>
   </ul>
 </section>
 
