@@ -156,3 +156,32 @@ jobs:
           name: fuzz-mutants-linux
           path: .build/fuzz-mutants
           if-no-files-found: ignore
+
+  wasm:
+    name: build (WebAssembly)
+    # The README names WebAssembly, so a push that stops it compiling has to fail somewhere (spec Appendix B.97) —
+    # SheetEncrypt once went ten days without compiling for WASI because nothing built it. Xcode's Swift has no
+    # WebAssembly backend, and a Wasm SDK serves only the Swift version it was made for, so this is the swift.org
+    # Linux image and the SDK of that same version; raise both together. Behaviour is not judged here: the suite
+    # does not run under a WASI runtime, and the test targets are not built (some start processes, which WASI lacks).
+    runs-on: ubuntu-latest
+    container: swift:6.3.3-noble
+    env:
+      WASM_SDK: swift-6.3.3-RELEASE_wasm
+      # The checksum swift.org publishes beside the SDK; the install refuses a bundle that does not match it.
+      WASM_SDK_URL: https://download.swift.org/swift-6.3.3-release/wasm-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_wasm.artifactbundle.tar.gz
+      WASM_SDK_CHECKSUM: cabfa08b73bb8ac783927ecd15fa386e99d0c139c5f232445067bcf58379cae7
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: The Wasm SDK of the same Swift version
+        run: |
+          swift sdk install "$WASM_SDK_URL" --checksum "$WASM_SDK_CHECKSUM"
+          swift sdk list
+
+      # Every product, as the Swift Package Index builds it.
+      - name: Build every product for WASI
+        run: swift build --swift-sdk "$WASM_SDK"

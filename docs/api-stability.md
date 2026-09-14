@@ -57,8 +57,8 @@ The public surface of the products `SwiftSheets`, `SheetCore`, `SheetXLSX`, `She
 
 macOS 14+, iOS 17+ and Linux are the platforms the whole suite runs on for every push; a platform CI does not run
 on is not claimed (Appendix B.1). The minimum Swift is the one named in `Package.swift`; raising it is a minor
-release, announced in the CHANGELOG. WebAssembly builds and runs as described in the README's Limits table but is
-not part of CI.
+release, announced in the CHANGELOG. WebAssembly builds and runs as described in the README's Limits table; CI builds
+the package for it on every push but does not run the suite there.
 
 ## Deprecation
 

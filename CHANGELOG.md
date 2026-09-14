@@ -9,7 +9,13 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
-What the Swift Package Index's first builds of 0.28.0 showed (spec Appendix B.96).
+What the Swift Package Index's first builds of 0.28.0 showed (spec Appendix B.96), and a CI job so that it cannot
+happen again unnoticed (Appendix B.97).
+
+### Added
+
+- **A WebAssembly build in CI.** Every product is built for WASI on every push, with the swift.org toolchain and the
+  Wasm SDK of the same version. The suite is not run there.
 
 ### Fixed
 
