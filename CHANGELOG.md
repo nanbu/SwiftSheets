@@ -7,6 +7,17 @@ until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
+## [Unreleased]
+
+What the Swift Package Index's first builds of 0.28.0 showed (spec Appendix B.96).
+
+### Fixed
+
+- **SheetEncrypt builds for WebAssembly.** Its password-protected `write(to:as:options:password:)` asked for an atomic
+  write, which WASI does not have; it now writes directly there, as the plain `write(to:as:)` always has.
+- **SheetCore finds the C library on Android.** The three files that call `open`, `read` and `stat` themselves import
+  the Android SDK's module. Android is not yet a listed platform: this is the first step, checked by the index's build.
+
 ## [0.28.0] — 2026-09-13
 
 What the two applications that depend on the library found when they moved to 0.27.0 (spec Appendix B.92), and two
@@ -1443,6 +1454,7 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.28.0...HEAD
 [0.28.0]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...0.28.0
 [0.27.0]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...0.27.0
 [0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0

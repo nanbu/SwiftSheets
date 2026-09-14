@@ -1,8 +1,8 @@
 # SwiftSheets
 
 [![CI](https://github.com/nanbu/SwiftSheets/actions/workflows/ci.yml/badge.svg)](https://github.com/nanbu/SwiftSheets/actions/workflows/ci.yml)
-[![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-macOS%2014%2B%20%7C%20iOS%2017%2B%20%7C%20Linux-1d1d1f)](https://github.com/nanbu/SwiftSheets#limits)
+[![Swift versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fnanbu%2FSwiftSheets%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/nanbu/SwiftSheets)
+[![Platforms](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fnanbu%2FSwiftSheets%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/nanbu/SwiftSheets)
 [![License: MIT](https://img.shields.io/badge/License-MIT-248a3d)](https://github.com/nanbu/SwiftSheets/blob/main/LICENSE)
 
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
