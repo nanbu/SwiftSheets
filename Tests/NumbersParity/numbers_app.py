@@ -208,10 +208,18 @@ def screen_is_locked() -> bool:
 
 def resolved_app() -> str | None:
     """The path LaunchServices sends `com.apple.Numbers` to, or None. Asked before a word is said to the
-    application, because this is the question `id of application id` cannot answer: it echoes the identifier back."""
-    p = subprocess.run(["osascript", "-e", f'POSIX path of (path to application id "{BUNDLE}")'],
-                       capture_output=True, text=True, timeout=60)
-    return p.stdout.strip().rstrip("/") or None
+    application, because this is the question `id of application id` cannot answer: it echoes the identifier back.
+    LaunchServices can briefly answer nothing while the application is quitting, so retry that transient state
+    before concluding that Numbers is not installed."""
+    for attempt in range(3):
+        p = subprocess.run(["osascript", "-e", f'POSIX path of (path to application id "{BUNDLE}")'],
+                           capture_output=True, text=True, timeout=60)
+        path = p.stdout.strip().rstrip("/")
+        if path:
+            return path
+        if attempt < 2:
+            time.sleep(1)
+    return None
 
 
 def _signature(path: str) -> dict:
