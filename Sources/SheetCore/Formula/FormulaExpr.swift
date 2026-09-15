@@ -70,7 +70,12 @@ public indirect enum FormulaExpr: Hashable, Sendable {
         case .range(let a, let b): return a.isExpressible(in: dialect) && b.isExpressible(in: dialect)
         case .unary(_, let e): return e.isExpressible(in: dialect)
         case .binary(_, let a, let b): return a.isExpressible(in: dialect) && b.isExpressible(in: dialect)
-        case .call(_, let args): return args.allSatisfy { $0.isExpressible(in: dialect) }
+        case .call(let name, let args):
+            // `_xlfn.` is an OOXML storage namespace, not a portable OpenFormula name. Strip it only through
+            // the evidence-backed table; otherwise an ODS application would receive a formula it cannot identify.
+            if dialect == .ods, name.uppercased().hasPrefix("_XLFN."),
+               !FormulaFunctionNames.hasOpenFormulaName(for: name) { return false }
+            return args.allSatisfy { $0.isExpressible(in: dialect) }
         case .array(let rows): return rows.allSatisfy { $0.allSatisfy { $0.isExpressible(in: dialect) } }
         default: return true
         }

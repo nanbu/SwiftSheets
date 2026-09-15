@@ -1053,7 +1053,7 @@ pre .vr { color: var(--code-var); }
     <tr><td>Cell reference</td><td><code>A1</code> / <code>Sheet2!A1</code></td><td><code>[.A1]</code> / <code>[Sheet2.A1]</code></td><td>CellRef (the on-screen numbers) + sheet name</td></tr>
     <tr><td>Unary minus</td><td colspan="2"><code>-2^2 = 4</code> (<code>-</code> binds tighter than <code>^</code>)</td><td>Shared through the parser's precedence table</td></tr>
     <tr><td>Formula prefix</td><td><code>=</code> (absent inside the XML)</td><td><code>of:=</code></td><td>Not part of the AST. Added at the exit</td></tr>
-    <tr><td>Function names</td><td colspan="2">Mostly shared. Format-specific functions cannot be converted</td><td>Held under the canonical name (upper-case). Unconvertible ones become <code>ConversionWarning.dropped</code></td></tr>
+    <tr><td>Function names</td><td colspan="2">Mostly shared. A small standards-backed table covers exact aliases and required OOXML <code>_xlfn.</code> prefixes</td><td>Held under the OOXML invariant name. A target-only function becomes a cached value plus <code>ConversionWarning.degraded</code>; no similar-looking function is substituted (B.100–B.101)</td></tr>
   </table></div>
 
   <h3>5.2 AST definition (outline)</h3>
@@ -1929,6 +1929,12 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.94 Draft</td><td>2026-09-16</td><td>Excel-authored advanced-content and furigana round trips became opt-in release judges (B.103). They found and fixed a localised threaded-comment mirror exposed as a note, a duplicated thread relationship, a late-registered style dependency, and misplaced compatibility children in workbook.xml. Excel opens both rewrites without repair, keeps SmartArt, a shape group and the edited thread, and displays the original reading spans.</td></tr>
+    <tr><td>4.93 Draft</td><td>2026-09-16</td><td>Excel itself judged a generated pivot table for the first time (B.102). A cacheless pivot field needs a default item; without it Excel for Mac quit while opening the workbook. With it, Excel opens without repair, refreshes after a source edit, saves and reopens, and SwiftSheets reads all 17 saved pivots back.</td></tr>
+    <tr><td>4.92 Draft</td><td>2026-09-16</td><td>Generalised B.100 into a standards-backed function-name boundary (B.101): 53 exact XLSX/OpenFormula mappings are data, not parser branches; an unrecognised OOXML <code>_xlfn.</code> function degrades to its cached value on ODS conversion instead of being emitted as a false OpenFormula name. Evaluation and approximate substitutions remain out of v1.</td></tr>
+    <tr><td>4.91 Draft</td><td>2026-09-16</td><td>Excel's Japanese <code>JIS</code> function is <code>DBCS</code> in OOXML, while OpenFormula names the same operation <code>JIS</code> (B.100). The formula AST uses <code>DBCS</code> as its canonical name and translates only at the ODS edge. Numbers has neither function and keeps the cached value with a warning, as Numbers itself does on import.</td></tr>
+    <tr><td>4.90 Draft</td><td>2026-09-16</td><td>Excel date literals and an unambiguous yen are translated to the CLDR pattern and JPY currency Numbers draws (B.99).</td></tr>
+    <tr><td>4.89 Draft</td><td>2026-09-16</td><td>A Numbers text colour is written as both the character colour and the matching character fill that Numbers draws and preserves (B.98).</td></tr>
     <tr><td>4.88 Draft</td><td>2026-09-15</td><td>A WebAssembly build in CI (B.97): every product is built for WASI on every push, with the swift.org toolchain and Wasm SDK of one version.</td></tr>
     <tr><td>4.87 Draft</td><td>2026-09-15</td><td>The builds the Swift Package Index runs (B.96): the password-protected write works on WASI, and the files that call the C library import it on Android.</td></tr>
     <tr><td>4.86 Draft</td><td>2026-09-13</td><td>What 1.0 promises, settled (B.95): new error and warning cases, a raised minimum Swift and newly read content in minor releases; one minor release of deprecation before a major removes a name.</td></tr>
@@ -2525,7 +2531,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>Protection and scenarios</td><td><code>SheetProtection</code> / <code>WorkbookProtection</code> / <code>ProtectedRange</code> / <code>ScenarioList</code></td>
       <td>The format's booleans point in the direction of "<strong>forbidden</strong>", but the model names them <code>allows…</code>, <strong>in the direction of permission</strong>, and the codec inverts them (the same policy as <code>hidesDropDown</code>). Only the legacy 16-bit password hash is generated; the Excel 2010+ <code>saltedHash</code> (<code>hashValue</code> until Rev 4.56) / <code>saltValue</code> are <strong>only read and written back</strong> (as openpyxl does). The type's documentation says this is a lock that prevents accidents, not one that guards a secret</td></tr>
     <tr><td>Pivot tables</td><td><code>Sheet.pivotTables</code> (<code>PivotTable</code> plus <code>PivotCache</code>). Generates the layout part, the cache definition, the relationship and <code>&lt;pivotCaches&gt;</code>; <code>Workbook.addPivotTable</code> builds one from a range</td>
-      <td><strong>No aggregation is performed</strong>. A newly created cache sets <code>saveData="0" refreshOnLoad="1"</code> and has no records part — the application that opens the file reads the source range and computes. The reason: we do not write numbers we have not computed. <strong>The judges are openpyxl reading back and LibreOffice</strong> (we checked all the way to the converted values being aggregated correctly). <strong>Not opened in Excel itself</strong> — as with Numbers, it sits on the release checklist in MAINTENANCE.md</td></tr>
+      <td><strong>No aggregation is performed</strong>. A newly created cache sets <code>saveData="0" refreshOnLoad="1"</code> and has no records part — the application that opens the file reads the source range and computes. The reason: we do not write numbers we have not computed. A field with no cached members carries one <code>&lt;item t="default"/&gt;</code>; omitting the item made Excel for Mac quit while opening the table (B.102). <strong>The judges are openpyxl reading back, LibreOffice, and Excel itself</strong>: Excel opens, refreshes after a source edit, saves, and the saved cache reads back (B.102)</td></tr>
     <tr><td>Streaming read and write</td><td><code>StreamingReader</code> (openpyxl's <code>read_only</code>) and <code>StreamingWriter</code> (<code>write_only</code>). The writer streams to the file through <code>ZipFileWriter</code>, compressing one row at a time</td>
       <td>At Rev 2.0, XLSX / XLSM only (reading spread to ODS and Numbers in Rev 4.22, B.40; writing in Rev 4.25, B.42). Values and formatting only. Merges, comments and preservation are not handled. Strings are written directly into cells rather than into the shared string table (at the first row we cannot know what the last row will repeat), so a file with many repeats comes out larger than from the normal writer. <strong>Measured</strong> (750,000 cells): streaming write <strong>+3 MB</strong>, streaming read <strong>+54 MB</strong> (one sheet's XML after decompression), against <strong>+190 MB</strong> for a whole-model read</td></tr>
   </table></div>
@@ -6697,7 +6703,9 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <p><strong>Other formats.</strong> Neither ODF nor Numbers has a place for a cell's reading (ODF's <code>text:ruby</code> is an element of document body text and is not used in table cells).
   The ODS and Numbers writers say "N phonetic guide(s) (furigana) dropped: … the text is kept (write .xlsx to keep the readings)" with <code>dropped</code>, and keep the text.</p>
   <p><strong>Checks.</strong> <code>FuriganaTests</code>, 4 tests: the table's XML (ranges, kind, alignment, font registration, the same characters as separate entries); round trips (a whole-string reading, several ranges, beside rich text);
-  readings in inline strings; the ODS and Numbers warnings. We have no file with furigana written by Excel itself — a check on the real application was added to the manual checklist in <code>MAINTENANCE.md</code>.</p>
+  readings in inline strings; the ODS and Numbers warnings. The opt-in Excel ground-truth test uses an Excel-made
+  workbook with five labels carrying <code>rPh</code> runs, including two separate ranges in one string; it requires
+  the exact runs after a rewrite, and Excel for Mac displays them in the sibling file without repair.</p>
 </section>
 
 <section>
@@ -7419,6 +7427,115 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
     <li><strong>What is not judged:</strong> behaviour. The suite does not run under a WASI runtime; Stream's smoke
     test (B.45) remains the check that WASI reads and writes correctly.</li>
   </ul>
+  <h3>B.98 A Numbers text colour is both the character colour and its fill (Rev 4.89)</h3>
+  <p>Found 2026-09-16 in the 1.0 verification sample, opened in Numbers 15.3.1. SwiftSheets wrote the white title and
+  header text as <code>TSWP.CharacterStylePropertiesArchive.font_color</code>. Its own reader and numbers-parser both
+  read that field as white, but Numbers drew the text black and removed the field when it saved the document again.
+  A round trip through the writer's own reader therefore agreed with the writer while missing what the application
+  displayed.</p>
+  <p><strong>What.</strong> A character colour is written in the two forms current Numbers writes and honours:
+  <code>font_color</code>, and a <code>TSD.FillArchive</code> of the same colour in <code>tsd_fill</code>. RGB colours
+  name the sRGB colour space. This changes only the archive representation; the model and the reader are unchanged.</p>
+  <p><strong>Verification.</strong> The archive-level test requires both colour representations. The application-level
+  test writes white text, asks Numbers itself to open and save it, then reads the saved style and requires white. The
+  same repair applied to the release verification sample survived a Numbers 15.3.1 resave; without
+  <code>tsd_fill</code>, the resave changed the text colour to black.</p>
+  <h3>B.99 Excel date literals and an unambiguous yen in Numbers (Rev 4.90)</h3>
+  <p>Found 2026-09-16 beside B.98 in the 1.0 verification sample. Numbers drew the Excel date format
+  <code>yyyy&quot;年&quot;m&quot;月&quot;d&quot;日&quot;</code> with the quotation marks visible, and drew a quoted yen format as Chinese yuan.
+  The archive carried the double quotes verbatim even though a Numbers date pattern is CLDR and quotes literal text
+  with apostrophes. Yen was looked up by taking the first value equal to <code>¥</code> from a dictionary that also
+  contains CNY, so the result depended on dictionary iteration order.</p>
+  <p><strong>What.</strong> The Excel-to-CLDR date conversion changes a double-quoted or backslash-escaped Excel literal
+  into a single-quoted CLDR literal, doubling an apostrophe inside it; the inverse restores an Excel quoted literal.
+  The symbol-to-currency mapping is explicit and deterministic: bare <code>¥</code> is JPY, while an Excel
+  <code>[$¥-804]</code> locale tag still identifies CNY.</p>
+  <p><strong>Verification.</strong> Archive tests require the exact CLDR date pattern and JPY/CNY codes, then require
+  the date pattern to make the round trip. An application test asks Numbers 15.3.1 for the formatted values and
+  requires <code>2026年10月1日</code> without quote marks and a yen sign rather than <code>元</code>. The same test then
+  saves the document and checks B.98's white font colour.</p>
+  <h3>B.100 Excel JIS is OOXML DBCS and OpenFormula JIS (Rev 4.91)</h3>
+  <p>Decided 2026-09-16 from an Excel-created specimen. Japanese Excel showed <code>JIS</code>, while its worksheet
+  XML stored <code>DBCS(B4)</code>. This is not an <code>_xlfn.</code> future-function spelling: Microsoft documents
+  <code>DBCS</code> as the locale-dependent function, and the file contains plain <code>DBCS</code>. ODF 1.3
+  OpenFormula standardises the equivalent operation as <code>JIS</code>. LibreOffice accepts both spellings and, when
+  importing the specimen, writes lower-case <code>dbcs</code>; accepting that compatibility spelling does not make it
+  the standard spelling SwiftSheets should generate.</p>
+  <p><strong>What.</strong> The format-neutral formula tree canonicalises both names to <code>DBCS</code>. XLSX emits
+  <code>DBCS</code>; ODS emits <code>JIS</code>. An ODS input carrying either standard <code>JIS</code> or LibreOffice's
+  compatibility <code>DBCS</code> therefore reads to the same tree and writes back in the ODF 1.3 spelling. This is a
+  name translation only; v1 does not evaluate either function.</p>
+  <p><strong>Numbers.</strong> Numbers 15.3.1 has no corresponding function in its formula registry. When it imports the
+  specimen it keeps the cached full-width results but removes the three <code>DBCS</code> formulas, while retaining the
+  neighbouring <code>EXACT</code> formulas. SwiftSheets deliberately matches that safe outcome: its Numbers writer
+  writes the cached value and returns a cell-specific <code>degraded</code> formula warning. It does not invent an
+  unobserved Numbers formula node.</p>
+  <p><strong>Verification.</strong> Formula tests require <code>DBCS</code> in XLSX, <code>JIS</code> in ODS, and both ODS
+  input spellings to read to one canonical AST. Codec tests require the exact ODF formula text and the full-width
+  cached value to survive; LibreOffice recalculates the ODS result and exports the formula back to XLSX as
+  <code>DBCS</code>. A Numbers writer test requires the cached value and a warning naming the absent <code>DBCS</code>
+  function.</p>
+
+  <h3>B.101 Function-name translation is an exact allow-list, not an evaluator (Rev 4.92)</h3>
+  <p>Decided 2026-09-16 after widening B.100's question to every comparable XLSX/OpenFormula spelling. The survey
+  compared ODF 1.3 Part 4's standard function headings with the MS-XLSX formula grammar, then passed representative
+  formulas through LibreOffice in both directions. It found four mechanical groups: <code>DBCS</code> ↔
+  <code>JIS</code>; eight old Excel statistical names ↔ OpenFormula's explicit <code>LEGACY.*</code> names;
+  <code>_xlfn.FORMULATEXT</code> ↔ <code>FORMULA</code> and <code>_xlfn.SKEW.P</code> ↔ <code>SKEWP</code>;
+  and 42 functions whose OpenFormula name is identical after removing OOXML's required <code>_xlfn.</code> prefix.
+  Those 53 rows live in one <code>FormulaFunctionNames</code> table. Parsing selects a row using the source dialect;
+  the tree uses the OOXML invariant spelling; emission selects the target spelling.</p>
+  <p><strong>Responsibility boundary.</strong> SwiftSheets owns syntax conversion and a name change only when both
+  standards identify the same operation. It does not recalculate, compare floating-point algorithms, translate a
+  merely similar function, or expose a public custom-alias registry that would imply those semantics were verified.
+  In particular, the newer dotted distribution family is not inferred from the old undotted family: argument,
+  cumulative/tail and error rules need a separate semantic decision. Unknown names remain preservable in their own
+  dialect. On conversion to ODS, an unmapped OOXML <code>_xlfn.</code> call such as <code>XLOOKUP</code> is replaced by
+  its cached value with a cell-specific <code>degraded</code> warning; stripping the prefix would falsely claim an
+  OpenFormula function exists.</p>
+  <p><strong>Numbers boundary.</strong> This table is not used to invent Numbers archive nodes. The Numbers writer still
+  asks the measured Numbers function registry whether a formula exists. A missing function, including
+  <code>DBCS</code>, keeps the cached value and names the absent function in a warning. This separates file-format
+  spelling from application capability.</p>
+  <p><strong>Verification.</strong> A table-driven unit test requires all 53 rows to parse to one tree and emit the two
+  exact spellings. LibreOffice recalculates representatives of every group and exports their OOXML names back.
+  A negative test requires an unmapped <code>_xlfn.XLOOKUP</code> to disappear from ODS while its cached value and a
+  warning remain.</p>
+
+  <h3>B.102 A cacheless pivot still has a default field item (Rev 4.93)</h3>
+  <p>Found 2026-09-16 in the v1.0 Excel release check. The seventeen-pivot workbook written by
+  <code>Workbook.addPivotTable</code> made Excel for Mac quit while opening it. The package relationships, cache
+  definition and no-record policy were intact; each generated <code>&lt;pivotField&gt;</code> was simply self-closing
+  because SwiftSheets does not precompute the cache members.</p>
+  <p><strong>What.</strong> A generated field with no cached member list now contains
+  <code>&lt;items count="1"&gt;&lt;item t="default"/&gt;&lt;/items&gt;</code>. The cache remains
+  <code>saveData="0" refreshOnLoad="1"</code> with no records part: SwiftSheets still owns layout and package wiring,
+  while the spreadsheet application owns aggregation. Fields read with real items keep those items unchanged.</p>
+  <p><strong>Verification.</strong> Excel opens the generated workbook without a repair dialog or quitting and fills all
+  seventeen summaries. Changing <code>Data!C2</code> from 5 to 15 and refreshing changes the sum pivot from 36 to 46;
+  Excel saves and reopens the result, and SwiftSheets reads all 18 sheets and converts all 17 pivots to Numbers with
+  zero archive-integrity problems. A unit test requires one default item for each of the four generated fields.</p>
+  <h3>B.103 Excel-authored advanced parts are an application-level round-trip judge (Rev 4.94)</h3>
+  <p>Measured 2026-09-16 with an Excel for Mac workbook containing a five-node SmartArt graphic, two grouped shapes,
+  a threaded comment and reply, and a shared string with phonetic display settings. SwiftSheets read the workbook,
+  appended a reply, and wrote it beside the source. The first rewrite was rejected by Excel even though SwiftSheets
+  could read it: the application judge found defects that a self round trip could not.</p>
+  <p><strong>Four repairs.</strong> Excel localises the compatibility note that mirrors a thread, so the English text
+  prefix is not an identity; the stable synthetic author <code>tc={thread-id}</code> now identifies it when the cell
+  also has a thread. Regenerating comments removes the preserved threaded-comment relationship as well as the note
+  and VML relationships, preventing a duplicate relationship to the same part. A seeded style registry registers
+  every cell-XF font, fill, border and number format before emitting those indexed tables. Finally, Excel's
+  <code>mc:AlternateContent</code> absolute-path block and <code>xr:revisionPtr</code> remain between
+  <code>workbookPr</code> and <code>bookViews</code>; moving them after <code>calcPr</code> makes Excel reject the package.</p>
+  <p><strong>Boundary and verification.</strong> SmartArt and shape groups remain opaque drawing content: an untouched
+  drawing is preserved byte for byte while a modelled thread changes beside it. The opt-in
+  <code>ExcelGroundTruthTests</code> reads the Excel-made file, checks the objects, thread and phonetic state, and writes
+  the changed sibling. Excel then opens that sibling without repair, draws the SmartArt and group, and shows the root
+  comment, Excel reply and SwiftSheets reply as one conversation. That specimen contains only
+  <code>phoneticPr</code>. A second opt-in judge, supplied through
+  <code>SWIFTSHEETS_EXCEL_FURIGANA_GROUND_TRUTH</code>, reads the Excel-authored <code>rPh</code> runs in five labels,
+  requires their exact UTF-16 ranges and readings after the rewrite, and writes a sibling that Excel opens without
+  repair and displays with its readings intact.</p>
 </section>
 
 </div><!-- /.container -->

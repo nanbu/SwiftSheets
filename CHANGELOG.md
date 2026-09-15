@@ -19,6 +19,30 @@ happen again unnoticed (Appendix B.97).
 
 ### Fixed
 
+- **Excel-authored advanced content survives a changed round trip** (spec Appendix B.103). Excel-made workbooks
+  containing SmartArt, grouped shapes, a Japanese threaded-comment mirror, phonetic display settings and real
+  `<rPh>` reading runs now open after SwiftSheets rewrites them. The writer removes the preserved thread relationship
+  before generating
+  its replacement, emits Excel's compatibility workbook children in their required position, registers every cell
+  style dependency before writing the indexed tables, and recognises localised thread mirrors by their synthetic
+  `tc={…}` author. Excel for Mac opened the result without repair, drew both objects and showed all three messages.
+- **Generated pivot tables now open and refresh in Excel itself** (spec Appendix B.102). A pivot field whose cache
+  has no saved members now carries the default item Excel needs while it builds the cache on open. Without it,
+  Excel for Mac quit while opening the generated workbook. With it, Excel opens all 17 probe pivots without repair,
+  follows a source edit on Refresh, saves and reopens, and SwiftSheets reads the saved caches back.
+- **Function names cross the XLSX/ODS boundary through an exact allow-list** (spec Appendices B.100–B.101).
+  This includes Excel's Japanese `JIS` formula (`DBCS` in OOXML, `JIS` in OpenFormula), the legacy statistical
+  aliases, `FORMULATEXT`/`FORMULA`, `SKEW.P`/`SKEWP`, and the standard OpenFormula functions for which OOXML
+  requires `_xlfn.`. Unknown `_xlfn.` calls now keep their cached value with a cell-specific warning on ODS
+  conversion instead of being written under a false OpenFormula name. Numbers uses its own measured registry;
+  unsupported functions still keep the cached value and warning, matching Numbers 15.3.1's Excel import.
+- **Numbers now draws and preserves written font colours** (spec Appendix B.98). The writer supplied
+  `font_color`, which SwiftSheets and numbers-parser read, but current Numbers ignored it, drew black text and removed
+  it on save. The writer now supplies the matching character fill Numbers uses as well; a Numbers 15.3.1 resave is
+  the regression judge.
+- **Numbers draws Excel date literals and Japanese yen correctly** (spec Appendix B.99). Excel's double-quoted date
+  words are translated to CLDR quoting instead of displaying the quote marks, and a bare `¥` maps deterministically
+  to JPY instead of sometimes becoming Chinese yuan. Numbers 15.3.1's formatted values are the regression judge.
 - **SheetEncrypt builds for WebAssembly.** Its password-protected `write(to:as:options:password:)` asked for an atomic
   write, which WASI does not have; it now writes directly there, as the plain `write(to:as:)` always has.
 - **SheetCore finds the C library on Android.** The three files that call `open`, `read` and `stat` themselves import

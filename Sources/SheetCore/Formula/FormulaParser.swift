@@ -140,7 +140,7 @@ struct FormulaParser {
             guard current == .lparen else { throw fail("expected ( after \(name)") }
             advance()
             var args: [FormulaExpr] = []
-            if current == .rparen { advance(); return .call(name: FormulaParser.canonicalFunctionName(name), args: []) }
+            if current == .rparen { advance(); return .call(name: FormulaParser.canonicalFunctionName(name, dialect: dialect), args: []) }
             while true {
                 if current == .separator || current == .rparen { args.append(.missing) }
                 else { args.append(try parseExpression(minPrecedence: 0)) }
@@ -149,7 +149,7 @@ struct FormulaParser {
                 advance()
                 break
             }
-            return .call(name: FormulaParser.canonicalFunctionName(name), args: args)
+            return .call(name: FormulaParser.canonicalFunctionName(name, dialect: dialect), args: args)
         case .lparen:
             advance()
             var e = try parseExpression(minPrecedence: 0)
@@ -204,10 +204,9 @@ struct FormulaParser {
         }
     }
 
-    /// Upper-case canonical names; namespace prefixes such as `_xlfn.` keep their case (Excel requires it).
-    static func canonicalFunctionName(_ name: String) -> String {
-        guard let dot = name.lastIndex(of: ".") else { return name.uppercased() }
-        return String(name[...dot]) + name[name.index(after: dot)...].uppercased()
+    /// Canonicalise only function-name differences proven equivalent for the source dialect (Appendix B.101).
+    static func canonicalFunctionName(_ name: String, dialect: SheetFormat) -> String {
+        FormulaFunctionNames.canonical(name, parsedAs: dialect)
     }
 }
 
@@ -474,7 +473,7 @@ struct FormulaEmitter {
         case .unary(let op, let x): return op.symbol + operand(x, under: op, rightSide: true)
         case .binary(.union, let a, let b): return dialect == .ods ? emit(a) + "~" + emit(b) : "(" + emit(a) + "," + emit(b) + ")"
         case .binary(let op, let a, let b): return operand(a, under: op, rightSide: false) + symbol(op) + operand(b, under: op, rightSide: true)
-        case .call(let name, let args): return name + "(" + args.map(emit).joined(separator: separator) + ")"
+        case .call(let name, let args): return functionName(name) + "(" + args.map(emit).joined(separator: separator) + ")"
         case .array(let rows): return "{" + rows.map { $0.map(emit).joined(separator: dialect == .ods ? ";" : ",") }.joined(separator: dialect == .ods ? "|" : ";") + "}"
         case .missing: return ""
         case .unparsed(let text, _): return text
@@ -482,6 +481,11 @@ struct FormulaEmitter {
     }
 
     private var separator: String { dialect == .ods ? ";" : "," }
+
+    /// Translate the evidence-backed function-name table at the file-format edge (Appendix B.101).
+    private func functionName(_ name: String) -> String {
+        FormulaFunctionNames.rendered(name, as: dialect)
+    }
 
     /// Every operator spells the same in both dialects but one: intersection is a space in Excel and `!` in
     /// OpenFormula.

@@ -299,9 +299,13 @@ public struct CommentThread: Hashable, Sendable {
         for r in replies { s += "\n\n\(r.author): \(r.text)" }
         return s
     }
-    /// What Excel writes into the mirror note so older versions show something; a note beginning like this is
-    /// the thread's shadow, not a note of its own.
+    /// What English Excel writes into the mirror note so older versions show something.
     package static let mirrorPrefix = "[Threaded comment]"
+    /// Excel localises the mirror text, but its synthetic author is stable: `tc={thread id}`. The check is only
+    /// used for a cell that also has a thread, so a real note elsewhere remains a real note even with this author.
+    package static func isMirror(_ note: CellNote) -> Bool {
+        note.text.hasPrefix(mirrorPrefix) || note.author.hasPrefix("tc=")
+    }
 }
 
 /// Row formatting (openpyxl RowDimension).

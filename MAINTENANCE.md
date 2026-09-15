@@ -208,20 +208,20 @@ per-application checklist (`READ-ME-FIRST.md`, for the maintainer who runs it).
   with one rule kind per column and **a parameter no other rule uses**, have Numbers import and save it with
   `numbers_app.resave`, and match each surviving rule to its column by that parameter. Numbers keeps fourteen of
   Excel's twenty-five kinds; the eleven it drops on import are the eleven SwiftSheets reports as dropped.
-- **Furigana (Appendix B.70) — no Excel-made sample on this machine.** Type Japanese into a cell in Excel (it
-  records the readings as you type), save, open it with SwiftSheets and confirm `sheet[cell: "A1"].phonetic` holds the
-  readings; save it back and confirm Excel still shows them (Home → Phonetic Guide → Show). Our own round trip is
-  covered by `FuriganaTests`; what only Excel can judge is whether its own `<rPh>` spans match what we read.
-- **SmartArt (Appendix B.75) — no Excel-made sample on this machine.** Insert a SmartArt graphic and a grouped pair
-  of shapes on a sheet in Excel, save, open it with SwiftSheets and confirm `sheet.shapes` holds the plain shapes
-  while the SmartArt and the group are named in the `dropped` warning only after a shape is changed; save the file
-  untouched and confirm Excel still shows the SmartArt. The synthetic `smartart-and-group.xlsx` fixture covers the
-  part plumbing; what only Excel can judge is its own diagram parts.
-- **Threaded comments (Appendix B.80) — no Excel-made sample on this machine.** Add a comment with a reply on a
-  cell in Excel, save, open it with SwiftSheets and confirm `sheet[cell: "A1"].thread` holds both and the cell has
-  no note; add a reply here, save, and confirm Excel shows the thread and its people. The synthetic
-  `threaded-comments.xlsx` fixture is written from the published part layout; what only Excel can judge is its own
-  ids and the mirror text it expects.
+- **Furigana (Appendix B.70) — verified in Excel for Mac on 2026-09-16.** The Excel-made JIS specimen contains
+  `<rPh>` reading spans on five labels, including two separate spans in `変換前`. Point
+  `SWIFTSHEETS_EXCEL_FURIGANA_GROUND_TRUTH` at that workbook and run `ExcelGroundTruthTests`; the sibling rewrite
+  must keep every run and open in Excel without repair. Home → Phonetic Guide → Show must display readings on both
+  `JIS関数` and `変換前`. The advanced-content specimen separately checks a display-only `<phoneticPr>`.
+- **SmartArt (Appendices B.75 and B.103) — verified in Excel for Mac on 2026-09-16.** The Excel-made five-node
+  SmartArt and a grouped pair of shapes survived while SwiftSheets changed a threaded comment in the same sheet;
+  Excel opened the rewrite without repair and drew both objects. Repeat with the opt-in ground-truth test below.
+- **Threaded comments (Appendices B.80 and B.103) — verified in Excel for Mac on 2026-09-16.** An Excel-made
+  comment and reply read as one thread, its Japanese compatibility note stayed hidden from `Cell.note`, and a reply
+  added by SwiftSheets appeared in Excel with both people. The check also caught duplicate threaded-comment
+  relationships and workbook extension elements emitted out of order; both made Excel reject the file.
+  Run `SWIFTSHEETS_EXCEL_GROUND_TRUTH=/path/to/excel-made-features.xlsx swift test --filter ExcelGroundTruthTests`,
+  then open the sibling `excel-made-features.roundtrip.xlsx` in Excel and require no repair dialog.
 - **Links on runs of text (Appendix B.81).** Open a workbook written here with two links in one cell in Numbers
   and confirm both open their targets; put two links into one cell in Numbers, save, and confirm
   `sheet["A1"]` reads as rich text with a link on each run. `RunHyperlinkTests` covers the round trip through
@@ -238,15 +238,14 @@ per-application checklist (`READ-ME-FIRST.md`, for the maintainer who runs it).
   and the diamond next to the rectangle.
 - Open `02-swiftsheets.ods` in LibreOffice as a second opinion (also covered by `swift test`).
 
-### Pivot tables (Rev 2.0, Appendix B.15) — the same "no judge on this machine" problem as Numbers
+### Pivot tables (Rev 4.93, Appendices B.15 and B.102)
 
-**Decided 2026-08-24**: verify by hand before each release rather than acquiring a machine with Excel — the same
-arrangement Numbers already runs under, and there is no reason to treat pivot tables differently.
+**Verified in Excel for Mac on 2026-09-16**; repeat this check before each release.
 
 SwiftSheets lays a pivot table out and asks the application to refresh it (`saveData="0" refreshOnLoad="1"`, no
-record part). openpyxl reads the parts back and LibreOffice both renders and recomputes them, so the layout is
-verified — but **Excel itself has not opened a pivot table SwiftSheets wrote**. Before a release, with a workbook
-built by `Workbook.addPivotTable`:
+record part). Every generated pivot field nevertheless needs an `<item t="default"/>`; without it Excel for Mac
+quit while opening the workbook. openpyxl reads the parts back and LibreOffice both renders and recomputes them.
+Before a release, with a workbook built by `Workbook.addPivotTable`:
 
 - Open it in Excel: no "we found a problem with some content" dialog, and the pivot table shows the summary rather
   than an empty frame (Excel refreshes it on open).
@@ -254,4 +253,5 @@ built by `Workbook.addPivotTable`:
 - Save from Excel and read the result back with SwiftSheets: the layout still parses and the cache is intact.
 
 If Excel does complain, the likely culprits are the cache definition (`xl/pivotCache/pivotCacheDefinition*.xml`) and
-the four-way wiring — part, content type, relationship, `<pivotCaches>` — not the layout part itself.
+the four-way wiring — part, content type, relationship, `<pivotCaches>` — plus the default item in each generated
+`<pivotField>`.

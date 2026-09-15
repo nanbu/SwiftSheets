@@ -271,7 +271,7 @@ enum NumbersFormat {
             return f
         } else if let symbol = currencySymbol(inCode: plain) {
             f.set("format_type", int: type("CURRENCY") ?? 257)
-            f.set("currency_code", string: currencyCode(symbol))
+            f.set("currency_code", string: currencyCode(in: plain, symbol: symbol))
             drawn = String(symbol)
         } else if body.contains("0") || body.contains("#") {
             f.set("format_type", int: type("DECIMAL") ?? 256)
@@ -350,7 +350,25 @@ enum NumbersFormat {
     static let symbols: [String: String] = ["USD": "$", "JPY": "¥", "EUR": "€", "GBP": "£", "CNY": "¥", "KRW": "₩"]
     static func currencySymbol(_ code: String) -> String? { symbols[code] ?? (code.isEmpty ? nil : code) }
     static func currencyCode(_ symbol: Character) -> String {
-        symbols.first { $0.value == String(symbol) }?.key ?? "USD"
+        switch symbol {
+        case "$": "USD"
+        case "¥": "JPY"
+        case "€": "EUR"
+        case "£": "GBP"
+        case "₩": "KRW"
+        default: "USD"
+        }
+    }
+
+    /// A yen sign is ambiguous only when the Excel locale says it is Chinese. A bare or quoted `¥` means JPY;
+    /// this keeps the common spelling deterministic instead of depending on dictionary iteration order (B.99).
+    static func currencyCode(in code: String, symbol: Character) -> String {
+        if symbol == "¥", let open = code.range(of: "[$"), let close = code[open.upperBound...].firstIndex(of: "]") {
+            let body = code[open.upperBound..<close]
+            let pieces = body.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
+            if pieces.count == 2, pieces[1].lowercased() == "804" { return "CNY" }
+        }
+        return currencyCode(symbol)
     }
 
     /// A Unicode (CLDR) date pattern as Excel's own, run by run. The two agree on `dd` and on `mmm`; they differ
@@ -374,10 +392,23 @@ enum NumbersFormat {
             case "m": out += String(repeating: "m", count: run)
             case "s": out += String(repeating: "s", count: run)
             case "a": out += "AM/PM"
-            case "'":                                       // a CLDR quoted literal
+            case "'":                                       // a CLDR quoted literal → an Excel quoted literal
+                var literal = ""
                 j = pattern.index(after: i)
-                while j < pattern.endIndex, pattern[j] != "'" { out.append(pattern[j]); j = pattern.index(after: j) }
-                if j < pattern.endIndex { j = pattern.index(after: j) }
+                while j < pattern.endIndex {
+                    if pattern[j] == "'" {
+                        let next = pattern.index(after: j)
+                        if next < pattern.endIndex, pattern[next] == "'" {
+                            literal.append("'"); j = pattern.index(after: next); continue
+                        }
+                        j = next
+                        break
+                    }
+                    literal.append(pattern[j]); j = pattern.index(after: j)
+                }
+                out.append("\"")
+                out += literal.replacingOccurrences(of: "\"", with: "\"\"")
+                out.append("\"")
             default:
                 out += String(repeating: String(ch), count: run)
                 if ch != ":" { afterHour = false }
@@ -396,6 +427,29 @@ enum NumbersFormat {
         while i < code.endIndex {
             let ch = code[i]
             if code[i...].hasPrefix("AM/PM") { out.append("a"); i = code.index(i, offsetBy: 5); continue }
+            if ch == "\"" {                                // an Excel quoted literal → a CLDR quoted literal
+                var literal = ""
+                var j = code.index(after: i)
+                while j < code.endIndex, code[j] != "\"" { literal.append(code[j]); j = code.index(after: j) }
+                if j < code.endIndex { j = code.index(after: j) }
+                out.append("'")
+                out += literal.replacingOccurrences(of: "'", with: "''")
+                out.append("'")
+                afterHour = false
+                i = j
+                continue
+            }
+            if ch == "\\" {                                // an Excel escaped literal
+                let next = code.index(after: i)
+                if next < code.endIndex {
+                    out.append("'")
+                    if code[next] == "'" { out += "''" } else { out.append(code[next]) }
+                    out.append("'")
+                    i = code.index(after: next)
+                    afterHour = false
+                    continue
+                }
+            }
             switch ch {
             case "y", "d", "s": out.append(ch)
             case "h": out.append("H"); afterHour = true
@@ -608,7 +662,14 @@ struct NumbersStyleWriter {
         // Numbers names a font by its PostScript name, not by its family.
         if let name = font.name { char.set("font_name", string: NumbersSchema.shared.fontPostScriptName(name)); overrides += 1 }
         if case .rgb(let hex)? = font.color, let colour = NumbersStyleWriter.color(hex) {
-            char.set("font_color", message: colour); overrides += 1
+            char.set("font_color", message: colour)
+            // Current Numbers draws a character colour from the TSD fill. It still records `font_color` too, so
+            // write both representations of the same logical override (Appendix B.98). Without `tsd_fill`, Numbers
+            // draws black and removes `font_color` when it saves the document again.
+            var fill = ProtoMessage(typeName: "TSD.FillArchive")
+            fill.set("color", message: colour)
+            char.set("tsd_fill", message: fill)
+            overrides += 1
         }
         if let underline = font.underline { char.set("underline", int: underline == .double || underline == .doubleAccounting ? 2 : 1); overrides += 1 }
         if font.strikethrough { char.set("strikethru", int: 1); overrides += 1 }
@@ -672,6 +733,7 @@ struct NumbersStyleWriter {
         m.set("g", float: Float((value >> 8) & 0xFF) / 255)
         m.set("b", float: Float(value & 0xFF) / 255)
         m.set("a", float: Float((value >> 24) & 0xFF) / 255)
+        m.set("rgbspace", int: NumbersSchema.shared.enumValue("TSP.Color.RGBColorSpace", "srgb") ?? 1)
         return m
     }
 

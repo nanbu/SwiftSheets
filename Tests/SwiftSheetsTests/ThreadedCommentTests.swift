@@ -32,6 +32,17 @@ import SwiftSheets
         #expect(a1.noteText == "Is this figure final?\n\nBob: Yes, confirmed with finance.")
     }
 
+    @Test func hidesALocalisedExcelMirrorByItsSyntheticAuthor() throws {
+        let source = try Data(contentsOf: Self.fixture)
+        let comments = try Package.part("xl/comments1.xml", of: source)
+            .replacingOccurrences(of: "[Threaded comment]", with: "[スレッド化されたコメント]")
+        let localised = try Package.repacking(source, replacing: "xl/comments1.xml", with: Data(comments.utf8))
+        let sheet = try Workbook.read(localised, format: .xlsx).workbook.sheets[0]
+        #expect(sheet[cell: "A1"].thread != nil && sheet[cell: "A1"].note == nil)
+        #expect(sheet[cell: "B3"].thread != nil && sheet[cell: "B3"].note == nil)
+        #expect(sheet[cell: "D5"].note?.text == "A plain note.", "an ordinary note is not hidden")
+    }
+
     @Test func untouchedThreadsAreBytes() throws {
         let source = try Data(contentsOf: Self.fixture)
         let result = try Workbook(contentsOf: Self.fixture).write(as: .xlsx)
@@ -58,6 +69,9 @@ import SwiftSheets
         let comments = try Package.part("xl/comments1.xml", of: result.data)
         #expect(comments.contains("[Threaded comment]") && comments.contains("A plain note.") && comments.contains("Reply:\n    Thanks!"))
         #expect(comments.components(separatedBy: "<comment ").count == 4, "A1 mirror, D5 note, E1 mirror")
+        let relationships = try Package.part("xl/worksheets/_rels/sheet1.xml.rels", of: result.data)
+        #expect(relationships.components(separatedBy: ThreadedCommentParts.relationshipType).count == 2,
+                "the regenerated thread relationship replaces the preserved one")
         let back = try Workbook.read(result.data, format: .xlsx).workbook.sheets[0]
         #expect(back[cell: "A1"].thread?.replies.map(\.text) == ["Yes, confirmed with finance.", "Thanks!"])
         #expect(back[cell: "E1"].thread?.author == "Dana" && back[cell: "E1"].note == nil && back[cell: "B3"].thread == nil)

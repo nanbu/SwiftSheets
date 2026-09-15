@@ -326,6 +326,55 @@ import SwiftSheets
         #expect(back["E1"] == .text("fallback"))
     }
 
+    @Test func excelDBCSUsesOpenFormulaJIS() throws {
+        var ws = Sheet(name: "F")
+        ws["A1"] = .text("ABC")
+        ws["B1"] = .formula(FormulaExpr.parse("=DBCS(A1)"), cached: .text("ＡＢＣ"))
+        let result = try ODSCodec.write(Workbook(sheets: [ws]))
+        #expect(try contentXML(result.data).contains("table:formula=\"of:=JIS([.A1])\""))
+        #expect(result.warnings.isEmpty)
+        let back = try ODSCodec.read(result.data).workbook.sheets[0]
+        #expect(back["B1"]?.formula?.rendered(as: .xlsx) == "DBCS(A1)")
+        #expect(back["B1"]?.cachedValue == .text("ＡＢＣ"))
+    }
+
+    @Test func unmappedExcelFutureFunctionUsesCachedValue() throws {
+        var ws = Sheet(name: "F")
+        ws["A1"] = .formula(FormulaExpr.parse("=_xlfn.XLOOKUP(1,A2:A3,B2:B3)"), cached: .text("cached"))
+        let result = try ODSCodec.write(Workbook(sheets: [ws]))
+        #expect(result.warnings.contains {
+            $0.kind == .degraded && $0.subject == .formulas && $0.location == CellRef("A1")
+        })
+        #expect(!(try contentXML(result.data)).contains("_xlfn.XLOOKUP"))
+        #expect(try ODSCodec.read(result.data).workbook.sheets[0]["A1"] == .text("cached"))
+    }
+
+    @Test(.enabled(if: hasLibreOffice, "LibreOffice is not installed"))
+    func libreOfficeRecalculatesTranslatedFunctionNames() throws {
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = .text("ABC")
+        for row in 2...6 { wb.sheets[0][row, 1] = .integer(row - 1) }
+        wb.sheets[0]["B1"] = .formula(FormulaExpr.parse("=DBCS(A1)"), cached: .text("stale"))
+        wb.sheets[0]["B2"] = .formula(FormulaExpr.parse("=CHIDIST(1,1)"), cached: .integer(-1))
+        wb.sheets[0]["B3"] = .formula(FormulaExpr.parse("=_xlfn.SKEW.P(A2:A6)"), cached: .integer(-1))
+        wb.sheets[0]["B4"] = .formula(FormulaExpr.parse("=_xlfn.PERMUTATIONA(3,2)"), cached: .integer(-1))
+        wb.sheets[0]["B5"] = .formula(FormulaExpr.parse("=_xlfn.UNICHAR(65)"), cached: .text("stale"))
+        let file = Self.tmp.appendingPathComponent("function-name-aliases.ods")
+        _ = try wb.write(to: file, as: .ods)
+        let (xlsx, _) = try convert(file, to: "xlsx")
+        let back = try Workbook(contentsOf: xlsx).sheets[0]
+        #expect(back["B1"]?.formula?.rendered(as: .xlsx) == "DBCS(A1)")
+        #expect(back["B1"]?.cachedValue == .text("ＡＢＣ"))
+        #expect(back["B2"]?.formula?.rendered(as: .xlsx) == "CHIDIST(1,1)")
+        #expect(back["B2"]?.cachedValue != .integer(-1))
+        #expect(back["B3"]?.formula?.rendered(as: .xlsx) == "_xlfn.SKEW.P(A2:A6)")
+        #expect(back["B3"]?.cachedValue == .integer(0))
+        #expect(back["B4"]?.formula?.rendered(as: .xlsx) == "_xlfn.PERMUTATIONA(3,2)")
+        #expect(back["B4"]?.cachedValue == .integer(9))
+        #expect(back["B5"]?.formula?.rendered(as: .xlsx) == "_xlfn.UNICHAR(65)")
+        #expect(back["B5"]?.cachedValue == .text("A"))
+    }
+
     // MARK: - 6. Cross-format warnings
 
     @Test func foreignOpaquePartsAreReportedWhenWritingODS() throws {

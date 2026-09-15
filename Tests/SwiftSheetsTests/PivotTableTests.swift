@@ -70,6 +70,8 @@ import SwiftSheets
 
         let part = try Package.part("xl/pivotTables/pivotTable1.xml", of: data)
         #expect(part.contains("name=\"集計\" cacheId=\"1\""))
+        #expect(part.components(separatedBy: "<item t=\"default\"/>").count - 1 == 4,
+                "each of the four pivot fields needs a default item so Excel can build the unsaved cache on open")
         #expect(part.contains("<rowFields count=\"1\"><field x=\"0\"/></rowFields>"))
         #expect(part.contains("<colFields count=\"1\"><field x=\"1\"/></colFields>"))
         #expect(part.contains("<pageFields count=\"1\">"))

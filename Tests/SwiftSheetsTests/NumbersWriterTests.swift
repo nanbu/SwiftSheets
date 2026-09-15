@@ -176,6 +176,13 @@ import SwiftSheets
         let listID = try #require(store.reference("styleTable"))
         let named = try #require(doc.object(listID)).messages("entries").compactMap { $0.reference("reference") }
         #expect(!named.isEmpty)
+        let whiteText = try #require(named.compactMap { doc.object($0)?.message("char_properties") }.first {
+            $0.message("font_color").flatMap(NumbersStyleResolver.color) == Color(hex: "FFFFFFFF")
+        })
+        let directColour = try #require(whiteText.message("font_color"))
+        let fillColour = try #require(whiteText.message("tsd_fill")?.message("color"))
+        #expect(directColour == fillColour, "Numbers needs the same colour in font_color and tsd_fill (Appendix B.98)")
+        #expect(directColour.int("rgbspace") == NumbersSchema.shared.enumValue("TSP.Color.RGBColorSpace", "srgb"))
         let listComponent = try #require(doc.componentID(forObject: listID))
         let recorded = doc.object(NumbersDocument.packageID)?.messages("components")
             .first { $0.int("identifier") == listComponent }?
@@ -268,16 +275,19 @@ import SwiftSheets
         sheet[cell: "A3"].value = .formula(FormulaExpr.parse("NOSUCHFUNCTION(1)"), cached: .integer(3))
         sheet[cell: "A4"].value = .formula(FormulaExpr.parse("SUM(A1:A2 B1:B2)"), cached: .integer(4))
         sheet[cell: "A5"].value = .formula(.unparsed("???", dialect: .xlsx), cached: .integer(5))
+        sheet[cell: "A6"].value = .formula(FormulaExpr.parse("DBCS(\"ABC\")"), cached: .text("ＡＢＣ"))
         wb.sheets[0] = sheet
         let result = try wb.write(as: .numbers)
         let reasons = result.warnings.filter { $0.subject == .formulas }.map(\.message)
-        #expect(reasons.count == 5, "\(reasons)")
+        #expect(reasons.count == 6, "\(reasons)")
         #expect(reasons.contains { $0.contains("no table is named Missing") })
         #expect(reasons.contains { $0.contains("defined names") })
         #expect(reasons.contains { $0.contains("no function") })
+        #expect(reasons.contains { $0.contains("no function DBCS") })
         #expect(reasons.contains { $0.contains("could not be parsed") })
         let back = try NumbersCodec.read(result.data).workbook.sheets[0]
-        #expect(back["A1"] == .integer(1) && back["A5"] == .integer(5), "the cached value is never lost")
+        #expect(back["A1"] == .integer(1) && back["A5"] == .integer(5) && back["A6"] == .text("ＡＢＣ"),
+                "the cached value is never lost")
     }
 
     /// A formula the source never cached still goes in: the cell holds no value and Numbers computes one.
@@ -387,5 +397,66 @@ import SwiftSheets
         #expect(NumbersFormat.split("#,##0\" 円\"").body == "#,##0")
         #expect(NumbersFormat.split("\"$\"#,##0.00").body == "#,##0.00")
         #expect(NumbersFormat.split("0\\%").literals == ["%"], "an escaped character is literal too")
+    }
+
+    @Test func dateLiteralsUseTheCLDRQuotingNumbersDraws() throws {
+        let code = "yyyy\"年\"m\"月\"d\"日\""
+        let archive = try #require(NumbersFormat.archive(for: code))
+        #expect(archive.string("date_time_format") == "yyyy'年'M'月'd'日'")
+        #expect(NumbersFormat.excelCode(archive, currency: false) == code)
+    }
+
+    @Test func yenIsJapaneseUnlessTheExcelLocaleSaysChinese() throws {
+        let yen = try #require(NumbersFormat.archive(for: "\"¥\"#,##0"))
+        #expect(yen.string("currency_code") == "JPY")
+        let japanese = try #require(NumbersFormat.archive(for: "[$¥-411]#,##0"))
+        #expect(japanese.string("currency_code") == "JPY")
+        let chinese = try #require(NumbersFormat.archive(for: "[$¥-804]#,##0"))
+        #expect(chinese.string("currency_code") == "CNY")
+    }
+}
+
+/// The self round trip above cannot judge whether Numbers itself honours an archive field. Current Numbers requires
+/// a character colour in both `font_color` and `tsd_fill` (Appendix B.98); Excel date literals and a bare yen also
+/// need translations rather than verbatim fields (B.99). This test asks the application what it draws, then saves
+/// the document before SwiftSheets reads the style back.
+@Suite struct NumbersStyleAppTests {
+    static let stage = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: ".build/numbers-judge/styles")
+
+    @Test(.enabled(if: NumbersCanvasTests.numbersCanJudge, "Numbers.app is not here, or this terminal may not drive it"))
+    func numbersItselfKeepsTheFontColourAndDrawsTheFormats() throws {
+        try FileManager.default.createDirectory(at: Self.stage, withIntermediateDirectories: true)
+        var wb = Workbook()
+        wb.sheets[0]["A1"] = "white"
+        wb.sheets[0]["A2"] = .date(CivilDateTime(date: CivilDate(year: 2026, month: 10, day: 1)!))
+        wb.sheets[0]["A3"] = 3_800
+        wb.sheets[0].setStyle("A1") {
+            $0.font.color = Color(hex: "FFFFFF")
+            $0.fill = .solid(Color(hex: "1F4E79"))
+        }
+        wb.sheets[0].setStyle("A2") { $0.numberFormat = "yyyy\"年\"m\"月\"d\"日\"" }
+        wb.sheets[0].setStyle("A3") { $0.numberFormat = "\"¥\"#,##0" }
+        let written = Self.stage.appending(path: "font-colour.numbers")
+        try wb.write(as: .numbers).data.write(to: written)
+
+        let shown = try #require(NumbersCanvasTests.numbersApp(["dump", written.path]))
+        try #require(shown.status == 0, Comment(rawValue: "Numbers did not describe the document: \(shown.output)"))
+        let root = try #require(JSONSerialization.jsonObject(with: Data(shown.output.utf8)) as? [String: Any])
+        let sheets = try #require(root["sheets"] as? [[String: Any]])
+        let tables = try #require(sheets.first?["tables"] as? [[String: Any]])
+        let cells = try #require(tables.first?["cells"] as? [[String: Any]])
+        func formatted(_ row: Int) -> String? {
+            cells.first { ($0["row"] as? Int) == row && ($0["column"] as? Int) == 0 }?["formatted"] as? String
+        }
+        #expect(formatted(1) == "2026年10月1日")
+        #expect(formatted(2)?.contains("¥") == true && formatted(2)?.contains("元") == false,
+                "Numbers drew the JPY value as \(formatted(2) ?? "nothing")")
+
+        let resaved = Self.stage.appending(path: "font-colour-resaved.numbers")
+        let run = try #require(NumbersCanvasTests.numbersApp(["resave", written.path, resaved.path]))
+        try #require(run.status == 0, Comment(rawValue: "Numbers did not save the document again: \(run.output)"))
+        let colour = try Workbook(contentsOf: resaved).sheets[0].style("A1").font.color
+        #expect(colour == Color(hex: "FFFFFFFF"), "Numbers saved the text as \(String(describing: colour))")
     }
 }

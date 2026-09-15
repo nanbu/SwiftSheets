@@ -424,6 +424,22 @@ func minimalPackage(sheet: String, styles: String? = "<styleSheet xmlns=\"http:/
         #expect(p.cellXfs.isEmpty && p.style(0) == CellStyle())   // openpyxl warns and falls back to the defaults
     }
 
+    @Test func seededRegistryRegistersDefaultStyleDependenciesBeforeWritingTables() throws {
+        let source = """
+        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+          <fonts count="1"><font><name val="Aptos"/><sz val="12"/></font></fonts>
+          <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+          <borders count="1"><border/></borders>
+          <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellXfs>
+        </styleSheet>
+        """
+        let seed = try parseStyles(source)
+        let reparsed = try parseStyles(StyleRegistry(seed: seed.styleTables).xml())
+        #expect(reparsed.fonts.count == 2)
+        #expect(reparsed.cellXfs.count == 1)
+        #expect(reparsed.cellXfs[0].font == .default)
+    }
+
     // openpyxl: styles/tests/test_stylesheet.py::test_write_worksheet
     @Test func writeWorksheet() {
         let reg = StyleRegistry(); reg.indexedColors = ["00000000", "00FFFFFF"]

@@ -977,7 +977,7 @@ enum ODSWriter {
                 // same mapping as the XLSX writer: OpenFormula has no quote functions either
                 sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "\(fn) fetches live data and OpenFormula has no such function; the cached value is written, the way Numbers itself exports to Excel")
             } else if !f.isExpressible(in: .ods) {
-                sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "OpenFormula cannot express this formula without changing its meaning (an intersection of defined names); cached value written")
+                sink.add(.degraded, subject: .formulas, sheet: sheet, at: ref, "OpenFormula cannot express this formula without changing its meaning; cached value written")
             } else {
                 attrs += " table:formula=\"\(XML.esc(f.rendered(as: .ods)))\""
             }

@@ -484,7 +484,7 @@ final class SheetReadContext: @unchecked Sendable {
                 let threads = ThreadedCommentParts.parse(data, part: threadsPart, persons: persons)
                 for (ref, thread) in threads {
                     sheet[cell: ref].thread = thread
-                    if sheet[cell: ref].note?.text.hasPrefix(CommentThread.mirrorPrefix) == true { sheet[cell: ref].note = nil }
+                    if let note = sheet[cell: ref].note, CommentThread.isMirror(note) { sheet[cell: ref].note = nil }
                 }
                 sheet.preserved.threads = threads
             }

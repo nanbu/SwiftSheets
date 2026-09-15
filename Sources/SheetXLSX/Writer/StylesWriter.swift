@@ -313,6 +313,14 @@ final class StyleRegistry {
     static let sectionOrder = ["numFmts", "fonts", "fills", "borders", "cellStyleXfs", "cellXfs", "cellStyles", "dxfs", "tableStyles", "colors", "extLst"]
 
     func xml() -> String {
+        // Every index-addressed dependency must exist before its table is emitted. A registry seeded from an
+        // Excel file can have a source font at index 0 that differs from `CellStyle.default.font`; without this
+        // preflight the default cell xf first registers its font below, after `<fonts>` has already been built,
+        // leaving an out-of-range fontId in the package.
+        for style in xfs {
+            _ = fontID(style.font); _ = fillID(style.fill); _ = borderID(style.border)
+            _ = numFmtID(style.numberFormat)
+        }
         var sections: [String: String] = [:]
         if !customFormats.isEmpty {
             let sorted = customFormats.sorted { $0.value < $1.value }

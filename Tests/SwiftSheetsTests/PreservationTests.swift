@@ -10,6 +10,21 @@ import SwiftSheets
     static let fixtures = Bundle.module.resourceURL!.appendingPathComponent("Fixtures/preservation")
     static func fixture(_ name: String) throws -> Data { try Data(contentsOf: fixtures.appendingPathComponent(name)) }
 
+    @Test func excelCompatibilityWorkbookFragmentsKeepTheirRequiredPosition() {
+        let xml = XMLWriter.ordered(
+            [("workbookPr", "<workbookPr/>"), ("bookViews", "<bookViews/>"), ("sheets", "<sheets/>"), ("calcPr", "<calcPr/>")],
+            fragments: [
+                XMLFragment(element: "AlternateContent", xml: "<mc:AlternateContent/>"),
+                XMLFragment(element: "revisionPtr", xml: "<xr:revisionPtr/>")
+            ],
+            order: WorkbookWriter.workbookOrder
+        )
+        let positions = ["<workbookPr", "<mc:AlternateContent", "<xr:revisionPtr", "<bookViews", "<sheets", "<calcPr"].map {
+            xml.range(of: $0)!.lowerBound
+        }
+        #expect(positions == positions.sorted())
+    }
+
     @Test func editOneCellKeepsEverythingElse() throws {
         let original = try Self.fixture("charts-and-friends.xlsx")
         var wb = try XLSXCodec.read(original).workbook

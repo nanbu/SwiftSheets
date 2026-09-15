@@ -67,7 +67,10 @@ final class WarningSink {
 /// every preserved part with its relationships (spec §7.3). Theme is omitted for new workbooks (explicit colours do
 /// not need it) and preserved as an opaque part for workbooks read from a file.
 enum WorkbookWriter {
-    static let workbookOrder = ["fileVersion", "fileSharing", "workbookPr", "workbookProtection", "bookViews", "sheets", "functionGroups", "externalReferences", "definedNames", "calcPr", "oleSize", "customWorkbookViews", "pivotCaches", "smartTagPr", "smartTagTypes", "webPublishing", "fileRecoveryPr", "webPublishObjects", "extLst"]
+    // Excel writes its compatibility absolute-path block and revision pointer between workbookPr and bookViews.
+    // They are extension children rather than ECMA-376 CT_Workbook children, but moving them to the generic
+    // "unknown" slot after calcPr makes Excel reject an otherwise intact workbook.
+    static let workbookOrder = ["fileVersion", "fileSharing", "workbookPr", "AlternateContent", "revisionPtr", "workbookProtection", "bookViews", "sheets", "functionGroups", "externalReferences", "definedNames", "calcPr", "oleSize", "customWorkbookViews", "pivotCaches", "smartTagPr", "smartTagTypes", "webPublishing", "fileRecoveryPr", "webPublishObjects", "extLst"]
     static let worksheetOrder = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "sheetCalcPr", "sheetProtection", "protectedRanges", "scenarios", "autoFilter", "sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"]
     static let ctWorkbook = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
     static let ctWorkbookMacro = "application/vnd.ms-excel.sheet.macroEnabled.main+xml"
@@ -162,7 +165,7 @@ enum WorkbookWriter {
             let sourceComments = sourcePath(CommentParts.relationshipType), sourceVML = sourcePath(CommentParts.vmlRelationshipType)
             let sourceThreads = sourcePath(ThreadedCommentParts.relationshipType)
             // the as-read notes without the threads' mirrors, which the model hides
-            let asRead = sameFamily ? sheet.preserved.comments.filter { !$0.value.text.hasPrefix(CommentThread.mirrorPrefix) || sheet.preserved.threads[$0.key] == nil } : [:]
+            let asRead = sameFamily ? sheet.preserved.comments.filter { !CommentThread.isMirror($0.value) || sheet.preserved.threads[$0.key] == nil } : [:]
             let asReadThreads = sameFamily ? sheet.preserved.threads : [:]
             if sourceComments != nil, Dictionary(notes.map { ($0.ref, $0.note) }, uniquingKeysWith: { a, _ in a }) == asRead,
                Dictionary(threads.map { ($0.ref, $0.thread) }, uniquingKeysWith: { a, _ in a }) == asReadThreads { continue }
@@ -1255,7 +1258,11 @@ enum WorkbookWriter {
         var preservedRels = preserve ? ws.preserved.relationships : []
         var noteFragments = fragments
         if comments != nil || (preserve && !ws.preserved.comments.isEmpty && ws.notes.isEmpty) {
-            preservedRels.removeAll { $0.type.hasSuffix(CommentParts.relationshipType) || $0.type.hasSuffix(CommentParts.vmlRelationshipType) }
+            preservedRels.removeAll {
+                $0.type.hasSuffix(CommentParts.relationshipType)
+                    || $0.type.hasSuffix(CommentParts.vmlRelationshipType)
+                    || $0.type == ThreadedCommentParts.relationshipType
+            }
             noteFragments.removeAll { $0.element == "legacyDrawing" }
         }
         if images?.replacesSourceDrawing == true {

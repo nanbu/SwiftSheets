@@ -115,6 +115,32 @@ import Testing
         #expect(FormulaExpr.parse("_xlfn.xlookup(A1,B:B,C:C)").rendered(as: .xlsx) == "_xlfn.XLOOKUP(A1,B:B,C:C)")
     }
 
+    @Test func jisAndDBCSUseTheFormatNativeNames() {
+        let canonical = FormulaExpr.parse("JIS(A1)")
+        #expect(canonical == .call(name: "DBCS", args: [.ref(CellRef("A1")!)]))
+        #expect(canonical.rendered(as: .xlsx) == "DBCS(A1)")
+        #expect(canonical.rendered(as: .ods) == "of:=JIS([.A1])")
+        #expect(FormulaExpr.parse("of:=JIS([.A1])", dialect: .ods) == canonical)
+        #expect(FormulaExpr.parse("of:=dbcs([.A1])", dialect: .ods) == canonical,
+                "LibreOffice's compatibility spelling reads to the same tree")
+    }
+
+    @Test func provenFunctionAliasesUseFormatNativeNames() {
+        #expect(FormulaFunctionNames.mappings.count == 53)
+        for mapping in FormulaFunctionNames.mappings {
+            let xlsx = FormulaExpr.parse(mapping.xlsx + "(A1)", dialect: .xlsx)
+            let ods = FormulaExpr.parse("of:=" + mapping.ods + "([.A1])", dialect: .ods)
+            #expect(xlsx == ods, Comment(rawValue: "canonical tree for \(mapping.xlsx) / \(mapping.ods)"))
+            #expect(xlsx.rendered(as: .xlsx) == mapping.xlsx + "(A1)")
+            #expect(xlsx.rendered(as: .ods) == "of:=" + mapping.ods + "([.A1])")
+        }
+
+        // `_xlfn.` is removed only for the allow-listed OpenFormula intersection, never speculatively.
+        let targetOnly = FormulaExpr.parse("_xlfn.XLOOKUP(A1,B1,C1)")
+        #expect(targetOnly.rendered(as: .ods) == "of:=_xlfn.XLOOKUP([.A1];[.B1];[.C1])")
+        #expect(!targetOnly.isExpressible(in: .ods))
+    }
+
     @Test func renamingSheets() {
         let ast = FormulaExpr.parse("Old!A1+'Old'!B2:C3+Other!A1+A1")
         let renamed = ast.renamingSheet("Old", to: "New Name")

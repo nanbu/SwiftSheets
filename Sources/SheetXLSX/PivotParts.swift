@@ -60,9 +60,10 @@ enum PivotParts {
             fields += XML.attr("showAll", f.showsAll)
             if !f.defaultSubtotal { fields += " defaultSubtotal=\"0\"" }
             for k in f.otherAttributes.keys.sorted() { fields += XML.attr(k, f.otherAttributes[k]) }
-            guard !f.items.isEmpty else { fields += "/>"; continue }
-            fields += "><items count=\"\(f.items.count)\">"
-            for item in f.items {
+            // Even without saved cache members Excel needs the default item before it can refresh the field.
+            let items = f.items.isEmpty ? [PivotFieldItem(itemType: "default")] : f.items
+            fields += "><items count=\"\(items.count)\">"
+            for item in items {
                 fields += "<item"
                 fields += XML.attr("x", item.index) + XML.attr("t", item.itemType) + XML.attr("h", item.hidden)
                 fields += "/>"
