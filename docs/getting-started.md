@@ -10,7 +10,7 @@ out as it went in. This page gets you from an empty package to a saved file in t
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "0.28.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "1.0.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])

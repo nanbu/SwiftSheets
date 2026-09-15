@@ -1,7 +1,6 @@
 # API stability — what 1.0 promises
 
-> **The policy 1.0 keeps** (spec Appendix B.95). It takes effect with the 1.0 tag; until then the pre-1.0 caveat in
-> the [CHANGELOG](../CHANGELOG.md) (minor versions may break the API) still applies.
+> **The policy 1.0 keeps** (spec Appendix B.95). It applies from the 1.0.0 tag onward.
 
 ## Versioning
 

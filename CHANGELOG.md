@@ -1,13 +1,18 @@
 # Changelog
 
 Notable changes per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
-versions follow [SemVer](https://semver.org/), with the pre-1.0 caveat that **minor versions may break the API**
-until 1.0 (see [CONTRIBUTING](CONTRIBUTING.md)).
+versions follow [SemVer](https://semver.org/). The pre-1.0 releases used minor versions for API changes; from 1.0,
+the [API stability policy](docs/api-stability.md) applies.
 
 `SwiftSheetsInfo.version` is bumped in the release commit itself and is what the library stamps into the files it
 writes, so the constant, the README's status line and the tag always name the same version.
 
 ## [Unreleased]
+
+## [1.0.0] — 2026-09-16
+
+SwiftSheets' first stable release. The public API now follows the documented 1.x stability policy. This release also
+closes the gaps found by the final Excel and Numbers application-level checks.
 
 What the Swift Package Index's first builds of 0.28.0 showed (spec Appendix B.96), and a CI job so that it cannot
 happen again unnoticed (Appendix B.97).
@@ -1484,7 +1489,8 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/0.28.0...HEAD
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/nanbu/SwiftSheets/compare/0.28.0...1.0.0
 [0.28.0]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...0.28.0
 [0.27.0]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...0.27.0
 [0.26.0]: https://github.com/nanbu/SwiftSheets/compare/0.25.0...0.26.0
