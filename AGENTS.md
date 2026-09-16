@@ -17,12 +17,18 @@ it does not replace them. Read the one that covers what you are about to touch:
 
 ```bash
 swift build
-swift test                          # full suite — definitive, run before calling anything done
-swift test --filter ODSCodecTests   # narrow while iterating
+swift test --filter ODSCodecTests   # example: select suites affected by the change
+swift test                          # full suite when the validation policy requires it
 ```
 
+- Select local checks using [CONTRIBUTING.md — Validation](CONTRIBUTING.md#validation). Completion does not
+  require a full suite for every change. Explain what each selected check verifies; broaden only for a new
+  failure, a new change, or a concrete uncertainty about the affected behaviour. After checks pass, do not repeat
+  or broaden them merely for reassurance. Report the checks run and any remaining limitations.
 - Parity suites (`Tests/OpenpyxlParity`, `Tests/NumbersParity`) need Python packages (`openpyxl`,
-  `numbers-parser`) and are skipped without them. Run them if your change touches XLSX or Numbers.
+  `numbers-parser`) and are skipped without them. Run relevant parity checks when XLSX/Numbers behaviour or
+  fixture content exercised by those checks changes. Documentation, comments and author/path metadata changes
+  alone do not require parity runs.
 - `Tests/ExcelParity/verify_with_excel_app.py` drives Microsoft Excel itself over AppleScript to check sheet
   protection (Appendix B.31). It needs Excel, an unlocked screen and Automation permission, and reports
   "cannot judge" rather than a failure when it lacks them.

@@ -24,16 +24,34 @@ changes require a major release and a migration path. The design is written down
 [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html), and Appendix B records the decisions and
 the reasons behind them. A change that contradicts the spec needs the spec revised in the same pull request.
 
-```bash
-swift build
-swift test
-```
-
-Both must pass. Parity suites under `Tests/OpenpyxlParity` and `Tests/NumbersParity` need Python packages
-(`openpyxl`, `numbers-parser`) and are skipped without them; run them if your change touches XLSX or Numbers.
+Select checks using the validation policy below, and include the commands and results in the pull request.
 
 Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `perf:`, `chore:`), one logical
 change per commit.
+
+## Validation
+
+Run the smallest set of checks that verifies the affected behaviour. A full local test run is not required simply
+because a file changed or a task is being completed. Classify the actual effect, not the filename: a comment in
+shared infrastructure is still a comment-only change.
+
+| Change | Local validation |
+|---|---|
+| Documentation or comments | Check changed links and document consistency; run affected generators' `--check` commands. Run contract/table tests only when their asserted documentation changes. No Swift build or full suite for prose alone. |
+| Workbook author/path metadata only | Run fixture metadata checks and verify that other archive entry payloads are unchanged. Run tests that depend on the changed metadata; unrelated codec and parity suites are unnecessary. |
+| Fixture cells, formulas, styles or package structure | Run suites that consume the changed content, plus relevant independent parity checks when they exercise that content. A full suite is unnecessary when the impact is bounded. |
+| A local implementation or test change | Build affected targets as needed and run relevant regression suites. An output-only test helper is checked through its owning suite. Run independent parity checks for changed format behaviour. |
+| Shared model, ZIP/XML/formula infrastructure behaviour; changes across several codecs; broad refactoring | Run the full suite when the affected behaviour crosses suite boundaries. |
+| Impact cannot be bounded, or a release is being cut | Run the full suite. For uncertain impact, first state the concrete uncertainty and why narrower checks cannot resolve it. Follow MAINTENANCE.md for release checks. |
+
+Changes to validation scripts require checks of the affected detector, including its self-test where available;
+they do not automatically require the library's full suite. Do not add tests that merely repeat prose or mirror
+a reversible metadata substitution.
+
+After the selected checks pass, stop testing unless further edits, failures or unresolved impact justify another
+run. Reuse results for the same unchanged inputs. Full-suite CI on macOS/Linux remains the pull-request and main
+integration check; a green CI run does not require an additional identical local run. Report local checks and CI
+results separately, and describe unavailable judges or untested behaviour honestly.
 
 ## AI-assisted development
 
@@ -41,7 +59,7 @@ This library is written with AI assistance and will continue to be. Pull request
 — the bar does not move either way, and it is the same bar for everyone:
 
 - the spec is revised in the same pull request when the change contradicts it;
-- `swift build` and `swift test` pass, and new behaviour arrives with a test that fails without it;
+- the checks selected under [Validation](#validation) pass, and new behaviour arrives with a test that fails without it;
 - a claim about what another application does is backed by that application, not by recollection — the parity
   scripts under `Tests/OpenpyxlParity` and `Tests/NumbersParity` exist for exactly this;
 - you have read what you are sending and can answer questions about it.
