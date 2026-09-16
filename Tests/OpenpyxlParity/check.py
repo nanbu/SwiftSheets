@@ -5,7 +5,7 @@
 
 Inputs (all in this directory):
   openpyxl-<version>-tests.json  every test function in the openpyxl source tree (enumerate_openpyxl_tests.py)
-  parity.json                    the curated status of every test: ported / adapted / na_api / na_python
+  parity.json                    the curated status of every test: ported / adapted / unported / na_api / na_python
 
 Rules enforced:
   * every enumerated openpyxl test resolves to exactly one status (test entry > file default > module default)
@@ -20,12 +20,14 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 SWIFT_TESTS = ROOT / "Tests" / "SwiftSheetsTests"
-STATUSES = ("ported", "adapted", "na_api", "na_python")
+STATUSES = ("ported", "adapted", "unported", "na_api", "na_python")
 
 enum = json.load(open(next(HERE.glob("openpyxl-*-tests.json"))))
 ledger = json.load(open(HERE / "parity.json"))
 quiet = "--quiet" in sys.argv
 problems = []
+if not enum.get("files") or not any(f.get("tests") for f in enum["files"]):
+    raise SystemExit("The enumerated test set is empty; cannot verify parity")
 
 # ---- resolve statuses ---------------------------------------------------------------------------
 rows = []
@@ -103,9 +105,9 @@ report = {
 
 if not quiet:
     t = report["totals"]
-    print(f"openpyxl {enum['openpyxl']}: {t['total']} tests — ported {t['ported']}, adapted {t['adapted']}, na_api {t['na_api']}, na_python {t['na_python']}")
+    print(f"openpyxl {enum['openpyxl']}: {t['total']} tests — ported {t['ported']}, adapted {t['adapted']}, unported {t['unported']}, na_api {t['na_api']}, na_python {t['na_python']}")
     for m, c in report["modules"].items():
-        print(f"  {m:24s} {c['total']:4d}  ported {c['ported']:3d}  adapted {c['adapted']:3d}  na_api {c['na_api']:3d}  na_python {c['na_python']:3d}")
+        print(f"  {m:24s} {c['total']:4d}  ported {c['ported']:3d}  adapted {c['adapted']:3d}  unported {c['unported']:3d}  na_api {c['na_api']:3d}  na_python {c['na_python']:3d}")
 for p in problems:
     print("✘", p)
 sys.exit(1 if problems else 0)

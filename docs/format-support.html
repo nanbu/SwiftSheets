@@ -102,7 +102,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
 <h1>The format support table</h1>
 <p class="lede">When the same workbook is written to <code>.xlsx</code>, <code>.ods</code> and <code>.numbers</code>,
 what goes through unchanged, what changes shape, and what does not go through at all. Measured by SwiftSheets (the version is the one in the title; the numbers are the latest measurement on main).</p>
-<p class="meta">As of 2026-08-31 / verified with: macOS 15, LibreOffice 26.2.3, numbers-parser 4.16.3, the OASIS ODF 1.3 schema, Numbers 15.3.1</p>
+<p class="meta">Editorially revised 2026-09-16. The 48-feature library probe is checked by <code>FormatSupportTests</code>. Historical independent checks used LibreOffice 26.2.3, numbers-parser and Numbers 15.3.1; this revision is not a fresh visual verification of every table cell.</p>
 
 <hr class="rule">
 
@@ -110,7 +110,7 @@ what goes through unchanged, what changes shape, and what does not go through at
 <h2>How this table was made</h2>
 <p>
   A table that says "supported" is soon a lie. So this one was built by <strong>measurement, not guesswork</strong>.
-  One workbook carries all 48 features the model can hold; it is <strong>written to each format, read back,
+  One synthetic workbook exercises the 48 features selected for this table; it is <strong>written to each format, read back,
   and compared with the original</strong>. ○ is what came home, × what did not, △ what came home in another shape.
 </p>
 <p>
@@ -122,12 +122,12 @@ what goes through unchanged, what changes shape, and what does not go through at
   <div class="card score">
     <div class="num">41<small> / 48</small></div>
     <div class="lab">Excel (.xlsx / .xlsm)</div>
-    <div class="sub">Every spreadsheet mechanism goes through. The 7 that do not are ideas that exist only in Numbers or OpenDocument.</div>
+    <div class="sub">41 of this probe's 48 features are detected after writing and reading. This is not a claim to implement every OOXML mechanism.</div>
   </div>
   <div class="card score">
     <div class="num">43<small> / 48</small></div>
     <div class="lab">ODS (OpenDocument)</div>
-    <div class="sub">One more than Excel. It drops 6 and picks up 7 — different ones, not better or worse.</div>
+    <div class="sub">Two more than Excel in this probe. The features differ; the score is not a ranking of formats.</div>
   </div>
   <div class="card score">
     <div class="num">23<small> / 48</small></div>
@@ -197,7 +197,7 @@ what goes through unchanged, what changes shape, and what does not go through at
   <text x="590" y="312" class="sv-t3">not carried: colour scales, data bars,</text>
   <text x="590" y="332" class="sv-t3">print areas, defined names, filters …</text>
 </svg>
-<figcaption>The blue bar is what goes through unchanged. Numbers' bar is shorter not because it can do less, but because its format has no public specification.</figcaption>
+<figcaption>The bars count detected features in this probe. They do not rank the applications or measure all features their formats can express.</figcaption>
 </figure>
 </section>
 <section>
@@ -215,7 +215,7 @@ what goes through unchanged, what changes shape, and what does not go through at
 <tr><td>Values (number, text, date, boolean, duration, error)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>Numbers' decimals are decimal128; no digits are lost</td></tr>
 <tr><td>Formulas</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>ODS gets a translation to OpenFormula (<code>of:=[.A1]</code>). Numbers gets the <strong>formula itself</strong> (the expression tree becomes a reverse-Polish node list).
-    Only shapes with no example in the local fixtures — <strong>references to another table, defined names, functions Numbers lacks, column ranges like <code>A:C</code>, the intersection and union operators</strong> — fall back to the cached value, and a warning says which and why</td></tr>
+    Only shapes with no example in the local fixtures — <strong>unresolved references to another table, defined names, functions Numbers lacks, column ranges like <code>A:C</code>, the intersection and union operators</strong> — fall back to the cached value, and a warning says which and why</td></tr>
 <tr><td>　└ Stock and currency functions (STOCK, CURRENCY and four others)</td><td class="m h">△</td><td class="m h">△</td><td class="m y">○</td>
   <td>Numbers-only functions that fetch a quote. To Numbers they are written as formulas and refreshed when the document opens.
   Excel and ODS have no function of that name, so the value that had been fetched is written, and the warning says so — the same substitution Numbers itself makes when it exports to Excel (measured; Appendix B.27)</td></tr>
@@ -227,7 +227,7 @@ what goes through unchanged, what changes shape, and what does not go through at
 <tr><td>Formatting within a cell (rich text)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>ODS uses <code>text:span</code>. Numbers holds it as the points where the character style changes</td></tr>
 <tr><td>Hyperlinks</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
-  <td>A Numbers link is attached to a range of characters, so one cell can carry several (reading takes the first and warns)</td></tr>
+  <td>A Numbers link is attached to a range of characters. Multiple links are read and written on rich-text runs; the cell-level hyperlink is a convenience for a single link</td></tr>
 <tr><td>Notes (cell comments)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>ODS uses <code>office:annotation</code>. Numbers keeps them in the table's comment list, with one shared "author" record per person who wrote one</td></tr>
 <tr><td>Merged cells</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
@@ -236,10 +236,10 @@ what goes through unchanged, what changes shape, and what does not go through at
 <tr><td>Cell style (font, bold, colour, borders)</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td>
   <td>Numbers holds fonts by PostScript name, so they are converted both ways (<code>Helvetica Neue</code> ⇄ <code>HelveticaNeue</code>)</td></tr>
 <tr><td>Fill (solid, gradient)</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
-  <td>Neither ODF nor Numbers can hold more than one colour per cell, so a gradient becomes its first colour (with a warning)</td></tr>
+  <td>This library writes cell gradients as their first colour in ODS and Numbers (with a warning)</td></tr>
 <tr><td>Alignment and wrapping</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
 <tr><td>Number format (<code>#,##0.00</code> and the like)</td><td class="m y">○</td><td class="m h">△</td><td class="m h">△</td>
-  <td>ODF has "data styles", Numbers a <em>description</em> (kind + decimal places + thousands separator). Neither can hold <strong>more than one way of showing a value</strong>, so Excel's multiple sections, colours and conditions are lost</td></tr>
+  <td>ODF has "data styles", Numbers a <em>description</em> (kind + decimal places + thousands separator). This library maps only the first numeric section; unsupported sections, colours and conditions are reported as degraded</td></tr>
 <tr><td>Column width, row height, hidden rows and columns</td><td class="m y">○</td><td class="m y">○</td><td class="m y">○</td><td>—</td></tr>
 <tr><td>Row and column grouping (outline)</td><td class="m y">○</td><td class="m y">○</td><td class="m n">×</td>
   <td>ODF expresses the levels as nested <code>table:table-row-group</code> elements</td></tr>
@@ -561,11 +561,11 @@ for warning in result.warnings {
 <div class="grid">
   <div class="card">
     <h3>Excel (.xlsx)</h3>
-    <p>When in doubt, this. Every feature reads and writes, and whatever a read file holds that was <strong>not interpreted is preserved byte for byte</strong> and written back (charts, shapes, VBA, themes).</p>
+    <p>When in doubt, this. Supported modelled content is regenerated. Uninterpreted parts are preserved byte for byte on same-format whole-workbook saves; VBA requires <code>.xlsm</code>. Check the feature matrix for unsupported mechanisms.</p>
   </div>
   <div class="card">
     <h3>ODS</h3>
-    <p>When the other party is LibreOffice, or an open format is required for an official submission. <strong>The difference from Excel is 5 items</strong>, none of them often used.</p>
+    <p>When the other party is LibreOffice, or an open format is required for an official submission. Read the per-feature table for differences from Excel; the importance of a loss depends on the workbook.</p>
   </div>
   <div class="card">
     <h3>Numbers</h3>
@@ -591,7 +591,7 @@ for warning in result.warnings {
   <tr><td><strong>Cells whose value or formula disagreed: 0</strong> (of 67 cells)</td>
     <td>This library's export and Numbers' own import agree on the contents of every cell</td></tr>
   <tr><td>What Numbers itself kept and this library did not: <strong>nothing any more</strong> (once only the pivot table, 14 cells)</td>
-    <td>Since 2026-08-27 this library writes a genuine Numbers pivot table too (one field per axis, one value)</td></tr>
+    <td>Since 2026-08-27 this library writes a genuine Numbers pivot table too (several fields per axis, one summarised value)</td></tr>
   <tr><td>What this library kept and Numbers itself did not: 2</td>
     <td><strong>Merged cells</strong> (Numbers' own import loses them) and <strong>a second table on one sheet</strong></td></tr>
   <tr><td>The expansion of array formulas</td>

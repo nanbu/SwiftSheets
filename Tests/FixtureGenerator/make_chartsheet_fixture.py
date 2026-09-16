@@ -112,5 +112,24 @@ if missing:
     cannot_build(f"the saved package is missing {sorted(missing)}")
 if "<chartsheet" not in root:
     cannot_build("xl/chartsheets/sheet1.xml does not have a <chartsheet> root")
+# Excel stamps the signed-in author's display name and local save path into otherwise public fixtures.
+# Normalise those fields without serialising the workbook XML or changing any chart/worksheet payload.
+import re
+with zipfile.ZipFile(staging) as z:
+    entries = [(info, z.read(info.filename)) for info in z.infolist()]
+    comment = z.comment
+normalised = staging.with_suffix(".normalised.xlsx")
+with zipfile.ZipFile(normalised, "w") as z:
+    z.comment = comment
+    for info, payload in entries:
+        if info.filename == "docProps/core.xml":
+            text = payload.decode("utf-8")
+            text = re.sub(r"(<(?:dc:creator|cp:lastModifiedBy)\b[^>]*>).*?(</(?:dc:creator|cp:lastModifiedBy)>)",
+                          lambda m: m[1] + "Shinichi Nambu" + m[2], text, flags=re.S)
+            payload = text.encode("utf-8")
+        elif info.filename == "xl/workbook.xml":
+            payload = re.sub(rb"<x15ac:absPath\b[^>]*/>", b"", payload)
+        z.writestr(info, payload)
+normalised.replace(staging)
 staging.replace(OUT)
 print(f"✅ {OUT.relative_to(pathlib.Path(__file__).resolve().parents[2])} ({OUT.stat().st_size} B)")

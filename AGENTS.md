@@ -41,6 +41,13 @@ swift test --filter ODSCodecTests   # narrow while iterating
 - Never skip, weaken, or delete a failing test to get green. If a test is wrong, say so and fix the test as its
   own change, with the reason in the commit message.
 
+## Public-document and fixture hygiene
+
+Run `python3 scripts/check-public-docs.py` and `python3 scripts/check-public-fixtures.py` before publishing
+changes to documents or fixtures. CI runs both detectors and their `--self-test`s. Fixture checks reject real
+home-directory paths and unexpected internal author fields without printing personal values. Licence attribution
+and Git authorship are separate from workbook metadata; do not remove copyright notices to anonymise a fixture.
+
 ## The numeric floors (APIContractTests)
 
 Numbers in the README are checked by tests, not remembered:
@@ -61,6 +68,13 @@ the two products — `--check` runs in CI and fails on any difference, and it al
 README.md or docs/index.html no longer matches the source. Statuses in that table are `full` / `partial` /
 `preserved` / `none` / `na` / `unverified`; `unverified` exists so a row nobody has measured is never guessed at.
 The page borrows its `<style>` from `docs/format-support.html` at build time, so the sibling pages cannot drift apart.
+
+## The interoperability guide (docs/interoperability.html)
+
+`docs/interoperability.html` is generated from `docs/interoperability.json` by
+`python3 scripts/build-interoperability-page.py`. Re-measure with `python3 scripts/measure-interoperability.py`;
+it requires a successful nine-direction test run and rejects missing or duplicated records. Do not hand-edit
+the page or infer new counts from old measurements. CI runs the page's `--check`.
 
 ## The cookbook (docs/cookbook.md)
 

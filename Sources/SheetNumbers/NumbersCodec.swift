@@ -1,7 +1,7 @@
 import Foundation
 import SheetCore
 
-/// Apple Numbers (.numbers). Placeholder — being implemented (spec chapters 10 / 11).
+/// Apple Numbers (.numbers). Values, formulas, styles and canvas objects are read and written (spec chapters 10 / 11).
 package enum NumbersCodec: SpreadsheetCodec {
     package static var format: SheetFormat { .numbers }
     package static func canDecode(_ container: ZipInspection) -> Bool { SheetFormat.detect(in: container) == format }

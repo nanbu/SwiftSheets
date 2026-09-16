@@ -1,10 +1,12 @@
 # SwiftSheets
 
 > A pure Swift spreadsheet library: one format-neutral model, one codec per format — XLSX, XLSM, CSV/TSV, ODS and
-> Apple Numbers. Open, edit, save; everything untouched round-trips byte for byte. Foundation only, no package
+> Apple Numbers. Open, edit, save. Whole-workbook XLSX/XLSM saves preserve uninterpreted parts byte for byte
+> in the same format; modelled content is regenerated. ODS reconstructs supported content and Numbers regenerates
+> from a template. Streaming has no opaque-part preservation. Foundation only, no package
 > dependencies. Swift 6.2+, macOS 14+ / iOS 17+ / Linux. MIT.
 
-This file is the map for a coding agent. Every claim below is checked by a test or a CI script in the repository;
+This file is the map for a coding agent. Entry points and generated recipes are checked by tests and CI scripts;
 prefer the linked documents over memory, and prefer the compiled recipes over prose.
 
 ## Entry points
@@ -32,7 +34,7 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 - README (openpyxl ↔ SwiftSheets table, Limits, Formats, Targets): https://github.com/nanbu/SwiftSheets/blob/main/README.md
 - Spec feature matrix — 196 rows, per format, read and write apart, with the API for each (machine-readable YAML): https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml
 - Format support table (48 features × 3 formats, measured): https://nanbu.github.io/SwiftSheets/format-support.html
-- Interoperability guide (what each conversion direction does): https://nanbu.github.io/SwiftSheets/interoperability.html
+- Interoperability guide (recorded 48-feature probe and current conversion boundaries): https://nanbu.github.io/SwiftSheets/interoperability.html
 - Performance record (seconds and MB per operation, measured): https://nanbu.github.io/SwiftSheets/performance.json
 - Implementation spec (the design; Appendix B records every decision and its reason): https://nanbu.github.io/SwiftSheets/implementation-spec.html
 - Migrating to 1.0 (every rename since 0.20; integer coordinates are 1-based since 0.23.0): https://github.com/nanbu/SwiftSheets/blob/main/docs/migrating-to-1.0.md

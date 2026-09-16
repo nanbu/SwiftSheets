@@ -6,8 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-248a3d)](https://github.com/nanbu/SwiftSheets/blob/main/LICENSE)
 
 A pure Swift spreadsheet library with **one format-neutral model** and **one codec per file format**. Open an existing
-workbook, change what you need, save — charts, pivot caches, VBA and everything else you did not touch come out exactly
-as they went in. Foundation only; no package dependencies — bytes are folded by whichever DEFLATE the machine already
+workbook, change what you need, save. Whole-workbook XLSX/XLSM saves in the same format preserve uninterpreted parts
+byte for byte and regenerate modelled content with equivalent meaning; VBA requires XLSM. ODS reconstructs supported
+content, and Numbers regenerates from a template. The Formats table below states each format's preservation level. Foundation only; no package dependencies — bytes are folded by whichever DEFLATE the machine already
 has (Apple's Compression framework, or the system zlib). **Swift 6.2+ (Xcode 26+)**, macOS 14+ / iOS 17+, Linux, and WebAssembly (wasm32-wasi, with the swift.org toolchain's Wasm SDK; see the Limits table) —
 CI runs the whole suite on macOS and Linux and builds the package for WebAssembly, on every push.
 
@@ -116,11 +117,12 @@ test keeps the constant, this line and the pin above in step.
 ## Limits
 
 Worth knowing before you point this at a very large or a very strange file. None of them is silent: a file that goes
-past a limit comes back with a `degraded` warning, and a file that breaks a rule throws.
+past a cell budget comes back with a `truncated` warning; unsupported content is reported with conversion warnings,
+and invalid containers or violated package limits throw.
 
 | | |
 |---|---|
-| Whole workbook in memory | `Workbook` holds every cell: reckon on 100–200 bytes each, so a million cells is a few hundred megabytes — the working size, not the file size. `StreamingReader` walks a file of any format row by row instead — XLSX, ODS, Numbers and delimited text through one call — and `StreamingWriter` writes the same way in every format: measured at 100 columns × 10,000 rows, a million cells ([the performance record](https://nanbu.github.io/SwiftSheets/performance.html) has the machine, the date, every other number, and the same operations at 100,000 rows — ten million cells), writing peaks at **11 MB** for XLSX and **22 MB** for ODS (its one part puts the styles before the rows, so the rows wait on disk until the end) whatever the row count, and at **26 MB** for Numbers (its string list, which grows with the distinct strings: 66 MB at ten million cells); reading peaks at **13 MB** for XLSX (most of it the shared-string table, which every reader must hold), **14 MB** for ODS and **25 MB** for Numbers (its string list and index). The reader holds one expanded piece of at most a mebibyte and reads the file in place rather than mapping it, so none of this grows with the file: at ten million cells ODS is still 14 MB, and what XLSX (20 MB) and Numbers (60 MB) add is the strings they must hold — against **213 MB** for the whole model. They carry values and formatting and nothing else — no merges, no notes, no preservation. A workbook of several sheets is parsed side by side when it is large enough — the same million cells in eight sheets: **229 MB** and 0.7 s against **139 MB** and 1.4 s one sheet at a time — and `ReadOptions.concurrency` caps or disables it, which also caps what it adds in memory. |
+| Whole workbook in memory | `Workbook` holds every cell. In the recorded one-million-cell XLSX probe, whole-model reading peaks at **213 MB**, 1.47 s. Streaming carries values and formatting without merges, notes or opaque-part preservation. At one million cells, XLSX streaming write: **11 MB**, 1.10 s; read: **13 MB**, 1.01 s. ODS streaming write: **22 MB**, 1.64 s; read: **14 MB**, 2.42 s. Numbers streaming write: **26 MB**, 2.93 s; read: **25 MB**, 0.51 s. At ten million cells, XLSX streaming read: 20 MB, 10.16 s; ODS: 14 MB, 24.35 s; Numbers: 60 MB, 4.53 s; Numbers streaming write: 66 MB, 26.85 s. String tables grow with distinct strings; these synthetic measurements are not a constant-memory guarantee for arbitrary input. The same million cells in eight sheets read side by side: **229 MB**, 0.65 s; serially: **139 MB**, 1.35 s. `ReadOptions.concurrency` caps or disables parallel parsing. [The performance record](https://nanbu.github.io/SwiftSheets/performance.html) includes material, toolchain, date and both row-count tiers. |
 | Cell budget | None by default. A read holds every cell it finds; set `ReadOptions.cellLimit` for input you do not trust, and reading stops there with a `truncated` warning naming the sheet — in XLSX, ODS, Numbers and delimited text alike, with one budget for the workbook even when its sheets are parsed side by side. ODS run-length compression can describe seventeen billion cells in a kilobyte of XML, and an XLSX or Numbers package inside the package limits can still hold hundreds of millions. The row-by-row readers hold no cells and ignore it. |
 | Formula nesting | 64 levels, Excel's own limit. Deeper formulas are kept verbatim and written back unchanged, but they do not follow row inserts and are not translated between dialects. |
 | Hostile packages | What a package declares about itself is bounded before any of it is expanded: at most 100,000 parts, 16 GiB expanded in total, a thousandfold expansion for any part over 16 MiB, and no two parts sharing bytes. Past any of these the file is reported as `corruptedContainer`; `ReadOptions.limits` raises them for a package you know. ZIP64 (parts past 4 GB, more than 65,535 parts) is read and written. |
@@ -167,12 +169,12 @@ kinds survive a write and a read back, and LibreOffice rebuilds every one of the
 XLSX. Alongside them: data validations, the print setup (margins, orientation, scaling, headers and footers, page
 breaks, print area and repeated title rows), sheet protection, array-formula ranges, named tables and what an
 auto-filter lets through, and pivot tables as ODF data pilots. What ODF cannot say — scenarios (an ODF scenario is
-a whole shadow sheet), unprotected windows inside a protected sheet, formatting runs inside one cell —
+a whole shadow sheet), unprotected windows inside a protected sheet —
 is reported, never dropped in silence.
 
 ### Numbers: what is and is not there
 
-- Read: every value kind (decimal128 numbers, text, rich text as plain text, dates, booleans, durations, errors),
+- Read: every value kind (decimal128 numbers, text, rich text with formatting runs, dates, booleans, durations, errors),
   formulas rebuilt from Numbers' formula trees into XLSX-dialect text (cross-table references as `'Sheet::Table'!A1`),
   array-formula spreads read back as the anchor's formula plus its `arrayFormulas` range,
   **cell formatting** (fonts, colours, fills, borders, alignment, wrapping) and **number formats**, hyperlinks,
@@ -298,7 +300,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 | `wb.custom_doc_props` | `wb.customProperties` — text, integers, numbers, booleans, dates and defined-name links (ODS keeps them as `meta:user-defined`) |
 | `load_workbook(path)` on a protected file (openpyxl cannot; msoffcrypto-tool decrypts first) | `Workbook(contentsOf: url, password: "…")` with `import SheetDecrypt` / `wb.write(to: url, password: "…")` with `import SheetEncrypt` — XLSX / XLSM as Excel's agile encryption, ODS as ODF package encryption; the plain products refuse a protected file by name; judged by msoffcrypto-tool and an independent ODF decryptor |
 | pivot tables (`ws._pivots`) | `sheet.pivotTables`, `wb.addPivotTable(named:to:at:summarizing:on:rows:columns:values:)` — the layout is written, the numbers are not: the cache asks the application to refresh from the source range |
-| `ws.add_image(Image(path), 'B2')` | `sheet.addImage(try SheetImage(data:), at: "B2", sizing: .resizeCellToFit)` / `addImage(_:over: "B2:D6")` — PNG / JPEG / GIF, format and pixel size read from the bytes; a sheet that already carries a drawing (a chart) gets the anchors spliced in, everything there staying byte for byte. Charts: `sheet.addChart(Chart(.column), over: "D2:K16")` — column / bar / line / pie with series, title and legend (`chart.addSeries(values: "B2:B13", categories: "A2:A13", name:)`; unqualified ranges gain the sheet name and absolute dollars). Other kinds and charts already in a file: preserved unchanged (F3), `dropped` warnings when converting. Shapes and text boxes: `sheet.addShape(Shape(.rightArrow), over: "F2:H4")`, `sheet.addTextBox("note", over: "B8:E10")` — a preset geometry with text, one font, a fill and an outline, read from and written into XLSX and ODS |
+| `ws.add_image(Image(path), 'B2')` | `sheet.addImage(try SheetImage(data:), at: "B2", sizing: .resizeCellToFit)` / `addImage(_:over: "B2:D6")` — PNG / JPEG / GIF, format and pixel size read from the bytes; a sheet that already carries a drawing (a chart) gets the anchors spliced in, everything there staying byte for byte. Charts: `sheet.addChart(Chart(.column), over: "D2:K16")` — column / bar / line / pie with series, title and legend (`chart.addSeries(values: "B2:B13", categories: "A2:A13", name:)`; unqualified ranges gain the sheet name and absolute dollars). Uninterpreted chart parts are preserved unchanged on same-format XLSX/XLSM saves (F3); modelled column / bar / line / pie charts can cross supported formats, with warnings for unsupported kinds. Shapes and text boxes: `sheet.addShape(Shape(.rightArrow), over: "F2:H4")`, `sheet.addTextBox("note", over: "B8:E10")` — a preset geometry with text, one font, a fill and an outline, read from and written into XLSX and ODS |
 | `read_only` / `write_only` streaming | `StreamingReader(contentsOf:)` + `forEachRow(inSheet:)` or `for try await row in reader.rows(inSheet:)` — one reader for XLSX, ODS, Numbers and delimited text, the format detected from the bytes; a Numbers sheet's second and later tables by `table:`. Values and formatting only (see [Limits](#limits)). `CodecSet.all.withStreamingWriter(to:as:) { writer in … }` writes the same way — XLSX, ODS, Numbers or delimited text, the format from the path's extension or `as:` — and the destination is replaced only when the file is complete, so a failed write leaves it as it was. `StreamingWriter(to:sheetName:)` + `append(_:)` / `close()` opens one by hand; the result of `close()` says what the format could not carry |
 | (no equivalent) | `ReadOptions(concurrency: 1)` — read the sheets of an XLSX workbook one at a time; left unsaid, a workbook of two or more sheets whose parts expand to 4 MiB or more is parsed side by side, up to one sheet per core, and `concurrency: n` caps it at `n`. The cap is also the ceiling on the memory a side-by-side read adds |
 | `load_workbook(path, read_only=True)` then one sheet | `ReadOptions(sheets: .named(["Summary"]))` — only the named sheets are parsed; an XLSX sheet left out is carried as the bytes it arrived in and written back unchanged, an ODS / Numbers one comes back empty and the write says so |
@@ -306,7 +308,7 @@ Swift's: value types, `throws` for failure, warnings for degradation, typed valu
 ### openpyxl test parity
 
 openpyxl 3.1.5's test suite (1,711 functions) is tracked test by test in
-[`Tests/OpenpyxlParity/parity.json`](Tests/OpenpyxlParity/parity.json) — `ported`, `adapted`, `na_api` or `na_python`,
+[`Tests/OpenpyxlParity/parity.json`](Tests/OpenpyxlParity/parity.json) — `ported`, `adapted`, `unported`, `na_api` or `na_python`,
 each with a reason. Ported Swift tests carry `// openpyxl: <file>::<test>`; `check.py` cross-checks the ledger against
 them, and `verify_with_openpyxl.py` writes with SwiftSheets and reads with openpyxl (and back). openpyxl's fixture files
 are used where they apply (`Tests/SwiftSheetsTests/Fixtures/openpyxl`, MIT).
@@ -395,10 +397,7 @@ python3 scripts/build-spec-feature-matrix.py                              # rebu
 
 ## Name
 
-`SwiftSheets` — plural, the way Apple names frameworks whose subject is a countable thing (Charts, Contacts, Photos)
-and the way Swift packages name their products (swift-collections → `Collections`). The spec's working title was the
-singular "SwiftSheet", which is also taken on GitHub by an unrelated CSV-sharing tool; a handful of unrelated toy
-repositories (≤ 1 star) share the plural name. Decided by the owner on 2026-08-22.
+`SwiftSheets` is the package name and umbrella product.
 
 ## How this library is built
 

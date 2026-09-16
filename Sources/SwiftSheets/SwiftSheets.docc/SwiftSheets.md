@@ -5,8 +5,10 @@ Apple Numbers.
 
 ## Overview
 
-Open a file, change what you need, save. Everything you did not touch — charts, pivot caches, macros, styles —
-comes out exactly as it went in, and every read and write answers with the list of what it could not keep.
+Open a file, change what you need, save. Whole-workbook XLSX/XLSM saves in the same format preserve
+uninterpreted parts byte for byte and regenerate modelled content with equivalent meaning; VBA requires XLSM.
+ODS reconstructs supported content, and Numbers starts from a template. Streaming does not preserve opaque
+parts. Every read and write reports what it could not keep.
 
 ```swift
 import SwiftSheets

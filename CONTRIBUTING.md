@@ -1,12 +1,13 @@
 # Contributing
 
-SwiftSheets is pre-1.0 and has a single maintainer. That shapes what is useful to send.
+SwiftSheets 1.x has a stable public API and a single maintainer. That shapes what is useful to send.
 Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Most useful right now
 
-**A file that round-trips wrong.** The library's core promise is that anything you did not touch comes out exactly as
-it went in. If a chart, a pivot cache, a style, or a formula changes when you open and save a workbook, that is the
+**A file that round-trips wrong.** For whole-workbook XLSX/XLSM saves in the same format, uninterpreted parts are preserved byte for byte
+and modelled content retains its meaning. ODS reconstructs supported content; Numbers regenerates from a template.
+See the README's [Formats](README.md#formats) table for the boundaries of each promise. If a chart, a pivot cache, a style, or a formula changes when you open and save a workbook, that is the
 highest-value report — attach the smallest file that reproduces it, and say which application produced it and which
 one you opened the result in.
 
@@ -18,7 +19,8 @@ the message did not tell you what happened, that is a bug in the message.
 
 ## Before opening a pull request
 
-Open an issue first. The API is still moving before 1.0, and the design is written down before the code — the spec is
+Open an issue first. Additions must follow the [1.x stability policy](docs/api-stability.md); source-breaking
+changes require a major release and a migration path. The design is written down before the code — the spec is
 [the implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html), and Appendix B records the decisions and
 the reasons behind them. A change that contradicts the spec needs the spec revised in the same pull request.
 
@@ -54,6 +56,7 @@ implementation spec, the guides, the API and every symbol name — is English.
 
 ## Scope
 
-macOS, iOS and Linux — the platforms CI runs the whole suite on — no package dependencies, and no format that cannot be
-verified against an independent implementation. Proposals that change any of those three are worth discussing in an
+macOS 14+, iOS 17+ and Linux, plus WebAssembly within the README's WASI limits; no package dependencies, and no format
+that cannot be verified against an independent implementation. CI runs the suite on macOS and Linux and builds every
+product for WASI. It does not execute the suite on iOS or WASI. Proposals that change any of those three are worth discussing in an
 issue, but expect the bar to be high — they are the reasons the library stays small.

@@ -1,8 +1,9 @@
 # Getting started with SwiftSheets
 
 SwiftSheets reads and writes XLSX, XLSM, CSV / TSV, ODS and Apple Numbers through **one format-neutral model**:
-a `Workbook` of `Sheet`s of cells. Open a file, change what you need, save — everything you did not touch comes
-out as it went in. This page gets you from an empty package to a saved file in ten minutes; the
+a `Workbook` of `Sheet`s of cells. Whole-workbook XLSX/XLSM saves in the same format preserve uninterpreted
+parts byte for byte; modelled content is regenerated. ODS reconstructs supported content and Numbers starts from a
+template. Check read and write warnings for unsupported content. This page gets you from an empty package to a saved file in ten minutes; the
 [cookbook](cookbook.md) has thirteen complete, compiled recipes for what comes next.
 
 ## 1. Add the package

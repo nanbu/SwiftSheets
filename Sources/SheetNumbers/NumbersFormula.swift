@@ -160,8 +160,8 @@ struct NumbersFormulaDecoder {
 /// formula written to a Numbers document is a formula there and not only its last computed value (spec Appendix B.18).
 ///
 /// The node shapes are the ones observed in the fixture corpus — the same documents the decoder above was written
-/// against, read back field by field. What no document in the corpus shows, this refuses to invent: a reference to
-/// another table, a defined name, the intersection and union operators, a function Numbers does not have. Each of
+/// against, read back field by field. Cross-table references use the resolved table UUID.
+/// What no document in the corpus shows, this refuses to invent: a defined name, the intersection and union operators, a function Numbers does not have. Each of
 /// those answers `nil`, and the writer falls back to the cached value and says so. Guessing a shape here would not
 /// fail loudly — Numbers would offer to repair the document, or quietly compute something else.
 struct NumbersFormulaEncoder {

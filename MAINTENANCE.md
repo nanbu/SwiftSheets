@@ -1,179 +1,84 @@
-# MAINTENANCE — keeping Numbers support current (spec §10.3)
+# Maintenance — Numbers compatibility and releases
 
-Apple does not promise compatibility of the Numbers file format between releases. Numbers support in SwiftSheets is
-therefore a recurring maintenance item, not a one-off.
+## Supported Numbers generations
 
-## Supported versions
+The reader is verified against Numbers major generations 11–15. The checked-in corpus includes upstream
+numbers-parser documents and locally generated Numbers 15.3.1 documents. See
+[the fixture provenance ledger](Tests/SwiftSheetsTests/Fixtures/numbers/PROVENANCE.md) for each file's origin.
+`SourceInfo.isVerifiedVersion` describes the declared generation, not a guarantee that every feature is supported.
 
-The documents in `Tests/SwiftSheetsTests/Fixtures/numbers/` are the verified corpus; their `Metadata/BuildVersionHistory.plist`
-entries name the Numbers versions they were produced by — Numbers 11–14 era files from numbers-parser's suite, plus
-fourteen written by **Numbers 15.3.1** (`conditional-formats-15`, `links-notes-15` on 2026-08-25;
-`chart-and-control-15` on 2026-08-26; `popup-15` on 2026-08-27, from an openpyxl workbook holding three list
-validations — text, numeric and strict — each over a filled and an empty cell; `controls-15` on 2026-08-27,
-built by driving Numbers itself over AppleScript — `set format of range … to checkbox/stepper/slider/rating` —
-with one set and one untouched cell per control, so the untouched cells record what Numbers fills them with;
-`array-15` on 2026-08-27, from an openpyxl workbook holding `=A1:A5*2` as an array formula over B1:B5 — the record
-of the spill shape Numbers spreads one with; `stock-15` on 2026-08-27, seeded from the maintainer's hand-made
-document holding `STOCK("VEEV",2)` and extended over AppleScript with every attribute shape — numeric, none, a
-string (which Numbers answers with `#VALUE!`) — plus `STOCKH` with a nested `DATE`: setting a cell's value to
-`"=STOCK(…)"` is enough for Numbers to take it as a formula and fetch the quote, so no UI work is needed for this
-family; `pivot-mixed-15` on 2026-08-27, from a SwiftSheets-written workbook holding one pivot with two row fields,
-one column field and one summarised value, imported and saved by Numbers — the record of the multi-level pivot
-shapes of Appendix B.28; `category-15`, `filter-15` and `stockcell-15` on 2026-08-28, built **by hand in the
-Numbers UI** by the maintainer — a two-level category grouping, a table filter with two rules — plus `filter-off-15` and
-`category-off-15`, the same documents with the switch turned off, which recorded that Numbers empties a filter's
-hidden-state list but keeps its rules, and flips a category grouping's `is_enabled` alone with columns and tree
-staying whole — `sort-15`, two sort rules added in the Organise panel (which has no on/off switch for
-sorting; AppleScript's own `sort` verb reorders rows without recording any rule, measured) — and Insert ▸
-Stock Quote in both its cell and table forms — because AppleScript has no vocabulary for any of them
-(Appendix B.29)). Theme images and previews are stripped, which Numbers
-does not need to open them and which would otherwise make each file half a megabyte.
+## Reading newer documents
 
-**Keep at least one document in the corpus that is not all tables.** Until `chart-and-control-15` was added, every
-fixture held tables and nothing else, so the reader had never been shown a chart or a cell control — and the fact
-that it discarded both without a word went unnoticed through four external judges. That fixture was made by writing
-an `.xlsx` with a chart and a list validation (openpyxl) and having Numbers import and re-save it:
-
-```bash
-python3 Tests/NumbersParity/numbers_app.py   # numbers_app.resave(<xlsx>, <numbers>)
-zip -d <out>.numbers 'Data/PresetImageFill*' 'preview*.jpg'   # 665 KB → 112 KB; Numbers still opens it
-```
-
-`resave` occasionally fails with `-600` ("no such process"): `open` reaching LaunchServices while Numbers is still
-shutting down from the previous document. `_launch_open` already retries once, which absorbs it most of the time —
-if a run still fails there, run it again rather than looking for a fault in the file.
-
-`Workbook.sourceInfo.version` reports the producing version of any file read.
-
-## Read policy: tolerant by default
-
-A file produced by a newer Numbers is **not** rejected. The reader goes as far as it can and reports what it could not
-interpret as `ConversionWarning`s on the facade (`Workbook(contentsOf:)` keeps the workbook; `NumbersCodec.readWithWarnings`
-exposes the warnings). A hard failure (`SheetError.unsupportedVersion` / `malformedPart`) always carries the
-`BuildVersionHistory` string so the report can be matched to a Numbers release.
+A newer Numbers generation is not rejected solely because of its version. Reading proceeds as far as possible,
+and `Workbook.read(contentsOf:)` / `CodecSet.read(contentsOf:)` return warnings. `Workbook(contentsOf:)` retains
+these on `readWarnings`. The producing version is optional: `workbook.sourceInfo?.version`.
+Malformed required parts and unreadable containers throw `SheetError`; an unknown generation is reported as a warning.
+The feature matrix documents which Numbers content is read and written.
 
 ## When a new Numbers version ships
 
-1. Create a small corpus with the new version: an empty document, one with several sheets and tables, one with every
-   value type (number, text, date, duration, boolean, formula), one with merges. Keep them small; add them under
-   `Tests/SwiftSheetsTests/Fixtures/numbers/` with the version in the file name.
-2. Run `swift test --filter Numbers` and `python3 Tests/NumbersParity/verify_with_numbers_parser.py` (needs
-   `pip install numbers-parser`). Failures point at either changed field numbers or new cell-storage flags.
-3. Refresh the schema from a numbers-parser release that supports the new version:
-   `scripts/extract-numbers-schema.py <path to numbers-parser checkout or site-packages>` regenerates
-   `Sources/SheetNumbers/Resources/{schema,registry,functions,constants,fonts}.json`. Commit the regenerated files
-   with the numbers-parser version in the commit message. (numbers-parser itself re-extracts the Protobuf definitions
-   from the Numbers binary with its `make bootstrap` tooling — that is where new field numbers come from.)
-
-   **All five are at numbers-parser 4.19.0** (regenerated 2026-08-25 with the Python 3.11 at
-   `~/.local/bin/python3.11`; `constants` and `fonts` had lagged at 4.16.3, the newest release that installs on
-   this Mac's system Python 3.9). Regenerate all five together:
+1. Save an empty document, multiple sheets/tables, all value kinds, formulas, merges, styles and canvas objects
+   with the new version. Add small fixtures and record their provenance. Inspect metadata before committing.
+2. Run `swift test --filter Numbers` and `python3 Tests/NumbersParity/verify_with_numbers_parser.py`.
+3. Refresh all five schema resources together from a numbers-parser release supporting that generation:
 
    ```bash
-   ~/.local/bin/python3.11 -m venv /tmp/np && /tmp/np/bin/pip install numbers-parser && /tmp/np/bin/python scripts/extract-numbers-schema.py
+   python3 -m venv .build/numbers-schema-venv
+   .build/numbers-schema-venv/bin/python -m pip install 'numbers-parser==4.19.0'
+   .build/numbers-schema-venv/bin/python scripts/extract-numbers-schema.py
    ```
 
-4. If the write template must change (Numbers refuses the generated file), save a fresh empty document with the new
-   Numbers, replace `Sources/SheetNumbers/Resources/empty.numbers`, and re-run the self round-trip and
-   numbers-parser checks.
+   The current resources were extracted from numbers-parser 4.19.0. Replace the pin when adopting a newer release,
+   and record the version in the commit and provenance documentation. The extractor also accepts a source or
+   site-packages directory containing `numbers_parser`.
+4. Replace `Sources/SheetNumbers/Resources/empty.numbers` only if the current template no longer opens.
+   The older template intentionally triggers Numbers' recalculation. A template saved by Numbers 15.3.1 opened
+   but did not calculate uncached formulas (Appendix B.18). A newer template requires dependency records first;
+   opening successfully alone is insufficient. Run both the parser and application judges after replacement.
+5. Update the verified generation range and the current policy in the implementation spec.
 
-   **Measured on 2026-08-25 and decided against by the owner on 2026-08-26** (spec Appendix B.18): a template saved by Numbers 15.3.1 passes
-   every automated check and opens in Numbers, but **formulas stop being calculated** — a formula cell whose result
-   the source never cached comes up empty. The current template was written by an older Numbers, and Numbers
-   recalculates a document of an older version when it opens it; it trusts one of its own. Moving to a new template
-   means generating the dependency records first. The condition in this step — Numbers refusing the generated
-   file — is not met, so the template stays.
-5. Record the verified range in this file and in Appendix B.8 of `docs/implementation-spec.html`.
-
-## Numbers.app is a judge now (2026-08-25, spec Appendix B.18)
-
-Most of the checklist below used to need a person because there was no Numbers on this Mac. There is one now
-(Numbers 15.3.1), and the checks it can make are a script:
+## Application judges
 
 ```bash
-python3 Tests/NumbersParity/verify_with_numbers_app.py     # opens, reads, computes, saves again
-python3 Tests/NumbersParity/numbers_app.py open .build/numbers-judge/probes/09-two-sheets.numbers
+python3 Tests/NumbersParity/numbers_app.py which
+python3 Tests/NumbersParity/verify_with_numbers_app.py
+python3 Tests/ExcelParity/verify_with_excel_app.py
 ```
 
-It answers "cannot judge" (exit 2) rather than failing when the machine, not the file, is the problem. Four things
-about the machine matter, all of them found the hard way:
+Numbers/Excel must be installed, the screen unlocked, and the invoking terminal allowed under System Settings →
+Privacy & Security → Automation. The scripts report exit 2 (cannot judge) when the environment is unavailable;
+that is not a pass. Documents are staged under `.build/` and opened through LaunchServices so sandboxed apps
+can read them. The Numbers judge verifies the resolved app's Apple signature and the document name it answers
+about; a mismatch invalidates the measurement. Do not force-quit an application or rely on a window from an
+earlier probe. Close unrelated documents before running the judges.
 
-- **Automation permission.** System Settings ▸ Privacy & Security ▸ Automation — the terminal must be allowed to
-  control Numbers. macOS asks once, on screen; until someone clicks, every call times out.
-- **The screen must be unlocked.** Numbers cannot put a document window on a locked Mac and then answers nothing
-  about that document — indistinguishable from a broken file, so the script names it.
-- **Numbers is sandboxed.** It cannot read `$TMPDIR`; documents are staged into `.build/numbers-judge/` and opened
-  through `open -a` (LaunchServices), which hands the sandbox the right to read them. AppleScript's own `open`
-  does not.
-- **It has to be Apple's Numbers.** A bundle identifier is a claim a bundle makes about itself, and LaunchServices
-  resolves claims: anything whose Info.plist says `com.apple.Numbers` is what `tell application id` would drive.
-  So `available()` takes the resolved **path** and reads the signature on it — an authority only Apple can sign
-  under is the proof — and anything else is "cannot judge", named with the path it found. The identifier alone
-  would not do: an ad-hoc signature takes the identifier it is given, `com.apple.Numbers` included.
-
-  Worth knowing before that check ever reads as an alarm: **this Mac's genuine Numbers 15.3.1 is installed at
-  `/Applications/Numbers Creator Studio.app`** (Mac App Store, 2026-08-05). The bundle is named after the base
-  `CFBundleDisplayName` while every `.lproj` localises the name back to "Numbers", which is why Finder, the Dock
-  and `kMDItemDisplayName` all say "Numbers". Not a path to whitelist, and not an impostor — checked 2026-08-26
-  against the Mac App Store receipt, Apple's `com.apple.private.*` entitlements, `version.plist`
-  (`ProjectName = Numbers`) and Apple's own lookup service for its App Store id.
-
-  ```bash
-  python3 Tests/NumbersParity/numbers_app.py which   # the bundle that answers, and what proved it — launches nothing
-  ```
-
-**It has to answer about the document it was asked about.** Numbers picks a document up through `front document`,
-so a window left from an earlier call is what a later call reports on — and a Numbers ended with `killall -9` puts
-its whole last session *back* on the next launch. Measured on 2026-08-26: two documents byte-identical in their
-archives answered differently, and a run asked to save one document saved another. Every reading taken before that
-date should be read with this in mind. Two things stop it, and the second is the one that matters:
-
-- `_clean_slate` closes any open document before each one is opened — **only when Numbers is already running**, so
-  the judge does not pay for a quit and a relaunch per document. Quitting and relaunching each time was measured at
-  **2–3× the wall clock and failed one run in two** (`-43`, no document); closing alone runs in **~50 s against
-  ~67 s** for no clearing at all, over the same eighteen probes.
-- `_verify_answered` compares the name Numbers replies with against the name it was handed, and raises rather than
-  reporting. **A mismatch is a failed measurement, never a fact about the file** — which is the whole point: the
-  cheap slate can in principle miss, and this cannot.
-
-`NumbersProbeTests` writes a corpus of twenty documents into `.build/numbers-judge/probes`, each one thing more
-than the last, starting from the template itself. When Numbers refuses one, the first refusal names the feature
-that broke it — which is how the two copy defects in Appendix B.18 were found.
+`NumbersProbeTests` writes the incremental corpus under `.build/numbers-judge/probes`. Canvas and chart tests
+also ask Numbers to save written content again. Visual appearance still requires the manual checklist below.
 
 ## Cutting a release
 
-The tag is the only thing a user of the library ever sees. It drifted once — `0.6.0` stayed where it was while
-thirty-nine commits of ODS and Numbers work landed on top of it, so anyone following the README's
-`from: "0.6.0"` fetched a build without any of it, for two days. The rule that prevents a repeat:
+Bump the version and tag that same release commit. In the commit, update:
 
-**Bump the version in the release commit, and tag that commit.** In one commit:
+1. `Sources/SheetCore/SwiftSheetsInfo.swift`.
+2. README status and installation pin; the getting-started installation pin.
+3. CHANGELOG release section and compare link.
+4. Versioned titles of handwritten published pages, and the implementation spec's current release/revision header.
+5. Generated document sources: `scripts/spec-feature-matrix.json` and `docs/performance.json`.
+   Regenerate with `scripts/build-spec-feature-matrix.py` and `scripts/build-performance-page.py`.
+6. Re-measure the interoperability record with `scripts/measure-interoperability.py`, then regenerate its page
+   with `scripts/build-interoperability-page.py`. Keep measurement dates and tool versions distinct from page versions.
 
-1. `SwiftSheetsInfo.version` — the constant the library stamps into every file it writes;
-2. `README.md` — the `Status: **x.y.z**` line **and** the `from: "x.y.z"` pin under Installation;
-3. `CHANGELOG.md` — a `## [x.y.z]` section and its compare link at the bottom;
-4. `docs/*.html` — the version in the `<title>` of the **hand-written** pages that name one
-   (`format-support.html`, `interoperability.html`). This was a hand step, and it was missed for three releases:
-   two pages sat at 0.7.2 until 2026-08-31.
-5. The **generated** pages take their version from their source, and are rebuilt rather than edited:
-   `scripts/spec-feature-matrix.json` (`meta.library_version`) → `python3 scripts/build-spec-feature-matrix.py`,
-   and `docs/performance.json` (`meta.library_version`) → `python3 scripts/build-performance-page.py`.
-   **Never edit a generated page's title by hand**: CI's `--check` compares each page with its source and fails on
-   the difference. It did on 0.11.2, when the matrix's title was edited directly — and again on 0.22.0, when this
-   list named only the matrix and the performance page's title was bumped by hand while its JSON stayed behind.
-   Both `--check`s run in CI; run them locally before pushing a release commit.
-
-`APIContractTests.theReadmeSaysTheVersionTheLibraryWrites` fails if the constant, the README or the CHANGELOG
-disagree, and `APIContractTests.everyPublishedDocumentNamesTheCurrentVersion` fails if a published page does — so
-all four are checked rather than remembered. Then, once CI is green on that commit:
+Run `swift build`, `swift test`, the generated-page `--check` commands, and `python3 Tests/OpenpyxlParity/check.py`.
+Complete the manual checklist and require green CI on the release commit. Do not hand-edit generated pages.
 
 ```bash
 git tag -a x.y.z -m "x.y.z"
 git push origin x.y.z
-gh release create x.y.z --title "vx.y.z" --notes-file <(...)   # notes come from the CHANGELOG section
+gh release create x.y.z --title "vx.y.z" --notes-file /path/to/release-notes.md
 ```
 
-Tag an unreleased version only when you mean to release it: a version number living in the source tree without a
-tag is how 0.4.0 and 0.5.0 came to exist and never ship.
+Use release notes taken from the corresponding CHANGELOG section. Never move a published tag to incorporate
+later fixes. Documentation corrections after 1.0.0 belong to subsequent commits and the next patch release.
 
 ## Manual checklist before a release (what still needs a person, or Excel)
 
@@ -192,14 +97,10 @@ per-application checklist (`READ-ME-FIRST.md`, for the maintainer who runs it).
 - Open `04-swiftsheets.numbers` in Numbers: no "document needs repair" warning; values, merges and sizes are right;
   editing and saving works, and **the formulas are formulas** (Appendix B.18 — they used to be absent). The
   automated judge covers the same ground on its own fixtures; this one is the realistic Japanese workbook.
-- **Cell formatting in Numbers (Rev 2.1, Appendix B.16) — the check with no judge on this machine.** The write side
-  now creates style archives of its own (variations of the table's defaults, in `Index/DocumentStylesheet.iwa`, with
-  the cross-component reference recorded in the package metadata). numbers-parser reads them back correctly and
-  LibreOffice's Numbers importer opens the file, but **Numbers.app has not.** Open `04-swiftsheets.numbers` and
-  confirm: bold and coloured header cells look as the checklist describes, background fills are there, the font is
-  the one asked for (not a fallback), number formats show as currency / percentage / date rather than as plain
-  numbers, and the document still saves without complaint. **This is the one part the script cannot judge** — it can
-  read values and formulas out of Numbers, but not what a cell looks like.
+- **Cell formatting in Numbers (Appendices B.16, B.98–B.99).** Numbers 15.3.1 application-level tests check
+  written font colours, date literals and Japanese yen. Visual checks still matter: open `04-swiftsheets.numbers`
+  and confirm bold headers, background fills, typefaces, borders and currency / percentage / date rendering.
+  The value/formula judge does not prove the complete visual layout.
 - **The 1904 date origin** is written to the Numbers calculation engine as of Rev 2.2, and checked only by our own
   reader. If Numbers.app is to hand, open a workbook saved with `wb.epoch = .mac1904` and confirm the dates read the
   same there as in the source.

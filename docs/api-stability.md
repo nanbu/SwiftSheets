@@ -31,8 +31,9 @@ The public surface of the products `SwiftSheets`, `SheetCore`, `SheetXLSX`, `She
 - **The error and warning vocabulary.** The cases of `SheetError` and `UnopenableInput`, and the `kind` and
   `subject` of `ConversionWarning`. A new case or kind is a minor change, so a `switch` over them keeps a
   `default:`; a removed one is major.
-- **The preservation promise (F3).** A part the model does not read is written back byte for byte when the file is
-  saved in the same format.
+- **The preservation promise (F3).** An uninterpreted part of a whole-workbook XLSX/XLSM read is written back
+  byte for byte when saved in the same format (VBA requires XLSM). Modelled content is regenerated with equivalent
+  meaning. This F3 guarantee does not apply to ODS, Numbers, cross-format conversion or streaming.
 - **The naming rules** of Appendix B.62–B.67 (typed / A1-string twins share labels, predicative Bools, one name per
   thing, Swift types over strings, internal tools are `package`).
 
@@ -54,8 +55,8 @@ The public surface of the products `SwiftSheets`, `SheetCore`, `SheetXLSX`, `She
 
 ## Platforms and toolchains
 
-macOS 14+, iOS 17+ and Linux are the platforms the whole suite runs on for every push; a platform CI does not run
-on is not claimed (Appendix B.1). The minimum Swift is the one named in `Package.swift`; raising it is a minor
+macOS 14+, iOS 17+ and Linux are supported deployment targets. CI runs the whole suite on macOS and Linux on every
+push to main and pull request to main; it does not execute tests on iOS. The minimum Swift is the one named in `Package.swift`; raising it is a minor
 release, announced in the CHANGELOG. WebAssembly builds and runs as described in the README's Limits table; CI builds
 the package for it on every push but does not run the suite there.
 
@@ -69,5 +70,5 @@ new name exists. Before 1.0 no aliases are kept; the compiler, with [Migrating t
 
 The formats each release reads and writes are in the README's Formats table and, feature by feature, in the
 [spec feature matrix](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.html). Numbers support follows the
-[maintenance policy](../MAINTENANCE.md): tolerant reading of newer documents, an explicit `unsupportedVersion` only
-when the schema cannot be read.
+[maintenance policy](../MAINTENANCE.md): tolerant reading of newer documents, warnings for unverified generations, and explicit
+errors for containers or required parts that cannot be read. A newer version alone is not rejected.

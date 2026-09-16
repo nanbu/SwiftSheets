@@ -72,6 +72,18 @@ import SwiftSheets
         let written = try source.write(as: to)
         let after = FormatSupportTests.profile(of: try Workbook(data: written.data))
 
+        // Opt-in machine-readable output for the published interoperability record. The existing assertions
+        // below still run; failed measurements must never be published by the collecting script.
+        if ProcessInfo.processInfo.environment["SWIFTSHEETS_INTEROPERABILITY_RECORD"] == "1" {
+            let lost = before.keys.filter { before[$0] == true && after[$0] != true }.sorted()
+            let record: [String: Any] = ["from": from.rawValue, "to": to.rawValue,
+                "sourceFeatures": before.values.filter { $0 }.count, "featureCount": before.count,
+                "lost": lost, "warnings": written.warnings.map(\.message),
+                "suggestion": written.suggestion?.format.rawValue ?? ""]
+            let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+            print("SWIFTSHEETS_INTEROPERABILITY " + String(decoding: data, as: UTF8.self))
+        }
+
         for (feature, wasThere) in before.sorted(by: { $0.key < $1.key }) where wasThere && !(after[feature] ?? false) {
             guard let word = Self.namedBy[feature] else {
                 Issue.record("\(from.rawValue) → \(to.rawValue): \(feature) was lost, and no conversion is allowed to lose it")

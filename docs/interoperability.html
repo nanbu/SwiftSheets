@@ -1,9 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Interoperability guide — what happens when a file goes between Excel, ODS and Numbers (SwiftSheets 1.0.0)</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interoperability guide — Excel, ODS and Numbers (SwiftSheets 1.0.0)</title>
 <style>
 :root{
   --bg:#ffffff; --surface:#f5f5f7; --card-bg:#ffffff;
@@ -95,677 +92,149 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--hairline);col
   table{min-width:0;font-size:9pt}
   th,td{padding:6px 8px}
 }
-</style>
-<style>
-/* tokens added for this page only */
-.lede2{color:var(--ink-2);font-size:16px}
-.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}
-.legend .card{margin:0}
-.legend .sym{font-size:26px;font-weight:800;line-height:1.1}
-.legend .name{font-weight:700;margin:6px 0 4px}
-.legend .who{color:var(--ink-3);font-size:12.5px;margin-top:8px}
-.sym-ok{color:var(--good)} .sym-keep{color:var(--accent)} .sym-sub{color:var(--warn)} .sym-drop{color:var(--bad)}
-.finding{border-left:3px solid var(--bad);padding-left:16px;margin:22px 0}
-.finding.decide{border-left-color:var(--accent)}
-.finding h3{margin-top:0}
-.badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;
-  border:1px solid var(--hairline);background:var(--surface);color:var(--ink-2);margin-left:8px;vertical-align:2px}
-.badge.fixed{color:var(--good)} .badge.open{color:var(--accent)}
-dl.qa{margin:14px 0}
-dl.qa dt{font-weight:700;margin-top:14px}
-dl.qa dd{margin:4px 0 0;color:var(--ink-2)}
-</style></head>
-<body>
-<main>
-<h1>Interoperability guide — what happens when a file goes between Excel, ODS and Numbers</h1>
-<p class="lede">Save a spreadsheet in another format and something always changes.
-This page lists <strong>what that "something" is — measured, not guessed</strong>.
-A machine walked all nine directions, and for every feature that went missing we checked
-<strong>whether a warning names it</strong>.</p>
-<p class="meta">Measured 2026-08-27 / SwiftSheets 0.7.2+ (including unreleased work) / environment: macOS 15, Numbers 15.3.1, LibreOffice 26.2.3, numbers-parser 4.16.3</p>
-
-<hr class="rule">
-
-<section>
-<h2>In three lines</h2>
-<div class="grid">
-  <div class="card score">
-    <div class="num">4<small> outcomes</small></div>
-    <div class="lab">There are no others</div>
-    <div class="sub">Goes through as is / kept because it was never touched / replaced by the nearest thing / dropped, but always said.
-      There is no fifth — which is to say, nothing disappears in silence</div>
-  </div>
-  <div class="card score">
-    <div class="num">9<small> directions</small></div>
-    <div class="lab">All of them walked</div>
-    <div class="sub">3 formats × 3 formats, including the three that save back into the same format.
-      For each of 47 features we look at whether it survived at the destination</div>
-  </div>
-  <div class="card score">
-    <div class="num">7<small> fixes</small></div>
-    <div class="lab">What was repaired</div>
-    <div class="sub">One of them: "<strong>the second save corrupts the file</strong>".
-      All seven are fixed, each with a test that catches a regression (confirmed to go red when the fix is taken out)</div>
-  </div>
-</div>
-</section>
-
-<section>
-<h2>Introduction — why it is never "as is"</h2>
-<p>
-  Excel, ODS (LibreOffice and others) and Numbers are <strong>not tools that make the same thing</strong>.
-  They only look alike; the ideas inside are quite different.
-</p>
-<ul class="plain">
-  <li><strong>Excel</strong> is a grid. One sheet is one enormous piece of graph paper.</li>
-  <li><strong>ODS</strong> is mostly a grid too, but it has a few <em>ideas that exist only in OpenDocument</em>.</li>
-  <li><strong>Numbers</strong> is a canvas. Tables, charts and shapes are <em>laid out side by side</em> on a sheet —
-    so one sheet can hold several tables.</li>
-</ul>
-<p>
-  So the question is never "how to put an Excel feature into Numbers"; <strong>whether there is a place for it</strong>
-  decides everything. What has no place cannot go in, however carefully it is converted.
-  What this page does is <em>list where the places are missing</em>.
-</p>
-
-<figure>
-<svg viewBox="0 0 880 300" role="img" aria-label="Diagram: a file in format A is read into one model, and from there written out in format B">
-  <rect x="14" y="70" width="170" height="120" rx="14" class="sv-card"/>
-  <text x="99" y="104" text-anchor="middle" class="sv-tb">Source file</text>
-  <text x="99" y="128" text-anchor="middle" class="sv-t2">.xlsx / .ods / .numbers</text>
-  <text x="99" y="152" text-anchor="middle" class="sv-t3">carries things only</text>
-  <text x="99" y="170" text-anchor="middle" class="sv-t3">its own format has</text>
-
-  <path d="M190 130 H262" class="sv-arrow"/>
-  <polygon points="272,130 260,125 260,135" class="sv-mark"/>
-  <text x="226" y="118" text-anchor="middle" class="sv-t3">read</text>
-
-  <rect x="278" y="46" width="212" height="168" rx="14" class="sv-accent-soft"/>
-  <text x="384" y="80" text-anchor="middle" class="sv-tb">One model</text>
-  <text x="384" y="104" text-anchor="middle" class="sv-t2">contents independent of format</text>
-  <rect x="300" y="120" width="168" height="30" rx="8" class="sv-soft"/>
-  <text x="384" y="140" text-anchor="middle" class="sv-t2">values, formulas, styles, …</text>
-  <rect x="300" y="158" width="168" height="30" rx="8" class="sv-soft"/>
-  <text x="384" y="178" text-anchor="middle" class="sv-t2">parts it could not read (kept as is)</text>
-
-  <path d="M496 130 H568" class="sv-arrow"/>
-  <polygon points="578,130 566,125 566,135" class="sv-mark"/>
-  <text x="532" y="118" text-anchor="middle" class="sv-t3">write</text>
-
-  <rect x="584" y="70" width="170" height="120" rx="14" class="sv-card"/>
-  <text x="669" y="104" text-anchor="middle" class="sv-tb">New file</text>
-  <text x="669" y="128" text-anchor="middle" class="sv-t2">the destination format</text>
-  <text x="669" y="152" text-anchor="middle" class="sv-t3">only what has a place</text>
-  <text x="669" y="170" text-anchor="middle" class="sv-t3">goes in</text>
-
-  <path d="M669 196 V244" class="sv-arrow"/>
-  <polygon points="669,254 664,242 674,242" class="sv-mark"/>
-  <rect x="530" y="254" width="336" height="34" rx="10" class="sv-soft"/>
-  <text x="698" y="276" text-anchor="middle" class="sv-t2">a list of what did not fit (warnings) always comes back</text>
-</svg>
-<figcaption>A conversion is not "A → B" but "A → one model → B". That is why there are only four outcomes.</figcaption>
-</figure>
-</section>
-
-<section>
-<h2>The four outcomes</h2>
-<p class="lede2">The tables on this page use these four marks and no others.</p>
-
-<div class="legend">
-  <div class="card">
-    <div class="sym sym-ok">○</div>
-    <div class="name">Goes through as is</div>
-    <div>The destination has the same idea, so it is rewritten without changing its meaning.
-      Merged cells, for example, exist in every format.</div>
-    <div class="who">No warning</div>
-  </div>
-  <div class="card">
-    <div class="sym sym-keep">▣</div>
-    <div class="name">Kept because it was never touched</div>
-    <div>Charts, images, macros — <strong>parts whose contents this library does not interpret</strong> —
-      are kept as the bytes they were read as, and come back intact <em>when the file is saved in the same format</em>.</div>
-    <div class="who">Same format only. Into another format it is ✕</div>
-  </div>
-  <div class="card">
-    <div class="sym sym-sub">△</div>
-    <div class="name">Replaced by the nearest thing</div>
-    <div>The thing itself does not exist, but <strong>the closest other way of saying it</strong> does.
-      A gradient fill becoming a solid colour, for instance.</div>
-    <div class="who">A <code>substituted</code> warning says what it was replaced with</div>
-  </div>
-  <div class="card">
-    <div class="sym sym-drop">✕</div>
-    <div class="name">Dropped, but always said</div>
-    <div>Something with no place at all. <strong>It is never deleted in silence.</strong>
-      What was dropped, on which sheet, in which cell, comes back as a list.</div>
-    <div class="who"><code>dropped</code> (whole) or <code>degraded</code> (in part)</div>
-  </div>
-</div>
-
-<div class="card tint">
-<h3>How "always said" is guaranteed</h3>
-<p>
-  Anyone can promise. Here <strong>a machine does the cross-checking</strong>.
-</p>
-<ol class="steps">
-  <li>Take one workbook with all 47 features in it and <em>save it once as a real file</em> in each format.</li>
-  <li>Open that file and save it in another format.</li>
-  <li>Open the result and <strong>count the features that went missing</strong>.</li>
-  <li>For each missing feature, check that <strong>some warning contains a word that names that feature</strong>.
-    So that a vague warning like "a table was dropped" cannot stand in for the loss of an array formula,
-    each feature has exactly one matching word.</li>
-</ol>
-<p class="meta">Test: <code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code> (9 directions)</p>
-</div>
-</section>
-<section>
-<h2>What each format has that the others do not</h2>
-<p class="lede2">
-  What trips interoperability up is almost always <strong>something only one format has</strong>.
-  So first, those things, sorted into three groups.
-</p>
-
-<figure>
-<svg viewBox="0 0 880 330" role="img" aria-label="Diagram: the features only Excel, only ODF and only Numbers have, in three groups">
-  <rect x="10" y="24" width="272" height="290" rx="16" class="sv-card"/>
-  <text x="146" y="56" text-anchor="middle" class="sv-tb">Excel only</text>
-  <text x="146" y="78" text-anchor="middle" class="sv-t3">fine-grained rules inside the grid</text>
-  <rect x="30" y="96" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="115" class="sv-t2">editable ranges in a protected sheet</text>
-  <rect x="30" y="130" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="149" class="sv-t2">scenarios (named sets of input values)</text>
-  <rect x="30" y="164" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="183" class="sv-t2">sheet tab colours</text>
-  <rect x="30" y="198" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="217" class="sv-t2">workbook protection (fixed sheet structure)</text>
-  <rect x="30" y="232" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="251" class="sv-t2">VBA macros (.xlsm)</text>
-  <rect x="30" y="266" width="232" height="28" rx="8" class="sv-soft"/><text x="46" y="285" class="sv-t2">pivot tables, data validation, print setup</text>
-
-  <rect x="304" y="24" width="272" height="290" rx="16" class="sv-card"/>
-  <text x="440" y="56" text-anchor="middle" class="sv-tb">OpenDocument only</text>
-  <text x="440" y="78" text-anchor="middle" class="sv-t3">the idea that "it is written in the document"</text>
-  <rect x="324" y="96" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="115" class="sv-t2">label ranges (headings used in formulas)</text>
-  <rect x="324" y="130" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="149" class="sv-t2">consolidation definitions</text>
-  <rect x="324" y="164" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="183" class="sv-t2">detective arrows (reference tracing)</text>
-  <rect x="324" y="198" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="217" class="sv-t2">calculation settings (regex, two-digit years, …)</text>
-  <rect x="324" y="232" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="251" class="sv-t2">any date as the epoch</text>
-  <rect x="324" y="266" width="232" height="28" rx="8" class="sv-soft"/><text x="340" y="285" class="sv-t2">a cell that knows it is "currency"</text>
-
-  <rect x="598" y="24" width="272" height="290" rx="16" class="sv-card"/>
-  <text x="734" y="56" text-anchor="middle" class="sv-tb">Numbers only</text>
-  <text x="734" y="78" text-anchor="middle" class="sv-t3">a sheet is a canvas, not a grid</text>
-  <rect x="618" y="96" width="232" height="28" rx="8" class="sv-accent-soft"/><text x="634" y="115" class="sv-t2">several tables on one sheet</text>
-  <rect x="618" y="130" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="149" class="sv-t2">charts, shapes, images beside a table</text>
-  <rect x="618" y="164" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="183" class="sv-t2">cell controls (pop-up menus etc.)</text>
-  <rect x="618" y="198" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="217" class="sv-t2">decimals as decimal128 (no digits lost)</text>
-  <rect x="618" y="232" width="232" height="28" rx="8" class="sv-soft"/><text x="634" y="251" class="sv-t2">the idea of header rows / header columns</text>
-  <rect x="618" y="266" width="232" height="28" rx="8" class="sv-ghost"/><text x="634" y="285" class="sv-t3">(no defined names, no sheet protection, …)</text>
-</svg>
-<figcaption>The blue box is "what no other format can ever hold": Numbers' several tables on one sheet.</figcaption>
-</figure>
-
-<h3>Excel only — taken to the other formats</h3>
-<div class="tablewrap"><table>
-<thead><tr><th>Feature</th><th class="m">→ ODS</th><th class="m">→ Numbers</th><th>What actually comes back</th></tr></thead>
-<tbody>
-<tr><td>Editable ranges in a protected sheet (protected ranges)</td><td class="m n">✕</td><td class="m n">✕</td>
-  <td>ODF can only protect a whole sheet, and Numbers only a whole document.
-    <span class="badge fixed">Fixed here</span> On the Numbers side this used to hide inside "sheet protection dropped"</td></tr>
-<tr><td>Scenarios</td><td class="m n">✕</td><td class="m n">✕</td>
-  <td>An ODF scenario is <strong>a whole shadow sheet</strong>, so writing one would add sheets. We do not go that far</td></tr>
-<tr><td>Tab colours</td><td class="m n">✕</td><td class="m n">✕</td>
-  <td>Not in ODF 1.3; LibreOffice drops them in the same conversion</td></tr>
-<tr><td>Workbook protection (fixed sheet structure)</td><td class="m n">✕</td><td class="m n">✕</td>
-  <td>ODF locks the document; it has no idea of protecting the list of sheets</td></tr>
-<tr><td>VBA macros</td><td class="m n">✕</td><td class="m n">✕</td>
-  <td><span class="badge fixed">Fixed here</span> Now named as "macros dropped", and
-    <strong><code>.xlsm</code> is suggested instead</strong> (it used to suggest XLSX, where they are dropped too)</td></tr>
-<tr><td>Pivot tables</td><td class="m h">△</td><td class="m n">✕</td>
-  <td>Into ODS only <strong>the layout</strong> goes, as a "data pilot"; the numbers are recalculated by whoever opens it</td></tr>
-<tr><td>Data validation (drop-downs)</td><td class="m y">○</td><td class="m n">✕</td>
-  <td>Interestingly, <strong>Numbers itself</strong> imports these by replacing them with a <em>pop-up menu</em> (see below)</td></tr>
-<tr><td>Print setup, page breaks, print areas</td><td class="m y">○</td><td class="m n">✕</td>
-  <td>Numbers prints a canvas, not a grid of pages, so there is no place for them</td></tr>
-<tr><td>Row and column grouping (outlines)</td><td class="m y">○</td><td class="m n">✕</td>
-  <td>Numbers groups by "categories", not by outline depth</td></tr>
-<tr><td>Array formulas (with a range)</td><td class="m y">○</td><td class="m h">△</td>
-  <td><span class="badge fixed">Fixed here</span> <strong>The formula itself stays in its anchor cell.</strong>
-    The warning now says that only "how far it spread" is lost</td></tr>
-<tr><td>Charts, images, shapes</td><td class="m h">△</td><td class="m n">✕</td>
-  <td>Saving back into the same format is ▣ (kept as is). An image placed with <code>addImage</code> can be written to ODS (0.16.0, Appendix B.43). Charts and shapes cannot be taken to another format</td></tr>
-</tbody>
-</table></div>
-
-<h3>OpenDocument only — taken to the other formats</h3>
-<p>
-  The comparison runs both ways: counting only "what Excel has and ODF lacks" would not be fair.
-  These are the six found by reading the OASIS ODF 1.3 schema.
-</p>
-<div class="tablewrap"><table>
-<thead><tr><th>Feature</th><th>What it is</th><th class="m">→ Excel</th><th class="m">→ Numbers</th></tr></thead>
-<tbody>
-<tr><td>Label ranges</td><td>Write <code>=SUM(売上)</code> and <em>the column whose heading is "売上"</em> is found.
-  Excel could do this up to 2003, but today's OOXML has no way to write it</td><td class="m n">✕</td><td class="m n">✕</td></tr>
-<tr><td>Consolidation definitions</td><td>A setting that sums several ranges, and <strong>stays in the document</strong>.
-  In Excel it is a one-off command that leaves nothing behind</td><td class="m n">✕</td><td class="m n">✕</td></tr>
-<tr><td>Detective arrows</td><td>Arrows tracing precedents and dependents. Excel <em>draws them but does not save them</em></td><td class="m n">✕</td><td class="m n">✕</td></tr>
-<tr><td>Calculation settings</td><td>Whether search criteria are regular expressions, whether they must match the whole cell, where two-digit years turn over.
-  In Excel these are <strong>application settings</strong>; in ODF they are <strong>file settings</strong></td><td class="m n">✕</td><td class="m n">✕</td></tr>
-<tr><td>Date epoch</td><td>ODF can take any date as the epoch. Excel has only two: 1900 and 1904</td><td class="m h">△</td><td class="m h">△</td></tr>
-<tr><td>Currency cell type</td><td>The cell itself knows "this is yen".
-  In Excel that information lives only inside the number-format code</td><td class="m h">△</td><td class="m h">△</td></tr>
-</tbody>
-</table></div>
-<p class="meta">
-  △ is "replaced by the nearest thing". The date epoch is moved to whichever of 1900 and 1904 is nearer,
-  and currency becomes a number-format code such as <code>[$¥-411]#,##0.00</code>. The values do not move.
-</p>
-
-<h3>Numbers only — taken to the other formats</h3>
-<div class="tablewrap"><table>
-<thead><tr><th>Feature</th><th class="m">→ Excel</th><th class="m">→ ODS</th><th>What actually happens</th></tr></thead>
-<tbody>
-<tr><td><strong>Several tables on one sheet</strong></td><td class="m n">✕</td><td class="m n">✕</td>
-  <td>An Excel sheet and an ODS sheet are each <strong>one grid</strong>. Only the first table goes across;
-    the rest are reported as dropped. <em>And this is the one case where the suggested format is <code>.numbers</code></em></td></tr>
-<tr><td>Charts, shapes, text boxes</td><td class="m n">✕</td><td class="m n">✕</td>
-  <td>Reported at read time as "the sheet has drawings". The model has no place for them, so they are not preserved either</td></tr>
-<tr><td>Cell controls (pop-up, checkbox, ★)</td><td class="m h">△</td><td class="m h">△</td>
-  <td><strong>The chosen value stays; only the control is dropped.</strong>
-    Reported with the location: "8 cells from B2 have Numbers controls"</td></tr>
-<tr><td>Decimals (decimal128)</td><td class="m y">○</td><td class="m y">○</td>
-  <td>No digits are lost, because the model holds them as <code>Decimal</code></td></tr>
-<tr><td>Header rows / header columns</td><td class="m y">○</td><td class="m y">○</td>
-  <td>Written as Excel's and ODS's frozen panes (a ○ that is close to △)</td></tr>
-</tbody>
-</table></div>
-</section>
-<section>
-<h2>All nine directions, measured</h2>
-<p class="lede2">
-  One workbook with all 47 features, saved once in each format to make a <strong>real file</strong>,
-  then rewritten from there into each of the three formats.
-</p>
-
-<div class="tablewrap"><table>
-<thead><tr><th>Direction</th><th class="m">Features lost</th><th class="m">Warnings</th><th>Suggested instead</th><th>How to read it</th></tr></thead>
-<tbody>
-<tr class="group"><td colspan="5">From an Excel (.xlsx) file</td></tr>
-<tr><td>Excel → Excel</td><td class="m y">0</td><td class="m">0</td><td>—</td>
-  <td>Nothing is lost. <strong>That this was not 0 is the defect found this time</strong> (below)</td></tr>
-<tr><td>Excel → ODS</td><td class="m h">4</td><td class="m">8</td><td>xlsx</td>
-  <td>Protected ranges, scenarios, tab colours, workbook protection. Pivot tables survive, with the proviso "layout only"</td></tr>
-<tr><td>Excel → Numbers</td><td class="m n">25</td><td class="m">20</td><td>xlsx</td>
-  <td>The direction that loses most. There are fewer warnings than losses because <em>one warning can name several features at once</em>
-    ("print setup" covers five: headers, orientation, area, title rows and page breaks)</td></tr>
-<tr class="group"><td colspan="5">From an ODS file</td></tr>
-<tr><td>ODS → Excel</td><td class="m h">4</td><td class="m">4</td><td>—</td>
-  <td>Only the four that exist solely in OpenDocument (label ranges, consolidation definitions, detective arrows, calculation settings)</td></tr>
-<tr><td>ODS → ODS</td><td class="m y">0</td><td class="m">1</td><td>—</td>
-  <td>The one warning explains that a pivot table is written as layout only and the numbers are recalculated by whoever opens it</td></tr>
-<tr><td>ODS → Numbers</td><td class="m n">25</td><td class="m">19</td><td>xlsx</td>
-  <td>Almost the same as Excel → Numbers. What was already gone in the ODS file (tab colours and so on) is not counted</td></tr>
-<tr class="group"><td colspan="5">From a Numbers file</td></tr>
-<tr><td>Numbers → Excel</td><td class="m h">1</td><td class="m">1</td><td><strong>numbers</strong></td>
-  <td>Only "several tables on one sheet". <em>Do not read this 1 as "Numbers → Excel is safe"</em> (see the caution below)</td></tr>
-<tr><td>Numbers → ODS</td><td class="m h">1</td><td class="m">1</td><td><strong>numbers</strong></td>
-  <td>Same as above</td></tr>
-<tr><td>Numbers → Numbers</td><td class="m y">0</td><td class="m">0</td><td>—</td>
-  <td>But writing Numbers <strong>rebuilds the file from a template every time</strong>, so there is no
-    "untouched parts stay byte for byte" preservation</td></tr>
-</tbody>
-</table></div>
-
-<div class="card decide">
-<h3>The easiest thing to misread</h3>
-<p>
-  <strong>"Numbers → Excel loses only one thing" does not mean Numbers is the strong format.</strong>
-  What this table counts is whether <em>what is in the file you have now</em> survived at the destination.
-  A Numbers file has no data validation, no pivot tables and no print setup in it to begin with.
-  <strong>What gets dropped was dropped completely on the way <em>into</em> Numbers.</strong>
-</p>
-<div class="answer">
-  <span class="q">How to read it</span> Take an Excel file (41 features) to Numbers and back to Excel and you get
-  <strong>16 features</strong>. Measured, the return trip gives <strong>0 warnings</strong> —
-  not a lie: <em>there is nothing left to lose</em>.
-  The cost of a round trip is decided by the outbound leg.
-</div>
-</div>
-
-<figure>
-<svg viewBox="0 0 880 262" role="img" aria-label="Diagram: going from Excel through Numbers and back to Excel, what was dropped on the outbound leg does not come back">
-  <rect x="20" y="70" width="180" height="90" rx="14" class="sv-card"/>
-  <text x="110" y="102" text-anchor="middle" class="sv-tb">Excel file</text>
-  <text x="110" y="126" text-anchor="middle" class="sv-t2">41 features</text>
-
-  <path d="M208 115 H322" class="sv-arrow"/>
-  <polygon points="332,115 320,110 320,120" class="sv-mark"/>
-  <text x="266" y="102" text-anchor="middle" class="sv-bad">−25</text>
-  <text x="266" y="140" text-anchor="middle" class="sv-t3">20 warnings</text>
-
-  <rect x="340" y="70" width="180" height="90" rx="14" class="sv-card"/>
-  <text x="430" y="102" text-anchor="middle" class="sv-tb">Numbers</text>
-  <text x="430" y="126" text-anchor="middle" class="sv-t2">16 features</text>
-
-  <path d="M528 115 H642" class="sv-arrow"/>
-  <polygon points="652,115 640,110 640,120" class="sv-mark"/>
-  <text x="586" y="102" text-anchor="middle" class="sv-good">−0</text>
-  <text x="586" y="140" text-anchor="middle" class="sv-t3">0 warnings</text>
-
-  <rect x="660" y="70" width="180" height="90" rx="14" class="sv-card"/>
-  <text x="750" y="102" text-anchor="middle" class="sv-tb">Back to Excel</text>
-  <text x="750" y="126" text-anchor="middle" class="sv-t2">16 features</text>
-
-  <rect x="20" y="198" width="820" height="44" rx="12" class="sv-soft"/>
-  <text x="430" y="225" text-anchor="middle" class="sv-t2">The return trip answers "nothing was lost" — because there is nothing left to lose</text>
-</svg>
-<figcaption>"One-way loss" and "round-trip loss" are different things. The numbers in the table are always one-way.</figcaption>
-</figure>
-</section>
-
-<section>
-<h2>Saving back into the same format (the most ordinary use)</h2>
-<p>
-  In practice the commonest case is not a conversion but <strong>"open, fix one cell, save under the same name"</strong>.
-  The promise here is stronger than for a conversion: <em>what you did not touch comes back byte for byte</em>.
-</p>
-<div class="tablewrap"><table>
-<thead><tr><th>Format</th><th>Parts not touched</th><th>What the model read</th><th>In a word</th></tr></thead>
-<tbody>
-<tr><td><strong>Excel</strong> (.xlsx / .xlsm)</td>
-  <td class="y">Identical to the byte (charts, themes, images, VBA)</td>
-  <td>Rewritten as XML with the same meaning (conditional formatting, data validation and so on)</td>
-  <td>The strongest preservation</td></tr>
-<tr><td><strong>ODS</strong></td>
-  <td class="h">Repackaged, but <code>content.xml</code> is rebuilt, so <strong>images and objects are not reconnected</strong></td>
-  <td>Rewritten as XML with the same meaning</td>
-  <td>The contents stay, the pictures are not connected (with a warning)</td></tr>
-<tr><td><strong>Numbers</strong></td>
-  <td class="n">No preservation. <strong>Rebuilt from an empty template</strong> every time</td>
-  <td>Values, formulas, styles, conditional formatting, links, notes, merges and so on</td>
-  <td>Rebuilt, so the original shapes do not come back</td></tr>
-</tbody>
-</table></div>
-
-<h3>Nobody was watching the second save</h3>
-<p>
-  This was the biggest discovery of the review. The tests had always checked <strong>"build, write, read"</strong>.
-  <em>"Write again what was read"</em> — nobody had checked that.
-</p>
-
-<figure>
-<svg viewBox="0 0 880 250" role="img" aria-label="Diagram: the first save is correct, the second save doubles an attribute and the file is broken">
-  <rect x="16" y="40" width="250" height="150" rx="14" class="sv-card"/>
-  <text x="141" y="70" text-anchor="middle" class="sv-tb">First save</text>
-  <rect x="36" y="86" width="210" height="80" rx="10" class="sv-soft"/>
-  <text x="50" y="110" class="sv-t3">&lt;pivotTableDefinition</text>
-  <text x="60" y="130" class="sv-t3">updatedVersion="8"</text>
-  <text x="60" y="150" class="sv-t3">createdVersion="8" …&gt;</text>
-  <text x="141" y="182" text-anchor="middle" class="sv-good">correct</text>
-
-  <path d="M274 115 H336" class="sv-arrow"/>
-  <polygon points="346,115 334,110 334,120" class="sv-mark"/>
-  <text x="310" y="103" text-anchor="middle" class="sv-t3">open</text>
-
-  <rect x="354" y="40" width="238" height="150" rx="14" class="sv-card"/>
-  <text x="473" y="70" text-anchor="middle" class="sv-tb">The reader's memory</text>
-  <rect x="374" y="86" width="198" height="80" rx="10" class="sv-soft"/>
-  <text x="388" y="110" class="sv-t3">attributes it knows: 5</text>
-  <text x="388" y="132" class="sv-t3">remembered as "unknown":</text>
-  <text x="388" y="152" class="sv-bad">updatedVersion, … 15 of them</text>
-  <text x="473" y="182" text-anchor="middle" class="sv-t3">overlapping what the writer always writes</text>
-
-  <path d="M600 115 H662" class="sv-arrow"/>
-  <polygon points="672,115 660,110 660,120" class="sv-mark"/>
-  <text x="636" y="103" text-anchor="middle" class="sv-t3">save</text>
-
-  <rect x="680" y="40" width="184" height="150" rx="14" class="sv-card" style="stroke:var(--bad)"/>
-  <text x="772" y="70" text-anchor="middle" class="sv-tb">Second save</text>
-  <rect x="698" y="86" width="148" height="80" rx="10" class="sv-soft"/>
-  <text x="710" y="110" class="sv-t3">updatedVersion="8"</text>
-  <text x="710" y="132" class="sv-bad">updatedVersion="8"</text>
-  <text x="710" y="152" class="sv-t3">← the same attribute twice</text>
-  <text x="772" y="182" text-anchor="middle" class="sv-bad">not well-formed XML</text>
-
-  <rect x="16" y="208" width="848" height="34" rx="10" class="sv-soft"/>
-  <text x="440" y="230" text-anchor="middle" class="sv-t2">Excel says "we found a problem with some content"; our own reader threw the pivot table away in silence</text>
-</svg>
-<figcaption>XML with an attribute written twice is not "hard to read" — by the standard it is <strong>broken</strong>.</figcaption>
-</figure>
-<p class="meta">
-  Test: <code>CrossFormatConversionTests.threeGenerationsStayWellFormedAndKeepEverything</code>
-  — saves the same document three times, re-parses every part as XML each time to check it is well-formed,
-  and looks for anything lost in an intermediate generation.
-</p>
-</section>
-<section>
-<h2>What the review found</h2>
-<p class="lede2">
-  Five defects, and two cases where the line had to be drawn by judgement. <strong>All seven are fixed</strong>,
-  each with a test that catches a regression.
-</p>
-
-<div class="finding">
-<h3>1. An Excel file with a pivot table was corrupted on save <span class="badge fixed">Fixed</span></h3>
-<p>
-  <strong>The most serious one.</strong> The pivot table part has 15 attributes the writer always writes itself
-  (<code>updatedVersion</code>, <code>createdVersion</code> and so on). But the reader's list of "known attributes"
-  had only 5 on it. The other 15 were <em>remembered as "attributes the model cannot express"</em>
-  and written again on the next save, alongside the writer's own.
-</p>
-<p>
-  XML with an attribute written twice is broken by the standard. Excel offers to repair it;
-  our own reader <strong>skipped that part in silence</strong>, so the pivot table vanished without a warning.
-</p>
-<p>
-  <strong>And files written by Excel carry these attributes too.</strong>
-  So this was not limited to round-tripping our own files: <em>open a workbook with a pivot table made in Excel, save it, and it was broken on the first save.</em>
-</p>
-<p class="meta">The fix: the writer collects "the attribute names actually written in this call", and attributes from the file are added only when they are not in that set
-  (<code>RootAttributes</code>). Keeping the two lists in step by hand was abandoned because <strong>this defect was exactly that slip of memory</strong>.</p>
-</div>
-
-<div class="finding">
-<h3>2. A part that could not be read was skipped in silence <span class="badge fixed">Fixed</span></h3>
-<p>
-  This is why defect 1 went unnoticed. When a part's XML could not be read,
-  the reader simply moved on. It now says "<em>this part could not be read, so the pivot table in it was skipped</em>",
-  with the part's name. Reading Excel <strong>now returns warnings</strong>, like the other formats.
-</p>
-</div>
-
-<div class="finding">
-<h3>3. Four things dropped in silence <span class="badge fixed">Fixed</span></h3>
-<div class="tablewrap"><table>
-<thead><tr><th>Case</th><th>Before</th><th>Now</th></tr></thead>
-<tbody>
-<tr><td>Array formula → Numbers</td>
-  <td>The anchor cell's formula was written, but nothing said the range it spread over was gone</td>
-  <td>Says "<strong>the formula stays in its anchor cell; only the range is lost</strong>"</td></tr>
-<tr><td>Protected ranges → Numbers</td>
-  <td>Hidden inside "sheet protection dropped"; a document with only protected ranges set got no warning at all</td>
-  <td>Split into its own warning</td></tr>
-<tr><td>Table column names (Excel → Excel)</td>
-  <td>The reader took the names in, but <strong>the writer never wrote them</strong>.
-    They vanished in silence on every round trip</td>
-  <td>Now written. The responsibility table was out of step <em>in both directions</em></td></tr>
-<tr><td>VBA → ODS / Numbers</td>
-  <td>Buried in a count of "N parts cannot be carried", <strong>which led to the suggestion "XLSX would keep them"</strong>
-    — where macros are dropped too</td>
-  <td>Named as "macros dropped", and the suggested format is now <code>.xlsm</code></td></tr>
-</tbody>
-</table></div>
-<p class="meta">
-  A warning's subject is not decoration for display; it is <strong>the basis for deciding which format to suggest instead</strong>.
-  So calling "macros dropped" "parts dropped" was not loose wording but <em>wrong advice</em>.
-</p>
-</div>
-
-<div class="finding">
-<h3>4. Numbers itself replaces data validation with a pop-up menu <span class="badge fixed">Recorded</span></h3>
-<p>
-  An <strong>observation</strong> rather than a defect. The same workbook was written as Excel, imported into Numbers 15.3.1
-  and saved again — and <strong>Excel's drop-downs (data validation) had become Numbers pop-up menus</strong>.
-  In terms of the four outcomes, Numbers itself is doing △ (replaced by the nearest thing).
-</p>
-<p>
-  Our reader reported this correctly as "8 cell controls (values kept, controls dropped)",
-  but it was not on the test's allow list, so the test went red on this Mac alone.
-  <strong>Rather than loosen the allow list, the behaviour was fixed as a <em>statement</em></strong>
-  — it is a record of what Numbers does.
-</p>
-</div>
-
-<h3>Two cases decided on policy first, then fixed</h3>
-
-<div class="finding">
-<h3>A. <code>Workbook.convert</code> threw the read warnings away <span class="badge fixed">Fixed</span></h3>
-<p>
-  <code>Workbook.convert</code>, the easiest way in to a conversion, returned only the write result.
-  Warnings raised during the read appeared nowhere in the return value.
-</p>
-<p>
-  <strong>Measured.</strong> Converting a Numbers document with one chart and 8 cell controls to <code>.xlsx</code> gave
-  <strong>0 warnings</strong>. The reader had said its piece; it just went nowhere.
-  What is more, Numbers drawings and cell controls <strong>can only be reported on read</strong> —
-  they never enter the model, so the write has nothing left to report.
-  Anyone using this entry point had <em>no way at all</em> of knowing.
-</p>
-<p>
-  It now returns <strong>both halves of the trip</strong>, in the order they happened (read first).
-  The suggested format is unchanged — that is a question about the write.
-</p>
-<div class="answer">
-  <span class="q">After the fix</span> The same conversion returns <strong>2 warnings</strong> (1 chart, 1 cell controls).
-</div>
-</div>
-
-<div class="finding">
-<h3>B. Converting from ODS said "calculation settings dropped" every time <span class="badge fixed">Fixed</span></h3>
-<p>
-  This one was the opposite mistake. The test was "<strong>does this setting differ from the default we chose</strong>".
-  But LibreOffice writes its own defaults into every ODS it saves, and they differ from ours.
-</p>
-<div class="tablewrap"><table>
-<thead><tr><th>Setting</th><th>What LibreOffice always writes</th><th>Does it actually take effect?</th></tr></thead>
-<tbody>
-<tr><td>Automatic detection of headings</td><td>off</td>
-  <td class="y"><strong>No.</strong> It is a <em>permission</em> — "a formula may use a heading that was not declared" —
-    and means something only once a formula uses it. Such formulas are reported separately</td></tr>
-<tr><td>Start of two-digit years</td><td>1950</td>
-  <td class="h">Yes, but it only changes how years <em>typed from now on</em> are read; existing values do not move</td></tr>
-<tr><td>Iteration step size</td><td>0.0001</td>
-  <td class="y"><strong>No.</strong> Iteration itself is switched off, so
-    no calculation ever reaches this value</td></tr>
-</tbody>
-</table></div>
-<p>
-  The result: <strong>even a file in which the user had set nothing was warned about on every conversion</strong>.
-  Not a lie — but a warning that always appears stops being read. This one case was eroding trust in all the others.
-</p>
-<p>
-  <strong>The question was changed.</strong> Not "does it differ from our default" but
-  "<strong>would the destination read this document differently</strong>".
-  And <strong>a setting that is not in effect is not counted</strong>.
-</p>
-<div class="tablewrap"><table>
-<thead><tr><th>Document</th><th class="m">Before</th><th class="m">Now</th><th>What it says</th></tr></thead>
-<tbody>
-<tr><td>A brand-new workbook</td><td class="m y">0</td><td class="m y">0</td><td>—</td></tr>
-<tr><td>An ODS saved by LibreOffice (nothing set)</td><td class="m h">1</td><td class="m h">1</td>
-  <td><strong>The same count, but a different message.</strong>
-    Instead of a vague "calculation settings dropped", it names the difference:
-    <em>"two-digit years start at 1950 here and at 1930 there"</em>.
-    The other four items stay silent, because the destination behaves the same way</td></tr>
-<tr><td>A workbook with only an iteration count (iteration off)</td><td class="m h">1</td><td class="m y">0</td>
-  <td>A step count no calculation ever reaches is not a loss worth a sentence</td></tr>
-</tbody>
-</table></div>
-<p class="meta">
-  To be candid: <strong>the LibreOffice file did not lose a warning.</strong>
-  The two-digit-year window really does differ, and "1/1/50" would be read differently.
-  What was reduced is <em>the vagueness, not the count</em>, and the one warning left is something a reader can actually act on.
-</p>
-</div>
-</section>
-
-<section>
-<h2>Which test measures which claim</h2>
-<p class="lede2">
-  Every statement on this page is backed by a running test. If the prose goes stale, a test goes red first.
-</p>
-<div class="tablewrap"><table>
-<thead><tr><th>Claim on this page</th><th>What measures it</th><th class="m">Count</th></tr></thead>
-<tbody>
-<tr><td>How far each of 47 features survives in each format</td><td><code>FormatSupportTests.matchesThePublishedTable</code></td><td class="m">3</td></tr>
-<tr><td><strong>Everything lost has a warning that names it</strong> (9 directions)</td>
-  <td><code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code></td><td class="m">9</td></tr>
-<tr><td><strong>Three saves later the parts are still well-formed and nothing is lost</strong></td>
-  <td><code>CrossFormatConversionTests.threeGenerationsStayWellFormedAndKeepEverything</code></td><td class="m">3</td></tr>
-<tr><td>A pivot table survives the second save</td>
-  <td><code>CrossFormatConversionTests.aPivotTableSurvivesBeingSavedTwice</code></td><td class="m">1</td></tr>
-<tr><td>A lost macro is reported as a macro loss whatever the destination</td>
-  <td><code>CrossFormatConversionTests.aDroppedVBAProjectIsAlwaysAMacroLoss</code></td><td class="m">3</td></tr>
-<tr><td><strong>The conversion entry point returns both the read and the write warnings</strong></td>
-  <td><code>CrossFormatConversionTests.convertAnswersWithBothHalvesOfTheTrip</code></td><td class="m">1</td></tr>
-<tr><td><strong>A calculation setting is reported only when the destination would read it differently</strong></td>
-  <td><code>ODFOnlyFeatureTests.aCalculationSettingIsReportedOnlyWhenItWouldChangeSomething</code></td><td class="m">1</td></tr>
-<tr><td>Fix one cell and save, and not one other byte moves</td><td><code>PreservationTests.editOneCellKeepsEverythingElse</code></td><td class="m">1</td></tr>
-<tr><td>The six OpenDocument-only features round-trip, and LibreOffice reads them</td><td><code>ODFOnlyFeatureTests</code></td><td class="m">8</td></tr>
-<tr><td>Numbers shapes and cell controls are reported on read</td><td><code>NumbersSilentLossTests</code></td><td class="m">9</td></tr>
-<tr><td>Numbers.app itself opens the written file, calculates and saves it again</td>
-  <td><code>Tests/NumbersParity/verify_with_numbers_app.py</code></td><td class="m">—</td></tr>
-<tr><td>openpyxl reads the written file with the same values</td><td><code>Tests/OpenpyxlParity/verify_with_openpyxl.py</code></td><td class="m">—</td></tr>
-<tr><td>Broken input never crashes and always becomes a <code>SheetError</code></td><td><code>FuzzTests</code></td><td class="m">8</td></tr>
-</tbody>
-</table></div>
-
-<h3>The judge is never ourselves</h3>
-<p>
-  Our own reader reading our own writer proves nothing.
-  "Supported" is claimed here only when <strong>something that did not come out of this project agrees</strong>.
-</p>
-<div class="tablewrap"><table>
-<thead><tr><th>Judge</th><th>What it checks</th></tr></thead>
-<tbody>
-<tr><td><strong>Numbers.app 15.3.1</strong></td><td>Opens the written <code>.numbers</code>, is asked what it sees, and saves it again</td></tr>
-<tr><td><strong>LibreOffice</strong></td><td>Opens the written <code>.ods</code> / <code>.xlsx</code>; can it convert to PDF, and do the elements survive</td></tr>
-<tr><td><strong>openpyxl</strong></td><td>Reads the written <code>.xlsx</code>; same values, same types (it is also the yardstick for behaviour)</td></tr>
-<tr><td><strong>numbers-parser</strong></td><td>Reads the written <code>.numbers</code> as an independent implementation</td></tr>
-</tbody>
-</table></div>
-</section>
-
-<section>
-<h2>Measure it yourself</h2>
-<p>To check that the numbers have not gone stale, run the tests in the repository.</p>
-<pre><code>swift test                            # 839 tests (everything)
-swift test --filter CrossFormat       # <strong>this page itself</strong>: the nine-direction check and the three-generation test
-swift test --filter FormatSupport     # the 47-row support table (docs/format-support.html)
-swift test --filter Preservation      # fix one cell and save: is everything else byte-identical
-swift test --filter ODFOnly           # the six OpenDocument-only features
-
-python3 Tests/NumbersParity/verify_with_numbers_app.py             # have Numbers.app itself open the files
-python3 Tests/NumbersParity/compare_excel_import_with_numbers.py   # compare the same workbook: our write against Numbers' own import
-python3 Tests/OpenpyxlParity/verify_with_openpyxl.py               # have openpyxl read them</code></pre>
-
-<dl class="qa">
-<dt>How are the warnings received in code?</dt>
-<dd>Both reading and writing come back with a list attached to the result. Unless you throw it away, nothing is missed.</dd>
-</dl>
-<pre><code>let result = try wb.write(as: .numbers)
-for warning in result.warnings {
-    print(warning.kind, warning.sheet ?? "-", warning.message)
-    // kind is dropped (whole) / degraded (in part) / substituted (replaced)
-}
-if let suggestion = result.suggestion {
-    print(suggestion.message)   // "N items cannot be expressed in this format. They would survive as XX"
-}
-
-print(wb.readWarnings)          // what was said at read time</code></pre>
-</section>
-
-<footer>
-SwiftSheets — interoperability guide. Numbers measured 2026-08-27 (9 directions × 46 features).<br>
-The format support table is <a href="format-support.html">format-support.html</a>;
-the implementation decisions are in <a href="implementation-spec.html">implementation-spec.html</a>, Appendices B.16, B.17 and B.22.
-</footer>
-</main>
-</body>
-</html>
+</style></head><body><main>
+<h1>Interoperability guide — Excel, ODS and Numbers</h1>
+<p class="lede">Conversions carry supported values and features through a common model. Inspect both read and write warnings before accepting a converted file.</p>
+<p class="meta">Measured 2026-09-16T14:17:34.162344+00:00 / SwiftSheets 1.0.0 / Synthetic 48-feature whole-workbook write/read probe; library reader, not an application rendering measurement.</p>
+<section><h2>How to read this measurement</h2>
+<p>The kitchen-sink workbook is first saved in each format and read back to form the source file. Each source is then
+written to all three destinations. A feature lost before the source file was created is not counted as a loss of this
+conversion. A zero here is not a guarantee that arbitrary files, opaque parts or visual layout survive.</p>
+<p>The probe detects 48 features, including presence of a formula, style, validation or print setting. It is binary:
+features rewritten in another shape can be absent from this profile without every aspect being dropped.
+For example, a Numbers pivot reads as an ordinary summary table, and a quote formula can become a cached value.
+One warning can describe several losses; warnings can also describe degradation without a binary loss.</p>
+<p>See the <a href="spec-feature-matrix.html">feature matrix</a> for separate read/write capabilities,
+and <a href="format-support.html">format support</a> for per-feature restrictions.
+Charts, images and shapes have dedicated tests and are not part of this 48-feature kitchen-sink profile.</p></section>
+<section><h2>All nine directions</h2><div class="tablewrap"><table>
+<thead><tr><th>Source → destination</th><th>Source features detected</th><th>Features no longer detected</th><th>Write warnings</th><th>Suggested format</th></tr></thead><tbody>
+<tr><td>numbers → numbers</td><td>23 / 48</td><td>0</td><td>0</td><td>—</td></tr>
+<tr><td>numbers → ods</td><td>23 / 48</td><td>3</td><td>4</td><td>xlsx</td></tr>
+<tr><td>numbers → xlsx</td><td>23 / 48</td><td>3</td><td>4</td><td>—</td></tr>
+<tr><td>ods → numbers</td><td>43 / 48</td><td>23</td><td>21</td><td>xlsx</td></tr>
+<tr><td>ods → ods</td><td>43 / 48</td><td>0</td><td>1</td><td>—</td></tr>
+<tr><td>ods → xlsx</td><td>43 / 48</td><td>4</td><td>4</td><td>—</td></tr>
+<tr><td>xlsx → numbers</td><td>41 / 48</td><td>21</td><td>21</td><td>xlsx</td></tr>
+<tr><td>xlsx → ods</td><td>41 / 48</td><td>2</td><td>6</td><td>xlsx</td></tr>
+<tr><td>xlsx → xlsx</td><td>41 / 48</td><td>0</td><td>0</td><td>—</td></tr>
+</tbody></table></div></section><section><h2>Losses and warnings by direction</h2>
+<details><summary>numbers → numbers</summary><p>Features no longer detected: none.</p><ul>
+<li>No write warnings for this probe.</li>
+</ul></details>
+<details><summary>numbers → ods</summary><p>Features no longer detected: cell controls, quote functions, several tables per sheet.</p><ul>
+<li>STOCK fetches live data and OpenFormula has no such function; the cached value is written, the way Numbers itself exports to Excel</li>
+<li>1 other table(s) not written: an ODS sheet holds a single table (write .numbers to keep them)</li>
+<li>1 other table(s) not written: an ODS sheet holds a single table (write .numbers to keep them)</li>
+<li>1 cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has no cell controls — the value is kept (write .numbers to keep the control)</li>
+</ul></details>
+<details><summary>numbers → xlsx</summary><p>Features no longer detected: cell controls, quote functions, several tables per sheet.</p><ul>
+<li>1 cell control(s) (checkbox, stepper, slider, rating) dropped: Excel has no cell controls — the value is kept (write .numbers to keep the control)</li>
+<li>1 other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)</li>
+<li>1 other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)</li>
+<li>STOCK fetches live data and Excel has no such function; the cached value is written, the way Numbers itself exports it</li>
+</ul></details>
+<details><summary>ods → numbers</summary><p>Features no longer detected: CF colour scale, CF data bar, CF icon set, array formulas, auto-filter, calculation settings, consolidation, custom properties, detective arrows, filter criteria, hidden sheets, label ranges, outline groups, page breaks, pivot tables, print area, sheet defined names, sheet protection, sort state, structured tables, tab colour, workbook defined names, workbook protection.</p><ul>
+<li>1 defined name(s) dropped: Numbers has no defined names</li>
+<li>workbook protection is dropped: Numbers locks a document with a password, which this writer does not set</li>
+<li>1 custom document propert(ies) dropped: Numbers has no free-form document fields</li>
+<li>1 named table(s) dropped: every Numbers table is named, but its own header rows are not this frame</li>
+<li>the auto-filter and its sort are dropped: a Numbers table filters and sorts through its own rules, which are not written</li>
+<li>sheet protection is dropped: Numbers protects a whole document, not a sheet</li>
+<li>1 array formula(s) written as the anchor&#x27;s formula and the covered cells&#x27; values: Numbers&#x27; own spill function does not survive its load-time recalculation, so the range is not kept (Appendix B.26)</li>
+<li>the page number (&amp;P) is drawn where Numbers draws it, in the centre of the footer</li>
+<li>the print area, page breaks are dropped: Numbers prints a canvas, not a page grid</li>
+<li>1 sheet-scoped name(s) dropped: Numbers has no defined names</li>
+<li>the tab colour is dropped: Numbers tabs have no colour</li>
+<li>row / column grouping is dropped: Numbers groups by category, not by outline level</li>
+<li>conditional format colorScale is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)</li>
+<li>conditional format dataBar is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)</li>
+<li>conditional format iconSet is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)</li>
+<li>pivot table Summary is written as a Numbers pivot: Numbers recomputes it from the source rows, and reading the file back gives its summary as an ordinary table</li>
+<li>Numbers has no hidden sheets; the sheet is visible</li>
+<li>a calculation setting is dropped — a search condition is a regular expression here, and is not a regular expression there; only OpenDocument keeps it in the file</li>
+<li>1 label range(s) — headings usable in formulas is dropped: only OpenDocument has it</li>
+<li>the stored consolidation definition is dropped: only OpenDocument has it</li>
+<li>1 cell(s) with tracing arrows is dropped: only OpenDocument has it</li>
+</ul></details>
+<details><summary>ods → ods</summary><p>Features no longer detected: none.</p><ul>
+<li>pivot table Summary is written as an ODF data pilot: the layout travels, the numbers are recomputed when the file is opened</li>
+</ul></details>
+<details><summary>ods → xlsx</summary><p>Features no longer detected: calculation settings, consolidation, detective arrows, label ranges.</p><ul>
+<li>a calculation setting is dropped — a search condition is a regular expression here, and is not a regular expression there; only OpenDocument keeps it in the file</li>
+<li>1 label range(s) — headings usable in formulas is dropped: only OpenDocument has it</li>
+<li>the stored consolidation definition is dropped: only OpenDocument has it</li>
+<li>1 cell(s) with tracing arrows is dropped: only OpenDocument has it</li>
+</ul></details>
+<details><summary>xlsx → numbers</summary><p>Features no longer detected: CF colour scale, CF data bar, CF icon set, array formulas, auto-filter, custom properties, filter criteria, hidden sheets, outline groups, page breaks, pivot tables, print area, protected ranges, scenarios, sheet defined names, sheet protection, sort state, structured tables, tab colour, workbook defined names, workbook protection.</p><ul>
+<li>3 part(s) preserved from the xlsx file cannot be carried into Numbers</li>
+<li>1 defined name(s) dropped: Numbers has no defined names</li>
+<li>workbook protection is dropped: Numbers locks a document with a password, which this writer does not set</li>
+<li>1 custom document propert(ies) dropped: Numbers has no free-form document fields</li>
+<li>1 named table(s) dropped: every Numbers table is named, but its own header rows are not this frame</li>
+<li>the auto-filter and its sort are dropped: a Numbers table filters and sorts through its own rules, which are not written</li>
+<li>sheet protection is dropped: Numbers protects a whole document, not a sheet</li>
+<li>1 protected range(s) dropped: Numbers has no window left open inside a protected sheet</li>
+<li>1 array formula(s) written as the anchor&#x27;s formula and the covered cells&#x27; values: Numbers&#x27; own spill function does not survive its load-time recalculation, so the range is not kept (Appendix B.26)</li>
+<li>1 scenario(s) dropped: Numbers has no scenarios</li>
+<li>the page number (&amp;P) is drawn where Numbers draws it, in the centre of the footer</li>
+<li>the print area, page breaks are dropped: Numbers prints a canvas, not a page grid</li>
+<li>1 sheet-scoped name(s) dropped: Numbers has no defined names</li>
+<li>the tab colour is dropped: Numbers tabs have no colour</li>
+<li>row / column grouping is dropped: Numbers groups by category, not by outline level</li>
+<li>conditional format colorScale is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)</li>
+<li>conditional format dataBar is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)</li>
+<li>conditional format iconSet is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)</li>
+<li>pivot table Summary is written as a Numbers pivot: Numbers recomputes it from the source rows, and reading the file back gives its summary as an ordinary table</li>
+<li>pivot table Summary: its banded look is dropped; a Numbers pivot takes the document&#x27;s table style</li>
+<li>Numbers has no hidden sheets; the sheet is visible</li>
+</ul></details>
+<details><summary>xlsx → ods</summary><p>Features no longer detected: protected ranges, scenarios.</p><ul>
+<li>pivot table Summary: its banded look is not carried into ODF, which has no pivot style</li>
+<li>pivot table Summary is written as an ODF data pilot: the layout travels, the numbers are recomputed when the file is opened</li>
+<li>1 scenario(s) dropped: an ODF scenario is a whole shadow sheet, not a named set of input values, so it cannot be written without changing the sheet list</li>
+<li>1 protected range(s) dropped: ODF protects a whole table, with no windows left open in it</li>
+<li>named table Sales written as an ODF database range: its banded-row style is not carried</li>
+<li>3 part(s) preserved from the xlsx file cannot be carried into ODS</li>
+</ul></details>
+<details><summary>xlsx → xlsx</summary><p>Features no longer detected: none.</p><ul>
+<li>No write warnings for this probe.</li>
+</ul></details>
+</section><section><h2>Current conversion boundaries</h2>
+<ul><li>ODS supports rich text, validations, conditional formatting and supported chart/shape types. Pivots are written
+as data-pilot layouts for the opening application to recalculate. Unsupported objects are reported.</li>
+<li>Numbers supports rich text and run hyperlinks, inline-list validations as pop-up menus, cell controls,
+several pivot fields per axis with one summarised value, supported canvas objects and some print settings.
+A pivot summary reads as an ordinary table. Arrays, protected ranges, defined names and unsupported settings have
+explicit restrictions in the feature matrix.</li>
+<li>Only one table per sheet is representable in XLSX/ODS; extra Numbers tables are reported as dropped.
+Cell controls become their selected values. Supported Numbers canvas objects can be converted; unsupported types
+are reported rather than described as absent from the format.</li></ul></section>
+<section><h2>Saving in the same format</h2><div class="tablewrap"><table>
+<tr><th>Format</th><th>Preservation boundary</th></tr>
+<tr><td>XLSX / XLSM</td><td>Whole-workbook same-format saves retain uninterpreted parts byte for byte (F3).
+Modelled content is regenerated with equivalent meaning; VBA requires XLSM. This is not identical ZIP output.</td></tr>
+<tr><td>ODS</td><td>Supported content, including pictures and supported charts/shapes, is reconstructed (F2).
+Some opaque embedded objects remain unlinked and are reported. This is not full opaque-part preservation.</td></tr>
+<tr><td>Numbers</td><td>Every save starts from the template. Supported content is regenerated; no F3 preservation.</td></tr>
+</table></div><p>Streaming carries values and formatting and has no opaque-part preservation.</p></section>
+<section><h2>Verification and reproducibility</h2>
+<p><code>CrossFormatConversionTests.everyLossIsNamedByItsOwnWarning</code> asserts named warnings for all nine
+conversions. The three-generation tests check that repeated saves keep detected features and well-formed XML.
+The measurement collector requires a successful test run and all nine records before replacing its source.</p>
+<pre><code>python3 scripts/measure-interoperability.py
+python3 scripts/build-interoperability-page.py
+python3 scripts/build-interoperability-page.py --check
+swift test --filter CrossFormatConversionTests
+swift test --filter FormatSupportTests</code></pre>
+<p>Library round trips do not prove application rendering. Independent checks are provided by
+<code>Tests/OpenpyxlParity/verify_with_openpyxl.py</code>,
+<code>Tests/NumbersParity/verify_with_numbers_parser.py</code> and
+<code>Tests/NumbersParity/verify_with_numbers_app.py</code>; see <a href="../MAINTENANCE.md">maintenance</a>
+for requirements and visual release checks. An unavailable judge is not a pass.</p>
+<p>Historical defects and the 2026-08-27 sweep are recorded in the dated appendices of the
+<a href="implementation-spec.html">implementation spec</a> (B.22–B.23). They do not describe today's capability limits.</p></section>
+<footer>Toolchain: Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)
+Target: arm64-apple-macosx27.0.0<br>Measurement base commit: 0dc561e9d18db2da7847657285f2f28b5c8e65b7 (working-tree changes may be present).</footer>
+<script type="application/json" id="measurement">{"meta": {"library_version": "1.0.0", "measured": "2026-09-16T14:17:34.162344+00:00", "swift": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0", "commit": "0dc561e9d18db2da7847657285f2f28b5c8e65b7", "scope": "Synthetic 48-feature whole-workbook write/read probe; library reader, not an application rendering measurement"}, "directions": [{"featureCount": 48, "from": "numbers", "lost": [], "sourceFeatures": 23, "suggestion": "", "to": "numbers", "warnings": []}, {"featureCount": 48, "from": "numbers", "lost": ["cell controls", "quote functions", "several tables per sheet"], "sourceFeatures": 23, "suggestion": "xlsx", "to": "ods", "warnings": ["STOCK fetches live data and OpenFormula has no such function; the cached value is written, the way Numbers itself exports to Excel", "1 other table(s) not written: an ODS sheet holds a single table (write .numbers to keep them)", "1 other table(s) not written: an ODS sheet holds a single table (write .numbers to keep them)", "1 cell control(s) (checkbox, stepper, slider, rating) dropped: ODF has no cell controls — the value is kept (write .numbers to keep the control)"]}, {"featureCount": 48, "from": "numbers", "lost": ["cell controls", "quote functions", "several tables per sheet"], "sourceFeatures": 23, "suggestion": "", "to": "xlsx", "warnings": ["1 cell control(s) (checkbox, stepper, slider, rating) dropped: Excel has no cell controls — the value is kept (write .numbers to keep the control)", "1 other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)", "1 other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)", "STOCK fetches live data and Excel has no such function; the cached value is written, the way Numbers itself exports it"]}, {"featureCount": 48, "from": "ods", "lost": ["CF colour scale", "CF data bar", "CF icon set", "array formulas", "auto-filter", "calculation settings", "consolidation", "custom properties", "detective arrows", "filter criteria", "hidden sheets", "label ranges", "outline groups", "page breaks", "pivot tables", "print area", "sheet defined names", "sheet protection", "sort state", "structured tables", "tab colour", "workbook defined names", "workbook protection"], "sourceFeatures": 43, "suggestion": "xlsx", "to": "numbers", "warnings": ["1 defined name(s) dropped: Numbers has no defined names", "workbook protection is dropped: Numbers locks a document with a password, which this writer does not set", "1 custom document propert(ies) dropped: Numbers has no free-form document fields", "1 named table(s) dropped: every Numbers table is named, but its own header rows are not this frame", "the auto-filter and its sort are dropped: a Numbers table filters and sorts through its own rules, which are not written", "sheet protection is dropped: Numbers protects a whole document, not a sheet", "1 array formula(s) written as the anchor's formula and the covered cells' values: Numbers' own spill function does not survive its load-time recalculation, so the range is not kept (Appendix B.26)", "the page number (&P) is drawn where Numbers draws it, in the centre of the footer", "the print area, page breaks are dropped: Numbers prints a canvas, not a page grid", "1 sheet-scoped name(s) dropped: Numbers has no defined names", "the tab colour is dropped: Numbers tabs have no colour", "row / column grouping is dropped: Numbers groups by category, not by outline level", "conditional format colorScale is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)", "conditional format dataBar is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)", "conditional format iconSet is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)", "pivot table Summary is written as a Numbers pivot: Numbers recomputes it from the source rows, and reading the file back gives its summary as an ordinary table", "Numbers has no hidden sheets; the sheet is visible", "a calculation setting is dropped — a search condition is a regular expression here, and is not a regular expression there; only OpenDocument keeps it in the file", "1 label range(s) — headings usable in formulas is dropped: only OpenDocument has it", "the stored consolidation definition is dropped: only OpenDocument has it", "1 cell(s) with tracing arrows is dropped: only OpenDocument has it"]}, {"featureCount": 48, "from": "ods", "lost": [], "sourceFeatures": 43, "suggestion": "", "to": "ods", "warnings": ["pivot table Summary is written as an ODF data pilot: the layout travels, the numbers are recomputed when the file is opened"]}, {"featureCount": 48, "from": "ods", "lost": ["calculation settings", "consolidation", "detective arrows", "label ranges"], "sourceFeatures": 43, "suggestion": "", "to": "xlsx", "warnings": ["a calculation setting is dropped — a search condition is a regular expression here, and is not a regular expression there; only OpenDocument keeps it in the file", "1 label range(s) — headings usable in formulas is dropped: only OpenDocument has it", "the stored consolidation definition is dropped: only OpenDocument has it", "1 cell(s) with tracing arrows is dropped: only OpenDocument has it"]}, {"featureCount": 48, "from": "xlsx", "lost": ["CF colour scale", "CF data bar", "CF icon set", "array formulas", "auto-filter", "custom properties", "filter criteria", "hidden sheets", "outline groups", "page breaks", "pivot tables", "print area", "protected ranges", "scenarios", "sheet defined names", "sheet protection", "sort state", "structured tables", "tab colour", "workbook defined names", "workbook protection"], "sourceFeatures": 41, "suggestion": "xlsx", "to": "numbers", "warnings": ["3 part(s) preserved from the xlsx file cannot be carried into Numbers", "1 defined name(s) dropped: Numbers has no defined names", "workbook protection is dropped: Numbers locks a document with a password, which this writer does not set", "1 custom document propert(ies) dropped: Numbers has no free-form document fields", "1 named table(s) dropped: every Numbers table is named, but its own header rows are not this frame", "the auto-filter and its sort are dropped: a Numbers table filters and sorts through its own rules, which are not written", "sheet protection is dropped: Numbers protects a whole document, not a sheet", "1 protected range(s) dropped: Numbers has no window left open inside a protected sheet", "1 array formula(s) written as the anchor's formula and the covered cells' values: Numbers' own spill function does not survive its load-time recalculation, so the range is not kept (Appendix B.26)", "1 scenario(s) dropped: Numbers has no scenarios", "the page number (&P) is drawn where Numbers draws it, in the centre of the footer", "the print area, page breaks are dropped: Numbers prints a canvas, not a page grid", "1 sheet-scoped name(s) dropped: Numbers has no defined names", "the tab colour is dropped: Numbers tabs have no colour", "row / column grouping is dropped: Numbers groups by category, not by outline level", "conditional format colorScale is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)", "conditional format dataBar is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)", "conditional format iconSet is dropped: Numbers has no rule of that kind (it drops the same ones when it imports an Excel file)", "pivot table Summary is written as a Numbers pivot: Numbers recomputes it from the source rows, and reading the file back gives its summary as an ordinary table", "pivot table Summary: its banded look is dropped; a Numbers pivot takes the document's table style", "Numbers has no hidden sheets; the sheet is visible"]}, {"featureCount": 48, "from": "xlsx", "lost": ["protected ranges", "scenarios"], "sourceFeatures": 41, "suggestion": "xlsx", "to": "ods", "warnings": ["pivot table Summary: its banded look is not carried into ODF, which has no pivot style", "pivot table Summary is written as an ODF data pilot: the layout travels, the numbers are recomputed when the file is opened", "1 scenario(s) dropped: an ODF scenario is a whole shadow sheet, not a named set of input values, so it cannot be written without changing the sheet list", "1 protected range(s) dropped: ODF protects a whole table, with no windows left open in it", "named table Sales written as an ODF database range: its banded-row style is not carried", "3 part(s) preserved from the xlsx file cannot be carried into ODS"]}, {"featureCount": 48, "from": "xlsx", "lost": [], "sourceFeatures": 41, "suggestion": "", "to": "xlsx", "warnings": []}]}</script>
+</main></body></html>

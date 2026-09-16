@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 1.7 Draft</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 4.95 / SwiftSheets 1.0.0</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> Implementation Spec
     </h1>
@@ -619,6 +619,23 @@ pre .vr { color: var(--code-var); }
 </header>
 
 <div class="container">
+
+<section aria-labelledby="current-spec"><h2 id="current-spec">Current specification and historical decisions</h2>
+<p>This document applies to SwiftSheets 1.0.0. The current revision is 4.95. The numbered chapters state the design;
+Appendix B records dated decisions and corrections. Where an older decision conflicts with a later correction,
+the later correction applies. Earlier descriptions of missing features or unavailable applications are historical,
+not the current support policy. Use the <a href="spec-feature-matrix.html">feature matrix</a> for current read/write support.
+Code excerpts illustrate the design and may omit members or setup; public declarations and the compiled cookbook
+are the runnable reference. Dated appendices retain names and assumptions that applied at the time.</p>
+<p>F3 opaque-part preservation applies to whole-workbook XLSX/XLSM saves in the same format (VBA requires XLSM).
+Modelled content is regenerated with equivalent meaning, not identical XML. ODS offers F2 reconstruction with
+explicit warnings for unsupported content; Numbers always generates a new document from its template.
+Streaming readers and writers do not offer opaque-part preservation.</p>
+<p>CI executes the test suite on macOS and Linux and builds every product for WASI. iOS 17+ is a supported deployment
+target; the repository CI does not execute tests on iOS. Security fixes target the latest 1.x release, with no separate
+long-term-support branch. Public verification commands are listed in <a href="../MAINTENANCE.md">MAINTENANCE.md</a>.
+References to workshop experiments in dated appendices describe research history; they are not prerequisites for
+using, building or testing the published package.</p></section>
 
 <!-- ===================== TOC ===================== -->
 <nav class="toc" aria-label="Table of contents">
@@ -671,18 +688,18 @@ pre .vr { color: var(--code-var); }
   <div class="compare"><table>
     <tr><th>Format</th><th>Read</th><th>Create new</th><th>Edit existing (with preservation)</th><th>Notes</th></tr>
     <tr><td><strong>XLSX</strong></td>
-      <td><span class="lv lv-full">◎ Full</span></td>
-      <td><span class="lv lv-full">◎ Full</span></td>
-      <td><span class="lv lv-full">◎ Full</span></td>
+      <td><span class="lv lv-full">◎ Supported</span></td>
+      <td><span class="lv lv-full">◎ Supported</span></td>
+      <td><span class="lv lv-full">◎ Supported</span></td>
       <td>The reference format. Quality is guaranteed here first</td></tr>
     <tr><td><strong>XLSM</strong></td>
-      <td><span class="lv lv-full">◎ Full</span></td>
+      <td><span class="lv lv-full">◎ Supported</span></td>
       <td><span class="lv lv-part">○ Supported</span></td>
       <td><span class="lv lv-full">◎ VBA kept</span></td>
       <td>Macros are only kept as opaque data; never executed or interpreted</td></tr>
     <tr><td><strong>ODS</strong></td>
-      <td><span class="lv lv-full">◎ Full</span></td>
-      <td><span class="lv lv-full">◎ Full</span></td>
+      <td><span class="lv lv-full">◎ Supported</span></td>
+      <td><span class="lv lv-full">◎ Supported</span></td>
       <td><span class="lv lv-part">○ Supported</span></td>
       <td>ODF 1.3 conformant. One wing of xlsx⇄ods conversion</td></tr>
     <tr><td><strong>Numbers</strong></td>
@@ -711,10 +728,10 @@ pre .vr { color: var(--code-var); }
     <span class="label">Binding development rules</span>
     <p>This library is published under the <strong>MIT licence</strong>. To make that hold, the following are fixed as development rules.</p>
     <ul>
-      <li><strong>Never look at LibreOffice's source code.</strong> MPL 2.0 is a file-level copyleft, and a port (translation) counts as a Modification, so a similar implementation written after reading it is a contamination risk. The only permitted references are the public specifications (ODF / OpenFormula) and the <em>output files</em> LibreOffice produces (.ods as test data)</li>
+      <li><strong>Do not use LibreOffice source as an implementation reference.</strong> This project's development policy uses public ODF/OpenFormula specifications and files produced by running LibreOffice as an independent judge. This is a project reference policy, not a general legal conclusion about reading source code.</li>
       <li><strong>Do not port openpyxl's code.</strong> Use it only for observing the shape of its API and as a source of test ideas. The implementation is written from the ECMA-376 specification</li>
       <li><strong>Numbers support uses the Protobuf definitions bundled with numbers-parser (MIT).</strong> Their origin and original licence are recorded in the NOTICE file. Analysing a format for interoperability is generally not treated as a problem, but this is not legal advice, so the README states that commercial embedding is the user's own judgement</li>
-      <li>Only MIT / Apache 2.0 style dependencies are allowed (ZIPFoundation: MIT, swift-protobuf: Apache 2.0). Adding a copyleft dependency is forbidden</li>
+      <li>The package has zero external package dependencies. Any proposed third-party material requires provenance and licence review; permissive MIT, Apache 2.0 and BSD terms must be retained where applicable. Adding a copyleft dependency is outside the project policy</li>
     </ul>
   </div>
   <p>
@@ -764,7 +781,7 @@ pre .vr { color: var(--code-var); }
     <text class="sv-t-sub" x="472" y="206" text-anchor="middle">IWA (reverse-engineered)</text>
 
     <rect class="sv-box-dash" x="572" y="168" width="168" height="52" rx="8"/>
-    <text class="sv-t-dk" x="656" y="190" text-anchor="middle">SheetFormula</text>
+    <text class="sv-t-dk" x="656" y="190" text-anchor="middle">SheetCore formulas</text>
     <text class="sv-t-sub" x="656" y="206" text-anchor="middle">Formula AST and dialect conversion (cross-cutting)</text>
 
     <line class="sv-line" x1="104" y1="220" x2="104" y2="252"/>
@@ -772,14 +789,14 @@ pre .vr { color: var(--code-var); }
     <line class="sv-line" x1="472" y1="220" x2="472" y2="252"/>
 
     <rect class="sv-box-soft" x="20" y="254" width="720" height="48" rx="8"/>
-    <text class="sv-t-dk" x="115" y="274" text-anchor="middle">ZIPFoundation</text>
+    <text class="sv-t-dk" x="115" y="274" text-anchor="middle">ZIP / DEFLATE</text>
     <text class="sv-t-sub" x="115" y="290" text-anchor="middle">MIT</text>
     <text class="sv-t-dk" x="300" y="274" text-anchor="middle">XML serializer</text>
     <text class="sv-t-sub" x="300" y="290" text-anchor="middle">our own implementation</text>
     <text class="sv-t-dk" x="470" y="274" text-anchor="middle">Snappy decoder</text>
     <text class="sv-t-sub" x="470" y="290" text-anchor="middle">our own implementation (raw blocks)</text>
-    <text class="sv-t-dk" x="640" y="274" text-anchor="middle">SwiftProtobuf</text>
-    <text class="sv-t-sub" x="640" y="290" text-anchor="middle">Apache 2.0</text>
+    <text class="sv-t-dk" x="640" y="274" text-anchor="middle">Dynamic Protobuf</text>
+    <text class="sv-t-sub" x="640" y="290" text-anchor="middle">our own implementation</text>
     <text class="sv-t-sub" x="380" y="322" text-anchor="middle">Foundation layer — containers and serialization</text>
   </svg>
   <figcaption>Figure 1 — Layer architecture. Format knowledge is confined to the codec layer and below</figcaption>
@@ -795,27 +812,15 @@ pre .vr { color: var(--code-var); }
   </table></div>
 
   <h3>2.2 SwiftPM target layout</h3>
-  <pre><span class="filename">Package.swift (excerpt)</span><code><span class="cm">// Split finely enough that a user can import only the codecs they need</span>
-<span class="kw">let</span> package = <span class="ty">Package</span>(
-    name: <span class="st">"SwiftSheets"</span>,
-    products: [
-        .library(name: <span class="st">"SheetCore"</span>,    targets: [<span class="st">"SheetCore"</span>]),    <span class="cm">// model + abstractions</span>
-        .library(name: <span class="st">"SheetXLSX"</span>,    targets: [<span class="st">"SheetXLSX"</span>]),    <span class="cm">// xlsx/xlsm</span>
-        .library(name: <span class="st">"SheetODS"</span>,     targets: [<span class="st">"SheetODS"</span>]),
-        .library(name: <span class="st">"SheetNumbers"</span>, targets: [<span class="st">"SheetNumbers"</span>]),
-        .library(name: <span class="st">"SwiftSheets"</span>,   targets: [<span class="st">"SwiftSheets"</span>]),   <span class="cm">// everything</span>
-    ],
-    dependencies: [
-        .package(url: <span class="st">"…/ZIPFoundation"</span>,  from: <span class="st">"0.9.0"</span>),
-        .package(url: <span class="st">"…/swift-protobuf"</span>, from: <span class="st">"1.25.0"</span>),  <span class="cm">// SheetNumbers only</span>
-    ]
-)</code></pre>
-  <div class="callout callout-tip">
-    <span class="label">Dependencies stay local</span>
-    <p><code>SheetCore</code> and <code>SheetFormula</code> have zero dependencies, <code>SheetXLSX</code> / <code>SheetODS</code>
-    depend only on ZIPFoundation, and SwiftProtobuf is confined to <code>SheetNumbers</code>. A user who does not need
-    Numbers is not made to carry the Protobuf runtime.</p>
-  </div>
+  <p>The package has no SwiftPM package dependencies. <code>SheetCore</code> owns the model, formulas, ZIP/XML
+  plumbing and <code>CodecSet</code>. <code>SheetXLSX</code>, <code>SheetODS</code>, <code>SheetCSV</code> and
+  <code>SheetNumbers</code> depend on the core. <code>SwiftSheets</code> re-exports them.
+  <code>SheetDecrypt</code> extends the umbrella; <code>SheetEncrypt</code> depends on and re-exports the decryptor.
+  Plain products never depend on either cipher product. <code>CZlib</code> maps existing system zlib headers;
+  Apple Compression is used where available, and WASI has a pure Swift route.
+  <a href="https://github.com/nanbu/SwiftSheets/blob/main/Package.swift">Package.swift</a> is the executable target graph.</p>
+  <p>The dynamic Protobuf implementation and extracted JSON descriptors replace the originally proposed
+  SwiftProtobuf runtime and build-time code generation (Appendix B.8).</p>
   <div class="callout callout-info">
     <span class="label">The set owns the entry points (Rev 4.32, B.44)</span>
     <p>The five entry points — open, query before reading, streaming read, streaming write and convert — belong to
@@ -980,7 +985,6 @@ pre .vr { color: var(--code-var); }
     <span class="kw">case</span> noCodec(<span class="kw">for</span>: <span class="ty">SheetFormat</span>)              <span class="cm">// that CodecSet has no codec for it (B.52)</span>
     <span class="kw">case</span> unsupportedEncryption(detail: <span class="ty">String</span>)   <span class="cm">// password protection we do not handle (reading and writing — B.52)</span>
     <span class="kw">case</span> unsupportedFeature(<span class="ty">String</span>)              <span class="cm">// a limit of the format or environment itself (CSV holds one sheet, etc.)</span>
-    <span class="kw">case</span> unsupportedVersion(found: <span class="ty">String</span>, supported: <span class="ty">ClosedRange</span>&lt;<span class="ty">Int</span>&gt;)  <span class="cm">// for Numbers</span>
     <span class="kw">case</span> formulaSyntax(offset: <span class="ty">Int</span>, detail: <span class="ty">String</span>)
     <span class="kw">case</span> invalidWorkbook(<span class="ty">String</span>)                 <span class="cm">// a model that cannot be written in the requested shape (0 sheets, etc.)</span>
     <span class="kw">case</span> sheetNotFound(name: <span class="ty">String</span>)             <span class="cm">// the sheet named does not exist (editSheet — Rev 4.0, B.30)</span>
@@ -1097,16 +1101,16 @@ pre .vr { color: var(--code-var); }
     <tr><th>Level</th><th>What is guaranteed</th><th>Where it applies</th></tr>
     <tr><td><strong>F1 value fidelity</strong></td><td>Cell values, formulas and sheet structure are equivalent</td><td>The minimum guarantee for conversion between any two formats</td></tr>
     <tr><td><strong>F2 format fidelity</strong></td><td>F1 + fonts, borders, fills, number formats, merges, column widths</td><td>The target level for xlsx⇄ods conversion</td></tr>
-    <tr><td><strong>F3 full preservation</strong></td><td>F2 + unsupported features (charts, pivots, VBA, and so on) kept without degradation</td><td>Required for <strong>saving over a file in the same format</strong></td></tr>
+    <tr><td><strong>F3 full preservation</strong></td><td>F2 + unsupported features (charts, pivots, VBA, and so on) kept without degradation</td><td>Whole-workbook XLSX/XLSM saves in the same format; not ODS, Numbers or streaming</td></tr>
   </table></div>
 
   <h3>6.2 The mechanism that keeps unknown elements</h3>
   <p>The preservation structure stays inside the package. A user reads the original format, the number of opaque parts and whether VBA is present from <code>Workbook.preservationSummary</code>,
   and tells grid, unread and non-grid apart through <code>Sheet.contentState</code> (Appendix B.46). Direct editing of raw parts, XML or relationship IDs is not part of the public API.</p>
   <ul>
-    <li><strong>When writing back to the same format</strong>: the opaqueParts are repackaged as their original bytes and the references (rels / Content_Types declarations) are kept consistent. This is F3</li>
+    <li><strong>When writing XLSX/XLSM back to the same format</strong>: the opaqueParts are repackaged as their original bytes and the references (rels / Content_Types declarations) are kept consistent. This is F3</li>
     <li><strong>When converting to another format</strong>: opaqueParts cannot be carried across. Their count and kinds are enumerated as <code>ConversionWarning.dropped</code></li>
-    <li><strong>For Numbers</strong>: Protobuf unknown fields are kept through SwiftProtobuf's preservation mechanism (effective only when reading and writing back the same file. Chapter 11)</li>
+    <li><strong>For Numbers</strong>: the reader handles unknown Protobuf fields, but writing starts from the bundled template and does not preserve the original document graph (Chapter 11)</li>
   </ul>
   <div class="callout callout-pitfall">
     <span class="label">The preservation pitfall</span>
@@ -1332,7 +1336,7 @@ pre .vr { color: var(--code-var); }
 
     <rect class="sv-box" x="472" y="36" width="132" height="52" rx="8"/>
     <text class="sv-t" x="538" y="58" text-anchor="middle">Protobuf decoding</text>
-    <text class="sv-t-sub" x="538" y="74" text-anchor="middle">SwiftProtobuf</text>
+    <text class="sv-t-sub" x="538" y="74" text-anchor="middle">Dynamic Protobuf</text>
     <line class="sv-arrow" x1="604" y1="62" x2="624" y2="62"/>
 
     <rect class="sv-box-root" x="626" y="36" width="124" height="52" rx="8"/>
@@ -1347,20 +1351,19 @@ pre .vr { color: var(--code-var); }
   <figcaption>Figure 4 — The IWA decoding pipeline. Each stage can be tested independently</figcaption>
   </figure>
 
-  <h3>10.1 Obtaining and generating the Protobuf definitions</h3>
-  <ol class="steps">
-    <li>Take in the .proto files and the TSPRegistry mapping table bundled with numbers-parser (MIT), and record their origin and original licence in NOTICE</li>
-    <li>Generate the Swift code with <code>protoc</code> + <code>protoc-gen-swift</code> and commit the generated files to the repository (not generated at build time — for reproducibility and to avoid a dependency on protoc)</li>
-    <li>The mapping table (type integer → message type name) is bundled as a JSON resource, separate from the code. Tracking a new Numbers version is then done entirely by replacing this resource and the protos</li>
-  </ol>
-
+  <h3>10.1 Obtaining the Protobuf schema</h3>
+  <p><code>scripts/extract-numbers-schema.py</code> reads numbers-parser's generated Protobuf descriptors and
+  mapping tables into five committed JSON resources: schema, registry, functions, constants and fonts.
+  The current extraction is from numbers-parser 4.19.0. The Swift runtime uses these descriptors through its own
+  dynamic Protobuf implementation; neither protoc nor a SwiftProtobuf dependency is needed to build the package.
+  Origin and MIT terms are recorded in NOTICE. Regenerate all five resources together when tracking a new generation.</p>
   <h3>10.2 Decoding rules</h3>
   <ul>
     <li>Both the directory bundle (the old save format) and the single ZIP are accepted. For a bundle, the inner <code>Index.zip</code> is treated as the substance</li>
     <li>Snappy is <strong>implemented ourselves in pure Swift, raw-block decompression only</strong> (the framing is custom, so an external library brings no advantage). LZ77-style decompression alone is about 100 lines with zero dependencies</li>
     <li>The cell data lives in the tiles of the TST family of messages (a packed format that divides the grid into rectangles). Numbers are converted from decimal128 to <code>Decimal</code> without loss</li>
     <li>Strings are references into the TableDataList (a shared pool). Formats and formula strings are resolved through the same kind of indirect reference</li>
-    <li>Unknown fields are kept by enabling SwiftProtobuf's unknown-field preservation, never discarded (used by the write-back in Chapter 11)</li>
+    <li>The dynamic Protobuf reader handles unknown fields without generated Swift types. Parsing those fields is not Numbers document round-trip preservation</li>
     <li>Several tables on one sheet are mapped as they are onto <code>Sheet.tables</code> (the model of Chapter 3 accommodates them)</li>
   </ul>
 
@@ -1368,8 +1371,8 @@ pre .vr { color: var(--code-var); }
   <div class="callout callout-warn">
     <span class="label">A permanent maintenance cost</span>
     <p>Apple does not guarantee compatibility of the format. Therefore (1) the README <strong>states the verified range of Numbers versions</strong>,
-    (2) a file outside that range does not raise <code>SheetError.unsupportedVersion</code> but is <strong>read as far as possible and then a warning is returned</strong>,
-    and (3) the procedure for a new Numbers release — regenerate the corpus → replace the protos → run the regression tests — is
+    (2) a file outside that range is not rejected solely for its version, but is <strong>read as far as possible and then a warning is returned</strong>,
+    and (3) the procedure for a new Numbers release — regenerate the corpus → refresh descriptor resources → run regression and application tests — is
     documented as <code>MAINTENANCE.md</code>. As an indicator for read failures, the generating version from
     <code>Metadata/BuildVersionHistory.plist</code> is included in the error information.</p>
   </div>
@@ -1379,9 +1382,9 @@ pre .vr { color: var(--code-var); }
 <section class="chapter" id="ch11">
   <h2 class="section-title"><span class="ch-num">Chapter 11</span>The Numbers codec (writing)</h2>
   <p class="section-lede">
-    Numbers is supported on the same footing as the other formats. The v1 writing feature set (values, formulas,
-    formatting, structure) is fully supported for Numbers too, and whatever cannot be expressed because the format is
-    undocumented is reported, without omission, through the warning mechanism shared by all formats.
+    Numbers is supported on the same footing as the other formats. The supported writing features (values, mapped formulas,
+    formatting and structure) are listed separately in the feature matrix. Unmapped or unsupported content is reported
+    through the warning mechanism shared by all formats.
     The acceptance bar is "Numbers opens the file without a warning and editing can continue as it is".
   </p>
 
@@ -1873,6 +1876,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
 
   <h3>A.3 Revision history</h3>
+  <p>Rev 4.95 (2026-09-16) aligns the current chapters and public guides with the released 1.0.0 behaviour; see B.104. Earlier rows retain their original wording.</p>
   <div class="compare"><table>
     <tr><th>Rev</th><th>Date</th><th>Contents</th></tr>
     <tr><td>1.0 Draft</td><td>2026-08-22</td><td>First draft. All 12 chapters plus the appendix</td></tr>
@@ -7536,6 +7540,15 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   <code>SWIFTSHEETS_EXCEL_FURIGANA_GROUND_TRUTH</code>, reads the Excel-authored <code>rPh</code> runs in five labels,
   requires their exact UTF-16 ranges and readings after the rewrite, and writes a sibling that Excel opens without
   repair and displays with its readings intact.</p>
+  <h3>B.104 Documentation alignment after 1.0.0 (Rev 4.95)</h3>
+  <p>Revised 2026-09-16. This is a documentation and public-fixture maintenance change, not a library behaviour change.
+  Current chapters now describe the zero-dependency dynamic Protobuf architecture rather than the original generated-code
+  proposal. F3 is scoped to same-format whole-workbook XLSX/XLSM saves; ODS reconstruction, Numbers template generation
+  and streaming retain their distinct boundaries. CI executes tests on macOS/Linux and builds WASI, not iOS tests.</p>
+  <p>The interoperability guide is generated from an asserting 48-feature, nine-direction measurement. Its binary feature
+  counts do not prove arbitrary-file or visual fidelity. The openpyxl ledger separates unported tests from individually
+  assessed missing APIs. Public-document, provenance and archive-metadata checks run in CI; fixture changes retain all
+  non-metadata entry payloads and upstream licence attribution. Published 1.0.0 tags are not moved for later corrections.</p>
 </section>
 
 </div><!-- /.container -->

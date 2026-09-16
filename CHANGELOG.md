@@ -9,6 +9,16 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Documentation
+
+- Align security and contribution policies with 1.x; distinguish supported deployment targets from CI test targets
+  and limit F3 opaque-part preservation to same-format whole-workbook XLSX/XLSM saves.
+- Update rich-text, run-link, chart/shape, print and pivot explanations. Replace the old interoperability sweep with
+  a reproducible, asserting nine-direction measurement and generated guide.
+- Separate unported openpyxl tests from missing APIs, record Numbers fixture provenance, include upstream MIT
+  licence texts, and check current policies, generated guides and fixture metadata in CI.
+- Normalise fixture author metadata and remove the absolute local path from the chart-sheet specimen.
+
 ## [1.0.0] — 2026-09-16
 
 SwiftSheets' first stable release. The public API now follows the documented 1.x stability policy. This release also

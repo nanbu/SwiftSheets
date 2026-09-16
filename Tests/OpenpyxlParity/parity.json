@@ -4,22 +4,23 @@
   "ported": "Same inputs and expectations, checked in Swift",
   "adapted": "Same behaviour, checked in Swift's form (exception → nil, XML comparison → read-back, etc.)",
   "na_api": "No corresponding API in SwiftSheets (roadmap)",
-  "na_python": "Python-specific; not applicable in Swift"
+  "na_python": "Python-specific; not applicable in Swift",
+  "unported": "Relevant SwiftSheets functionality exists or requires individual review; this upstream test has not been ported"
  },
  "modules": {
   "chart": {
-   "default": "na_api",
-   "reason": "Charts (the chart part) are not implemented",
+   "default": "unported",
+   "reason": "Chart APIs exist; these upstream chart tests have not been ported",
    "api": "Charts"
   },
   "chartsheet": {
-   "default": "na_api",
-   "reason": "Chartsheets are not implemented",
+   "default": "unported",
+   "reason": "Chartsheet preservation exists; these upstream tests have not been ported",
    "api": "Chartsheet"
   },
   "comments": {
-   "default": "na_api",
-   "reason": "No type corresponds to openpyxl's internal Comment / Shape representation (bind, merge_comments_vml, variants from Google Docs)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CellNote"
   },
   "compat": {
@@ -33,28 +34,28 @@
    "api": "—"
   },
   "drawing": {
-   "default": "na_api",
-   "reason": "Shapes and images (the drawing part) are not implemented",
+   "default": "unported",
+   "reason": "Images and shapes are modelled; these upstream drawing tests have not been ported",
    "api": "Drawings / Images"
   },
   "formatting": {
-   "default": "na_api",
-   "reason": "Conditional formatting is not implemented",
+   "default": "unported",
+   "reason": "Conditional formatting is modelled; these upstream tests have not been ported",
    "api": "Conditional formatting"
   },
   "formula": {
-   "default": "na_api",
-   "reason": "Formula tokenizer / translation are not implemented (formulas are kept as strings)",
+   "default": "unported",
+   "reason": "Formula AST parsing and translation exist; these upstream tests have not been ported",
    "api": "Formula tokenizer"
   },
   "pivot": {
-   "default": "na_api",
-   "reason": "Pivot tables are not implemented",
+   "default": "unported",
+   "reason": "Pivot APIs and preservation exist; these upstream tests have not been ported",
    "api": "Pivot tables"
   },
   "packaging": {
-   "default": "na_api",
-   "reason": "Package manifest / extended properties / custom properties are not implemented",
+   "default": "unported",
+   "reason": "Container and custom-property functionality exists; these upstream tests have not been ported",
    "api": "Packaging"
   },
   "xml": {
@@ -63,13 +64,13 @@
    "api": "—"
   },
   "workbook/external_link": {
-   "default": "na_api",
-   "reason": "External links are not implemented",
+   "default": "unported",
+   "reason": "External-link APIs and preservation exist; these upstream tests have not been ported",
    "api": "External links"
   },
   "openpyxl": {
-   "default": "na_api",
-   "reason": "read_only / VBA / custom document properties are not implemented",
+   "default": "unported",
+   "reason": "Streaming, VBA preservation and custom properties exist; these upstream tests have not been ported",
    "api": "read_only / VBA"
   },
   "utils": {
@@ -78,33 +79,33 @@
    "api": "—"
   },
   "styles": {
-   "default": "na_api",
-   "reason": "Unimplemented style features",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Styles"
   },
   "cell": {
-   "default": "na_api",
-   "reason": "Not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Cell"
   },
   "workbook": {
-   "default": "na_api",
-   "reason": "Not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Workbook"
   },
   "worksheet": {
-   "default": "na_api",
-   "reason": "Not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Worksheet"
   },
   "reader": {
-   "default": "na_api",
-   "reason": "Not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Reader"
   },
   "writer": {
-   "default": "na_api",
-   "reason": "Not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Writer"
   }
  },
@@ -272,8 +273,8 @@
    }
   },
   "cell/tests/test_read_only.py": {
-   "default": "na_api",
-   "reason": "read_only mode is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "read_only"
   },
   "cell/tests/test_rich_text.py": {
@@ -330,13 +331,13 @@
    }
   },
   "cell/tests/test_text.py": {
-   "default": "na_api",
-   "reason": "No XML objects for InlineFont / PhoneticText (furigana <rPh> is read and written as Cell.phonetic — B.70)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Phonetic text"
   },
   "cell/tests/test_writer.py": {
-   "default": "na_api",
-   "reason": "ArrayFormula / DataTableFormula / tz-aware datetimes are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Array formulas",
    "tests": {
     "test_write_cell": {
@@ -394,8 +395,8 @@
    }
   },
   "packaging/tests/test_relationship.py": {
-   "default": "na_api",
-   "reason": "—",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Relationships",
    "tests": {
     "test_ctor": {
@@ -424,8 +425,8 @@
    }
   },
   "packaging/tests/test_workbook.py": {
-   "default": "na_api",
-   "reason": "—",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Packaging",
    "tests": {
     "TestWorkbookPackage::test_ctor": {
@@ -443,13 +444,13 @@
    }
   },
   "reader/tests/test_drawings.py": {
-   "default": "na_api",
-   "reason": "Shapes and images are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Drawings"
   },
   "reader/tests/test_excel.py": {
-   "default": "na_api",
-   "reason": "manifest / file-extension check / VBA / external links / themes / chartsheets / read_only are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Packaging",
    "tests": {
     "test_read_empty_file": {
@@ -515,8 +516,8 @@
    }
   },
   "reader/tests/test_workbook.py": {
-   "default": "na_api",
-   "reason": "External links / workbook protection / warnings on broken sheet references / print-area warnings are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Workbook protection",
    "tests": {
     "TestWorkbookParser::test_ctor": {
@@ -632,8 +633,8 @@
    }
   },
   "styles/tests/test_differential.py": {
-   "default": "na_api",
-   "reason": "Differential styles (dxf) are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "DifferentialStyle",
    "tests": {
     "test_parse": {
@@ -651,8 +652,8 @@
    }
   },
   "styles/tests/test_fills.py": {
-   "default": "na_api",
-   "reason": "GradientFill / Stop are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "GradientFill",
    "tests": {
     "TestPatternFill::test_ctor": {
@@ -707,8 +708,8 @@
    }
   },
   "styles/tests/test_named_style.py": {
-   "default": "na_api",
-   "reason": "No type corresponds to openpyxl's internal NamedStyle representation (_style tuple, bind, recalculate, xf generation)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "NamedStyle",
    "tests": {
     "TestNamedCellStyle::test_from_xml": {
@@ -791,8 +792,8 @@
    "api": "—"
   },
   "styles/tests/test_stylesheet.py": {
-   "default": "na_api",
-   "reason": "Named styles",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "NamedStyle",
    "tests": {
     "TestStylesheet::test_from_simple": {
@@ -858,8 +859,8 @@
    }
   },
   "styles/tests/test_table.py": {
-   "default": "na_api",
-   "reason": "Table styles are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Table styles"
   },
   "tests/test_backend.py": {
@@ -868,21 +869,21 @@
    "api": "—"
   },
   "tests/test_iter.py": {
-   "default": "na_api",
-   "reason": "read_only mode (ReadOnlyWorksheet) / lazy loading of 1024 sheets / file descriptors are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "read_only",
    "tests": {
     "test_open_many_sheets": {
-     "status": "na_api",
-     "reason": "read_only (bigfoot.xlsx has 1024 sheets)"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_ctor": {
-     "status": "na_api",
-     "reason": "ReadOnlyWorksheet"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_force_dimension": {
-     "status": "na_api",
-     "reason": "ReadOnlyWorksheet"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_calculate_dimension": {
      "status": "adapted",
@@ -897,8 +898,8 @@
      "reason": "No read_only"
     },
     "test_get_max_cell": {
-     "status": "na_api",
-     "reason": "ReadOnlyWorksheet"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestRead::test_get_missing_cell": {
      "status": "ported"
@@ -977,8 +978,8 @@
    }
   },
   "tests/test_read.py": {
-   "default": "na_api",
-   "reason": "—",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Reader",
    "tests": {
     "test_read_general_style": {
@@ -991,13 +992,13 @@
    }
   },
   "tests/test_read_write_custom_doc_props.py": {
-   "default": "na_api",
-   "reason": "Custom document properties are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Custom doc props"
   },
   "tests/test_vba.py": {
-   "default": "na_api",
-   "reason": "Keeping VBA is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "VBA"
   },
   "utils/tests/test_bound_dictionary.py": {
@@ -1117,8 +1118,8 @@
    }
   },
   "utils/tests/test_formulas.py": {
-   "default": "na_api",
-   "reason": "No list of Excel function names (FORMULAE)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Formula names"
   },
   "utils/tests/test_indexed_list.py": {
@@ -1127,13 +1128,13 @@
    "api": "—"
   },
   "utils/tests/test_inference.py": {
-   "default": "na_api",
-   "reason": "No type guessing from strings (guess_types)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Type inference"
   },
   "utils/tests/test_protection.py": {
-   "default": "na_api",
-   "reason": "Password hashing for sheet protection is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet protection",
    "tests": {
     "test_password": {
@@ -1236,8 +1237,8 @@
    }
   },
   "workbook/tests/test_defined_name.py": {
-   "default": "na_api",
-   "reason": "No DefinedName object (destinations / type detection / reserved names); name → string only",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "DefinedName",
    "tests": {
     "TestDefinition::test_write": {
@@ -1263,18 +1264,18 @@
    }
   },
   "workbook/tests/test_external_reference.py": {
-   "default": "na_api",
-   "reason": "External references are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "External links"
   },
   "workbook/tests/test_function_group.py": {
-   "default": "na_api",
-   "reason": "functionGroups is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Function groups"
   },
   "workbook/tests/test_properties.py": {
-   "default": "na_api",
-   "reason": "fileVersion is not written",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "FileVersion",
    "tests": {
     "TestWorkbookProperties::test_ctor": {
@@ -1292,8 +1293,8 @@
    }
   },
   "workbook/tests/test_protection.py": {
-   "default": "na_api",
-   "reason": "Workbook protection is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Workbook protection",
    "tests": {
     "TestWorkbookProtection::test_ctor": {
@@ -1311,13 +1312,13 @@
    }
   },
   "workbook/tests/test_smart_tags.py": {
-   "default": "na_api",
-   "reason": "smartTags is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Smart tags"
   },
   "workbook/tests/test_views.py": {
-   "default": "na_api",
-   "reason": "CustomWorkbookView is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CustomWorkbookView",
    "tests": {
     "TestBookView::test_ctor": {
@@ -1331,30 +1332,30 @@
    }
   },
   "workbook/tests/test_web.py": {
-   "default": "na_api",
-   "reason": "webPublishing is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Web publishing"
   },
   "workbook/tests/test_workbook.py": {
-   "default": "na_api",
-   "reason": "Templates / VBA / tables / chartsheets / read_only / write_only are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Templates / VBA",
    "tests": {
     "TestWorkbook::test_template": {
-     "status": "na_api",
-     "reason": "MIME types for templates / VBA are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorkbook::test_named_styles": {
      "status": "adapted",
      "reason": "Normal only — checked via styles.xml"
     },
     "TestWorkbook::test_immutable_builtins": {
-     "status": "na_api",
-     "reason": "Named styles are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorkbook::test_duplicate_table_name": {
-     "status": "na_api",
-     "reason": "Tables are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorkbook::test_duplicate_defined_name": {
      "status": "adapted",
@@ -1388,8 +1389,8 @@
      "reason": "Ignored instead of raising"
     },
     "test_no_active": {
-     "status": "na_api",
-     "reason": "write_only mode is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_create_sheet": {
      "status": "ported"
@@ -1410,8 +1411,8 @@
      "reason": "Private `_add_sheet`"
     },
     "test_create_sheet_readonly": {
-     "status": "na_api",
-     "reason": "read_only mode is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_remove_sheet": {
      "status": "ported"
@@ -1424,16 +1425,16 @@
      "status": "ported"
     },
     "test_get_chartsheet": {
-     "status": "na_api",
-     "reason": "Chartsheets are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_del_worksheet": {
      "status": "adapted",
      "reason": "`removeSheet(named:)`"
     },
     "test_del_chartsheet": {
-     "status": "na_api",
-     "reason": "Chartsheets are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_contains": {
      "status": "ported"
@@ -1459,12 +1460,12 @@
      "status": "ported"
     },
     "TestCopy::test_cannot_copy_readonly": {
-     "status": "na_api",
-     "reason": "read_only"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestCopy::test_cannot_copy_writeonly": {
-     "status": "na_api",
-     "reason": "write_only"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestCopy::test_default_epoch": {
      "status": "ported"
@@ -1479,8 +1480,8 @@
    }
   },
   "workbook/tests/test_writer.py": {
-   "default": "na_api",
-   "reason": "Workbook protection is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Workbook protection",
    "tests": {
     "TestWorkbookWriter::test_hidden_worksheet": {
@@ -1517,8 +1518,8 @@
    }
   },
   "worksheet/tests/test_cell_range.py": {
-   "default": "na_api",
-   "reason": "—",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CellRange",
    "tests": {
     "TestCellRange::test_ctor": {
@@ -1706,13 +1707,13 @@
    }
   },
   "worksheet/tests/test_controls.py": {
-   "default": "na_api",
-   "reason": "Form controls are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Controls"
   },
   "worksheet/tests/test_datavalidation.py": {
-   "default": "na_api",
-   "reason": "Data validation is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Data validation",
    "tests": {
     "TestDataValidation::test_parser": {
@@ -1826,14 +1827,14 @@
      "reason": "TypeError for a required argument (Swift guarantees it through types)"
     },
     "TestColDimension::test_no_named_style": {
-     "status": "na_api",
-     "reason": "Named styles are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     }
    }
   },
   "worksheet/tests/test_filters.py": {
-   "default": "na_api",
-   "reason": "No colour / icon / dynamic / top 10 / date-group filters, nor openpyxl's helpers that build string conditions (startswith, etc.). The former are preserved as the source XML, unchanged",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet.filterColumns / sortState",
    "tests": {
     "TestFilterColumn::test_from_xml": {
@@ -1919,13 +1920,13 @@
    }
   },
   "worksheet/tests/test_formula.py": {
-   "default": "na_api",
-   "reason": "ArrayFormula / DataTableFormula are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Array formulas"
   },
   "worksheet/tests/test_header.py": {
-   "default": "na_api",
-   "reason": "No counterpart of openpyxl's HeaderFooterPart, which splits &L / &C / &R into sections — Excel's coded string is carried as is",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet.headerFooter",
    "tests": {
     "TestHeaderFooterItem::test_write": {
@@ -1963,8 +1964,8 @@
    }
   },
   "worksheet/tests/test_merge.py": {
-   "default": "na_api",
-   "reason": "—",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Merge",
    "tests": {
     "TestMergeCell::test_ctor": {
@@ -2016,8 +2017,8 @@
    }
   },
   "worksheet/tests/test_ole.py": {
-   "default": "na_api",
-   "reason": "OLE objects are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "OLE objects"
   },
   "worksheet/tests/test_page.py": {
@@ -2051,14 +2052,14 @@
      "reason": "Checked on the written XML"
     },
     "TestPageSetup::test_autoPageBreaks": {
-     "status": "na_api",
-     "reason": "autoPageBreaks is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     }
    }
   },
   "worksheet/tests/test_pagebreak.py": {
-   "default": "na_api",
-   "reason": "Nothing corresponds to openpyxl's Break / BreakList types — page breaks are an array of 0-based indices",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet.rowBreaks / columnBreaks",
    "tests": {
     "TestRowBreak::test_to_tree": {
@@ -2152,8 +2153,8 @@
    }
   },
   "worksheet/tests/test_protection.py": {
-   "default": "na_api",
-   "reason": "Sheet protection is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet protection",
    "tests": {
     "TestSheetProtection::test_ctor": {
@@ -2175,8 +2176,8 @@
    }
   },
   "worksheet/tests/test_read_only.py": {
-   "default": "na_api",
-   "reason": "read_only mode is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "read_only",
    "tests": {
     "TestReadOnlyWorksheet::test_read_rows": {
@@ -2198,8 +2199,8 @@
    }
   },
   "worksheet/tests/test_reader.py": {
-   "default": "na_api",
-   "reason": "Sheet protection / shared formulas / array formulas / conditional formatting / tables / page breaks / scenarios / legacyDrawing / customSheetViews are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet parts",
    "tests": {
     "test_number_convesion": {
@@ -2242,8 +2243,8 @@
      "reason": "SheetsError"
     },
     "TestWorksheetParser::test_sheet_protection": {
-     "status": "na_api",
-     "reason": "Sheet protection is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_formula": {
      "status": "adapted",
@@ -2302,24 +2303,24 @@
      "reason": "Checked via view / freezePanes"
     },
     "TestWorksheetParser::test_shared_formula": {
-     "status": "na_api",
-     "reason": "Expanding shared formulas (formula translation) is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_array_formula": {
-     "status": "na_api",
-     "reason": "Array formulas are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_table_formula": {
-     "status": "na_api",
-     "reason": "Data table formulas are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_extended_conditional_formatting": {
-     "status": "na_api",
-     "reason": "Conditional formatting is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_bad_conditional_format_rule": {
-     "status": "na_api",
-     "reason": "Conditional formatting is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_cell_without_coordinates": {
      "status": "adapted",
@@ -2350,8 +2351,8 @@
      "reason": "Same as above"
     },
     "TestWorksheetParser::test_conditonal_formatting": {
-     "status": "na_api",
-     "reason": "Conditional formatting is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_sheet_properties": {
      "status": "adapted",
@@ -2362,43 +2363,43 @@
      "reason": "Same as above"
     },
     "TestWorksheetParser::test_tables": {
-     "status": "na_api",
-     "reason": "Tables are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_auto_filter": {
      "status": "adapted",
      "reason": "sortState is not read"
     },
     "TestWorksheetParser::test_page_row_break": {
-     "status": "na_api",
-     "reason": "Page breaks are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_col_break": {
-     "status": "na_api",
-     "reason": "Page breaks are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_scenarios": {
-     "status": "na_api",
-     "reason": "Scenarios are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_legacy": {
-     "status": "na_api",
-     "reason": "legacyDrawing is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetParser::test_custom_views_breaks": {
-     "status": "na_api",
-     "reason": "customSheetViews is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetReader::test_cell": {
      "status": "ported"
     },
     "TestWorksheetReader::test_array_formula": {
-     "status": "na_api",
-     "reason": "Array formulas are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetReader::test_formatting": {
-     "status": "na_api",
-     "reason": "Conditional formatting is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetReader::test_merged": {
      "status": "ported"
@@ -2417,8 +2418,8 @@
      "status": "ported"
     },
     "TestWorksheetReader::test_tables": {
-     "status": "na_api",
-     "reason": "Tables are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetReader::test_cols": {
      "status": "adapted",
@@ -2439,13 +2440,13 @@
    }
   },
   "worksheet/tests/test_related.py": {
-   "default": "na_api",
-   "reason": "Related parts (related) are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Related parts"
   },
   "worksheet/tests/test_scenario.py": {
-   "default": "na_api",
-   "reason": "Scenarios are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Scenarios",
    "tests": {
     "TestScenario::test_ctor": {
@@ -2475,8 +2476,8 @@
    }
   },
   "worksheet/tests/test_table.py": {
-   "default": "na_api",
-   "reason": "Tables (ListObject) are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Tables",
    "tests": {
     "TestTable::test_ctor": {
@@ -2538,8 +2539,8 @@
    }
   },
   "worksheet/tests/test_worksheet.py": {
-   "default": "na_api",
-   "reason": "Formula translation / tables / charts / images are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Formula translation",
    "tests": {
     "TestWorksheet::test_path": {
@@ -2703,8 +2704,8 @@
      "reason": "Defaults to shown, as in Excel (in openpyxl, unset = false)"
     },
     "TestWorksheet::test_add_table": {
-     "status": "na_api",
-     "reason": "Tables are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheet::test_column_groups": {
      "status": "adapted",
@@ -2737,12 +2738,12 @@
      "status": "ported"
     },
     "test_add_chart": {
-     "status": "na_api",
-     "reason": "Charts are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_add_image": {
-     "status": "na_api",
-     "reason": "Images are not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestEditableWorksheet::test_move_row_down": {
      "status": "adapted",
@@ -2816,8 +2817,8 @@
      "status": "ported"
     },
     "TestEditableWorksheet::test_move_range_with_formula": {
-     "status": "na_api",
-     "reason": "Formula translation is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "test_deleta_all_rows": {
      "status": "adapted",
@@ -2846,8 +2847,8 @@
    }
   },
   "worksheet/tests/test_worksheet_copy.py": {
-   "default": "na_api",
-   "reason": "No check of copying between workbooks (same workbook only)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "copyWorksheet",
    "tests": {
     "TestWorksheetCopy::test_ctor": {
@@ -2855,8 +2856,8 @@
      "reason": "No WorksheetCopy type — `copyWorksheet`"
     },
     "TestWorksheetCopy::test_cannot_copy_between_workbooks": {
-     "status": "na_api",
-     "reason": "copyWorksheet works within one workbook only"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetCopy::test_cannot_copy_to_self": {
      "status": "na_python",
@@ -2908,8 +2909,8 @@
    }
   },
   "worksheet/tests/test_write_only.py": {
-   "default": "na_api",
-   "reason": "write_only mode is not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "write_only",
    "tests": {
     "test_append": {
@@ -2931,8 +2932,8 @@
    }
   },
   "worksheet/tests/test_writer.py": {
-   "default": "na_api",
-   "reason": "Sheet protection / scenarios / conditional formatting / data validation / headers / page breaks / shapes / comments / VBA / tables are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Sheet parts",
    "tests": {
     "TestWorksheetWriter::test_setup": {
@@ -3004,8 +3005,8 @@
      "reason": "Same as above"
     },
     "TestWorksheetWriter::test_write_rows_comment": {
-     "status": "na_api",
-     "reason": "Writing comments is not implemented"
+     "status": "unported",
+     "reason": "This upstream test has not been ported; individual API applicability remains to be reviewed"
     },
     "TestWorksheetWriter::test_write_row": {
      "status": "adapted",
@@ -3022,8 +3023,8 @@
    }
   },
   "writer/tests/test_excel.py": {
-   "default": "na_api",
-   "reason": "Tables / shapes / charts / images / chartsheets / comments / VBA are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Drawings / Charts",
    "tests": {
     "test_worksheet": {
@@ -3040,13 +3041,13 @@
    }
   },
   "writer/tests/test_template.py": {
-   "default": "na_api",
-   "reason": "Templates (xltx / xltm) are not implemented",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "Templates"
   },
   "comments/tests/test_comment_reader.py": {
-   "default": "na_api",
-   "reason": "Reading comments is supported. Only reading through an iterator is not (there is no read_only)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CellNote",
    "tests": {
     "test_read_comments": {
@@ -3060,8 +3061,8 @@
    }
   },
   "comments/tests/test_comment_sheet.py": {
-   "default": "na_api",
-   "reason": "No type corresponds to openpyxl's CommentSheet / CommentRecord (notes are carried on the cell)",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CellNote",
    "tests": {
     "TestCommentSheet::test_read_comments": {
@@ -3075,8 +3076,8 @@
    }
   },
   "comments/tests/test_shape_writer.py": {
-   "default": "na_api",
-   "reason": "No type corresponds to openpyxl's ShapeWriter. Merging into existing VML (merge_comments_vml) is not supported — the VML is rebuilt with a warning",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CellNote",
    "tests": {
     "test_write_comments_vml": {
@@ -3090,8 +3091,8 @@
    }
   },
   "comments/tests/test_author.py": {
-   "default": "na_api",
-   "reason": "The author is a string, with no dedicated type",
+   "default": "unported",
+   "reason": "These upstream tests have not been ported; individual API applicability remains to be reviewed",
    "api": "CellNote",
    "tests": {
     "TestAuthor::test_from_xml": {

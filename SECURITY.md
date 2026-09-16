@@ -2,7 +2,8 @@
 
 ## Supported versions
 
-The latest 0.x release. There is no long-term support branch before 1.0.
+The latest 1.x release receives security fixes. Update to the latest release before reporting a vulnerability.
+There is no separate long-term-support branch. The public API follows the [1.x stability policy](docs/api-stability.md).
 
 ## Reporting a vulnerability
 
