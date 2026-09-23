@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 4.95 / SwiftSheets 1.0.0</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 4.96 / SwiftSheets 1.1.0</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> Implementation Spec
     </h1>
@@ -621,7 +621,7 @@ pre .vr { color: var(--code-var); }
 <div class="container">
 
 <section aria-labelledby="current-spec"><h2 id="current-spec">Current specification and historical decisions</h2>
-<p>This document applies to SwiftSheets 1.0.0. The current revision is 4.95. The numbered chapters state the design;
+<p>This document applies to SwiftSheets 1.1.0. The current revision is 4.96. The numbered chapters state the design;
 Appendix B records dated decisions and corrections. Where an older decision conflicts with a later correction,
 the later correction applies. Earlier descriptions of missing features or unavailable applications are historical,
 not the current support policy. Use the <a href="spec-feature-matrix.html">feature matrix</a> for current read/write support.
@@ -1876,6 +1876,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
 
   <h3>A.3 Revision history</h3>
+  <p>Rev 4.96 (2026-09-23) requires checked ZIP64 value conversion and remaining-length checks before arithmetic; see B.105. Earlier rows retain their original wording.</p>
   <p>Rev 4.95 (2026-09-16) aligns the current chapters and public guides with the released 1.0.0 behaviour; see B.104. Earlier rows retain their original wording.</p>
   <div class="compare"><table>
     <tr><th>Rev</th><th>Date</th><th>Contents</th></tr>
@@ -1933,6 +1934,8 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.96 Draft</td><td>2026-09-23</td><td>Malformed ZIP64 counts, sizes and offsets are rejected before conversion or addition. The combined expanded-size budget is checked before it is incremented (B.105).</td></tr>
+    <tr><td>4.95 Draft</td><td>2026-09-16</td><td>Current chapters and public guides aligned with the released 1.0.0 behaviour (B.104).</td></tr>
     <tr><td>4.94 Draft</td><td>2026-09-16</td><td>Excel-authored advanced-content and furigana round trips became opt-in release judges (B.103). They found and fixed a localised threaded-comment mirror exposed as a note, a duplicated thread relationship, a late-registered style dependency, and misplaced compatibility children in workbook.xml. Excel opens both rewrites without repair, keeps SmartArt, a shape group and the edited thread, and displays the original reading spans.</td></tr>
     <tr><td>4.93 Draft</td><td>2026-09-16</td><td>Excel itself judged a generated pivot table for the first time (B.102). A cacheless pivot field needs a default item; without it Excel for Mac quit while opening the workbook. With it, Excel opens without repair, refreshes after a source edit, saves and reopens, and SwiftSheets reads all 17 saved pivots back.</td></tr>
     <tr><td>4.92 Draft</td><td>2026-09-16</td><td>Generalised B.100 into a standards-backed function-name boundary (B.101): 53 exact XLSX/OpenFormula mappings are data, not parser branches; an unrecognised OOXML <code>_xlfn.</code> function degrades to its cached value on ODS conversion instead of being emitted as a false OpenFormula name. Evaluation and approximate substitutions remain out of v1.</td></tr>
@@ -4905,6 +4908,11 @@ dropped  the form <span class="st">"表1フォーム"</span> is dropped: a Numbe
       16 MiB or more) are checked, and anything beyond is refused with <code>corruptedContainer</code>. <strong>Overlapping parts</strong>
       — several directory entries pointing at one local header, a construction in which a small file claims large contents — are refused too.
       All of these can be relaxed with <code>ReadOptions.limits</code> by a caller who knows its own files.</li>
+    <li><strong>Reject impossible ZIP64 declarations before arithmetic</strong>. Convert 64-bit counts, sizes and offsets to
+      the platform's <code>Int</code> only when representable. Check each file range using the remaining bytes before
+      forming its end offset, and check an entry's declared expanded size against the remaining total budget before
+      adding it. A malformed declaration must return <code>corruptedContainer</code>, including when a caller raises
+      the total budget to <code>Int.max</code>; it must never trap on integer overflow.</li>
     <li><strong>Copy while still compressed</strong> (<code>compressed(_:)</code> / <code>addCompressed</code>). Parts that are not interpreted
       (charts, pictures, pivot-table records, VBA) can be put into the next envelope as compressed bytes, without inflating or recompressing.
       F3's "byte-identical" becomes literal, and the time and memory of a round trip no longer scale with the size of those parts.
@@ -7549,6 +7557,14 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   counts do not prove arbitrary-file or visual fidelity. The openpyxl ledger separates unported tests from individually
   assessed missing APIs. Public-document, provenance and archive-metadata checks run in CI; fixture changes retain all
   non-metadata entry payloads and upstream licence attribution. Published 1.0.0 tags are not moved for later corrections.</p>
+  <h3>B.105 ZIP64 range validation (Rev 4.96)</h3>
+  <p>Revised 2026-09-23. ZIP64 metadata is untrusted even before any payload is decompressed.
+  Each 64-bit value must fit the platform integer, and each offset and length must fit within
+  the remaining file bytes before an end position is formed. The declared expanded size must
+  fit the remaining <code>ZipLimits.maxExpandedBytes</code> budget before it is added. A positive
+  expanded size with zero compressed bytes is corrupt. The same checks apply to probing,
+  whole-workbook reads and streaming reads across XLSX, ODS and Numbers. Boundary and malformed
+  ZIP64 cases are pinned in <code>ZipTests</code> and included in the fuzz corpus.</p>
 </section>
 
 </div><!-- /.container -->

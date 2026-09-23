@@ -60,6 +60,11 @@ package struct ZipArchive: Sendable {
     package let names: [String]
     package let limits: ZipLimits
 
+    /// Check a file-derived range without forming an end offset that could overflow `Int`.
+    private static func fits(_ offset: Int, length: Int, in total: Int) -> Bool {
+        offset >= 0 && length >= 0 && offset <= total && length <= total - offset
+    }
+
     package init(data: Data, limits: ZipLimits = .default) throws {
         try self.init(source: DataByteSource(data), limits: limits)
     }
@@ -90,18 +95,27 @@ package struct ZipArchive: Sendable {
             var cdOffset = Int(truncatingIfNeeded: Zip.u32(b, eocd + 16))
             // ZIP64: a locator sits just before the record, and the real numbers are in the record it points at
             if eocd >= 20, Zip.u32(b, eocd - 20) == 0x0706_4b50 {
-                let recordOffset = Int(Zip.u64(b, eocd - 20 + 8))
-                guard recordOffset >= 0, recordOffset + 56 <= total else { throw SheetError.corruptedContainer(detail: "ZIP64 end of central directory lies outside the file") }
+                guard let recordOffset = Int(exactly: Zip.u64(b, eocd - 12)),
+                      Self.fits(recordOffset, length: 56, in: total) else {
+                    throw SheetError.corruptedContainer(detail: "ZIP64 end of central directory lies outside the file")
+                }
                 let record = try source.bytes(in: recordOffset..<(recordOffset + 56))
                 let r = [UInt8](record)
                 guard Zip.u32(r, 0) == 0x0606_4b50 else { throw SheetError.corruptedContainer(detail: "bad ZIP64 end of central directory") }
-                count = Int(Zip.u64(r, 32))
-                cdSize = Int(Zip.u64(r, 40))
-                cdOffset = Int(Zip.u64(r, 48))
+                guard let zip64Count = Int(exactly: Zip.u64(r, 32)),
+                      let zip64Size = Int(exactly: Zip.u64(r, 40)),
+                      let zip64Offset = Int(exactly: Zip.u64(r, 48)) else {
+                    throw SheetError.corruptedContainer(detail: "ZIP64 central directory value out of range")
+                }
+                count = zip64Count
+                cdSize = zip64Size
+                cdOffset = zip64Offset
             } else if count == 0xFFFF || cdSize == Zip.marker32 || cdOffset == Zip.marker32 {
                 throw SheetError.corruptedContainer(detail: "ZIP64 markers without a ZIP64 record")
             }
-            guard count >= 0, cdSize >= 0, cdOffset >= 0, cdOffset + cdSize <= total else { throw SheetError.corruptedContainer(detail: "corrupt central directory") }
+            guard count >= 0, Self.fits(cdOffset, length: cdSize, in: total) else {
+                throw SheetError.corruptedContainer(detail: "corrupt central directory")
+            }
             return (cdOffset..<(cdOffset + cdSize), count)
         }
         guard count <= limits.maxEntries else {
@@ -117,26 +131,33 @@ package struct ZipArchive: Sendable {
             let bytes = cd.bindMemory(to: UInt8.self)
             var p = 0
             for _ in 0..<count {
-                guard p + 46 <= bytes.count, Zip.u32(bytes, p) == 0x0201_4b50 else { throw SheetError.corruptedContainer(detail: "bad central directory entry") }
+                guard Self.fits(p, length: 46, in: bytes.count), Zip.u32(bytes, p) == 0x0201_4b50 else {
+                    throw SheetError.corruptedContainer(detail: "bad central directory entry")
+                }
                 let method = Zip.u16(bytes, p + 10), crc = Zip.u32(bytes, p + 16)
                 var csize = Int(truncatingIfNeeded: Zip.u32(bytes, p + 20)), usize = Int(truncatingIfNeeded: Zip.u32(bytes, p + 24))
                 let nameLen = Int(Zip.u16(bytes, p + 28)), extraLen = Int(Zip.u16(bytes, p + 30)), commentLen = Int(Zip.u16(bytes, p + 32))
                 var localOffset = Int(truncatingIfNeeded: Zip.u32(bytes, p + 42))
                 // the header's own lengths are attacker-controlled: every slice below must be inside the buffer
-                guard p + 46 + nameLen + extraLen + commentLen <= bytes.count else { throw SheetError.corruptedContainer(detail: "central directory entry runs past the end of the file") }
-                let name = String(decoding: UnsafeBufferPointer(rebasing: bytes[(p + 46)..<(p + 46 + nameLen)]), as: UTF8.self)
+                let entryLength = 46 + nameLen + extraLen + commentLen
+                guard Self.fits(p, length: entryLength, in: bytes.count) else {
+                    throw SheetError.corruptedContainer(detail: "central directory entry runs past the end of the file")
+                }
+                let nameStart = p + 46
+                let name = String(decoding: UnsafeBufferPointer(rebasing: bytes[nameStart..<(nameStart + nameLen)]), as: UTF8.self)
                 // ZIP64: a field at its maximum is a placeholder for the 64-bit value in the extra field
                 if usize == Zip.marker32 || csize == Zip.marker32 || localOffset == Zip.marker32 {
-                    var q = p + 46 + nameLen
+                    var q = nameStart + nameLen
                     let end = q + extraLen
                     var found = false
-                    while q + 4 <= end {
+                    while q <= end - 4 {
                         let id = Zip.u16(bytes, q), size = Int(Zip.u16(bytes, q + 2))
-                        guard q + 4 + size <= end else { throw SheetError.corruptedContainer(detail: "extra field runs past its entry") }
+                        guard size <= end - (q + 4) else { throw SheetError.corruptedContainer(detail: "extra field runs past its entry") }
+                        let fieldEnd = q + 4 + size
                         if id == 0x0001 {
                             var f = q + 4
                             func take() throws -> Int {
-                                guard f + 8 <= q + 4 + size else { throw SheetError.corruptedContainer(detail: "ZIP64 extra field too short") }
+                                guard f <= fieldEnd - 8 else { throw SheetError.corruptedContainer(detail: "ZIP64 extra field too short") }
                                 defer { f += 8 }
                                 let v = Zip.u64(bytes, f)
                                 guard v <= UInt64(Int.max) else { throw SheetError.corruptedContainer(detail: "ZIP64 value out of range") }
@@ -148,22 +169,32 @@ package struct ZipArchive: Sendable {
                             found = true
                             break
                         }
-                        q += 4 + size
+                        q = fieldEnd
                     }
                     guard found else { throw SheetError.corruptedContainer(detail: "ZIP64 placeholder without a ZIP64 extra field") }
                 }
-                guard localOffset + 30 <= total else { throw SheetError.corruptedContainer(detail: "local header offset past the end of the file") }
-                guard csize >= 0, usize >= 0, localOffset + 30 + nameLen + csize <= total else { throw SheetError.corruptedContainer(detail: "entry \(name) runs past the end of the file") }
+                guard Self.fits(localOffset, length: 30, in: total) else {
+                    throw SheetError.corruptedContainer(detail: "local header offset past the end of the file")
+                }
+                guard csize >= 0, usize >= 0,
+                      Self.fits(localOffset, length: 30 + nameLen, in: total),
+                      csize <= total - (localOffset + 30 + nameLen) else {
+                    throw SheetError.corruptedContainer(detail: "entry \(name) runs past the end of the file")
+                }
+                guard csize > 0 || usize == 0 else {
+                    throw SheetError.corruptedContainer(detail: "entry \(name) declares data with no compressed bytes")
+                }
                 if usize >= limits.ratioFloor, csize > 0, usize / csize > limits.maxCompressionRatio {
                     throw SheetError.corruptedContainer(detail: "entry \(name) claims to expand \(usize / csize)-fold, above the limit of \(limits.maxCompressionRatio)")
                 }
-                expanded += usize
-                guard expanded <= limits.maxExpandedBytes else {
+                guard limits.maxExpandedBytes >= 0, expanded <= limits.maxExpandedBytes,
+                      usize <= limits.maxExpandedBytes - expanded else {
                     throw SheetError.corruptedContainer(detail: "the package would expand to more than \(limits.maxExpandedBytes) bytes")
                 }
+                expanded += usize
                 let entry = Entry(name: name, method: method, crc32: crc, compressedSize: csize, uncompressedSize: usize, localHeaderOffset: localOffset, nameLength: nameLen)
                 if entries.updateValue(entry, forKey: name) == nil { names.append(name) }
-                p += 46 + nameLen + extraLen + commentLen
+                p += entryLength
             }
         }
         // entries may not share bytes: a directory whose entries point into one another is how a small file
@@ -196,14 +227,23 @@ package struct ZipArchive: Sendable {
     /// from the central directory's.
     package func dataRange(of e: Entry) throws -> Range<Int> {
         let h = e.localHeaderOffset
+        guard Self.fits(h, length: 30, in: source.count) else {
+            throw SheetError.corruptedContainer(detail: "local header of \(e.name) lies outside the file")
+        }
         try source.check(h..<(h + 30), what: "local header of \(e.name)")
         let start = try source.withBytes(in: h..<(h + 30)) { raw -> Int in
             let bytes = raw.bindMemory(to: UInt8.self)
             guard Zip.u32(bytes, 0) == 0x0403_4b50 else { throw SheetError.corruptedContainer(detail: "bad local header for \(e.name)") }
             let nameLen = Int(Zip.u16(bytes, 26)), extraLen = Int(Zip.u16(bytes, 28))
-            return h + 30 + nameLen + extraLen
+            let headerLength = 30 + nameLen + extraLen
+            guard Self.fits(h, length: headerLength, in: source.count) else {
+                throw SheetError.corruptedContainer(detail: "truncated local header for \(e.name)")
+            }
+            return h + headerLength
         }
-        guard e.compressedSize >= 0, start + e.compressedSize <= source.count else { throw SheetError.corruptedContainer(detail: "truncated data for \(e.name)") }
+        guard Self.fits(start, length: e.compressedSize, in: source.count) else {
+            throw SheetError.corruptedContainer(detail: "truncated data for \(e.name)")
+        }
         return start..<(start + e.compressedSize)
     }
 
@@ -273,8 +313,8 @@ package final class ZipEntryStream {
     package func next() throws -> Data? {
         guard !done else { return nil }
         guard let decoder else {
-            let end = Swift.min(position + ZipEntryStream.pieceSize * 4, range.upperBound)
-            guard position < end else { done = true; return nil }
+            guard position < range.upperBound else { done = true; return nil }
+            let end = position + Swift.min(ZipEntryStream.pieceSize * 4, range.upperBound - position)
             let piece = try archive.source.bytes(in: position..<end)
             position = end
             largestPiece = Swift.max(largestPiece, piece.count)
@@ -287,7 +327,7 @@ package final class ZipEntryStream {
                 return nil
             }
             if pendingOffset >= pending.count, position < range.upperBound {
-                let end = Swift.min(position + ZipEntryStream.pieceSize, range.upperBound)
+                let end = position + Swift.min(ZipEntryStream.pieceSize, range.upperBound - position)
                 pending = try archive.source.withBytes(in: position..<end) { [UInt8]($0) }
                 pendingOffset = 0
                 position = end

@@ -9,6 +9,15 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-09-23
+
+### Fixed
+
+- **Malformed ZIP64 metadata is rejected without terminating the reader.** The shared ZIP parser
+  checks 64-bit values, file ranges and the remaining expanded-size budget before conversion or
+  addition. Probe and read paths now return an ordinary rejection for impossible declarations;
+  valid ZIP64 archives remain supported. Boundary cases are covered by regression tests and fuzzing.
+
 ### Documentation
 
 - Align security and contribution policies with 1.x; distinguish supported deployment targets from CI test targets
@@ -1499,7 +1508,8 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/nanbu/SwiftSheets/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/nanbu/SwiftSheets/compare/0.28.0...1.0.0
 [0.28.0]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...0.28.0
 [0.27.0]: https://github.com/nanbu/SwiftSheets/compare/0.26.0...0.27.0

@@ -49,6 +49,7 @@ import SwiftSheets
         out.append(("generated.ods", (try? Workbook(sheets: [sampleSheet()]).write(as: .ods).data) ?? Data()))
         out.append(("generated.numbers", (try? Workbook(sheets: [sampleSheet()]).write(as: .numbers).data) ?? Data()))
         out.append(("generated.csv", Data("a,b,c\n1,2,\"x\ny\"\n".utf8)))
+        out.append(("zip64-declaration.xlsx", ZipTests.archiveWithZIP64Value(UInt64(Int.max), secondPayload: Data([0]))))
         return out.filter { !$0.1.isEmpty }
     }()
 

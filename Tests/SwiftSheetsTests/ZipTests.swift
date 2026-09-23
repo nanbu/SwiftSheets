@@ -14,6 +14,24 @@ import SwiftSheets
         return dir.appendingPathComponent(name)
     }
 
+    /// Put one ZIP64 value into the second central-directory entry without adding any large payload.
+    static func archiveWithZIP64Value(_ value: UInt64, field: Int = 24, secondPayload: Data = Data()) -> Data {
+        let writer = ZipWriter()
+        writer.add("a", Data([1]), stored: true)
+        writer.add("b", secondPayload, stored: true)
+        var data = writer.finish()
+        let bytes = [UInt8](data)
+        let first = data.range(of: Data([0x50, 0x4b, 0x01, 0x02]))!.lowerBound
+        let second = first + 46 + Int(Zip.u16(bytes, first + 28)) + Int(Zip.u16(bytes, first + 30)) + Int(Zip.u16(bytes, first + 32))
+        let eocd = data.range(of: Data([0x50, 0x4b, 0x05, 0x06]))!.lowerBound
+        let insertion = second + 46 + Int(Zip.u16(bytes, second + 28))
+        data.replaceSubrange((second + field)..<(second + field + 4), with: Zip.le32(UInt32.max))
+        data.replaceSubrange((second + 30)..<(second + 32), with: Zip.le16(12))
+        data.replaceSubrange(insertion..<insertion, with: Zip.le16(1) + Zip.le16(8) + Zip.le64(value))
+        data.replaceSubrange((eocd + 12 + 12)..<(eocd + 16 + 12), with: Zip.le32(Zip.u32(bytes, eocd + 12) + 12))
+        return data
+    }
+
     // MARK: - ZIP64
 
     /// An archive Info-ZIP wrote with ZIP64 structures forced on: a ZIP64 end-of-central-directory record, its
@@ -143,6 +161,65 @@ import SwiftSheets
     }
 
     // MARK: - Bombs
+
+    /// An earlier entry's one byte plus Int.max must be refused before the addition can trap.
+    @Test func zip64ExpandedTotalCannotOverflow() throws {
+        let data = Self.archiveWithZIP64Value(UInt64(Int.max), secondPayload: Data([0]))
+        var limits = ZipLimits(maxExpandedBytes: Int.max, maxCompressionRatio: Int.max, ratioFloor: Int.max)
+        let error = #expect(throws: SheetError.self) { try ZipArchive(data: data, limits: limits) }
+        if case .corruptedContainer(let detail)? = error { #expect(detail.contains("expand")) }
+        limits.maxExpandedBytes = 1
+        #expect(throws: SheetError.self) { try ZipArchive(data: data, limits: limits) }
+        #expect(throws: SheetError.self) { try ZipArchive(data: data) }
+    }
+
+    /// A zero-byte payload cannot declare data; probing the same bytes from disk must also survive.
+    @Test func zip64SizeWithNoCompressedBytesIsRefusedByProbe() throws {
+        let data = Self.archiveWithZIP64Value(UInt64(Int.max))
+        #expect(throws: SheetError.self) { try ZipArchive(data: data) }
+        var limits = ZipLimits()
+        limits.maxExpandedBytes = 1
+        #expect(throws: SheetError.self) { try ZipArchive(data: data, limits: limits) }
+        let url = Self.temporary("crafted.xlsx")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        try data.write(to: url)
+        #expect(try SheetFormat.probe(contentsOf: url) == .unrecognized)
+    }
+
+    /// Values beyond the platform's Int and offsets near its end are malformed, not runtime traps.
+    @Test func zip64ValuesAndOffsetsOutsideTheFileAreRefused() throws {
+        for value in [UInt64(Int.max), UInt64(Int.max) + 1] {
+            let oversizedEntry = Self.archiveWithZIP64Value(value, secondPayload: Data([0]))
+            #expect(throws: SheetError.self) { try ZipArchive(data: oversizedEntry) }
+            let oversizedOffset = Self.archiveWithZIP64Value(value, field: 42)
+            #expect(throws: SheetError.self) { try ZipArchive(data: oversizedOffset) }
+        }
+
+        let writer = ZipWriter()
+        writer.forceZip64 = true
+        writer.add("a", Data([1]), stored: true)
+        let original = writer.finish()
+        let record = original.range(of: Data([0x50, 0x4b, 0x06, 0x06]))!.lowerBound
+        let locator = original.range(of: Data([0x50, 0x4b, 0x06, 0x07]))!.lowerBound
+        for (offset, value) in [(locator + 8, UInt64.max), (locator + 8, UInt64(Int.max)),
+                                (record + 32, UInt64.max), (record + 40, UInt64.max),
+                                (record + 40, UInt64(Int.max)), (record + 48, UInt64.max),
+                                (record + 48, UInt64(Int.max))] {
+            var data = original
+            data.replaceSubrange(offset..<(offset + 8), with: Zip.le64(value))
+            #expect(throws: SheetError.self) { try ZipArchive(data: data) }
+        }
+    }
+
+    @Test func localHeaderLengthsOutsideTheFileAreRefused() throws {
+        let writer = ZipWriter()
+        writer.add("a", Data([1]), stored: true)
+        var data = writer.finish()
+        data.replaceSubrange(26..<28, with: Zip.le16(UInt16.max))
+        data.replaceSubrange(28..<30, with: Zip.le16(UInt16.max))
+        let zip = try ZipArchive(data: data)
+        #expect(throws: SheetError.self) { try zip.read("a") }
+    }
 
     /// Two entries sharing bytes is how a small file claims to be a large one. The directory is refused.
     @Test func overlappingEntriesAreRefused() throws {
