@@ -13,7 +13,7 @@
   "os": "27.0",
   "swift": "swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
   "material": "synthetic, 100 columns: a label, five integers, three decimals and a Japanese category, repeated across the width with the numbers offset per block; the text columns past the first block draw on a vocabulary of fifty; one sheet; no formatting",
-  "library_version": "1.1.0"
+  "library_version": "1.1.1"
  },
  "tiers": [
   {

@@ -27,6 +27,9 @@ public struct StructuredTable: Hashable, Sendable {
     public var autoFilter: CellRange?
     /// What each filtered column of the table lets through.
     public var filterColumns: [FilterColumn]
+    /// The sort nested in this table's auto-filter. The public sheet sort is its format-neutral view when this
+    /// is the only filtered table on the sheet.
+    package var autoFilterSortState: SortState?
     /// The tooltip Excel shows for the table.
     public var comment: String?
     /// "worksheet" (the ordinary kind), "queryTable" or "xml". Nil is the ordinary kind.
@@ -56,6 +59,7 @@ public struct StructuredTable: Hashable, Sendable {
         self.styleInfo = styleInfo
         self.autoFilter = autoFilter ?? (headerRowCount > 0 ? ref : nil)
         self.filterColumns = filterColumns
+        self.autoFilterSortState = nil
         self.comment = comment
         self.tableType = tableType
     }
@@ -84,7 +88,8 @@ public struct StructuredTable: Hashable, Sendable {
         a.name == b.name && a.displayName == b.displayName && a.ref == b.ref
             && a.headerRowCount == b.headerRowCount && a.totalsRowCount == b.totalsRowCount
             && a.totalsRowShown == b.totalsRowShown && a.columns == b.columns && a.styleInfo == b.styleInfo
-            && a.autoFilter == b.autoFilter && a.filterColumns == b.filterColumns && a.comment == b.comment
+            && a.autoFilter == b.autoFilter && a.filterColumns == b.filterColumns
+            && a.autoFilterSortState == b.autoFilterSortState && a.comment == b.comment
             && a.tableType == b.tableType && a.otherAttributes == b.otherAttributes && a.fragments == b.fragments
     }
 
@@ -92,7 +97,7 @@ public struct StructuredTable: Hashable, Sendable {
         hasher.combine(name); hasher.combine(displayName); hasher.combine(ref)
         hasher.combine(headerRowCount); hasher.combine(totalsRowCount); hasher.combine(totalsRowShown)
         hasher.combine(columns); hasher.combine(styleInfo); hasher.combine(autoFilter)
-        hasher.combine(filterColumns); hasher.combine(comment); hasher.combine(tableType)
+        hasher.combine(filterColumns); hasher.combine(autoFilterSortState); hasher.combine(comment); hasher.combine(tableType)
         hasher.combine(otherAttributes); hasher.combine(fragments)
     }
 

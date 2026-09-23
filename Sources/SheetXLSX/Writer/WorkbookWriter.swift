@@ -578,9 +578,11 @@ enum WorkbookWriter {
             var local = sheet.definedNames
             if let t = sheet.printTitlesFormula { local["_xlnm.Print_Titles"] = t }
             if let a = sheet.printAreaFormula { local["_xlnm.Print_Area"] = a }
-            if let af = sheet.autoFilter { local["_xlnm._FilterDatabase"] = "\(CellRef.quoteSheetName(sheet.name))!\(af.absoluteAddress)" }
+            if let af = sheet.autoFilter, Self.filterOwnerID(on: sheet, tables: tablePlans[i] ?? []) == nil {
+                local["_xlnm._FilterDatabase"] = "\(CellRef.quoteSheetName(sheet.name))!\(af.absoluteAddress)"
+            }
             for k in local.keys.sorted() {
-                names.append("<definedName name=\"\(XML.esc(k))\" localSheetId=\"\(i)\"\(k == "_xlnm._FilterDatabase" ? " hidden=\"1\"" : "")>\(XML.esc(local[k]!))</definedName>")
+                names.append("<definedName name=\"\(XML.esc(k))\" localSheetId=\"\(i)\"\(k == "_xlnm._FilterDatabase" ? " hidden=\"1\"" : "")>\(XML.esc(localNameFormula(local[k]!, on: sheet.name)))</definedName>")
             }
         }
         if !names.isEmpty { generated.append(("definedNames", "<definedNames>" + names.joined() + "</definedNames>")) }
@@ -835,9 +837,25 @@ enum WorkbookWriter {
         let id: Int
     }
 
+    /// Only an exact, unique match can move a sheet filter into a table without changing its range.
+    static func filterOwnerID(on sheet: Sheet, tables: [TablePlan]) -> Int? {
+        guard let filter = sheet.autoFilter else { return nil }
+        let matches = tables.filter { $0.table.autoFilter == filter }
+        return matches.count == 1 ? matches[0].id : nil
+    }
+
+    /// Excel requires a sheet-qualified target for a sheet-local named range. Constants and formula bodies are
+    /// left alone; only a name consisting entirely of an unqualified A1 coordinate or range is qualified.
+    static func localNameFormula(_ formula: String, on sheet: String) -> String {
+        guard !formula.contains("!"),
+              CellRange(formula) != nil || (formula.contains(":") && CellRef.absolute(formula) != nil)
+        else { return formula }
+        return CellRef.quoteSheetName(sheet) + "!" + formula
+    }
+
     /// xl/tables/tableN.xml. CT_Table's children in schema order: autoFilter, sortState, tableColumns,
     /// tableStyleInfo, extLst — with the source's own unmodelled attributes and children put back where they were.
-    static func tablePartXML(_ plan: TablePlan, sheetName: String, sink: WarningSink) -> String {
+    static func tablePartXML(_ plan: TablePlan, sheet: Sheet, ownsSheetFilter: Bool, sink: WarningSink) -> String {
         let t = plan.table
         var s = "<table xmlns=\"\(XMLWriter.nsMain)\" id=\"\(plan.id)\" name=\"\(XML.esc(t.name))\" displayName=\"\(XML.esc(t.displayName))\" ref=\"\(t.ref.address)\""
         if t.headerRowCount != 1 { s += " headerRowCount=\"\(t.headerRowCount)\"" }
@@ -848,9 +866,21 @@ enum WorkbookWriter {
         s += ">"
         var generated: [(String, String)] = []
         if let filter = t.autoFilter {
-            var view = Sheet(name: sheetName)
+            var view = Sheet(name: sheet.name)
             view.filterColumns = t.filterColumns
-            let inner = filterChildrenXML(view, sheetName: sheetName, sink: sink)
+            view.sortState = t.autoFilterSortState
+            if ownsSheetFilter {
+                for column in sheet.filterColumns {
+                    if let existing = view.filterColumns.first(where: { $0.columnOffset == column.columnOffset }) {
+                        if existing != column {
+                            sink.add(.degraded, subject: .formatting, sheet: sheet.name,
+                                     "the sheet and table filters disagree on column \(column.columnOffset); the table criterion was kept")
+                        }
+                    } else { view.filterColumns.append(column) }
+                }
+                if let sort = sheet.sortState { view.sortState = sort }
+            }
+            let inner = filterChildrenXML(view, sheetName: sheet.name, sink: sink)
             generated.append(("autoFilter", "<autoFilter ref=\"\(filter.address)\"" + (inner.isEmpty ? "/>" : ">" + inner + "</autoFilter>")))
         }
         var columnsXML = "<tableColumns count=\"\(t.columns.count)\">"
@@ -1004,6 +1034,7 @@ enum WorkbookWriter {
                      "\(ws.tables.count - 1) other table(s) not written: a worksheet holds a single grid (write .numbers to keep them)")
         }
         var generated: [(String, String)] = []
+        let filterOwner = filterOwnerID(on: ws, tables: tables)
         var s = "<sheetPr\(XML.attr("codeName", ws.properties.codeName))\(ws.properties.filterMode.map { " filterMode=\"\($0 ? 1 : 0)\"" } ?? "")>"
         if let tc = ws.properties.tabColor { s += StyleRegistry.colorXML("tabColor", tc) }
         s += "<outlinePr summaryBelow=\"\(ws.properties.summaryBelow ? 1 : 0)\" summaryRight=\"\(ws.properties.summaryRight ? 1 : 0)\"/>"
@@ -1195,11 +1226,16 @@ enum WorkbookWriter {
             }
             generated.append(("scenarios", x + "</scenarios>"))
         }
-        let fragments = preserve ? ws.preserved.fragments : []
+        var fragments = preserve ? ws.preserved.fragments : []
+        if filterOwner != nil, fragments.contains(where: { $0.element == "autoFilter" }) {
+            fragments.removeAll { $0.element == "autoFilter" }
+            sink.add(.degraded, subject: .formatting, sheet: ws.name,
+                     "an unmodelled worksheet filter over a named table could not be merged; the table filter was kept")
+        }
         // the source's own <autoFilter> is re-emitted verbatim only when it uses a filter kind the model cannot
         // say (colour, icon, dynamic, top 10, date groups); otherwise it is regenerated from the model
         let hasFilterFragment = fragments.contains { $0.element == "autoFilter" }
-        if let af = ws.autoFilter, !hasFilterFragment {
+        if let af = ws.autoFilter, filterOwner == nil, !hasFilterFragment {
             var filter = "<autoFilter ref=\"\(af.address)\""
             let inner = filterChildrenXML(ws, sheetName: ws.name, sink: sink)
             filter += inner.isEmpty ? "/>" : ">" + inner + "</autoFilter>"
@@ -1325,7 +1361,8 @@ enum WorkbookWriter {
                 if id.isEmpty || usedRelIDs.contains(id) { id = freshRelID() } else { usedRelIDs.insert(id) }
                 parts += "<tablePart r:id=\"\(id)\"/>"
                 relXML += "<Relationship Id=\"\(id)\" Type=\"\(XMLWriter.nsRel)\(relTable)\" Target=\"\(XML.esc(relativeTarget(plan.path, from: dir)))\"/>"
-                extraParts.append((plan.path, Data((XMLWriter.header + tablePartXML(plan, sheetName: ws.name, sink: sink)).utf8)))
+                extraParts.append((plan.path, Data((XMLWriter.header + tablePartXML(plan, sheet: ws,
+                    ownsSheetFilter: filterOwner == plan.id, sink: sink)).utf8)))
             }
             generated.append(("tableParts", parts + "</tableParts>"))
         }

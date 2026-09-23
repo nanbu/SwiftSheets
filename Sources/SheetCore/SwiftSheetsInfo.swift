@@ -6,8 +6,8 @@ public enum SwiftSheetsInfo: Sendable {
     public static let name = "SwiftSheets"
     /// The released version. Bumped in the release commit itself, so this constant, the README's status line,
     /// the README's `from:` and the git tag always name the same thing — `APIContractTests` checks the first three.
-    public static let version = "1.1.0"
-    /// "SwiftSheets/1.1.0" — ODF's `meta:generator`.
+    public static let version = "1.1.1"
+    /// "SwiftSheets/1.1.1" — ODF's `meta:generator`.
     public static var generator: String { "\(name)/\(version)" }
     /// OOXML's `AppVersion` takes `major.minor` and nothing more.
     public static var appVersion: String { version.split(separator: ".").prefix(2).joined(separator: ".") }

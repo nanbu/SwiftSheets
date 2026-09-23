@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 4.96 / SwiftSheets 1.1.0</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 4.97 / SwiftSheets 1.1.1</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> Implementation Spec
     </h1>
@@ -621,7 +621,7 @@ pre .vr { color: var(--code-var); }
 <div class="container">
 
 <section aria-labelledby="current-spec"><h2 id="current-spec">Current specification and historical decisions</h2>
-<p>This document applies to SwiftSheets 1.1.0. The current revision is 4.96. The numbered chapters state the design;
+<p>This document applies to SwiftSheets 1.1.1. The current revision is 4.97. The numbered chapters state the design;
 Appendix B records dated decisions and corrections. Where an older decision conflicts with a later correction,
 the later correction applies. Earlier descriptions of missing features or unavailable applications are historical,
 not the current support policy. Use the <a href="spec-feature-matrix.html">feature matrix</a> for current read/write support.
@@ -1876,6 +1876,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
 
   <h3>A.3 Revision history</h3>
+  <p>Rev 4.97 (2026-09-24) gives a table and its sheet one filter owner when their ranges coincide, and qualifies sheet-local named ranges; see B.106. Earlier rows retain their original wording.</p>
   <p>Rev 4.96 (2026-09-23) requires checked ZIP64 value conversion and remaining-length checks before arithmetic; see B.105. Earlier rows retain their original wording.</p>
   <p>Rev 4.95 (2026-09-16) aligns the current chapters and public guides with the released 1.0.0 behaviour; see B.104. Earlier rows retain their original wording.</p>
   <div class="compare"><table>
@@ -1934,6 +1935,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.97</td><td>2026-09-24</td><td>A table sharing a sheet filter's range owns that filter in XLSX and ODS; criteria and sort move with it. Sheet-local named ranges have an explicit sheet context (B.106).</td></tr>
     <tr><td>4.96 Draft</td><td>2026-09-23</td><td>Malformed ZIP64 counts, sizes and offsets are rejected before conversion or addition. The combined expanded-size budget is checked before it is incremented (B.105).</td></tr>
     <tr><td>4.95 Draft</td><td>2026-09-16</td><td>Current chapters and public guides aligned with the released 1.0.0 behaviour (B.104).</td></tr>
     <tr><td>4.94 Draft</td><td>2026-09-16</td><td>Excel-authored advanced-content and furigana round trips became opt-in release judges (B.103). They found and fixed a localised threaded-comment mirror exposed as a note, a duplicated thread relationship, a late-registered style dependency, and misplaced compatibility children in workbook.xml. Excel opens both rewrites without repair, keeps SmartArt, a shape group and the edited thread, and displays the original reading spans.</td></tr>
@@ -7565,6 +7567,27 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   expanded size with zero compressed bytes is corrupt. The same checks apply to probing,
   whole-workbook reads and streaming reads across XLSX, ODS and Numbers. Boundary and malformed
   ZIP64 cases are pinned in <code>ZipTests</code> and included in the fuzz corpus.</p>
+  <h3>B.106 One filter owner for a named table (Rev 4.97)</h3>
+  <p>Measured 2026-09-24 with <code>15-kitchen-sink.xlsx</code>. Excel for Mac removed the
+  <code>Sales</code> table when the worksheet and table parts both declared an auto-filter over
+  <code>A1:D9</code>. Removing only the worksheet filter kept the table. Excel separately removed the
+  sheet-local name <code>Local</code> whose formula was the unqualified <code>$A$1</code>; writing
+  <code>'Data'!$A$1</code> removed that repair. Both changes together opened without repair.
+  These parts were unchanged between 1.0.0 and 1.1.0; the ZIP64 reader correction did not cause the warning.</p>
+  <p><strong>Write.</strong> When a sheet auto-filter exactly matches one structured table's auto-filter,
+  the table owns the filter. XLSX writes its criteria and sort in the table's auto-filter, without a
+  worksheet auto-filter or <code>_xlnm._FilterDatabase</code>. ODS writes one named database range
+  containing those criteria and sort, rather than an identical anonymous range beside it. Distinct
+  non-overlapping sheet filters remain independent. A conflicting criterion on the same column must
+  be reported, not silently discarded. A sheet-local defined name that consists solely of an
+  unqualified A1 cell or range reference gains its sheet name in XLSX; arbitrary formulas retain
+  their text. ODS named ranges always carry a sheet-qualified base-cell address.</p>
+  <p><strong>Read and verify.</strong> A sole named table's filter is also visible through the sheet's
+  filter properties in the format-neutral model, so a write/read round trip keeps criteria and sort.
+  The table retains its own filter data. LibreOffice opens and resaves the merged ODS range, and its
+  XLSX export has a single table filter. Numbers has no corresponding named table, auto-filter or
+  defined-name feature: its writer keeps its existing explicit conversion warnings, and Numbers for
+  Mac opens the generated document without repair.</p>
 </section>
 
 </div><!-- /.container -->

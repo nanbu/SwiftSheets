@@ -9,6 +9,14 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-09-24
+
+### Fixed
+
+- Keep a single filter owner when a named table covers the same range as a sheet filter. XLSX places the criteria and sort in the table and avoids Excel's repair of the duplicate; ODS writes one named database range that LibreOffice can convert without recreating the duplicate.
+- Qualify sheet-local cell and range names in XLSX and the base address of ODS named ranges. Excel now opens the kitchen-sink workbook without removing its local name.
+- Read table-owned filter criteria and sort back into the sheet view when it is the sole table, so a round trip retains the modelled behavior. Numbers continues to warn explicitly where its format cannot carry tables, filters or sheet-local names.
+
 ## [1.1.0] — 2026-09-23
 
 ### Fixed
@@ -1508,7 +1516,8 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/nanbu/SwiftSheets/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/nanbu/SwiftSheets/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/nanbu/SwiftSheets/compare/0.28.0...1.0.0
 [0.28.0]: https://github.com/nanbu/SwiftSheets/compare/0.27.0...0.28.0

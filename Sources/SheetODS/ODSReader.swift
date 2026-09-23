@@ -62,8 +62,17 @@ enum ODSReader {
                 let header = (range.topLeft.column...range.bottomRight.column).map { sheetsRead[i][range.topLeft.row, $0] }
                 var table = StructuredTable(name: entry.name, ref: range, headerRow: header, styleInfo: nil)
                 if !entry.buttons { table.autoFilter = nil }
+                table.filterColumns = entry.filters
+                if !entry.sort.isEmpty { table.autoFilterSortState = SortState(range: range, conditions: entry.sort) }
                 sheetsRead[i].structuredTables.append(table)
             }
+        }
+        for i in sheetsRead.indices where sheetsRead[i].autoFilter == nil && sheetsRead[i].structuredTables.count == 1 {
+            let table = sheetsRead[i].structuredTables[0]
+            guard let filter = table.autoFilter else { continue }
+            sheetsRead[i].autoFilter = filter
+            sheetsRead[i].filterColumns = table.filterColumns
+            sheetsRead[i].sortState = table.autoFilterSortState
         }
 
         var wb = Workbook(sheets: sheetsRead)

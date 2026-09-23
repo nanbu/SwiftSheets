@@ -1142,6 +1142,15 @@ final class TablePartParser: SAXHandler {
         if depth == 2, !TablePartParser.knownChildren.contains(name) { beginCapture(); return }
         switch name {
         case "autoFilter": table?.autoFilter = a["ref"].flatMap(CellRange.init)
+        case "sortState" where depth == 3:
+            if let range = a["ref"].flatMap(CellRange.init) {
+                table?.autoFilterSortState = SortState(range: range, caseSensitive: XMLBool.isTrue(a["caseSensitive"]),
+                                                       byColumn: XMLBool.isTrue(a["columnSort"]))
+            }
+        case "sortCondition" where depth == 4:
+            if let range = a["ref"].flatMap(CellRange.init) {
+                table?.autoFilterSortState?.conditions.append(SortCondition(range: range, descending: XMLBool.isTrue(a["descending"])))
+            }
         case "filterColumn":
             filterColumn = FilterColumn(columnOffset: Int(a["colId"] ?? "") ?? 0, buttonHidden: XMLBool.isTrue(a["hiddenButton"]),
                                         buttonShown: XMLBool.isNotFalse(a["showButton"]))

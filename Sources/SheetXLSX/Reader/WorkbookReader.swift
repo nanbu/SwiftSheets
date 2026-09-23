@@ -438,6 +438,14 @@ final class SheetReadContext: @unchecked Sendable {
             t.relationshipId = rel.id
             sheet.structuredTables.append(t)
         }
+        // A single named table can be the sheet's effective filter owner. Expose that filter through both
+        // the table and the format-neutral sheet view, without inventing a second worksheet filter on write.
+        if sheet.autoFilter == nil, sheet.structuredTables.count == 1,
+           let table = sheet.structuredTables.first, let filter = table.autoFilter {
+            sheet.autoFilter = filter
+            sheet.filterColumns = table.filterColumns
+            sheet.sortState = table.autoFilterSortState
+        }
 
         // pivot tables: the layout part names the cache it reads by id
         for rel in sheetRels where rel.type.hasSuffix(WorkbookReader.relPivotTable) {

@@ -665,7 +665,7 @@ enum ODSWriter {
             let isRange: Bool = { switch expr { case .ref, .range: return true; default: return false } }()
             if isRange {
                 let address = odsAddress(expr)
-                s += "<table:named-range table:name=\"\(XML.esc(name))\" table:base-cell-address=\"\(XML.esc(baseCell(address)))\" table:cell-range-address=\"\(XML.esc(address))\"/>"
+                s += "<table:named-range table:name=\"\(XML.esc(name))\" table:base-cell-address=\"\(XML.esc(odsSheetPrefix(baseSheet))).$A$1\" table:cell-range-address=\"\(XML.esc(address))\"/>"
             } else {
                 let rendered = expr.isUnparsed ? text : String(expr.rendered(as: .ods).dropFirst(4))
                 s += "<table:named-expression table:name=\"\(XML.esc(name))\" table:base-cell-address=\"\(XML.esc(odsSheetPrefix(baseSheet))).$A$1\" table:expression=\"\(XML.esc(rendered))\"/>"
@@ -683,11 +683,30 @@ enum ODSWriter {
         for (i, sheet) in wb.sheets.enumerated() {
             let prefix = String(odsSheetPrefix(sheet.name).dropFirst())
             func address(_ range: CellRange) -> String { "\(prefix).\(range.topLeft.address):\(prefix).\(range.bottomRight.address)" }
-            for table in sheet.structuredTables {
+            let owners = sheet.structuredTables.indices.filter { sheet.autoFilter != nil && sheet.structuredTables[$0].autoFilter == sheet.autoFilter }
+            let owner = owners.count == 1 ? owners[0] : nil
+            for (index, table) in sheet.structuredTables.enumerated() {
                 s += "<table:database-range table:name=\"\(XML.esc(table.name))\" table:target-range-address=\"\(XML.esc(address(table.ref)))\""
-                s += " table:display-filter-buttons=\"\(table.autoFilter != nil)\"/>"
+                s += " table:display-filter-buttons=\"\(table.autoFilter != nil)\""
+                var view = sheet
+                view.autoFilter = table.autoFilter
+                view.filterColumns = table.filterColumns
+                view.sortState = table.autoFilterSortState
+                if owner == index {
+                    for column in sheet.filterColumns {
+                        if let existing = view.filterColumns.first(where: { $0.columnOffset == column.columnOffset }) {
+                            if existing != column {
+                                sink.add(.degraded, subject: .formatting, sheet: sheet.name,
+                                         "the sheet and named table filters disagree on column \(column.columnOffset); the table criterion was kept")
+                            }
+                        } else { view.filterColumns.append(column) }
+                    }
+                    if let sort = sheet.sortState { view.sortState = sort }
+                }
+                let inner = table.autoFilter == nil ? "" : filterXML(view, sink: sink) + sortXML(view)
+                s += inner.isEmpty ? "/>" : ">" + inner + "</table:database-range>"
             }
-            guard let range = sheet.autoFilter else { continue }
+            guard let range = sheet.autoFilter, owner == nil else { continue }
             s += "<table:database-range table:name=\"__Anonymous_Sheet_DB__\(i)\" table:display-filter-buttons=\"true\" table:target-range-address=\"\(XML.esc(address(range)))\">"
             s += filterXML(sheet, sink: sink)
             s += sortXML(sheet)
@@ -765,10 +784,6 @@ enum ODSWriter {
         var inner = String(expr.rendered(as: .ods).dropFirst(4))   // "of:=[…]"
         if inner.hasPrefix("["), inner.hasSuffix("]") { inner = String(inner.dropFirst().dropLast()) }
         return inner.hasPrefix(".") || inner.hasPrefix("$") ? inner : "$" + inner
-    }
-
-    static func baseCell(_ address: String) -> String {
-        address.split(separator: ":", maxSplits: 1).first.map(String.init) ?? address
     }
 
     // MARK: - Tables
