@@ -53,6 +53,9 @@ Convert with `try Workbook.convert(source, to: destination, as: .csv)` or
 `try codecs.convert(source, to: destination, as: .csv)`. The format is required, even when the destination has
 an extension. The former `to: format, output: destination` labels have been removed.
 
+A file also takes `format:` as bytes do: `Workbook.read(contentsOf: url, format: .csv)` skips detection, for a file
+whose content cannot say what it is; nil detects.
+
 Writing row by row — for a file with more rows than memory — saves the same way, at the end:
 
 ```swift
@@ -112,7 +115,9 @@ B.39.9).
 Status: **1.1.1** — the current stable release; all five formats are usable and the public API follows the
 [1.x stability policy](docs/api-stability.md). What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
-test keeps the constant, this line and the pin above in step.
+test keeps the constant, this line and the pin above in step. The next major release, 2.0.0, is announced there:
+`read`, `inspect`, `write` and `convert` gain async versions under the same names, so a call in async code will need
+`await`.
 
 ## Limits
 

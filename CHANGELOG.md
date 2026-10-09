@@ -9,6 +9,32 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+A file can be read as a named format, as bytes can, and 2.0.0 is announced (spec Appendix B.107).
+
+### Added
+
+- **A file takes `format:` as bytes do.** `read(contentsOf:format:options:)`, `inspect(contentsOf:format:options:)`
+  and `Workbook(contentsOf:format:options:)` — on `Workbook`, on `CodecSet` and with a password — take
+  `format: SheetFormat?`. nil detects, as the functions without it do; a format skips detection, for a file whose
+  content cannot say what it is. A compound file is still refused by name, and a folder is only ever a Numbers
+  document. The functions without the argument are unchanged.
+
+### Announced for 2.0.0
+
+The [API stability policy](docs/api-stability.md) announces a major release one minor release ahead. 2.0.0 will make
+two source-breaking changes. Neither has an old name that could be deprecated first without a warning on every
+ordinary call, so they are announced here instead.
+
+- **In async code, `read`, `inspect`, `write` and `convert` will be async and need `await`.** `Workbook` and
+  `CodecSet` gain async versions under the same names, as do the password forms, `decrypt` and `encrypt`, and Swift
+  picks them inside an async function; the compiler finds each call and offers the fix. They will stop with
+  `CancellationError` when their task is cancelled, never after a file has been replaced. Synchronous calls and the
+  initializers stay as they are, and still run to completion on a cancelled task.
+- **`read(contentsOf:options:)` → `read(contentsOf:format:options:)`.** `format:` gains its default of nil, and the
+  functions without it — `read`, `inspect` and `Workbook(contentsOf:)`, on `Workbook`, on `CodecSet` and with a
+  password — are removed. Every call compiles unchanged; only a reference to one of them as a value by its full name,
+  such as `Workbook.read(contentsOf:options:)`, needs the new name.
+
 ## [1.1.1] — 2026-09-24
 
 ### Fixed

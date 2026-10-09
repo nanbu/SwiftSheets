@@ -26,6 +26,8 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 - Bool properties are predicative (`allowsBlank`, `showsGridLines`, `includesBOM`); typed and A1-string twins share labels (`cell(ref)` / `cell("B2")`, `setStyle(at:)` / `setStyle("A1")`).
 - Formulas are `.formula("=SUM(A1:A3)")`, parsed into a tree; they follow row inserts and sheet renames. The library does not evaluate formulas.
 - Untrusted input: call `Workbook.inspect` first, then read with `ReadOptions.cellLimit` and `ReadOptions.limits`; a read that stops at the limit gives a `truncated` warning.
+- A file takes `format:` as bytes do (`Workbook.read(contentsOf: url, format: .csv)`); nil detects from the content.
+- 2.0.0 is announced in the CHANGELOG: `read`, `inspect`, `write` and `convert` gain async versions under the same names, so calls inside async functions will need `await`.
 
 ## Documents
 
