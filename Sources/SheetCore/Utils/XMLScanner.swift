@@ -93,6 +93,7 @@ package final class XMLScanner {
             }
         }
 
+        var cancellationOffset = i
         while i < n {
             let c = b[i]
             if c != 0x3C {                                           // character data
@@ -102,7 +103,9 @@ package final class XMLScanner {
                 i += 1
                 continue
             }
-            // a tag of some kind starts here
+            // a tag of some kind starts here — where an async read stops once its task is cancelled, looking at most
+            // once per 64 KiB and never per byte of text (Appendix B.108)
+            if i >= cancellationOffset { try OperationCancellation.check(); cancellationOffset = i + 65536 }
             try flushText(upTo: i)
             let tagStart = i
             guard i + 1 < n else { if final { throw malformed("unterminated tag", at: i) }; return stopHere(tagStart) }

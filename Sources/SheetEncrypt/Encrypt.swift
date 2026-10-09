@@ -15,6 +15,7 @@ import Foundation
 /// `unsupportedEncryption` saying so. What comes back opens with `SheetDecrypt.decrypt` and with the format's own
 /// applications.
 public func encrypt(_ plain: Data, as format: SheetFormat, password: String) throws -> Data {
+    try OperationCancellation.check()
     switch format {
     case .xlsx, .xlsm: return try OOXMLEncryption.encrypt(plain, password: password)
     case .ods: return try ODSEncryption.encrypt(plain, password: password)
@@ -36,11 +37,33 @@ extension Workbook {
     /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
     public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions(), password: String) throws -> WriteResult {
         let result = try write(as: outputFormat(for: url, requested: format), options: options, password: password)
+        try OperationCancellation.check()   // the last point an async write can stop: past it, the file is replaced
 #if os(WASI)
         try result.data.write(to: url)   // WASI has no temporary files, so no atomic replace either
 #else
         try result.data.write(to: url, options: .atomic)
 #endif
         return result
+    }
+}
+
+// MARK: - Async (spec Appendix B.108)
+
+/// `encrypt(_:as:password:)`, away from the caller's actor and stopped by cancelling its task.
+@concurrent public func encrypt(_ plain: Data, as format: SheetFormat, password: String) async throws -> Data {
+    try OperationCancellation.observing { try encrypt(plain, as: format, password: password) }
+}
+
+extension Workbook {
+    /// `write(as:options:password:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func write(as format: SheetFormat, options: WriteOptions = WriteOptions(), password: String) async throws -> WriteResult {
+        try OperationCancellation.observing { try write(as: format, options: options, password: password) }
+    }
+
+    /// `write(to:as:options:password:)`, away from the caller's actor. Cancelling its task before the file is
+    /// replaced leaves whatever was at `url` untouched; once replaced, the save is reported.
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
+    @concurrent public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions(), password: String) async throws -> WriteResult {
+        try OperationCancellation.observing { try write(to: url, as: format, options: options, password: password) }
     }
 }

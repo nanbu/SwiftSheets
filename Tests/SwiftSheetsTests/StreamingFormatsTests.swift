@@ -114,7 +114,7 @@ import SwiftSheets
     func theStreamingReaderSeesWhatTheWholeReaderSees(_ format: SheetFormat) async throws {
         let url = Self.temporary("sample.\(format.rawValue)")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        _ = try Self.sample().write(to: url, as: format)
+        _ = try await Self.sample().write(to: url, as: format)
         try await Self.check(format, file: url)
     }
 

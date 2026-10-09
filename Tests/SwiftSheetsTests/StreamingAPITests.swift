@@ -138,7 +138,7 @@ import SwiftSheets
     @Test func rowsArriveAsASequence() async throws {
         var wb = Workbook()
         for i in 0..<5_000 { wb.sheets[0].append([.integer(i), .text("v\(i)")]) }
-        let reader = try StreamingReader(data: try wb.write(as: .xlsx).data)
+        let reader = try StreamingReader(data: try await wb.write(as: .xlsx).data)
         var count = 0
         var last: StreamedRow?
         for try await row in reader.rows(inSheet: "Sheet1") { count += 1; last = row }
@@ -152,7 +152,7 @@ import SwiftSheets
 
     @Test func anUnknownSheetThrowsFromTheSequence() async throws {
         var wb = Workbook(); wb.sheets[0]["A1"] = 1
-        let reader = try StreamingReader(data: try wb.write(as: .xlsx).data)
+        let reader = try StreamingReader(data: try await wb.write(as: .xlsx).data)
         await #expect(throws: SheetError.self) {
             for try await _ in reader.rows(inSheet: "Nope") {}
         }

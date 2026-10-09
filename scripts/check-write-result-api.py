@@ -48,6 +48,19 @@ def main():
                 raise SystemExit(f'{name}: explicit use failed\n{result.stdout}{result.stderr}')
             print(f'PASS: {name}: warns, errors in strict mode, accepts explicit use', flush=True)
 
+        for name, module, call in CALLS:
+            prefix = f'import Foundation\n{module}\nfunc probe(_ workbook: Workbook, _ codecs: CodecSet, _ url: URL) async throws {{\n'
+            source.write_text(prefix + f'    try await {call}\n}}\n')
+            result = subprocess.run(command + ['-warnings-as-errors'], text=True, capture_output=True)
+            output = result.stdout + result.stderr
+            if result.returncode == 0 or 'result of call to' not in output:
+                raise SystemExit(f'{name}: async unused result was not rejected\n{output}')
+            source.write_text(prefix + f'    _ = try await {call}\n}}\n')
+            result = subprocess.run(command + ['-warnings-as-errors'], text=True, capture_output=True)
+            if result.returncode:
+                raise SystemExit(f'{name}: async explicit use failed\n{result.stdout}{result.stderr}')
+            print(f'PASS: {name}: async result must be acknowledged', flush=True)
+
         for module, receiver in [('SheetCore', 'codecs'), ('SwiftSheets', 'Workbook')]:
             prefix = f'import Foundation\nimport {module}\nfunc probe(_ codecs: CodecSet, _ source: URL, _ destination: URL) throws {{\n'
             call = f'{receiver}.convert(source, to: destination, as: .csv, readOptions: ReadOptions(), writeOptions: WriteOptions())'

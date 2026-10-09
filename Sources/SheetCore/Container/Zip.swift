@@ -131,6 +131,7 @@ package struct ZipArchive: Sendable {
             let bytes = cd.bindMemory(to: UInt8.self)
             var p = 0
             for _ in 0..<count {
+                try OperationCancellation.check()
                 guard Self.fits(p, length: 46, in: bytes.count), Zip.u32(bytes, p) == 0x0201_4b50 else {
                     throw SheetError.corruptedContainer(detail: "bad central directory entry")
                 }
@@ -249,6 +250,7 @@ package struct ZipArchive: Sendable {
 
     /// The expanded bytes of an entry, whole.
     package func read(_ name: String) throws -> Data {
+        try OperationCancellation.check()
         guard let e = entries[name] else { throw SheetError.corruptedContainer(detail: "missing part \(name)") }
         let range = try dataRange(of: e)
         switch e.method {
@@ -311,6 +313,7 @@ package final class ZipEntryStream {
 
     /// The next piece, or nil when the entry is exhausted.
     package func next() throws -> Data? {
+        try OperationCancellation.check()
         guard !done else { return nil }
         guard let decoder else {
             guard position < range.upperBound else { done = true; return nil }

@@ -76,3 +76,47 @@ extension Workbook {
         try CodecSet.all.convert(source, to: output, as: format, readOptions: readOptions, writeOptions: writeOptions)
     }
 }
+
+/// The same facade for async code — `CodecSet.all`'s async methods (spec Appendix B.108). In an async function these
+/// are the ones a call picks, so the call needs `await`; each runs the synchronous engine away from the caller's actor
+/// and stops with `CancellationError` once its task is cancelled. The initializers stay synchronous: in async code,
+/// `try await Workbook.read(contentsOf:)` is the way to open a file without holding the actor.
+extension Workbook {
+    /// `read(contentsOf:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func read(contentsOf url: URL, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) async throws -> ReadResult {
+        try await CodecSet.all.read(contentsOf: url, format: format, options: options)
+    }
+
+    /// `read(_:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) async throws -> ReadResult {
+        try await CodecSet.all.read(data, format: format, options: options)
+    }
+
+    /// `inspect(contentsOf:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func inspect(contentsOf url: URL, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) async throws -> WorkbookSummary {
+        try await CodecSet.all.inspect(contentsOf: url, format: format, options: options)
+    }
+
+    /// `inspect(_:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) async throws -> WorkbookSummary {
+        try await CodecSet.all.inspect(data, format: format, options: options)
+    }
+
+    /// `write(as:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func write(as format: SheetFormat, options: WriteOptions = WriteOptions()) async throws -> WriteResult {
+        try await CodecSet.all.write(self, as: format, options: options)
+    }
+
+    /// `write(to:as:options:)`, away from the caller's actor. Cancelling its task before the file is replaced leaves
+    /// whatever was at `url` untouched; once replaced, the save is reported.
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
+    @concurrent public func write(to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) async throws -> WriteResult {
+        try await CodecSet.all.write(self, to: url, as: format, options: options)
+    }
+
+    /// `convert(_:to:as:readOptions:writeOptions:)`, away from the caller's actor and stopped by cancelling its task
+    /// as `write(to:as:options:)` is. Inspect the returned warnings, or explicitly discard the result with `_ =`.
+    @concurrent public static func convert(_ source: URL, to output: URL, as format: SheetFormat, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) async throws -> WriteResult {
+        try await CodecSet.all.convert(source, to: output, as: format, readOptions: readOptions, writeOptions: writeOptions)
+    }
+}

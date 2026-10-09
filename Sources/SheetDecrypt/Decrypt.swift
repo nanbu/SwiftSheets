@@ -19,6 +19,7 @@ import Foundation
 /// Numbers document) throws `unsupportedEncryption` naming it — asking for the password again cannot help. `limits` is what the container may declare about
 /// itself before it is refused (`ReadOptions.limits`).
 public func decrypt(_ data: Data, password: String, limits: ZipLimits = ZipLimits()) throws -> Data {
+    try OperationCancellation.check()
     // a compound file: Excel's protected package, or a legacy .xls — the probe says which
     if let unopenable = UnopenableInput.probe(data) {
         guard unopenable == .encryptedOOXML else { throw unopenable.error }
@@ -105,5 +106,39 @@ extension StreamingReader {
     public init(data: Data, password: String, format: SheetFormat? = nil, limits: ZipLimits = ZipLimits(),
                 csv: CSVReadOptions = CSVReadOptions(), filename: String? = nil) throws {
         try self.init(data: try decrypt(data, password: password, limits: limits), format: format, limits: limits, csv: csv, filename: filename)
+    }
+}
+
+// MARK: - Async (spec Appendix B.108)
+
+/// `decrypt(_:password:limits:)`, away from the caller's actor and stopped by cancelling its task.
+@concurrent public func decrypt(_ data: Data, password: String, limits: ZipLimits = ZipLimits()) async throws -> Data {
+    try OperationCancellation.observing { try decrypt(data, password: password, limits: limits) }
+}
+
+/// `decrypt(contentsOf:password:limits:)`, away from the caller's actor and stopped by cancelling its task.
+@concurrent public func decrypt(contentsOf url: URL, password: String, limits: ZipLimits = ZipLimits()) async throws -> Data {
+    try OperationCancellation.observing { try decrypt(contentsOf: url, password: password, limits: limits) }
+}
+
+extension Workbook {
+    /// `read(contentsOf:password:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func read(contentsOf url: URL, password: String, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) async throws -> ReadResult {
+        try OperationCancellation.observing { try read(contentsOf: url, password: password, format: format, options: options) }
+    }
+
+    /// `read(_:password:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func read(_ data: Data, password: String, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) async throws -> ReadResult {
+        try OperationCancellation.observing { try read(data, password: password, format: format, options: options) }
+    }
+
+    /// `inspect(contentsOf:password:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func inspect(contentsOf url: URL, password: String, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) async throws -> WorkbookSummary {
+        try OperationCancellation.observing { try inspect(contentsOf: url, password: password, format: format, options: options) }
+    }
+
+    /// `inspect(_:password:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public static func inspect(_ data: Data, password: String, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) async throws -> WorkbookSummary {
+        try OperationCancellation.observing { try inspect(data, password: password, format: format, options: options) }
     }
 }

@@ -89,6 +89,7 @@ package final class ZipPackager {
 
     /// Adds an entry. `stored: true` writes it uncompressed (ODS needs its `mimetype` first and stored).
     package func add(_ name: String, _ data: Data, stored: Bool = false) throws {
+        try OperationCancellation.check()
         let crc = CRC32.checksum(data)
         var method: UInt16 = 0
         var payload = data
@@ -110,6 +111,7 @@ package final class ZipPackager {
     // MARK: - Streamed entries
 
     package func beginEntry(_ name: String) throws {
+        try OperationCancellation.check()
         precondition(currentName == nil, "an entry is already open")
         let nameBytes = Array(name.utf8)
         currentName = nameBytes
@@ -124,6 +126,7 @@ package final class ZipPackager {
     }
 
     package func write(_ data: Data) throws {
+        try OperationCancellation.check()
         guard currentName != nil, let encoder else { return }
         guard !data.isEmpty else { return }
         currentUncompressed += data.count
@@ -160,6 +163,7 @@ package final class ZipPackager {
 
     /// Writes the central directory (and the ZIP64 records when needed). The output is complete afterwards.
     package func finish() throws {
+        try OperationCancellation.check()
         precondition(currentName == nil, "an entry is still open")
         let cdOffset = output.count
         var needsZip64 = forceZip64 || entries.count >= 0xFFFF || cdOffset >= ZipPackager.limit32
@@ -298,6 +302,7 @@ package final class ZipFileWriter {
 
     /// Writes the central directory and closes the file.
     package func finish() throws {
+        try OperationCancellation.check()
         try packager.finish()
         try sink.close()
     }

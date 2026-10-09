@@ -66,7 +66,9 @@ public struct CodecSet: Sendable {
         if opts.filename == nil { opts.filename = url.lastPathComponent }
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url), format == nil || format == .numbers else { throw SheetError.unrecognizedFormat }
-            return try implementation(for: .numbers).read(contentsOf: url, options: opts)
+            let result = try implementation(for: .numbers).read(contentsOf: url, options: opts)
+            try OperationCancellation.check()
+            return result
         }
         // the file is mapped rather than copied when it is big enough to matter and stable enough to be safe
         return try read(try Data(contentsOf: url, options: .mappedIfSafe), format: format, options: opts)
@@ -74,8 +76,11 @@ public struct CodecSet: Sendable {
 
     /// Parses bytes. `format` overrides detection.
     public func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        try OperationCancellation.check()
         let f = try resolve(data, format: format, filename: options.filename, limits: options.limits)
-        return try implementation(for: f).read(data, options: options)
+        let result = try implementation(for: f).read(data, options: options)
+        try OperationCancellation.check()   // an async read whose task was cancelled hands nothing back
+        return result
     }
 
     /// What to read these bytes as, or the refusal — the one place detection and the refusals meet, so that every
@@ -116,22 +121,29 @@ public struct CodecSet: Sendable {
         if opts.filename == nil { opts.filename = url.lastPathComponent }
         if url.isDirectoryOnDisk {
             guard NumbersBundle.isBundle(url), format == nil || format == .numbers else { throw SheetError.unrecognizedFormat }
-            return try implementation(for: .numbers).inspect(contentsOf: url, options: opts)
+            let result = try implementation(for: .numbers).inspect(contentsOf: url, options: opts)
+            try OperationCancellation.check()
+            return result
         }
         return try inspect(try Data(contentsOf: url, options: .mappedIfSafe), format: format, options: opts)
     }
 
     /// `inspect` over bytes. `format` overrides detection.
     public func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+        try OperationCancellation.check()
         let f = try resolve(data, format: format, filename: options.filename, limits: options.limits)
-        return try implementation(for: f).inspect(data, options: options)
+        let result = try implementation(for: f).inspect(data, options: options)
+        try OperationCancellation.check()
+        return result
     }
 
     // MARK: - Writing
 
     /// Serializes in a format. The result carries every warning about what the format could not express.
     public func write(_ workbook: Workbook, as format: SheetFormat, options: WriteOptions = WriteOptions()) throws -> WriteResult {
+        try OperationCancellation.check()
         let result = try implementation(for: format).write(workbook, options: options)
+        try OperationCancellation.check()
         let extra = workbook.openDocumentOnlyWarnings(for: format)
         guard !extra.isEmpty else { return result }
         return WriteResult(data: result.data, warnings: result.warnings + extra, suggestion: result.suggestion)
@@ -145,6 +157,7 @@ public struct CodecSet: Sendable {
     /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
     public func write(_ workbook: Workbook, to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) throws -> WriteResult {
         let result = try write(workbook, as: workbook.outputFormat(for: url, requested: format), options: options)
+        try OperationCancellation.check()   // the last point an async write can stop: past it, the file is replaced
 #if os(WASI)
         try result.data.write(to: url)   // WASI has no temporary files, so no atomic replace either
 #else
@@ -313,5 +326,52 @@ extension Workbook {
         let arrows = sheets.reduce(0) { $0 + $1.tables.reduce(0) { $0 + $1.detective.count } }
         if arrows > 0 { drop("\(arrows) cell(s) with tracing arrows") }
         return out
+    }
+}
+
+// MARK: - Async
+
+/// The same entry points for async code (spec Appendix B.108). Each runs the synchronous engine away from the
+/// caller's actor — `@concurrent`, on the task that called it, never a detached one — and stops with
+/// `CancellationError` once that task is cancelled: before it starts, between the parts of a package, every 64 KiB of
+/// markup, and before a file is replaced. A file already replaced is reported as saved. Nothing runs faster or in
+/// less memory for being async.
+extension CodecSet {
+    /// `read(contentsOf:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func read(contentsOf url: URL, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) async throws -> ReadResult {
+        try OperationCancellation.observing { try read(contentsOf: url, format: format, options: options) }
+    }
+
+    /// `read(_:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func read(_ data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) async throws -> ReadResult {
+        try OperationCancellation.observing { try read(data, format: format, options: options) }
+    }
+
+    /// `inspect(contentsOf:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func inspect(contentsOf url: URL, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) async throws -> WorkbookSummary {
+        try OperationCancellation.observing { try inspect(contentsOf: url, format: format, options: options) }
+    }
+
+    /// `inspect(_:format:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) async throws -> WorkbookSummary {
+        try OperationCancellation.observing { try inspect(data, format: format, options: options) }
+    }
+
+    /// `write(_:as:options:)`, away from the caller's actor and stopped by cancelling its task.
+    @concurrent public func write(_ workbook: Workbook, as format: SheetFormat, options: WriteOptions = WriteOptions()) async throws -> WriteResult {
+        try OperationCancellation.observing { try write(workbook, as: format, options: options) }
+    }
+
+    /// `write(_:to:as:options:)`, away from the caller's actor. Cancelling its task before the file is replaced
+    /// leaves whatever was at `url` untouched; once replaced, the save is reported.
+    /// Inspect the returned warnings, or explicitly discard the result with `_ =` (spec Appendix B.47).
+    @concurrent public func write(_ workbook: Workbook, to url: URL, as format: SheetFormat? = nil, options: WriteOptions = WriteOptions()) async throws -> WriteResult {
+        try OperationCancellation.observing { try write(workbook, to: url, as: format, options: options) }
+    }
+
+    /// `convert(_:to:as:readOptions:writeOptions:)`, away from the caller's actor and stopped by cancelling its task
+    /// as `write(_:to:as:options:)` is. Inspect the returned warnings, or explicitly discard the result with `_ =`.
+    @concurrent public func convert(_ source: URL, to output: URL, as format: SheetFormat, readOptions: ReadOptions = ReadOptions(), writeOptions: WriteOptions = WriteOptions()) async throws -> WriteResult {
+        try OperationCancellation.observing { try convert(source, to: output, as: format, readOptions: readOptions, writeOptions: writeOptions) }
     }
 }
