@@ -1528,6 +1528,7 @@ using, building or testing the published package.</p></section>
     <tr><td><code>wb.save(path)</code></td><td><code>try wb.write(to: url)</code></td><td>Format inferred from the extension. Returns <code>WriteResult</code> (an unused return value warns, B.47)</td></tr>
     <tr><td>—</td><td><code>try wb.write(to: url, as: .ods)</code></td><td>Naming the format explicitly = a format conversion as it is</td></tr>
     <tr><td>—</td><td><code>try wb.write(as: .xlsx).data</code></td><td>Get <code>Data</code> without going through a file (server use)</td></tr>
+    <tr><td>(no equivalent)</td><td><code>try Workbook.read(contentsOf: url, format: .csv)</code></td><td>Skips detection, for a file whose content cannot say what it is. The same <code>format:</code> as over bytes; nil detects (Rev 4.98, B.107)</td></tr>
     <tr><td><code>wb.sheetnames</code></td><td><code>wb.sheets.map(\.name)</code></td><td>The list of sheet names</td></tr>
     <tr><td><code>wb.properties</code></td><td><code>wb.metadata</code></td><td>Document metadata such as author and title</td></tr>
     <tr><td><code>wb.defined_names</code></td><td><code>wb.definedNames</code></td><td>The dictionary of named ranges</td></tr>
@@ -1876,6 +1877,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
 
   <h3>A.3 Revision history</h3>
+  <p>Rev 4.98 (2026-10-09) lets a file take <code>format:</code> as bytes do, and announces the async twins and the default argument of 2.0.0; see B.107. Earlier rows retain their original wording.</p>
   <p>Rev 4.97 (2026-09-24) gives a table and its sheet one filter owner when their ranges coincide, and qualifies sheet-local named ranges; see B.106. Earlier rows retain their original wording.</p>
   <p>Rev 4.96 (2026-09-23) requires checked ZIP64 value conversion and remaining-length checks before arithmetic; see B.105. Earlier rows retain their original wording.</p>
   <p>Rev 4.95 (2026-09-16) aligns the current chapters and public guides with the released 1.0.0 behaviour; see B.104. Earlier rows retain their original wording.</p>
@@ -1935,6 +1937,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>4.98</td><td>2026-10-09</td><td>A file takes <code>format: SheetFormat?</code> as bytes do, through a twin of each URL read, inspection and initializer. 2.0.0 announced: async twins under the same names, and the default argument that folds the twins into one (B.107).</td></tr>
     <tr><td>4.97</td><td>2026-09-24</td><td>A table sharing a sheet filter's range owns that filter in XLSX and ODS; criteria and sort move with it. Sheet-local named ranges have an explicit sheet context (B.106).</td></tr>
     <tr><td>4.96 Draft</td><td>2026-09-23</td><td>Malformed ZIP64 counts, sizes and offsets are rejected before conversion or addition. The combined expanded-size budget is checked before it is incremented (B.105).</td></tr>
     <tr><td>4.95 Draft</td><td>2026-09-16</td><td>Current chapters and public guides aligned with the released 1.0.0 behaviour (B.104).</td></tr>
@@ -7588,6 +7591,22 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   XLSX export has a single table filter. Numbers has no corresponding named table, auto-filter or
   defined-name feature: its writer keeps its existing explicit conversion warnings, and Numbers for
   Mac opens the generated document without repair.</p>
+  <h3>B.107 A file takes a format, and 2.0 is announced (Rev 4.98)</h3>
+  <p>Decided 2026-10-09 for 1.2.0. <strong>Format.</strong> <code>read</code>, <code>inspect</code> and
+  <code>Workbook(contentsOf:)</code> over a file, on <code>CodecSet</code>, on the umbrella's <code>Workbook</code> and
+  with a password, gain a twin with a <code>format: SheetFormat?</code> argument, as the same calls over bytes and the
+  row-by-row reader already have (B.92): nil detects, a format skips detection, a compound file is still refused by
+  name, and a folder is only ever a Numbers document, so any other format given for one is
+  <code>unrecognizedFormat</code>. The argument is optional in type so that a caller's own optional choice passes
+  through, and has no default in 1.x: a default would make <code>read(contentsOf: url)</code> match both functions,
+  and removing the function without it would break a reference to it by name. Both are left to 2.0.0.</p>
+  <p><strong>2.0.0 is announced here</strong>, as the API stability policy asks of a major release. It will add async
+  twins of <code>read</code>, <code>inspect</code>, <code>write</code> and <code>convert</code> (and the password forms)
+  under the same names. Swift picks the async twin in async code, so a call there will need <code>await</code>; only
+  async calls will answer to task cancellation, and a synchronous call will run to completion as now. It will also
+  give <code>format:</code> its default of nil and remove <code>read(contentsOf:options:)</code> and its siblings: every
+  call compiles unchanged, and only a reference to one of them as a value by its full name does not. Neither break has
+  an old name that can be deprecated without warning on every ordinary call, so the CHANGELOG announces both instead.</p>
 </section>
 
 </div><!-- /.container -->
