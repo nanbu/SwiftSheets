@@ -9,6 +9,36 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+Async versions of the calls that open, inspect, save and convert a workbook, and the default of the `format:` argument
+1.2.0 added (spec Appendix B.108), both announced in 1.2.0. Synchronous code compiles and behaves as in 1.x, but async
+code needs `await` on those calls — a source break, and the reason this is a major release.
+[Migrating to 2.0](docs/migrating-to-2.0.md) shows the change.
+
+### Changed
+
+- **In async code, `read`, `inspect`, `write` and `convert` are async and need `await`.** `Workbook` and every
+  `CodecSet` have async versions under the same names, as do the password forms of SheetDecrypt and SheetEncrypt,
+  `decrypt` and `encrypt`. Swift picks them inside an async function, so an existing call there stops compiling until
+  `await` is added; the compiler offers the fix. They run the same synchronous engine on the calling task, away from
+  its actor (`@concurrent`; no detached task), and are neither faster nor smaller in memory. The initializers and the
+  row-by-row reader and writer are unchanged.
+
+### Removed
+
+- **`read(contentsOf:options:)` → `read(contentsOf:format:options:)`.** `format:` defaults to nil, and the functions
+  without it — `read`, `inspect` and `Workbook(contentsOf:)`, on `Workbook`, on `CodecSet` and with a password — are
+  gone, as 1.2.0 announced. Every call compiles unchanged; only a reference to one of them as a value by its old full
+  name needs the new one.
+
+### Added
+
+- **Cancelling an async call stops it.** It throws `CancellationError` before it starts, between the parts of a
+  package, at the first tag past each 64 KiB of XML, after a read, and immediately before a file is replaced, so a
+  cancelled save leaves whatever was at the destination untouched. A save that got past that point has been made and
+  says so. A step with no check inside it — a password's key derivation, a CSV parse — finishes first, so this is not
+  a deadline. Synchronous calls never stop for cancellation, even on a cancelled task: a save made while a task winds
+  down still saves.
+
 ## [1.2.0] — 2026-10-09
 
 A file can be read as a named format, as bytes can, and 2.0.0 is announced (spec Appendix B.107).

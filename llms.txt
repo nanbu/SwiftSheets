@@ -27,7 +27,7 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 - Formulas are `.formula("=SUM(A1:A3)")`, parsed into a tree; they follow row inserts and sheet renames. The library does not evaluate formulas.
 - Untrusted input: call `Workbook.inspect` first, then read with `ReadOptions.cellLimit` and `ReadOptions.limits`; a read that stops at the limit gives a `truncated` warning.
 - A file takes `format:` as bytes do (`Workbook.read(contentsOf: url, format: .csv)`); nil detects from the content.
-- 2.0.0 is announced in the CHANGELOG: `read`, `inspect`, `write` and `convert` gain async versions under the same names, so calls inside async functions will need `await`.
+- In async code, `read`, `inspect`, `write` and `convert` (and their password forms) are the async versions: write `try await Workbook.read(contentsOf: url)`, `try await workbook.write(to: url)`. Only they stop for task cancellation (`CancellationError`, never after the file is replaced); synchronous calls and the initializers run to completion.
 
 ## Documents
 
@@ -39,6 +39,7 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 - Interoperability guide (recorded 48-feature probe and current conversion boundaries): https://nanbu.github.io/SwiftSheets/interoperability.html
 - Performance record (seconds and MB per operation, measured): https://nanbu.github.io/SwiftSheets/performance.json
 - Implementation spec (the design; Appendix B records every decision and its reason): https://nanbu.github.io/SwiftSheets/implementation-spec.html
+- Migrating to 2.0 (async code adds `await`; nothing renamed): https://github.com/nanbu/SwiftSheets/blob/main/docs/migrating-to-2.0.md
 - Migrating to 1.0 (every rename since 0.20; integer coordinates are 1-based since 0.23.0): https://github.com/nanbu/SwiftSheets/blob/main/docs/migrating-to-1.0.md
 - Changelog: https://github.com/nanbu/SwiftSheets/blob/main/CHANGELOG.md
 - Contributing (spec-first rule, the bar for AI-assisted pull requests): https://github.com/nanbu/SwiftSheets/blob/main/CONTRIBUTING.md

@@ -60,6 +60,14 @@ Three things to know about the model:
 - **Everything is a value type and `Sendable`.** Copy a sheet out, edit it, put it back — or use `editSheet` and
   skip the putting back.
 
+In async code — a SwiftUI `.task`, a server handler — the same calls are async and need `await`. They run away from
+the caller's actor and stop with `CancellationError` if the task is cancelled before the file is replaced:
+
+```swift
+let opened = try await Workbook.read(contentsOf: input)          // the workbook, and what reading could not carry
+let saved = try await opened.workbook.write(to: output, as: .xlsx)
+```
+
 ## 3. Create a file from nothing
 
 ```swift
@@ -139,5 +147,6 @@ The numbers — seconds and megabytes for a million and ten million cells — ar
   measured, and the API for each feature (also as [YAML](https://nanbu.github.io/SwiftSheets/spec-feature-matrix.yaml)).
 - [Implementation spec](https://nanbu.github.io/SwiftSheets/implementation-spec.html) — the design, and
   Appendix B: every implementation decision and the reason behind it.
+- [Migrating to 2.0](migrating-to-2.0.md) — for code written against 1.x: async code adds `await`, and nothing else changes.
 - [Migrating to 1.0](migrating-to-1.0.md) — for code written against 0.2x: every rename, and why `- 1` next to a row is now a bug.
 - [llms.txt](../llms.txt) — the short map of the library written for AI coding agents.

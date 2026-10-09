@@ -1,17 +1,17 @@
-# API stability — what 1.0 promises
+# API stability — what each release promises
 
-> **The policy 1.0 keeps** (spec Appendix B.95). It applies from the 1.0.0 tag onward.
+> **The policy set for 1.0** (spec Appendix B.95). It applies from the 1.0.0 tag onward, to every major version.
 
 ## Versioning
 
 SwiftSheets follows [Semantic Versioning](https://semver.org/). From 1.0:
 
-- **Patch** (1.0.x): bug fixes, performance, documentation. No source-breaking change.
-- **Minor** (1.x): additions — new types, members, formats, new cases of the error and warning enumerations — and a
+- **Patch** (2.0.x): bug fixes, performance, documentation. No source-breaking change.
+- **Minor** (2.x): additions — new types, members, formats, new cases of the error and warning enumerations — and a
   raised minimum Swift. Existing code keeps compiling and behaving the same, with the exceptions named on this page:
   a `switch` that lists every case of such an enumeration needs a `default:`, and a file that holds something the
   library could not read before may read differently.
-- **Major** (2.0): anything that breaks source. Announced in the CHANGELOG one minor release ahead, with the old
+- **Major** (3.0): anything that breaks source. Announced in the CHANGELOG one minor release ahead, with the old
   name deprecated and the new one available side by side for that release.
 
 The version is `SwiftSheetsInfo.version`, stamped into every file the library writes, and a test keeps it equal
@@ -25,12 +25,13 @@ The public surface of the products `SwiftSheets`, `SheetCore`, `SheetXLSX`, `She
 - **The model.** `Workbook`, `Sheet`, `Table`, `Cell`, `CellValue`, `CellRef`, `CellRange`, the styles, and the
   sheet-level objects (validations, conditional formatting, structured tables, pivots, protection, images, charts,
   shapes …). Value types, `Sendable`, `Hashable` where declared.
-- **The entry points.** `Workbook(contentsOf:)` / `read` / `inspect` / `write` / `convert`, `CodecSet`,
-  `StreamingReader`, `StreamingWriter`, `SheetFormat.detect` / `probe`, and the `SheetDecrypt` / `SheetEncrypt`
-  password variants.
+- **The entry points.** `Workbook(contentsOf:)` / `read` / `inspect` / `write` / `convert` and their async
+  versions, `CodecSet`, `StreamingReader`, `StreamingWriter`, `SheetFormat.detect` / `probe`, and the
+  `SheetDecrypt` / `SheetEncrypt` password variants.
 - **The error and warning vocabulary.** The cases of `SheetError` and `UnopenableInput`, and the `kind` and
   `subject` of `ConversionWarning`. A new case or kind is a minor change, so a `switch` over them keeps a
-  `default:`; a removed one is major.
+  `default:`; a removed one is major. An async call whose task is cancelled throws Swift's `CancellationError`; a
+  synchronous call never does.
 - **The preservation promise (F3).** An uninterpreted part of a whole-workbook XLSX/XLSM read is written back
   byte for byte when saved in the same format (VBA requires XLSM). Modelled content is regenerated with equivalent
   meaning. This F3 guarantee does not apply to ODS, Numbers, cross-format conversion or streaming.
@@ -65,6 +66,7 @@ the package for it on every push but does not run the suite there.
 A name that is going away is marked `@available(*, deprecated, renamed:)` in one minor release before the major
 release that removes it, the CHANGELOG lists `old → new`, and `APIContractTests.everyRenameTheChangelogAnnouncesExistsInTheCode` checks that the
 new name exists. Before 1.0 no aliases are kept; the compiler, with [Migrating to 1.0](migrating-to-1.0.md), is the migration guide.
+2.0 renamed and removed nothing; [Migrating to 2.0](migrating-to-2.0.md) shows the `await` that async code needs.
 
 ## File formats
 

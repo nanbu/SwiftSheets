@@ -56,6 +56,11 @@ an extension. The former `to: format, output: destination` labels have been remo
 A file also takes `format:` as bytes do: `Workbook.read(contentsOf: url, format: .csv)` skips detection, for a file
 whose content cannot say what it is; nil detects.
 
+**In async code** the same calls are async — `try await Workbook.read(contentsOf: url)`,
+`try await wb.write(to: url)` — under the same names, so an existing call there needs `await` (that is what made
+2.0.0 a major release). They run the same engine away from your actor, no faster, and stop with `CancellationError`
+when the task is cancelled, never after a file has been replaced. Synchronous calls never stop for cancellation.
+
 Writing row by row — for a file with more rows than memory — saves the same way, at the end:
 
 ```swift
@@ -73,9 +78,9 @@ result and must be called — and `cancel()` throws the rows away.
 
 **Guides.** [Getting started](docs/getting-started.md) takes you from an empty package to a saved file;
 the [cookbook](docs/cookbook.md) is thirteen complete recipes that CI compiles and runs (the page is generated
-from [`Examples/`](Examples)); [API stability](docs/api-stability.md) says what 1.x promises; [migrating to 1.0](docs/migrating-to-1.0.md)
-maps every rename since 0.20 to its new name; [llms.txt](llms.txt) is the
-short map written for AI coding agents.
+from [`Examples/`](Examples)); [API stability](docs/api-stability.md) says what each release promises; [migrating to 2.0](docs/migrating-to-2.0.md)
+shows the `await` async code needs, and [migrating to 1.0](docs/migrating-to-1.0.md) maps every rename since 0.20 to
+its new name; [llms.txt](llms.txt) is the short map written for AI coding agents.
 
 ## Installation
 
@@ -115,9 +120,7 @@ B.39.9).
 Status: **1.2.0** — the current stable release; all five formats are usable and the public API follows the
 [1.x stability policy](docs/api-stability.md). What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
-test keeps the constant, this line and the pin above in step. The next major release, 2.0.0, is announced there:
-`read`, `inspect`, `write` and `convert` gain async versions under the same names, so a call in async code will need
-`await`.
+test keeps the constant, this line and the pin above in step.
 
 ## Limits
 
