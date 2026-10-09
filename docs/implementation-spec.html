@@ -1529,6 +1529,7 @@ using, building or testing the published package.</p></section>
     <tr><td>—</td><td><code>try wb.write(to: url, as: .ods)</code></td><td>Naming the format explicitly = a format conversion as it is</td></tr>
     <tr><td>—</td><td><code>try wb.write(as: .xlsx).data</code></td><td>Get <code>Data</code> without going through a file (server use)</td></tr>
     <tr><td>(no equivalent)</td><td><code>try Workbook.read(contentsOf: url, format: .csv)</code></td><td>Skips detection, for a file whose content cannot say what it is. The same <code>format:</code> as over bytes; nil detects (Rev 4.98, B.107)</td></tr>
+    <tr><td>(no equivalent)</td><td><code>try await Workbook.read(contentsOf: url)</code> / <code>try await wb.write(to: url)</code></td><td>The async twins of read, inspect, write and convert. They run away from the caller's actor and stop with <code>CancellationError</code> when the task is cancelled, before a file is replaced; synchronous calls never stop for it (Rev 5.0, B.108)</td></tr>
     <tr><td><code>wb.sheetnames</code></td><td><code>wb.sheets.map(\.name)</code></td><td>The list of sheet names</td></tr>
     <tr><td><code>wb.properties</code></td><td><code>wb.metadata</code></td><td>Document metadata such as author and title</td></tr>
     <tr><td><code>wb.defined_names</code></td><td><code>wb.definedNames</code></td><td>The dictionary of named ranges</td></tr>
@@ -1877,6 +1878,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
 
   <h3>A.3 Revision history</h3>
+  <p>Rev 5.0 (2026-10-09) adds async twins of read, inspect, write and convert that answer to task cancellation, and gives <code>format:</code> its default of nil, as 4.98 announced; see B.108. Earlier rows retain their original wording.</p>
   <p>Rev 4.98 (2026-10-09) lets a file take <code>format:</code> as bytes do, and announces the async twins and the default argument of 2.0.0; see B.107. Earlier rows retain their original wording.</p>
   <p>Rev 4.97 (2026-09-24) gives a table and its sheet one filter owner when their ranges coincide, and qualifies sheet-local named ranges; see B.106. Earlier rows retain their original wording.</p>
   <p>Rev 4.96 (2026-09-23) requires checked ZIP64 value conversion and remaining-length checks before arithmetic; see B.105. Earlier rows retain their original wording.</p>
@@ -1937,6 +1939,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>5.0</td><td>2026-10-09</td><td>Async twins of read, inspect, write and convert (and the password forms) under the same names, which makes existing async code add <code>await</code>: the 2.0.0 source break announced in 4.98. Only async calls answer to cancellation; synchronous calls run to completion as in 1.x. <code>format: SheetFormat? = nil</code> replaces the URL functions without it (B.108).</td></tr>
     <tr><td>4.98</td><td>2026-10-09</td><td>A file takes <code>format: SheetFormat?</code> as bytes do, through a twin of each URL read, inspection and initializer. 2.0.0 announced: async twins under the same names, and the default argument that folds the twins into one (B.107).</td></tr>
     <tr><td>4.97</td><td>2026-09-24</td><td>A table sharing a sheet filter's range owns that filter in XLSX and ODS; criteria and sort move with it. Sheet-local named ranges have an explicit sheet context (B.106).</td></tr>
     <tr><td>4.96 Draft</td><td>2026-09-23</td><td>Malformed ZIP64 counts, sizes and offsets are rejected before conversion or addition. The combined expanded-size budget is checked before it is incremented (B.105).</td></tr>
@@ -7607,6 +7610,37 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   give <code>format:</code> its default of nil and remove <code>read(contentsOf:options:)</code> and its siblings: every
   call compiles unchanged, and only a reference to one of them as a value by its full name does not. Neither break has
   an old name that can be deprecated without warning on every ordinary call, so the CHANGELOG announces both instead.</p>
+  <h3>B.108 Async entry points, and the default of <code>format:</code> (Rev 5.0)</h3>
+  <p>Decided 2026-10-09 for 2.0.0, as 1.2.0 announced (B.107). <strong>Async.</strong> <code>CodecSet</code> and the umbrella's
+  <code>Workbook</code> gain async twins of <code>read</code>, <code>inspect</code>, <code>write</code> and
+  <code>convert</code>, under the same names; so do the password forms of SheetDecrypt and SheetEncrypt, and
+  <code>decrypt</code> / <code>encrypt</code>. Each is <code>@concurrent</code>: the synchronous engine runs on the
+  task that called it, away from the caller's actor, and no detached task is made. The names are the same because
+  there is one name per thing (B.62–B.67). Swift picks the async twin in async code, so an existing call there now
+  needs <code>await</code>: that is a source break, and the reason this is 2.0.0. Initializers stay synchronous;
+  <code>try await Workbook.read(contentsOf:)</code> opens a file in async code. The row-by-row reader is already an
+  async sequence and is unchanged. Nothing is promised to run faster or in less memory for being async.</p>
+  <p><strong>Cancellation is answered by async calls only.</strong> An async call stops with
+  <code>CancellationError</code> when its task is cancelled: before it starts, between the parts of a package (each
+  directory entry, each part read or added, each piece of a part walked), at the first tag past each 64 KiB of XML,
+  after a read or an inspection (a read the task no longer wants is not handed back), and immediately before a file is replaced. Past
+  that point the save is reported as made. A single step that has no check inside it — a key derivation, a CSV
+  parse, one Foundation write — runs to its end, so cancellation is not a deadline. The first tagged 2.0.0 draft,
+  never published, made the same checks in synchronous calls too. A synchronous save made on a cancelled task — a
+  <code>defer</code> in a SwiftUI <code>.task</code> that saves on the way out — then threw
+  <code>CancellationError</code> and left the file unwritten, and a caller that handles <code>SheetError</code> met a
+  new kind of error from a call that had not changed. Synchronous calls now run to completion on a cancelled task, as
+  in 1.x: the async twin sets a task-local value, and a check reads it only once the task is cancelled.
+  <code>IOConsistencyTests</code> pins both halves.</p>
+  <p><strong>The default of <code>format:</code>.</strong> 1.2.0 gave <code>read</code>, <code>inspect</code> and
+  <code>Workbook(contentsOf:)</code> over a file, and their password forms, a twin taking <code>format: SheetFormat?</code>
+  (B.107). 2.0.0 gives that argument its default of nil and removes the functions without it, as 1.2.0 announced, so
+  files and bytes answer to one function each and one rule: nil detects, a format skips detection. Every call compiles
+  unchanged; a reference to a removed function as a value by its old full name — <code>Workbook.read(contentsOf:options:)</code>
+  — does not. A default argument, which the Swift API Design Guidelines prefer to a family of methods, is what a
+  minor release could not add: it would have made <code>read(contentsOf: url)</code> match both functions. The first
+  tagged 2.0.0 draft, never published, instead kept the functions without the argument beside a second family whose
+  format was required and not optional, so the files and the bytes answered to different rules.</p>
 </section>
 
 </div><!-- /.container -->
