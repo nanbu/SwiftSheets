@@ -18,13 +18,9 @@ extension CodecSet {
 /// Every method here is `CodecSet.all`'s; the set holds the rules, this product only names them.
 extension Workbook {
     /// Opens a file. The format is detected from its content; the extension only breaks ties for plain text.
-    /// Anything the file held that the model cannot say is on `readWarnings` (and on `ReadResult` from `read`).
-    public init(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws {
-        self = try CodecSet.all.read(contentsOf: url, options: options).workbook
-    }
-
-    /// Opens a file as the named format: nil detects; a format skips detection, as it does over bytes.
-    public init(contentsOf url: URL, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws {
+    /// `format` skips detection, as it does over bytes. Anything the file held that the model cannot say is on
+    /// `readWarnings` (and on `ReadResult` from `read`).
+    public init(contentsOf url: URL, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws {
         self = try CodecSet.all.read(contentsOf: url, format: format, options: options).workbook
     }
 
@@ -33,13 +29,9 @@ extension Workbook {
         self = try CodecSet.all.read(data, format: format, options: options).workbook
     }
 
-    /// Opens a file and hands back the workbook together with what reading it could not carry over.
-    public static func read(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        try CodecSet.all.read(contentsOf: url, options: options)
-    }
-
-    /// `read(contentsOf:options:)` with the format named: nil detects; a format skips detection.
-    public static func read(contentsOf url: URL, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+    /// Opens a file and hands back the workbook together with what reading it could not carry over. `format` skips
+    /// detection, as it does over bytes.
+    public static func read(contentsOf url: URL, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         try CodecSet.all.read(contentsOf: url, format: format, options: options)
     }
 
@@ -52,12 +44,8 @@ extension Workbook {
     /// what the package expands to, who wrote it (spec Appendix B.39.3). For a file you do not trust, this is how
     /// to choose a `ReadOptions.cellLimit` — or to decline. Reads the package directory and the head of each
     /// sheet part; with `InspectOptions.countsCells`, walks each sheet's markup as bytes to count what is there.
-    public static func inspect(contentsOf url: URL, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
-        try CodecSet.all.inspect(contentsOf: url, options: options)
-    }
-
-    /// `inspect(contentsOf:options:)` with the format named: nil detects; a format skips detection.
-    public static func inspect(contentsOf url: URL, format: SheetFormat?, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+    /// `format` skips detection, as it does over bytes.
+    public static func inspect(contentsOf url: URL, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         try CodecSet.all.inspect(contentsOf: url, format: format, options: options)
     }
 

@@ -3,7 +3,7 @@ import Testing
 import SwiftSheets
 @testable import SheetCore
 
-/// A file takes `format:` as bytes do (spec Appendix B.107), beside the functions that detect it.
+/// A file takes `format:` as bytes do (spec Appendix B.107), with its default of nil since 2.0.0 (B.108).
 struct IOConsistencyTests {
     private func url(_ suffix: String) -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + suffix)
@@ -27,19 +27,8 @@ struct IOConsistencyTests {
         // nil is detection, as it is over bytes: the content says CSV, as it does to the function without the argument
         #expect(try Workbook.read(contentsOf: input, format: nil).workbook.sourceInfo?.format == .csv)
         #expect(try Workbook.read(contentsOf: input).workbook.sourceInfo?.format == .csv)
-    }
-
-    /// 1.x keeps every existing call and every reference to a function by its full name compiling (API stability
-    /// policy); 2.0.0 folds the two URL functions into one and is announced to.
-    @Test func theFunctionsWithoutTheArgumentStillAnswerToTheirNames() throws {
-        let input = url(".csv")
-        try Data("name,value\nalpha,1\n".utf8).write(to: input)
-        defer { try? FileManager.default.removeItem(at: input) }
-        let read: (URL, ReadOptions) throws -> ReadResult = Workbook.read(contentsOf:options:)
-        let inspect: (URL, InspectOptions) throws -> WorkbookSummary = Workbook.inspect(contentsOf:options:)
-        #expect(try read(input, ReadOptions()).workbook.sheets[0]["A2"] == "alpha")
-        #expect(try inspect(input, InspectOptions()).sheets.count == 1)
-        #expect(try Workbook(contentsOf: input).sheets[0]["A2"] == "alpha")
+        let reference: (URL, SheetFormat?, ReadOptions) throws -> ReadResult = Workbook.read(contentsOf:format:options:)
+        #expect(try reference(input, nil, ReadOptions()).workbook.sheets[0]["A2"] == "alpha")
     }
 
     @Test func aNumbersFolderTakesOnlyTheNumbersFormat() throws {

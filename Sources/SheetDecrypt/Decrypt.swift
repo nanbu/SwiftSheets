@@ -51,13 +51,8 @@ public func decrypt(contentsOf url: URL, password: String, limits: ZipLimits = Z
 }
 
 extension Workbook {
-    /// Opens a file with its password: `decrypt`, then `Workbook(contentsOf:options:)` over the plain package.
-    public init(contentsOf url: URL, password: String, options: ReadOptions = ReadOptions()) throws {
-        self = try Workbook.read(contentsOf: url, password: password, options: options).workbook
-    }
-
-    /// `Workbook(contentsOf:password:options:)` with the format named: nil detects; a format skips detection.
-    public init(contentsOf url: URL, password: String, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws {
+    /// Opens a file with its password: `decrypt`, then `Workbook(contentsOf:format:options:)` over the plain package.
+    public init(contentsOf url: URL, password: String, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws {
         self = try Workbook.read(contentsOf: url, password: password, format: format, options: options).workbook
     }
 
@@ -66,14 +61,9 @@ extension Workbook {
         self = try Workbook.read(data, password: password, format: format, options: options).workbook
     }
 
-    /// `Workbook.read(contentsOf:options:)` with a password: the file is decrypted whole, then read as the plain
-    /// package it holds. The warnings are the plain read's.
-    public static func read(contentsOf url: URL, password: String, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        try read(contentsOf: url, password: password, format: nil, options: options)
-    }
-
-    /// `read(contentsOf:password:options:)` with the format named: nil detects; a format skips detection.
-    public static func read(contentsOf url: URL, password: String, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+    /// `Workbook.read(contentsOf:format:options:)` with a password: the file is decrypted whole, then read as the
+    /// plain package it holds. The warnings are the plain read's.
+    public static func read(contentsOf url: URL, password: String, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         // a Numbers document saved as a package is a folder: nothing to decrypt, and the plain facade opens it
         if url.isDirectoryOnDisk { return try read(contentsOf: url, format: format, options: options) }
         var opts = options
@@ -86,14 +76,9 @@ extension Workbook {
         try read(try decrypt(data, password: password, limits: options.limits), format: format, options: options)
     }
 
-    /// `Workbook.inspect(contentsOf:options:)` with a password. A protected package has to be decrypted whole
+    /// `Workbook.inspect(contentsOf:format:options:)` with a password. A protected package has to be decrypted whole
     /// before its directory can be read, so this costs what a read costs, not what an inspection does.
-    public static func inspect(contentsOf url: URL, password: String, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
-        try inspect(contentsOf: url, password: password, format: nil, options: options)
-    }
-
-    /// `inspect(contentsOf:password:options:)` with the format named: nil detects; a format skips detection.
-    public static func inspect(contentsOf url: URL, password: String, format: SheetFormat?, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+    public static func inspect(contentsOf url: URL, password: String, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         if url.isDirectoryOnDisk { return try inspect(contentsOf: url, format: format, options: options) }
         var opts = options
         if opts.filename == nil { opts.filename = url.lastPathComponent }

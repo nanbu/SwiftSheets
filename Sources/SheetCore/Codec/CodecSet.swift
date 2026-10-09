@@ -58,15 +58,10 @@ public struct CodecSet: Sendable {
 
     /// Opens a file. The format is detected from its content; the extension only breaks ties for plain text. A
     /// Numbers document saved as a package is a folder on disk, not a file (spec §4.2). Anything the file held that
-    /// the model cannot say is on the result's `warnings`, and on the workbook's `readWarnings`.
-    public func read(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws -> ReadResult {
-        try read(contentsOf: url, format: nil, options: options)
-    }
-
-    /// `read(contentsOf:options:)` with the format named. nil detects; a format skips detection, as it does over
-    /// bytes (spec Appendix B.107): a compound file is still refused by name, and a folder is only ever a Numbers
-    /// document.
-    public func read(contentsOf url: URL, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+    /// the model cannot say is on the result's `warnings`, and on the workbook's `readWarnings`. `format` skips
+    /// detection, as it does over bytes (spec Appendix B.108): a compound file is still refused by name, and a folder
+    /// is only ever a Numbers document.
+    public func read(contentsOf url: URL, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         var opts = options
         if opts.filename == nil { opts.filename = url.lastPathComponent }
         if url.isDirectoryOnDisk {
@@ -115,12 +110,8 @@ public struct CodecSet: Sendable {
     /// what the package expands to, who wrote it (spec Appendix B.39.3). For a file you do not trust, this is how
     /// to choose a `ReadOptions.cellLimit` — or to decline. Reads the package directory and the head of each
     /// sheet part; with `InspectOptions.countsCells`, walks each sheet's markup as bytes to count what is there.
-    public func inspect(contentsOf url: URL, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
-        try inspect(contentsOf: url, format: nil, options: options)
-    }
-
-    /// `inspect(contentsOf:options:)` with the format named, as `read(contentsOf:format:options:)` takes it.
-    public func inspect(contentsOf url: URL, format: SheetFormat?, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+    /// `format` skips detection, as it does for `read(contentsOf:format:options:)`.
+    public func inspect(contentsOf url: URL, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         var opts = options
         if opts.filename == nil { opts.filename = url.lastPathComponent }
         if url.isDirectoryOnDisk {
