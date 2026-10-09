@@ -23,6 +23,11 @@ extension Workbook {
         self = try CodecSet.all.read(contentsOf: url, options: options).workbook
     }
 
+    /// Opens a file as the named format: nil detects; a format skips detection, as it does over bytes.
+    public init(contentsOf url: URL, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws {
+        self = try CodecSet.all.read(contentsOf: url, format: format, options: options).workbook
+    }
+
     /// Parses bytes. `format` overrides detection.
     public init(data: Data, format: SheetFormat? = nil, options: ReadOptions = ReadOptions()) throws {
         self = try CodecSet.all.read(data, format: format, options: options).workbook
@@ -31,6 +36,11 @@ extension Workbook {
     /// Opens a file and hands back the workbook together with what reading it could not carry over.
     public static func read(contentsOf url: URL, options: ReadOptions = ReadOptions()) throws -> ReadResult {
         try CodecSet.all.read(contentsOf: url, options: options)
+    }
+
+    /// `read(contentsOf:options:)` with the format named: nil detects; a format skips detection.
+    public static func read(contentsOf url: URL, format: SheetFormat?, options: ReadOptions = ReadOptions()) throws -> ReadResult {
+        try CodecSet.all.read(contentsOf: url, format: format, options: options)
     }
 
     /// Parses bytes and hands back the workbook together with what reading them could not carry over.
@@ -44,6 +54,11 @@ extension Workbook {
     /// sheet part; with `InspectOptions.countsCells`, walks each sheet's markup as bytes to count what is there.
     public static func inspect(contentsOf url: URL, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
         try CodecSet.all.inspect(contentsOf: url, options: options)
+    }
+
+    /// `inspect(contentsOf:options:)` with the format named: nil detects; a format skips detection.
+    public static func inspect(contentsOf url: URL, format: SheetFormat?, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
+        try CodecSet.all.inspect(contentsOf: url, format: format, options: options)
     }
 
     public static func inspect(_ data: Data, format: SheetFormat? = nil, options: InspectOptions = InspectOptions()) throws -> WorkbookSummary {
