@@ -11,7 +11,7 @@ template. Check read and write warnings for unsupported content. This page gets 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "1.2.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "2.0.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])

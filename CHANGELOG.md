@@ -9,6 +9,8 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-10-09
+
 Async versions of the calls that open, inspect, save and convert a workbook, and the default of the `format:` argument
 1.2.0 added (spec Appendix B.108), both announced in 1.2.0. Synchronous code compiles and behaves as in 1.x, but async
 code needs `await` on those calls — a source break, and the reason this is a major release.
@@ -1574,7 +1576,8 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/2.0.0...HEAD
+[2.0.0]: https://github.com/nanbu/SwiftSheets/compare/1.2.0...2.0.0
 [1.2.0]: https://github.com/nanbu/SwiftSheets/compare/1.1.1...1.2.0
 [1.1.1]: https://github.com/nanbu/SwiftSheets/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/nanbu/SwiftSheets/compare/1.0.0...1.1.0
