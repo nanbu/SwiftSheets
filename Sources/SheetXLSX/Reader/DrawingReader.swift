@@ -21,25 +21,25 @@ struct ParsedDrawingAnchor {
     enum Form { case oneCell, twoCell, absolute }
     var shape: Form
     var kind: Kind = .none
-    var from = (column: 0, row: 0, columnOffset: 0, rowOffset: 0)
-    var to = (column: 0, row: 0, columnOffset: 0, rowOffset: 0)
-    var ext: (cx: Int, cy: Int)?
-    var pos: (x: Int, y: Int)?
+    var from: (column: Int64, row: Int64, columnOffset: Int64, rowOffset: Int64) = (0, 0, 0, 0)
+    var to: (column: Int64, row: Int64, columnOffset: Int64, rowOffset: Int64) = (0, 0, 0, 0)
+    var ext: (cx: Int64, cy: Int64)?
+    var pos: (x: Int64, y: Int64)?
     var editAs: String?
     var exact: DrawingAnchor? {
-        func marker(_ p: (column: Int, row: Int, columnOffset: Int, rowOffset: Int)) -> DrawingAnchor.Marker {
-            .init(column: Int64(p.column), row: Int64(p.row), columnOffset: Int64(p.columnOffset), rowOffset: Int64(p.rowOffset))
+        func marker(_ p: (column: Int64, row: Int64, columnOffset: Int64, rowOffset: Int64)) -> DrawingAnchor.Marker {
+            .init(column: p.column, row: p.row, columnOffset: p.columnOffset, rowOffset: p.rowOffset)
         }
         switch shape {
         case .oneCell:
             guard let ext else { return nil }
             let from = marker(from)
-            return .oneCell(from: from, width: Int64(ext.cx), height: Int64(ext.cy))
+            return .oneCell(from: from, width: ext.cx, height: ext.cy)
         case .twoCell:
             return .twoCell(from: marker(from), to: marker(to), editAs: editAs)
         case .absolute:
             guard let pos, let ext else { return nil }
-            return .absolute(x: Int64(pos.x), y: Int64(pos.y), width: Int64(ext.cx), height: Int64(ext.cy))
+            return .absolute(x: pos.x, y: pos.y, width: ext.cx, height: ext.cy)
         }
     }
 }
@@ -224,9 +224,9 @@ final class DrawingParser: SAXHandler {
         case "from", "to": corner = name
         case "col", "colOff", "row", "rowOff": if corner != nil { field = name; buffer = "" }
         case "ext":
-            if current != nil, !inGraphicFrame, objectDepth == 0, let cx = Int(a["cx"] ?? ""), let cy = Int(a["cy"] ?? "") { current?.ext = (cx, cy) }
+            if current != nil, !inGraphicFrame, objectDepth == 0, let cx = Int64(a["cx"] ?? ""), let cy = Int64(a["cy"] ?? "") { current?.ext = (cx, cy) }
         case "pos":
-            if objectDepth == 0, let x = Int(a["x"] ?? ""), let y = Int(a["y"] ?? "") { current?.pos = (x, y) }
+            if objectDepth == 0, let x = Int64(a["x"] ?? ""), let y = Int64(a["y"] ?? "") { current?.pos = (x, y) }
         case "pic":
             objectDepth += 1
             if case .none? = current?.kind { current?.kind = .other("pic") }   // becomes .picture at the blip
@@ -281,9 +281,9 @@ final class DrawingParser: SAXHandler {
             current = nil; inGraphicFrame = false; objectDepth = 0
         case "from", "to": corner = nil
         case "col", "colOff", "row", "rowOff":
-            guard let corner, field == name, let v = Int(buffer.trimmingCharacters(in: .whitespacesAndNewlines)) else { field = nil; return }
+            guard let corner, field == name, let v = Int64(buffer.trimmingCharacters(in: .whitespacesAndNewlines)) else { field = nil; return }
             field = nil
-            func apply(_ c: inout (column: Int, row: Int, columnOffset: Int, rowOffset: Int)) {
+            func apply(_ c: inout (column: Int64, row: Int64, columnOffset: Int64, rowOffset: Int64)) {
                 switch name {
                 case "col": c.column = v
                 case "colOff": c.columnOffset = v
@@ -434,15 +434,17 @@ enum DrawingReader {
     static func imageAnchor(_ a: ParsedDrawingAnchor, image: SheetImage, sheet: Sheet) -> SheetImage.Anchor {
         switch a.shape {
         case .oneCell:
-            let ref = CellRef(row: min(max(a.from.row, 0), CellRef.maxRow - 1) + 1, column: min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1)
+            let ref = CellRef(row: cellIndex(a.from.row, maximum: CellRef.maxRow), column: cellIndex(a.from.column, maximum: CellRef.maxColumn))
             guard let ext = a.ext else { return .cell(ref, sizing: .original) }
-            let w = Units.emuToPixels(Double(ext.cx)), h = Units.emuToPixels(Double(ext.cy))
+            let w = pixels(ext.cx), h = pixels(ext.cy)
             return .cell(ref, sizing: w == image.pixelWidth && h == image.pixelHeight ? .original : .scaled(width: w, height: h))
         case .twoCell:
             return .span(span(a))
         case .absolute:
-            let pos = a.pos ?? (0, 0), ext = a.ext ?? (Units.pixelsToEMU(Double(image.pixelWidth)), Units.pixelsToEMU(Double(image.pixelHeight)))
-            return .absolute(CanvasRect(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700, width: Double(ext.cx) / 12700, height: Double(ext.cy) / 12700))
+            let pos = a.pos ?? (0, 0)
+            return .absolute(CanvasRect(x: Double(pos.x) / 12700, y: Double(pos.y) / 12700,
+                                        width: a.ext.map { Double($0.cx) / 12700 } ?? Units.pixelsToPoints(Double(image.pixelWidth)),
+                                        height: a.ext.map { Double($0.cy) / 12700 } ?? Units.pixelsToPoints(Double(image.pixelHeight))))
         }
     }
 
@@ -451,9 +453,9 @@ enum DrawingReader {
     static func shapeAnchor(_ a: ParsedDrawingAnchor, sheet: Sheet) -> SheetImage.Anchor {
         switch a.shape {
         case .oneCell:
-            let ref = CellRef(row: min(max(a.from.row, 0), CellRef.maxRow - 1) + 1, column: min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1)
+            let ref = CellRef(row: cellIndex(a.from.row, maximum: CellRef.maxRow), column: cellIndex(a.from.column, maximum: CellRef.maxColumn))
             guard let ext = a.ext else { return .cell(ref, sizing: .fitCell) }
-            return .cell(ref, sizing: .scaled(width: Units.emuToPixels(Double(ext.cx)), height: Units.emuToPixels(Double(ext.cy))))
+            return .cell(ref, sizing: .scaled(width: pixels(ext.cx), height: pixels(ext.cy)))
         case .twoCell: return .span(span(a))
         case .absolute:
             let pos = a.pos ?? (0, 0), ext = a.ext ?? (0, 0)
@@ -467,14 +469,23 @@ enum DrawingReader {
         switch a.shape {
         case .twoCell: return span(a)
         case .oneCell, .absolute:
-            var column = min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1, row = min(max(a.from.row, 0), CellRef.maxRow - 1) + 1
+            var column = cellIndex(a.from.column, maximum: CellRef.maxColumn), row = cellIndex(a.from.row, maximum: CellRef.maxRow)
             if a.shape == .absolute, let pos = a.pos {
                 (column, row) = cell(atEMU: (pos.x, pos.y), sheet: sheet)
             }
             let ext = a.ext ?? (0, 0)
-            var right = column, bottom = row, x = 0, y = 0
-            while x + columnEMU(right, sheet) < ext.cx, right < CellRef.maxColumn { x += columnEMU(right, sheet); right += 1 }
-            while y + rowEMU(bottom, sheet) < ext.cy, bottom < CellRef.maxRow { y += rowEMU(bottom, sheet); bottom += 1 }
+            var right = column, bottom = row
+            var x: Int64 = 0, y: Int64 = 0
+            while right < CellRef.maxColumn, x < ext.cx {
+                let width = columnEMU(right, sheet)
+                guard width < ext.cx - x else { break }
+                x += width; right += 1
+            }
+            while bottom < CellRef.maxRow, y < ext.cy {
+                let height = rowEMU(bottom, sheet)
+                guard height < ext.cy - y else { break }
+                y += height; bottom += 1
+            }
             return CellRange(from: CellRef(row: row, column: column), to: CellRef(row: bottom, column: right))
         }
     }
@@ -482,24 +493,48 @@ enum DrawingReader {
     private static func span(_ a: ParsedDrawingAnchor) -> CellRange {
         // `to` is exclusive when its offset is 0 (the writer's own form); an offset into the cell means the
         // picture reaches into it
-        let fromColumn = min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1
-        let fromRow = min(max(a.from.row, 0), CellRef.maxRow - 1) + 1
-        let toColumn = max(min(max(a.to.column, 0), CellRef.maxColumn) + (a.to.column < CellRef.maxColumn && a.to.columnOffset > 0 ? 1 : 0), fromColumn)
-        let toRow = max(min(max(a.to.row, 0), CellRef.maxRow) + (a.to.row < CellRef.maxRow && a.to.rowOffset > 0 ? 1 : 0), fromRow)
+        let fromColumn = cellIndex(a.from.column, maximum: CellRef.maxColumn)
+        let fromRow = cellIndex(a.from.row, maximum: CellRef.maxRow)
+        let toColumn = max(Int(min(max(a.to.column, 0), Int64(CellRef.maxColumn))) + (a.to.column < Int64(CellRef.maxColumn) && a.to.columnOffset > 0 ? 1 : 0), fromColumn)
+        let toRow = max(Int(min(max(a.to.row, 0), Int64(CellRef.maxRow))) + (a.to.row < Int64(CellRef.maxRow) && a.to.rowOffset > 0 ? 1 : 0), fromRow)
         return CellRange(from: CellRef(row: fromRow, column: fromColumn), to: CellRef(row: toRow, column: toColumn))
     }
 
-    private static func columnEMU(_ column: Int, _ sheet: Sheet) -> Int {
-        Units.pixelsToEMU(CellPixels.columnPixels(sheet.columnDimensions[column]?.width ?? CellPixels.defaultColumnWidth))
+    /// Narrow only the coarse editable anchor. Exact source values remain Int64 on every platform.
+    private static func cellIndex(_ source: Int64, maximum: Int) -> Int {
+        Int(min(max(source, 0), Int64(maximum) - 1)) + 1
     }
-    private static func rowEMU(_ row: Int, _ sheet: Sheet) -> Int {
-        Units.pixelsToEMU(CellPixels.rowPixels(sheet.rowDimensions[row]?.height ?? CellPixels.defaultRowHeight))
+    private static func pixels(_ emu: Int64) -> Int {
+        let rounded = (Double(emu) / 9525).rounded(.toNearestOrEven)
+        guard rounded > 0 else { return 0 }
+        return Int(exactly: rounded) ?? Int.max
     }
-    private static func cell(atEMU p: (Int, Int), sheet: Sheet) -> (column: Int, row: Int) {
-        var column = 1, x = 0
-        while x + columnEMU(column, sheet) <= p.0, column < CellRef.maxColumn { x += columnEMU(column, sheet); column += 1 }
-        var row = 1, y = 0
-        while y + rowEMU(row, sheet) <= p.1, row < CellRef.maxRow { y += rowEMU(row, sheet); row += 1 }
+    private static func gridEMU(_ pixels: Double) -> Int64 {
+        let emu = (pixels * 9525).rounded(.towardZero)
+        guard emu > 0 else { return 0 }
+        return Int64(exactly: emu) ?? Int64.max
+    }
+    private static func columnEMU(_ column: Int, _ sheet: Sheet) -> Int64 {
+        gridEMU(CellPixels.columnPixels(sheet.columnDimensions[column]?.width ?? CellPixels.defaultColumnWidth))
+    }
+    private static func rowEMU(_ row: Int, _ sheet: Sheet) -> Int64 {
+        gridEMU(CellPixels.rowPixels(sheet.rowDimensions[row]?.height ?? CellPixels.defaultRowHeight))
+    }
+    private static func cell(atEMU p: (Int64, Int64), sheet: Sheet) -> (column: Int, row: Int) {
+        var column = 1
+        var x: Int64 = 0
+        while column < CellRef.maxColumn, x <= p.0 {
+            let width = columnEMU(column, sheet)
+            guard width <= p.0 - x else { break }
+            x += width; column += 1
+        }
+        var row = 1
+        var y: Int64 = 0
+        while row < CellRef.maxRow, y <= p.1 {
+            let height = rowEMU(row, sheet)
+            guard height <= p.1 - y else { break }
+            y += height; row += 1
+        }
         return (column, row)
     }
 }

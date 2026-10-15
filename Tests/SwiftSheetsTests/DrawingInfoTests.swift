@@ -66,6 +66,63 @@ struct DrawingInfoTests {
         #expect(try Package.part("xl/drawings/drawing1.xml", of: result.data).contains("editAs=\"oneCell\""))
     }
 
+    @Test(arguments: [Int64(Int32.max) + 1, Int64.max])
+    func sourceAnchorsRetain64BitEMUsThroughRebuilding(_ emu: Int64) throws {
+        let one = "<xdr:oneCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>\(emu)</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>\(-emu)</xdr:rowOff></xdr:from><xdr:ext cx=\"\(emu)\" cy=\"\(emu)\"/>" + Self.shape() + "<xdr:clientData/></xdr:oneCellAnchor>"
+        let absolute = "<xdr:absoluteAnchor><xdr:pos x=\"\(emu)\" y=\"\(-emu)\"/><xdr:ext cx=\"\(emu)\" cy=\"\(emu)\"/>" + Self.shape() + "<xdr:clientData/></xdr:absoluteAnchor>"
+        let xml = Self.drawing(one + absolute)
+        let parser = DrawingParser()
+        try parser.run(Data(xml.utf8), part: "drawing.xml")
+        // This source representation must stay Int64 even when the host's Int is only 32 bits.
+        let sourceWidth: Int64 = try #require(parser.anchors.first?.ext).cx
+        #expect(sourceWidth == emu)
+        var wb = try Self.workbook(xml)
+        let expected: [DrawingAnchor?] = [
+            .oneCell(from: .init(cell: CellRef("B3")!, columnOffset: emu, rowOffset: -emu), width: emu, height: emu),
+            .absolute(x: emu, y: -emu, width: emu, height: emu),
+        ]
+        #expect(wb.sheets[0].shapes.map(\.drawingAnchor) == expected)
+        #expect(wb.sheets[0].drawingInfo?.objects.map(\.anchor) == expected)
+        if case .cell(let ref, .scaled(let width, let height)) = wb.sheets[0].shapes[0].anchor {
+            #expect(ref == CellRef("B3") && width == height && width > 0)
+            if emu == Int64(Int32.max) + 1 { #expect(width == 225458) }
+            else if MemoryLayout<Int>.size == 4 { #expect(width == Int.max) }
+            else { #expect(width > Int(Int32.max)) }
+        } else { Issue.record("expected a bounded coarse cell anchor") }
+        wb.sheets[0].shapes[0].text = "rebuild"
+        #expect(try Workbook(data: wb.write(as: .xlsx).data).sheets[0].shapes.map(\.drawingAnchor) == expected)
+    }
+
+    @Test func outOfGridSourceMarkersClampOnlyTheEditableRange() throws {
+        let xml = Self.drawing("<xdr:twoCellAnchor><xdr:from><xdr:col>\(Int64.min)</xdr:col><xdr:colOff>\(Int64.max)</xdr:colOff><xdr:row>\(Int64.max)</xdr:row><xdr:rowOff>\(Int64.min)</xdr:rowOff></xdr:from><xdr:to><xdr:col>\(Int64.max)</xdr:col><xdr:colOff>1</xdr:colOff><xdr:row>\(Int64.min)</xdr:row><xdr:rowOff>1</xdr:rowOff></xdr:to>" + Self.shape() + "<xdr:clientData/></xdr:twoCellAnchor>")
+        var wb = try Self.workbook(xml)
+        let shape = wb.sheets[0].shapes[0]
+        #expect(shape.anchor == .span(CellRange(minRow: CellRef.maxRow, minColumn: 1, maxRow: CellRef.maxRow, maxColumn: CellRef.maxColumn)))
+        let exact = try #require(shape.drawingAnchor)
+        if case .twoCell(let from, let to, _) = exact {
+            #expect(from.column == Int64.min && from.row == Int64.max && from.columnOffset == Int64.max && from.rowOffset == Int64.min)
+            #expect(to.column == Int64.max && to.row == Int64.min)
+        } else { Issue.record("expected the exact two-cell source anchor") }
+        wb.sheets[0].shapes[0].name = "rebuild"
+        #expect(try Workbook(data: wb.write(as: .xlsx).data).sheets[0].shapes[0].drawingAnchor == exact)
+    }
+
+    @Test func coarseChartPlacementAvoidsOverflowWhenAccumulatingEMUs() {
+        var sheet = Workbook().sheets[0]
+        for index in 1...2 {
+            sheet.columnDimensions[index] = ColumnDimension(width: 70_000_000_000_000)
+            sheet.rowDimensions[index] = RowDimension(height: 400_000_000_000_000)
+        }
+        var anchor = ParsedDrawingAnchor(shape: .absolute)
+        anchor.pos = (Int64.max - 1, Int64.max - 1)
+        anchor.ext = (1, 1)
+        #expect(DrawingReader.chartRange(anchor, sheet: sheet) == CellRange("B2"))
+        // Even a grid dimension outside the representable EMU range produces a bounded coarse position.
+        sheet.columnDimensions[1] = ColumnDimension(width: 1e30)
+        sheet.rowDimensions[1] = RowDimension(height: 1e30)
+        #expect(DrawingReader.chartRange(anchor, sheet: sheet) == CellRange("A1"))
+    }
+
     @Test func groupsRetainLocalTransformsSourceOrderAndDistinctTextRuns() throws {
         let text = """
         <xdr:txBody><a:bodyPr lIns="31750" rIns="0" anchor="ctr" vert="vert270"/><a:lstStyle/>

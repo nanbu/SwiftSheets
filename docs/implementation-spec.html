@@ -7657,6 +7657,11 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   A one-cell or absolute extent also supplies the shape's inner transform directly as 64-bit EMUs, bypassing
   pixel rounding and platform-integer narrowing.
   Assigning the existing anchor (or a chart frame) clears its exact counterpart, so a user's placement edit always wins.</p>
+  <p>Source drawing coordinates, offsets and extents are parsed and retained as <code>Int64</code> without passing
+  through the platform <code>Int</code>. The editable model clamps cell indices to the supported grid and pixel
+  dimensions to the platform range; chart placement accumulates EMUs as <code>Int64</code> with checked range
+  comparisons. These approximations never replace the exact source anchor. Regression checks cover values
+  beyond <code>Int32</code> and extreme coordinates; a 32-bit runtime is not claimed as verified.</p>
   <p><code>Sheet.drawingInfo</code> is an immutable snapshot of the source drawing, independent of the editable
   collections. Its objects retain source order and nested groups, source IDs/names, exact anchors, local transforms
   (<code>off/ext/chOff/chExt</code>, rotation and flips), and text bodies with ordered paragraphs and runs. Body and
