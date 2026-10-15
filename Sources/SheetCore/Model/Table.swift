@@ -96,15 +96,39 @@ public struct Table: Equatable, Sendable {
     public static func == (a: Table, b: Table) -> Bool {
         a.name == b.name && a.anchor == b.anchor && a.position == b.position && a.storage == b.storage && a.rowDimensions == b.rowDimensions
             && a.columnDimensions == b.columnDimensions && a.merges == b.merges && a.nextAppendRow == b.nextAppendRow
+            && a.arrayFormulas == b.arrayFormulas && a.dynamicArrayOrigins == b.dynamicArrayOrigins
     }
 
     public var rowDimensions: [Int: RowDimension] = [:]
     public var columnDimensions: [Int: ColumnDimension] = [:]
     public var merges: [CellRange] = []
-    /// Array formulas by their anchor cell: one formula that fills a whole range (`{=TRANSPOSE(A1:C1)}` — entered
-    /// in Excel with ctrl-shift-enter). The anchor holds the formula; the other cells of the range hold its
+    /// Array formulas by their anchor cell: one formula that fills a whole range. The anchor holds the formula; the other cells hold its
     /// results. Without the range Excel treats the formula as an ordinary one, which changes what it computes.
-    public var arrayFormulas: [CellRef: CellRange] = [:]
+    /// `dynamicArrayOrigins` distinguishes dynamic spill ranges from legacy Ctrl-Shift-Enter arrays.
+    /// Shrinking or removing a dynamic range clears its former result values, retaining cell formatting.
+    public var arrayFormulas: [CellRef: CellRange] = [:] {
+        didSet {
+            for origin in dynamicArrayOrigins {
+                guard let previous = oldValue[origin], previous != arrayFormulas[origin] else { continue }
+                let current = arrayFormulas[origin]
+                for ref in existingRefs(in: previous) where ref != origin && !(current?.contains(ref) ?? false) {
+                    var cell = self[cell: ref]
+                    cell.value = nil
+                    put(cell.isBlank ? nil : cell, at: ref)
+                }
+            }
+            dynamicArrayOrigins.formIntersection(arrayFormulas.keys)
+        }
+    }
+    /// Origins of dynamic spill formulas among `arrayFormulas`. Unmarked ranges have fixed-array semantics.
+    /// A reader reports a warning when source metadata could not establish an array's kind.
+    /// An origin must hold a formula and equal its range's top-left cell; XLSX writing rejects inconsistent data.
+    public var dynamicArrayOrigins: Set<CellRef> = []
+    /// Sparse source indices into the opaque XLSX metadata part (B.110); never a field on each ordinary cell.
+    package var xlsxCellMetadata: [CellRef: XLSXCellMetadata] = [:]
+    /// The workbook-owned indices must never be interpreted against an unrelated workbook's metadata table.
+    package var xlsxCellMetadataSourceID = MetadataSourceIdentity()
+    package var xlsxPureDynamicMetadataIndices: Set<Int> = []
     /// The tracing arrows ODF keeps on a cell (`table:detective`), by the cell they hang on. A sparse map rather
     /// than a field of `Cell`: this is rare, and a `Cell` is the type whose size the whole library budgets for
     /// (spec Appendix B.17). ODF only — Excel draws the same arrows but never saves them.
@@ -326,15 +350,38 @@ public struct Table: Equatable, Sendable {
             if v < index { return v }
             return v < deletedEnd ? nil : v + delta
         }
+        func movedRef(_ ref: CellRef) -> CellRef? {
+            guard let coordinate = moved(axis == .rows ? ref.row : ref.column) else { return nil }
+            return axis == .rows ? CellRef(row: coordinate, column: ref.column) : CellRef(row: ref.row, column: coordinate)
+        }
+        let oldOrigins = dynamicArrayOrigins
+        let removedSpills = oldOrigins.filter { movedRef($0) == nil }.compactMap { arrayFormulas[$0] }
         var newCells: [CellRef: Cell] = [:]
         newCells.reserveCapacity(storage.count)
         for (ref, cell) in storage {
             let key = axis == .rows ? ref.row : ref.column
             guard let m = moved(key) else { continue }
-            newCells[axis == .rows ? CellRef(row: m, column: ref.column) : CellRef(row: ref.row, column: m)] = cell
+            var cell = cell
+            let removedResult = removedSpills.contains(where: { $0.contains(ref) })
+            if removedResult { cell.value = nil }
+            if !removedResult || !cell.isBlank {
+                newCells[axis == .rows ? CellRef(row: m, column: ref.column) : CellRef(row: ref.row, column: m)] = cell
+            }
         }
         storage = newCells
         extentState = .unknown
+        // Suppress cache clearing while both the cells and their ranges move in the same operation.
+        dynamicArrayOrigins = []
+        arrayFormulas = Dictionary(arrayFormulas.compactMap { origin, range -> (CellRef, CellRange)? in
+            guard let origin = movedRef(origin) else { return nil }
+            let expression = FormulaExpr.range(.ref(range.topLeft), .ref(range.bottomRight))
+                .shiftingReferences(axis: axis, at: index, delta: delta) { _ in true }
+            guard case .range(.ref(let first, _, _, _), .ref(let last, _, _, _)) = expression else { return nil }
+            return (origin, CellRange(from: first, to: last, sheet: range.sheet))
+        }, uniquingKeysWith: { first, _ in first })
+        dynamicArrayOrigins = Set(oldOrigins.compactMap(movedRef)).intersection(arrayFormulas.keys)
+        xlsxCellMetadata = Dictionary(xlsxCellMetadata.compactMap { ref, metadata in movedRef(ref).map { ($0, metadata) } },
+                                      uniquingKeysWith: { first, _ in first })
         // formulas everywhere in the table follow (unqualified refs and refs naming this sheet)
         let own = sheetName
         for (ref, cell) in storage {

@@ -5,6 +5,11 @@ import Foundation
 /// and content types. Converting to another format cannot carry these; the writer lists them as `dropped` warnings.
 package struct PreservationStore: Sendable, Hashable {
     package var sourceFormat: SheetFormat?
+    /// The relationship-resolved metadata part and its recognized cell blocks (B.110). The bytes stay opaque.
+    package var cellMetadataPath: String?
+    package var cellMetadataSourceID = MetadataSourceIdentity()
+    package var dynamicArrayMetadataIndices: Set<Int> = []
+    package var pureDynamicArrayMetadataIndices: Set<Int> = []
     /// `xl/persons/person.xml` as read: person id → display name (B.80), so a same-family write can keep the ids.
     package var persons: [String: String] = [:]
     /// Uninterpreted parts by package path ("xl/charts/chart1.xml", "xl/vbaProject.bin"), bytes untouched.

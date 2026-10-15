@@ -305,6 +305,11 @@ enum ODSWriter {
         guard !source.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
         let wb = source.resolvingColors()   // ODF has no theme: every theme / indexed colour becomes its RGB (B.71)
         let sink = ODSWarningSink()
+        sink.warnings.append(contentsOf: wb.sheets.compactMap(\.drawingConversionWarning))
+        for sheet in wb.sheets where sheet.tables.contains(where: { !$0.dynamicArrayOrigins.isEmpty }) {
+            sink.add(.degraded, subject: .formulas, sheet: sheet.name,
+                     "dynamic array spill semantics become fixed matrix ranges in ODS")
+        }
         let styles = ODSStyleRegistry()
         let conditionalStyles = ODSConditionalStyleRegistry()
         // print setup: one page layout / master page per distinct setup, named before the tables that use them

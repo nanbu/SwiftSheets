@@ -104,7 +104,7 @@ Two channels, on purpose:
 | what | how it reaches you |
 |---|---|
 | The file could not be opened, or a rule was broken | a thrown `SheetError` — `unrecognizedFormat`, `corruptedContainer`, `malformedPart`, `unopenable(.encryptedOOXML …)`, `noCodec(for:)`, `sheetNotFound`, `wrongPassword` … |
-| The file opened, but something could not be kept | `ConversionWarning`s on the result: `ReadResult.warnings` (or `workbook.readWarnings` after `Workbook(contentsOf:)`) and `WriteResult.warnings`. Each has a `kind` (`dropped`, `degraded`, `substituted`), a `subject`, the sheet and cell when known, and a message |
+| The file opened, but something could not be kept | `ConversionWarning`s on the result: `ReadResult.warnings` (or `workbook.readWarnings` after `Workbook(contentsOf:)`) and `WriteResult.warnings`. Each has a `kind` (`dropped`, `degraded`, `substituted`, `truncated`), a `subject`, the sheet and cell when known, and a message. Optional `context` adds a stable cause code, package part, object and preservation outcome |
 
 Nothing is dropped in silence: a limit that stops a read, a feature a format lacks, a formula a dialect cannot
 spell — all come back as a warning. `Workbook.write(to:)` warns at compile time if you discard its result.

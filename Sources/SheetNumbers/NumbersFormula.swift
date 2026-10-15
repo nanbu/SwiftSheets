@@ -276,7 +276,9 @@ struct NumbersFormulaEncoder {
             guard emit(a, row: row, column: column, into: &nodes), emit(b, row: row, column: column, into: &nodes) else { return false }
             nodes.append(node(type))
         case .call(let name, let args):
-            let upper = name.uppercased()
+            // Known OOXML storage namespaces do not belong to Numbers' function registry. Resolve only the
+            // explicit spelling table, then ask the registry; never strip an arbitrary namespace (B.111).
+            let upper = FormulaFunctionNames.applicationName(name)
             guard let index = schema.functionIndexes[upper] else { return fail("Numbers has no function \(upper)") }
             for a in args {
                 guard emit(a, row: row, column: column, into: &nodes) else { return false }

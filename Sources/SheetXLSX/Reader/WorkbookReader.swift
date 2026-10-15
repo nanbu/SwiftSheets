@@ -191,6 +191,50 @@ enum WorkbookReader {
             wb.preserved.sharedStringPhonetics = phonetics
         }
         wb.sheets = Sheets(sheets)
+        if wb.sheets.contains(where: { !$0.table.xlsxCellMetadata.isEmpty }) {
+            let sourceID = MetadataSourceIdentity.fresh()
+            wb.preserved.cellMetadataSourceID = sourceID
+            for i in wb.sheets.indices where !wb.sheets[i].table.xlsxCellMetadata.isEmpty {
+                wb.sheets[i].table.xlsxCellMetadataSourceID = sourceID
+            }
+        }
+        // Metadata is indexed by workbook relationship, not by a conventional file name (B.110).
+        // It remains unconsumed: even recognized dynamic records can share their part with unknown features.
+        if let metadataRel = rels.first(where: { $0.type.hasSuffix(DynamicArrayMetadata.relationshipType) && $0.targetMode != "External" }) {
+            let path = resolve(metadataRel.target)
+            wb.preserved.cellMetadataPath = path
+            do {
+                let indices = try DynamicArrayMetadata.read(try zip.read(path), part: path)
+                wb.preserved.dynamicArrayMetadataIndices = indices.dynamic
+                wb.preserved.pureDynamicArrayMetadataIndices = indices.pure
+                for i in wb.sheets.indices {
+                    var table = wb.sheets[i].table
+                    table.xlsxPureDynamicMetadataIndices = indices.pure
+                    for ref in table.arrayFormulas.keys {
+                        guard let cellMetadata = table.xlsxCellMetadata[ref]?.cell else { continue }
+                        if let index = Int(cellMetadata), indices.resolved.contains(index) {
+                            if indices.dynamic.contains(index) { table.dynamicArrayOrigins.insert(ref) }
+                        } else {
+                            warnings.append(ConversionWarning(.degraded, subject: .formulas, sheet: wb.sheets[i].name, location: ref,
+                                context: .init(code: .dynamicArrayMetadata, part: path,
+                                               preservation: options.preservesUnknownParts ? .preserved : .notPreserved),
+                                message: "the array's cell metadata could not establish its kind; its range is read without a dynamic-origin marker"))
+                        }
+                    }
+                    wb.sheets[i].table = table
+                }
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                warnings.append(ConversionWarning(.degraded, subject: .formulas,
+                    context: .init(code: .dynamicArrayMetadata, part: path,
+                                   preservation: options.preservesUnknownParts && zip.contains(path) ? .preserved : .notPreserved),
+                    message: "cell metadata could not be read; array kinds are unknown and source metadata is retained only when unknown-part preservation is enabled"))
+            }
+        } else if wb.sheets.contains(where: { !$0.table.xlsxCellMetadata.isEmpty }) {
+            warnings.append(ConversionWarning(.degraded, subject: .formulas,
+                context: .init(code: .dynamicArrayMetadata, preservation: .notPreserved),
+                message: "cell or value metadata has no internal workbook relationship; its indices cannot be retained on write"))
+        }
         // names the file gave that Sheets de-duplicated are an upstream defect; keep the file's order regardless
         wb.activeIndex = Swift.min(wbParser.activeTab, sheets.count - 1)
         assignLocalNames(wbParser.localNames, to: &wb)
@@ -511,6 +555,7 @@ final class SheetReadContext: @unchecked Sendable {
                     sheet.images = contents.images + sheet.images
                     sheet.charts = contents.charts + sheet.charts
                     sheet.shapes = contents.shapes + sheet.shapes
+                    sheet.drawingInfo = contents.info
                     sheet.preserved.images = contents.images
                     sheet.preserved.charts = contents.charts
                     sheet.preserved.shapes = contents.shapes
@@ -519,6 +564,7 @@ final class SheetReadContext: @unchecked Sendable {
                     sheet.preserved.drawingUnmodelled = contents.unmodelled
                 } catch {
                     result.warnings.append(ConversionWarning(.degraded, subject: .objects, sheet: sheet.name,
+                                                      context: .init(code: .drawingUnreadable, part: drawingPart, preservation: .preserved),
                                                       message: "the sheet's drawing could not be read (\(drawingPart)); its pictures and charts are carried as bytes only"))
                 }
             }

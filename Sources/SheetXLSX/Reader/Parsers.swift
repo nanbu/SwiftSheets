@@ -671,6 +671,9 @@ final class SheetParser: SAXHandler {
             if let r = a["r"], let ref = CellRef(r) { cellRef = ref; if ref.row != currentRow { currentRow = ref.row } }
             else { cellRef = CellRef(row: currentRow, column: lastColumn + 1) }
             lastColumn = cellRef!.column
+            if a["cm"] != nil || a["vm"] != nil {
+                sheet.table.xlsxCellMetadata[cellRef!] = XLSXCellMetadata(cell: a["cm"], value: a["vm"])
+            }
             cellType = a["t"] ?? "n"; cellStyle = Int(a["s"] ?? "0") ?? 0
             vText = ""; fText = ""; isText = ""; formulaType = nil; formulaRef = nil; sharedFormulaIndex = nil
             // every <c> exists, even without a value: the cell is kept here and stored once, when it ends — value(at:)

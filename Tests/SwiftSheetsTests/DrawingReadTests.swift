@@ -45,7 +45,7 @@ struct DrawingReadTests {
         let result = try wb.write(as: .xlsx)
         let sheetXML = try Package.part("xl/worksheets/sheet1.xml", of: result.data)
         #expect(sheetXML.components(separatedBy: "<drawing ").count == 2, "exactly one <drawing> element")
-        #expect(try Package.part("xl/drawings/drawing1.xml", of: result.data).contains("xdr:twoCellAnchor"), "regenerated in this writer's form")
+        #expect(try Package.part("xl/drawings/drawing1.xml", of: result.data).contains("xdr:oneCellAnchor"), "source positioning survives rebuilding")
         let charts = try ZipInspection(data: result.data).entryNames.filter { $0.hasPrefix("xl/charts/") }.sorted()
         #expect(charts.count == 3, "the scatter chart cannot be drawn by this writer: \(charts)")
         #expect(result.warnings.contains { $0.kind == .dropped && $0.message.contains("a scatterChart chart was not written") })

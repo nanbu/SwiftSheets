@@ -80,19 +80,21 @@ enum ChartParts {
     }
 
     /// The chart's anchor on the drawing: a graphic frame over the range, both corners following their cells.
-    static func anchorXML(over range: CellRange, shapeID: Int, relID: String) -> String {
+    static func anchorXML(over range: CellRange, shapeID: Int, relID: String, exactAnchor: DrawingAnchor? = nil) -> String {
         let ns = "xmlns:xdr=\"\(DrawingParts.nsSpreadsheetDrawing)\" xmlns:a=\"\(DrawingParts.nsDrawingMain)\""
         func at(column: Int, row: Int) -> String {
             // the drawing's anchors count from 0; `to` is exclusive, so a range's maxColumn + 1 lands on the right edge
             "<xdr:col>\(column - 1)</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>\(row - 1)</xdr:row><xdr:rowOff>0</xdr:rowOff>"
         }
-        return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
-            + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
-            + "<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr>"
+        let object = "<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr>"
             + "<xdr:cNvPr id=\"\(shapeID)\" name=\"Chart \(shapeID)\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>"
             + "<xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm>"
             + "<a:graphic><a:graphicData uri=\"\(nsChart)\">"
             + "<c:chart xmlns:c=\"\(nsChart)\" xmlns:r=\"\(XMLWriter.nsRel)\" r:id=\"\(relID)\"/>"
-            + "</a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>"
+            + "</a:graphicData></a:graphic></xdr:graphicFrame>"
+        if let exactAnchor { return DrawingParts.exactAnchorXML(exactAnchor, object: object) }
+        return "<xdr:twoCellAnchor \(ns)><xdr:from>\(at(column: range.minColumn, row: range.minRow))</xdr:from>"
+            + "<xdr:to>\(at(column: range.maxColumn + 1, row: range.maxRow + 1))</xdr:to>"
+            + object + "<xdr:clientData/></xdr:twoCellAnchor>"
     }
 }

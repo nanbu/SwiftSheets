@@ -6,7 +6,8 @@ import Foundation
 ///
 /// What the model holds is what both formats can say: the geometry, the text with one font and one alignment,
 /// a solid fill, an outline, and the anchor. Gradients, shadows, rotation, effects and per-run text formatting
-/// are not modelled — an untouched shape keeps them in its bytes; a rebuilt one loses them, and the writer says so.
+/// are available for inspection through `Sheet.drawingInfo`, rather than editable here. An untouched shape keeps
+/// them in its bytes; a rebuilt one loses them, and the writer says so.
 public struct Shape: Hashable, Sendable {
     /// The geometry, by its OOXML preset name (`rect`, `ellipse`, `rightArrow`, … — ST_ShapeType). A struct with
     /// static members rather than an enum, so a geometry can be added without breaking a caller's `switch`
@@ -101,7 +102,11 @@ public struct Shape: Hashable, Sendable {
     public var name: String?
     /// Where the shape sits — the same anchors a picture has. A shape made here covers cell A1 until
     /// `addShape(_:over:)` or `addTextBox(_:over:font:)` places it.
-    public var anchor: SheetImage.Anchor = .span(CellRange(minRow: 1, minColumn: 1, maxRow: 1, maxColumn: 1))
+    public var anchor: SheetImage.Anchor = .span(CellRange(minRow: 1, minColumn: 1, maxRow: 1, maxColumn: 1)) {
+        didSet { drawingAnchor = nil }
+    }
+    /// Exact source position in EMUs (B.109). Used by XLSX rebuilding until `anchor` is assigned.
+    public package(set) var drawingAnchor: DrawingAnchor?
 
     /// A shape of `geometry` with optional text, no fill and no outline, covering cell A1 until it is placed.
     public init(_ geometry: Geometry, text: String? = nil) {

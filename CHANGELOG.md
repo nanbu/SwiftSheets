@@ -9,6 +9,32 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Added
+
+- XLSX drawing inspection through `Sheet.drawingInfo`: ordered groups, local transforms, paragraphs and runs,
+  body properties, theme typefaces, and selected source geometry/effect properties. This immutable source snapshot
+  supplements the editable shape/image/chart lists; it does not perform rendering or update after edits.
+- Exact EMU `drawingAnchor` information on read shapes, images and charts, retained when XLSX drawings are rebuilt.
+  Assigning the existing anchor clears its source precision so an explicit move takes effect.
+- `Table.dynamicArrayOrigins` distinguishes spill origins from legacy entries in `arrayFormulas`. XLSX resolves
+  XLDAPR through the metadata relationship, retains unknown metadata and cell/value indices, and writes canonical
+  dynamic-array metadata for new workbooks. Changes requiring an unsafe rewrite of unknown records are refused.
+- `ConversionWarning.context` optionally identifies a stable cause code, package part, object and source
+  preservation outcome independently of the message. Existing initializers and messages remain usable.
+- A deterministic synthetic consumer specimen and an independent openpyxl/package verification script under
+  `Tests/ConsumerInterop`; rendering and native Excel recalculation are separate acceptance checks.
+
+### Fixed
+
+- Parse Excel spill references such as `A1#` and `'Other Sheet'!B2#` as the existing
+  `_xlfn.ANCHORARRAY` call AST, so sheet renames and structural edits follow the origin without a new public enum
+  case. Known FILTER/SORT and related function input names are written with their required OOXML namespaces;
+  quoted strings and unknown namespaces are retained. Numbers retains its existing known-function registry lookup.
+- Clear former dynamic-array result values when a spill range shrinks or is removed, and move array ranges,
+  origins and source metadata indices with structural edits.
+- Report source drawing properties that are simplified on rebuilding or conversion, including rotation and
+  per-run formatting, rather than silently presenting those properties as preserved.
+
 ## [2.0.0] — 2026-10-09
 
 Async versions of the calls that open, inspect, save and convert a workbook, and the default of the `format:` argument

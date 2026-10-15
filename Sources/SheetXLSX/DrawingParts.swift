@@ -31,6 +31,7 @@ enum DrawingParts {
             <xdr:blipFill><a:blip xmlns:r="\(XMLWriter.nsRel)" r:embed="\(relID)"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>\
             <xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>
             """
+        if let exact = image.drawingAnchor { return exactAnchorXML(exact, object: pic) }
         switch image.anchor {
         case .cell(let ref, _):
             let size = image.displaySize(cellSize: cellSize)
@@ -62,21 +63,27 @@ enum DrawingParts {
         func solid(_ c: Color) -> String { "<a:solidFill><a:srgbClr val=\"\(String((rgb(c) ?? "000000").suffix(6)))\"/></a:solidFill>" }
         let isTextBox = shape.geometry == .textBox
         let prst = isTextBox ? "rect" : (shape.geometry.isPreset ? shape.geometry.rawValue : "rect")
-        // the size, for the transform: the anchor's own for a one-cell or absolute anchor, the range's for a span
-        let size: (cx: Int, cy: Int)
-        switch shape.anchor {
-        case .cell(let ref, let sizing):
-            let cell = cellSize(of: sheet, at: .cell(ref, sizing: sizing))
-            switch sizing {
-            case .scaled(let w, let h): size = (Units.pixelsToEMU(Double(w)), Units.pixelsToEMU(Double(h)))
-            default: size = (Units.pixelsToEMU(cell.width), Units.pixelsToEMU(cell.height))
+        // Keep exact extents as Int64 through XML interpolation. In particular, do not first round them to
+        // pixels or narrow them to the platform Int (which can be 32 bits under WASI).
+        let size: (cx: Int64, cy: Int64)
+        switch shape.drawingAnchor {
+        case .oneCell(_, let width, let height), .absolute(_, _, let width, let height):
+            size = (width, height)
+        default:
+            switch shape.anchor {
+            case .cell(let ref, let sizing):
+                let cell = cellSize(of: sheet, at: .cell(ref, sizing: sizing))
+                switch sizing {
+                case .scaled(let w, let h): size = (Int64(Units.pixelsToEMU(Double(w))), Int64(Units.pixelsToEMU(Double(h))))
+                default: size = (Int64(Units.pixelsToEMU(cell.width)), Int64(Units.pixelsToEMU(cell.height)))
+                }
+            case .span(let range):
+                var w = 0.0, h = 0.0
+                for c in range.minColumn...range.maxColumn { w += CellPixels.columnPixels(sheet.columnDimensions[c]?.width ?? CellPixels.defaultColumnWidth) }
+                for r in range.minRow...range.maxRow { h += CellPixels.rowPixels(sheet.rowDimensions[r]?.height ?? CellPixels.defaultRowHeight) }
+                size = (Int64(Units.pixelsToEMU(w)), Int64(Units.pixelsToEMU(h)))
+            case .absolute(let frame): size = (Int64(emu(frame.width)), Int64(emu(frame.height)))
             }
-        case .span(let range):
-            var w = 0.0, h = 0.0
-            for c in range.minColumn...range.maxColumn { w += CellPixels.columnPixels(sheet.columnDimensions[c]?.width ?? CellPixels.defaultColumnWidth) }
-            for r in range.minRow...range.maxRow { h += CellPixels.rowPixels(sheet.rowDimensions[r]?.height ?? CellPixels.defaultRowHeight) }
-            size = (Units.pixelsToEMU(w), Units.pixelsToEMU(h))
-        case .absolute(let frame): size = (emu(frame.width), emu(frame.height))
         }
         var sp = "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"\(shapeID)\" name=\"\(XML.esc(shape.name ?? (isTextBox ? "TextBox \(shapeID)" : "Shape \(shapeID)")))\"/>"
         sp += isTextBox ? "<xdr:cNvSpPr txBox=\"1\"/>" : "<xdr:cNvSpPr/>"
@@ -118,6 +125,7 @@ enum DrawingParts {
             sp += "</xdr:txBody>"
         }
         sp += "</xdr:sp>"
+        if let exact = shape.drawingAnchor { return exactAnchorXML(exact, object: sp) }
         switch shape.anchor {
         case .cell(let ref, _):
             return "<xdr:oneCellAnchor \(ns)><xdr:from>\(at(column: ref.column, row: ref.row))</xdr:from>"
@@ -129,6 +137,23 @@ enum DrawingParts {
             let (x, y) = (frame.origin.x, frame.origin.y)
             return "<xdr:absoluteAnchor \(ns)><xdr:pos x=\"\(emu(x))\" y=\"\(emu(y))\"/><xdr:ext cx=\"\(size.cx)\" cy=\"\(size.cy)\"/>"
                 + sp + "<xdr:clientData/></xdr:absoluteAnchor>"
+        }
+    }
+
+    /// Wraps regenerated object XML in its exact source anchor, without pixel/point rounding or grid layout.
+    static func exactAnchorXML(_ anchor: DrawingAnchor, object: String) -> String {
+        let ns = "xmlns:xdr=\"\(nsSpreadsheetDrawing)\" xmlns:a=\"\(nsDrawingMain)\""
+        func marker(_ m: DrawingAnchor.Marker) -> String {
+            "<xdr:col>\(m.column)</xdr:col><xdr:colOff>\(m.columnOffset)</xdr:colOff><xdr:row>\(m.row)</xdr:row><xdr:rowOff>\(m.rowOffset)</xdr:rowOff>"
+        }
+        let end = object + "<xdr:clientData/>"
+        switch anchor {
+        case .oneCell(let from, let width, let height):
+            return "<xdr:oneCellAnchor \(ns)><xdr:from>\(marker(from))</xdr:from><xdr:ext cx=\"\(width)\" cy=\"\(height)\"/>" + end + "</xdr:oneCellAnchor>"
+        case .twoCell(let from, let to, let editAs):
+            return "<xdr:twoCellAnchor \(ns)" + XML.attr("editAs", editAs) + "><xdr:from>\(marker(from))</xdr:from><xdr:to>\(marker(to))</xdr:to>" + end + "</xdr:twoCellAnchor>"
+        case .absolute(let x, let y, let width, let height):
+            return "<xdr:absoluteAnchor \(ns)><xdr:pos x=\"\(x)\" y=\"\(y)\"/><xdr:ext cx=\"\(width)\" cy=\"\(height)\"/>" + end + "</xdr:absoluteAnchor>"
         }
     }
 

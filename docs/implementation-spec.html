@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 5.0 / SwiftSheets 2.0.0</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 5.1 / SwiftSheets 2.x (unreleased additions)</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> Implementation Spec
     </h1>
@@ -621,7 +621,7 @@ pre .vr { color: var(--code-var); }
 <div class="container">
 
 <section aria-labelledby="current-spec"><h2 id="current-spec">Current specification and historical decisions</h2>
-<p>This document applies to SwiftSheets 2.0.0. The current revision is 5.0. The numbered chapters state the design;
+<p>This document applies to SwiftSheets 2.x, including the unreleased additions below. The current revision is 5.1. The numbered chapters state the design;
 Appendix B records dated decisions and corrections. Where an older decision conflicts with a later correction,
 the later correction applies. Earlier descriptions of missing features or unavailable applications are historical,
 not the current support policy. Use the <a href="spec-feature-matrix.html">feature matrix</a> for current read/write support.
@@ -1878,7 +1878,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
   </ul>
 
   <h3>A.3 Revision history</h3>
-  <p>Rev 5.0 (2026-10-09) adds async twins of read, inspect, write and convert that answer to task cancellation, and gives <code>format:</code> its default of nil, as 4.98 announced; see B.108. Earlier rows retain their original wording.</p>
+  <p>Rev 5.1 (2026-10-15) adds precise drawing source inspection, dynamic-array metadata and spill syntax, structured warning context, and synthetic consumer interoperability coverage (B.109–B.113). Rev 5.0 (2026-10-09) adds async twins of read, inspect, write and convert that answer to task cancellation, and gives <code>format:</code> its default of nil, as 4.98 announced; see B.108. Earlier rows retain their original wording.</p>
   <p>Rev 4.98 (2026-10-09) lets a file take <code>format:</code> as bytes do, and announces the async twins and the default argument of 2.0.0; see B.107. Earlier rows retain their original wording.</p>
   <p>Rev 4.97 (2026-09-24) gives a table and its sheet one filter owner when their ranges coincide, and qualifies sheet-local named ranges; see B.106. Earlier rows retain their original wording.</p>
   <p>Rev 4.96 (2026-09-23) requires checked ZIP64 value conversion and remaining-length checks before arithmetic; see B.105. Earlier rows retain their original wording.</p>
@@ -7645,6 +7645,136 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   minor release could not add: it would have made <code>read(contentsOf: url)</code> match both functions. The first
   tagged 2.0.0 draft, never published, instead kept the functions without the argument beside a second family whose
   format was required and not optional, so the files and the bytes answered to different rules.</p>
+</section>
+
+<section>
+  <h3>B.109 Drawing source information and exact anchors (Rev 5.1)</h3>
+  <p>Decided 2026-10-15. Application feedback asks for fractional drawing positions, group transforms and rich text.
+  Those are file information the library can share; font resolution, text layout and rendering remain the caller's work.
+  Existing anchors and shape editing retain their types. <code>DrawingAnchor</code> is additional read-only information on
+  pictures, charts and shapes, keeping cell markers, offsets, extents and absolute positions as integer EMUs
+  (12,700 EMUs per point), including a two-cell anchor's <code>editAs</code>. XLSX rebuilding uses that exact anchor.
+  A one-cell or absolute extent also supplies the shape's inner transform directly as 64-bit EMUs, bypassing
+  pixel rounding and platform-integer narrowing.
+  Assigning the existing anchor (or a chart frame) clears its exact counterpart, so a user's placement edit always wins.</p>
+  <p><code>Sheet.drawingInfo</code> is an immutable snapshot of the source drawing, independent of the editable
+  collections. Its objects retain source order and nested groups, source IDs/names, exact anchors, local transforms
+  (<code>off/ext/chOff/chExt</code>, rotation and flips), and text bodies with ordered paragraphs and runs. Body and
+  paragraph attributes, run font references and run attributes retain their source spelling; no platform graphics
+  framework or font resolver is added. Computed <code>insets</code>, <code>verticalAlignment</code> and paragraph <code>alignment</code> provide typed access to explicitly stated values without duplicating source attributes. Absent or unknown values stay nil; the library does not guess font or layout defaults. Line breaks remain distinct from paragraph boundaries. The snapshot does not
+  update when a caller edits a shape and is never written as an alternative editable object tree.</p>
+  <p>Custom geometry, adjustment guides, colour transforms, fills and effects that the edit model cannot reproduce
+  are selectively exposed as source properties with XML and in-scope namespace declarations. Whole anchors are not
+  duplicated as XML in the snapshot. XML namespaces and direct element paths separate known properties from
+  opaque extension data. Inspection stops at 128 nested objects or 256 XML levels and falls back to preservation
+  with a structured unreadable-drawing diagnostic, so recursive value operations remain bounded.
+  Unknown geometry is identified by its source name, never declared to be a
+  supported rectangle. Source properties are data, not executable markup. Reading is bounded by the package limits and by 128 nested objects / 256 XML levels; excessive nesting leaves the source part preserved with a diagnostic. Opaque extension descendants cannot override the modelled source properties.</p>
+  <p>The B.72/B.75 preservation rule stays: an untouched or appended-to XLSX drawing remains bytes, including
+  groups and unknown content. Reading source information does not promote it to editable support. Rebuilding
+  reports properties it cannot reproduce, separately from objects dropped in full; cross-format writers report
+  source details they cannot carry. These diagnostics describe saved-data loss, not an opinion about rendering.
+  The source snapshot permits inspection without promising a renderer, group editor or full DrawingML support.</p>
+  <p>Regression checks use synthetic drawing XML: fractional EMUs, absolute and two-cell anchors, hidden grid
+  dimensions, nested groups, rotation/flips, mixed Japanese text and fonts, body insets and unknown geometry/effects;
+  they distinguish model round trips, byte preservation, explicit losses and user placement changes. Native Excel
+  rendering and font layout are not inferred from those checks.</p>
+</section>
+
+<section>
+  <h3>B.110 Dynamic array origins and opaque cell metadata (Rev 5.1)</h3>
+  <p>Decided 2026-10-15. <code>Table.arrayFormulas</code> remains the range of every array formula;
+  <code>Table.dynamicArrayOrigins: Set&lt;CellRef&gt;</code> marks those whose range spills dynamically rather than
+  being a legacy Ctrl-Shift-Enter array. It stores no duplicate ranges and adds no bytes to an ordinary cell.
+  An origin must hold a formula and be the top-left cell of its array range; inconsistent public mutations are
+  rejected by the XLSX writer. Changing a dynamic range clears values outside its new range from the former
+  result cells, retaining their formatting. Row and column edits move the ranges and origin markers together.</p>
+  <p>XLSX resolves the metadata part through the workbook's internal <code>sheetMetadata</code> relationship,
+  then follows the cell's one-based <code>cm</code> index to <code>cellMetadata/bk/rc</code>: <code>t</code> is a
+  one-based metadata type index and <code>v</code> a zero-based index into the matching named
+  <code>futureMetadata</code>. Only an XLDAPR record with the dynamic-array namespace and extension GUID and an
+  explicitly true <code>fDynamic</code> marks a dynamic origin. False or absent flags remain legacy arrays;
+  function names do not establish array kind. Original metadata bytes and sparse <code>cm</code>/<code>vm</code>
+  indices survive a same-family write, including unknown metadata. Existing pure dynamic records may be reused;
+  a write requiring an unimplemented change to a mixed or unknown metadata block is refused explicitly.</p>
+  <p>Metadata indices belong to the workbook that supplied them. An internal per-read source identity travels
+  with the workbook and its tables: copying a sheet within that workbook retains its bindings. A sheet imported
+  from a different workbook cannot reuse numerically equal indices. Pure dynamic bindings can be reassigned to
+  the destination's dynamic block; imported unknown, mixed, or value-metadata bindings require a refused write
+  until their source records can be merged safely.</p>
+  <p>A new workbook writes one shared XLDAPR record with the canonical extension URI
+  <code>{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}</code>, <code>fDynamic="1"</code> and
+  <code>fCollapsed="0"</code>. The library records ranges and cached results; it performs no calculation.
+  ODS carries the array range with an explicit warning that dynamic spill semantics become a fixed matrix;
+  Numbers retains its existing array-formula warning. Codec and independent-reader checks do not establish
+  native Excel recalculation compatibility; that remains a separate application-level check.</p>
+  <p>Sources: <a href="https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/3dd44d53-847b-402f-a8c7-41a85024caf7">MS-XLSX 2.2.4.4</a>,
+  <a href="https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/d1ef676d-d970-4ddd-b642-62f5e0c291e0">MS-XLSX 2.6.208</a>,
+  and <a href="https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.metadatarecord">ISO/IEC 29500 metadata record indices</a>.</p>
+</section>
+
+<section>
+  <h3>B.111 Spill references use the existing AST, and stored names stay at the format boundary (Rev 5.1)</h3>
+  <p>Decided 2026-10-15 after an application integration reported that <code>A1#</code> remained unparsed and
+  newly authored <code>FILTER</code>, <code>SORT</code> and <code>XLOOKUP</code> calls lacked their OOXML storage
+  namespaces. The parser accepts an XLSX spill suffix on a cell reference, including a sheet-qualified or absolute
+  reference, and represents it as <code>.call(name: "_xlfn.ANCHORARRAY", args: [reference])</code>. This is the
+  OOXML stored form of the spill operator. It reuses the stable public enum, so existing exhaustive switches
+  keep compiling and the ordinary AST walkers, sheet renames, copy offsets and structural edits reach the anchor.
+  The library does not evaluate a spill or expand it into a fixed range.</p>
+  <p><strong>Names.</strong> An exact allow-list accepts bare input names for <code>FILTER</code>,
+  <code>SORT</code>, <code>SORTBY</code>, <code>UNIQUE</code>, <code>SEQUENCE</code>, <code>RANDARRAY</code>,
+  <code>XLOOKUP</code>, <code>XMATCH</code> and <code>ANCHORARRAY</code>. The canonical AST and XLSX emitter use
+  <code>_xlfn._xlws.FILTER</code> / <code>_xlfn._xlws.SORT</code> and <code>_xlfn.</code> for the other seven.
+  Already qualified names are idempotent; an arbitrary namespace is never removed or replaced, and string
+  literals are never scanned for function names. <code>rendered(as: .xlsx)</code> and <code>text</code> retain
+  their established stored-name behaviour. LET/LAMBDA parameter binding is a separate feature.</p>
+  <p><strong>Other formats.</strong> These calls have no verified ODF 1.3 OpenFormula equivalents, so ODS keeps
+  the cached result with a formula degradation warning rather than inventing a portable name. Numbers resolves
+  only these known OOXML names to the existing Numbers function registry; this keeps its previously supported
+  FILTER/SORT/XLOOKUP family working. An absent registry entry, including ANCHORARRAY, retains the cached value
+  and warning. Unknown namespaces are never stripped to manufacture a Numbers function.</p>
+  <p><strong>Evidence and verification.</strong> The
+  <a href="https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/3d025add-118d-4413-9856-ab65712ec1b0">MS-XLSX formula grammar</a>
+  specifies the future-function and worksheet-only names; the primary implementation documentation for
+  <a href="https://xlsxwriter.readthedocs.io/working_with_formulas.html#dynamic-arrays-the-spilled-range-operator">XlsxWriter's spill operator</a>
+  identifies ANCHORARRAY as the stored spelling. Regression tests require strict parsing, fixed-point XLSX
+  storage, reference traversal and edits, untouched strings/namespaces, cached ODS and Numbers degradation,
+  and existing Numbers function-registry support. Native Excel recalculation is a separate application judge;
+  the syntax tests do not claim it was run.</p>
+</section>
+
+<section id="structured-diagnostics">
+  <h3>B.112 Structured warning context (Rev 5.1)</h3>
+  <p>Decided 2026-10-15. Keep <code>ConversionWarning.kind</code>, <code>subject</code>, <code>sheet</code>,
+  <code>location</code>, <code>message</code>, <code>description</code> and the original initializer unchanged.
+  Add optional <code>context: ConversionWarning.Context?</code>, supplied by a second initializer requiring
+  <code>context:</code>. Its extensible raw-value <code>Code</code> identifies the cause independently of English
+  prose; <code>part</code> names the package entry and <code>object</code> the drawing object, when known.
+  <code>preservation</code> states whether the source feature survives the operation: <code>preserved</code>,
+  <code>partial</code> or <code>notPreserved</code>. Nil means the producer made no preservation assertion.</p>
+  <p>A read-time model limitation with original XML retained is not a claim that saving loses data: it can be
+  <code>degraded</code> with <code>preserved</code> context. Rebuilding a drawing may instead report
+  <code>notPreserved</code>. Existing producers may leave context nil; consumers must not infer preservation from
+  the warning kind or parse the message. This addition starts with drawing and array-metadata diagnostics; it
+  does not add an evaluator or a rendering approximation policy. Refused operations still throw the existing
+  typed <code>SheetError</code> vocabulary, whose associated paths and reasons remain available.</p>
+  <p><strong>Checks.</strong> <code>StructuredWarningTests</code> checks the legacy initializer as a function value,
+  unchanged human-readable output, independently matchable context and retention through read/write results.
+  Drawing regression tests distinguish preserved source XML from features lost on rebuilding.</p>
+</section>
+
+<section id="consumer-interop">
+  <h3>B.113 Synthetic consumer interoperability specimen (Rev 5.1)</h3>
+  <p>Decided 2026-10-15. <code>Tests/ConsumerInterop/generate_fixture.py</code> deterministically creates the small
+  synthetic <code>consumer-contract.xlsx</code>: three EMU anchor kinds, fractional positions, a hidden row,
+  a nested group, mixed Japanese runs and theme references, dynamic and non-dynamic XLDAPR records,
+  an ANCHORARRAY reference, and an opaque related part. No user document or derived business data is used.</p>
+  <p><code>ConsumerInteropTests</code> checks model information and byte preservation together after an unrelated
+  edit. <code>verify_with_openpyxl.py</code> independently opens formulas and cached values with openpyxl and
+  checks drawing/metadata package structure with Python XML. These checks do not prove a renderer's viewport or
+  native Excel recalculation. The fixture README records the separate judges and exact commands; unavailable
+  judges are explicitly unverified. No support-table count is inferred from these specimens.</p>
 </section>
 
 </div><!-- /.container -->

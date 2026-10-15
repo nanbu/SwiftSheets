@@ -58,8 +58,13 @@ final class PieceBuffer {
 final class WarningSink {
     var warnings: [ConversionWarning] = []
     func add(_ kind: ConversionWarning.Kind, subject: ConversionWarning.Subject = .other, sheet: String? = nil,
-             at location: CellRef? = nil, _ message: String) {
-        warnings.append(ConversionWarning(kind, subject: subject, sheet: sheet, location: location, message: message))
+             at location: CellRef? = nil, context: ConversionWarning.Context? = nil, _ message: String) {
+        if let context {
+            warnings.append(ConversionWarning(kind, subject: subject, sheet: sheet, location: location,
+                                             context: context, message: message))
+        } else {
+            warnings.append(ConversionWarning(kind, subject: subject, sheet: sheet, location: location, message: message))
+        }
     }
 }
 
@@ -118,10 +123,21 @@ enum WorkbookWriter {
         }
 
         // sheet part paths and workbook relationship ids: existing ones are immutable, new ones follow the maximum
-        let wbRels = sameFamily ? (preserved.relationships["xl/workbook.xml"] ?? []).filter { r in !droppedRelTypes.contains { r.type.hasSuffix($0) } } : []
+        var wbRels = sameFamily ? (preserved.relationships["xl/workbook.xml"] ?? []).filter { r in !droppedRelTypes.contains { r.type.hasSuffix($0) } } : []
         var usedIds = Set(wbRels.map(\.id))
         var nextId = (wbRels.compactMap(\.number).max() ?? 0) + 1
         func freshId() -> String { while usedIds.contains("rId\(nextId)") { nextId += 1 }; let id = "rId\(nextId)"; usedIds.insert(id); nextId += 1; return id }
+        let metadataPlan = try DynamicArrayMetadata.plan(wb, preservesSource: sameFamily, opaque: opaque)
+        if let path = metadataPlan.generatedPath {
+            wbRels.removeAll { $0.type.hasSuffix(DynamicArrayMetadata.relationshipType) && $0.targetMode != "External" }
+            opaque[path] = .bytes(Data(DynamicArrayMetadata.xml.utf8))
+            wbRels.append(Relationship(id: freshId(), type: XMLWriter.nsRel + DynamicArrayMetadata.relationshipType,
+                                      target: relativeTarget(path, from: "xl")))
+        } else if let path = preserved.cellMetadataPath, opaque[path] != nil,
+                  !wbRels.contains(where: { $0.type.hasSuffix(DynamicArrayMetadata.relationshipType) && $0.targetMode != "External" }) {
+            wbRels.append(Relationship(id: freshId(), type: XMLWriter.nsRel + DynamicArrayMetadata.relationshipType,
+                                      target: relativeTarget(path, from: "xl")))
+        }
         var usedPaths = Set(opaque.keys)
         var usedSheetIds = Set<Int>()
         struct SheetPlan { let path: String; let rId: String; let sheetId: Int }
@@ -252,7 +268,7 @@ enum WorkbookWriter {
                         usedPaths.remove(path)
                     }
                     if !sheet.preserved.drawingUnmodelled.isEmpty {
-                        sink.add(.dropped, subject: .objects, sheet: sheet.name,
+                        sink.add(.dropped, subject: .objects, sheet: sheet.name, context: .init(code: .drawingRebuilt, part: sourceDrawing, preservation: .notPreserved),
                                  "\(sheet.preserved.drawingUnmodelled.count) object(s) of the sheet's drawing the model could not read (\(sheet.preserved.drawingUnmodelled.joined(separator: ", "))) dropped: the drawing was rebuilt because a picture, chart or shape was changed or removed")
                     }
                 }
@@ -290,6 +306,11 @@ enum WorkbookWriter {
                 entries.append((ChartParts.relationshipType, "../charts/" + (path as NSString).lastPathComponent))
                 charts.append(chart)
             }
+            if let info = sheet.drawingInfo, info.hasUnmodelledProperties, !keepsPrefix {
+                sink.add(.degraded, subject: .objects, sheet: sheet.name,
+                         context: .init(code: .drawingSimplified, part: info.part, preservation: .partial),
+                         "source drawing properties (transforms, text formatting, geometry or effects) are simplified: the drawing was rebuilt from the editable model")
+            }
             // shapes and text boxes need no part of their own (B.75); a geometry the preset list does not know is
             // drawn as a rectangle and said so
             for shape in newShapes where !shape.geometry.isPreset {
@@ -307,7 +328,7 @@ enum WorkbookWriter {
                 }
                 for (n, chart) in charts.enumerated() {
                     let id = ids[newImages.count + n]
-                    out.append(ChartParts.anchorXML(over: chart.anchor!, shapeID: firstShapeID(id), relID: id))
+                    out.append(ChartParts.anchorXML(over: chart.anchor!, shapeID: firstShapeID(id), relID: id, exactAnchor: chart.drawingAnchor))
                 }
                 for (n, shape) in newShapes.enumerated() {
                     out.append(DrawingParts.shapeAnchorXML(shape, shapeID: shapeIDBase + n, sheet: sheet, rgb: { wb.rgb(of: $0) }))
@@ -471,7 +492,8 @@ enum WorkbookWriter {
             sheetParts.append(sheetPart(sheet, epoch: epoch, styles: styles, strings: strings, preserve: sameFamily,
                                         isActive: i == wb.activeIndex, comments: commentPlans[i],
                                         tables: tablePlans[i] ?? [], pivots: pivotPlans[i] ?? [],
-                                        images: imagePlans[i], sharedSourceStyles: sharedSourceStyles, sink: sink))
+                                        images: imagePlans[i], sharedSourceStyles: sharedSourceStyles,
+                                        cellMetadata: metadataPlan.cells[i], sink: sink))
         }
         let generatedNoteParts = sheetParts.flatMap(\.parts)
         // styles reference theme colours, so a theme part must exist: keep the source's, or ship the default one
@@ -510,6 +532,7 @@ enum WorkbookWriter {
         overrides["docProps/core.xml"] = "application/vnd.openxmlformats-package.core-properties+xml"
         overrides["docProps/app.xml"] = "application/vnd.openxmlformats-officedocument.extended-properties+xml"
         if !wb.customProperties.isEmpty { overrides[customPropertiesPath] = ctCustomProperties }
+        if let path = metadataPlan.generatedPath { overrides[path] = DynamicArrayMetadata.contentType }
         if sameFamily { for (k, v) in preserved.contentTypeOverrides where opaque[k] != nil { overrides[k] = v } }
         for part in generatedNoteParts where !part.path.contains("/_rels/") {
             if part.path.hasSuffix(".vml") { defaults["vml"] = CommentParts.vmlContentType }
@@ -1026,8 +1049,18 @@ enum WorkbookWriter {
     static func sheetPart(_ ws: Sheet, epoch: DateEpoch, styles: StyleRegistry, strings: SharedStringTable, preserve: Bool, isActive: Bool,
                           comments: CommentPlan?, tables: [TablePlan] = [], pivots: [PivotPlan] = [],
                           images: ImagePlan? = nil,
-                          sharedSourceStyles: Set<Int> = [], sink: WarningSink) -> SheetPart {
+                          sharedSourceStyles: Set<Int> = [], cellMetadata: [CellRef: XLSXCellMetadata] = [:], sink: WarningSink) -> SheetPart {
         let table = ws.table
+        let metadataOnlyRefs = cellMetadata.compactMap { ref, metadata in
+            (metadata.cell != nil || metadata.value != nil) && table.cells[ref] == nil ? ref : nil
+        }
+        var extent = table.extent
+        for ref in metadataOnlyRefs {
+            if let current = extent {
+                extent = CellRange(minRow: Swift.min(current.minRow, ref.row), minColumn: Swift.min(current.minColumn, ref.column),
+                                   maxRow: Swift.max(current.maxRow, ref.row), maxColumn: Swift.max(current.maxColumn, ref.column))
+            } else { extent = CellRange(ref) }
+        }
         // a worksheet is one grid: a canvas carrying several tables (Numbers) keeps only the first one
         if ws.tables.count > 1 {
             sink.add(.dropped, subject: .tables, sheet: ws.name,
@@ -1040,7 +1073,8 @@ enum WorkbookWriter {
         s += "<outlinePr summaryBelow=\"\(ws.properties.summaryBelow ? 1 : 0)\" summaryRight=\"\(ws.properties.summaryRight ? 1 : 0)\"/>"
         s += "<pageSetUpPr\(ws.properties.fitsToPage.map { " fitToPage=\"\($0 ? 1 : 0)\"" } ?? "")/></sheetPr>"
         generated.append(("sheetPr", s))
-        generated.append(("dimension", "<dimension ref=\"\(table.extentAddress)\"/>"))
+        let extentAddress = extent.map { $0.isSingleCell ? $0.address + ":" + $0.address : $0.address } ?? "A1:A1"
+        generated.append(("dimension", "<dimension ref=\"\(extentAddress)\"/>"))
         s = "<sheetViews><sheetView workbookViewId=\"0\"\(ws.view.showsGridLines ? "" : " showGridLines=\"0\"")\(ws.view.zoomScale != 100 ? " zoomScale=\"\(ws.view.zoomScale)\"" : "")\(ws.view.tabSelected || isActive ? " tabSelected=\"1\"" : "")"
         s += (ws.view.showsRowColumnHeaders ? "" : " showRowColHeaders=\"0\"") + (ws.view.showsZeros ? "" : " showZeros=\"0\"") + (ws.view.rightToLeft ? " rightToLeft=\"1\"" : "")
         s += (ws.view.topLeftCell.map { " topLeftCell=\"\($0.address)\"" } ?? "") + (ws.view.kind == .normal ? "" : " view=\"\(ws.view.kind.rawValue)\"") + ">"
@@ -1095,7 +1129,8 @@ enum WorkbookWriter {
         // one cell, the same for both walks below
         func cellXML(_ ref: CellRef, _ c: Cell) {
             let styleIndex = styles.index(for: c)
-            let st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
+            var st = styleIndex != 0 ? " s=\"\(styleIndex)\"" : ""
+            if let metadata = cellMetadata[ref] { st += XML.attr("cm", metadata.cell) + XML.attr("vm", metadata.value) }
             let a1 = ref.address
             switch c.value {
             case nil: s += "<c r=\"\(a1)\"\(st)/>"
@@ -1142,7 +1177,7 @@ enum WorkbookWriter {
             s += ">"
         }
         let dimensionRows = table.rowDimensions.filter { !$0.value.isDefault }.keys
-        if let e = table.extent, !xlsxWriterForcesSparseRowWalk,
+        if let e = table.extent, metadataOnlyRefs.isEmpty, !xlsxWriterForcesSparseRowWalk,
            cells.count == (e.maxRow - e.minRow + 1) * (e.maxColumn - e.minColumn + 1) {
             // a dense rectangle, the common shape of an export: rows and columns come from the extent, so nothing is
             // grouped or sorted, and no index of every key is held while the rows go out
@@ -1162,10 +1197,11 @@ enum WorkbookWriter {
             // grouped by row, but only the *keys*: grouping the cells themselves would copy every `Cell`
             var byRow: [Int: [CellRef]] = [:]
             for ref in cells.keys { byRow[ref.row, default: []].append(ref) }
+            for ref in metadataOnlyRefs { byRow[ref.row, default: []].append(ref) }
             for r in Set(byRow.keys).union(dimensionRows).sorted() {
                 openRow(r)
                 for ref in (byRow[r] ?? []).sorted(by: { $0.column < $1.column }) {
-                    if let c = cells[ref] { cellXML(ref, c) }
+                    cellXML(ref, cells[ref] ?? Cell())
                 }
                 s += "</row>"
                 if s.utf8.count >= PieceBuffer.pieceSize { try out.write(s); s = "" }

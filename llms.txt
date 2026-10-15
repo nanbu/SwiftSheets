@@ -22,6 +22,8 @@ prefer the linked documents over memory, and prefer the compiled recipes over pr
 ## Rules an agent should not break
 
 - Failure throws `SheetError`; degradation comes back as `ConversionWarning`s on `ReadResult` / `WriteResult` / `workbook.readWarnings`. Never assume a write kept everything — read `result.warnings`.
+- Optional `ConversionWarning.context` gives machine-readable cause, part, object and source preservation; nil means no assertion. `Sheet.drawingInfo` is an immutable XLSX source snapshot of ordered objects/groups, transforms and rich text; the editable shape/image/chart lists remain separate. Their optional `drawingAnchor` retains exact EMU positioning until the ordinary anchor is assigned.
+- `Table.arrayFormulas` holds all array ranges; `dynamicArrayOrigins` marks the dynamic subset. XLSX preserves source metadata and refuses unsafe unknown-record rewrites. Formula input `A1#` uses the existing `_xlfn.ANCHORARRAY` call AST; known dynamic function input names use canonical OOXML storage names. The library does not evaluate formulas.
 - The format is named explicitly on conversion (`as: .ods`) and detected from bytes on read; the extension is a hint only.
 - Bool properties are predicative (`allowsBlank`, `showsGridLines`, `includesBOM`); typed and A1-string twins share labels (`cell(ref)` / `cell("B2")`, `setStyle(at:)` / `setStyle("A1")`).
 - Formulas are `.formula("=SUM(A1:A3)")`, parsed into a tree; they follow row inserts and sheet renames. The library does not evaluate formulas.

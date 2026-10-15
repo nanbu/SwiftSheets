@@ -123,6 +123,7 @@ struct NumbersWriter {
 
     mutating func write() throws -> Data {
         guard !workbook.sheets.isEmpty else { throw SheetError.invalidWorkbook("a workbook needs at least one sheet") }
+        warnings.append(contentsOf: workbook.sheets.compactMap(\.drawingConversionWarning))
         for sheet in workbook.sheets where sheet.preserved.isUnread {
             warnings.append(ConversionWarning(.dropped, subject: .sheets, sheet: sheet.name, message: "the sheet was never read (ReadOptions.sheets left it out) and is written empty"))
         }

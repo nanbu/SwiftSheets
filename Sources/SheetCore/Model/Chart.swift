@@ -49,11 +49,17 @@ public struct Chart: Hashable, Sendable {
     /// The legend, on the right — off when false.
     public var legend = true
     /// Where the chart sits on the sheet, both corners following their cells. Set by `addChart(_:over:)`.
-    public var anchor: CellRange?
+    public var anchor: CellRange? {
+        didSet { drawingAnchor = nil }
+    }
+    /// Exact source position in EMUs (B.109). Used by XLSX rebuilding until `anchor` or `frame` is assigned.
+    public package(set) var drawingAnchor: DrawingAnchor?
     /// Where the chart stands on a Numbers canvas, in points (spec Appendix B.88). Set by the Numbers reader; the
     /// XLSX and ODS writers place a chart that has a frame but no anchor over the cells the frame covers on the
     /// default grid, and the Numbers writer draws it at the frame when there is no anchor.
-    public var frame: CanvasRect?
+    public var frame: CanvasRect? {
+        didSet { drawingAnchor = nil }
+    }
 
     public init(_ kind: Kind, title: String? = nil) {
         self.kind = kind; self.title = title

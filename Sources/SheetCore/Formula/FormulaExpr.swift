@@ -29,7 +29,8 @@ public indirect enum FormulaExpr: Hashable, Sendable {
     case unparsed(String, dialect: SheetFormat)
 
     /// Parses formula text. A leading `=` (XLSX) or `of:=` / `=` (ODS) is accepted and dropped. Unreadable text
-    /// becomes `.unparsed` rather than an error.
+    /// becomes `.unparsed` rather than an error. XLSX `A1#` becomes a `.call` to `_xlfn.ANCHORARRAY`, the
+    /// stored OOXML spelling, with the anchor as its argument; ordinary reference edits therefore reach it.
     public static func parse(_ text: String, dialect: SheetFormat = .xlsx) -> FormulaExpr {
         let body = FormulaParser.stripPrefix(text, dialect: dialect)
         do { var p = try FormulaParser(body, dialect: dialect); return try p.parseFormula() } catch { return .unparsed(body, dialect: dialect) }
@@ -73,8 +74,7 @@ public indirect enum FormulaExpr: Hashable, Sendable {
         case .call(let name, let args):
             // `_xlfn.` is an OOXML storage namespace, not a portable OpenFormula name. Strip it only through
             // the evidence-backed table; otherwise an ODS application would receive a formula it cannot identify.
-            if dialect == .ods, name.uppercased().hasPrefix("_XLFN."),
-               !FormulaFunctionNames.hasOpenFormulaName(for: name) { return false }
+            if FormulaFunctionNames.hasOnlyOOXMLName(name) { return false }
             return args.allSatisfy { $0.isExpressible(in: dialect) }
         case .array(let rows): return rows.allSatisfy { $0.allSatisfy { $0.isExpressible(in: dialect) } }
         default: return true
@@ -195,6 +195,10 @@ public indirect enum FormulaExpr: Hashable, Sendable {
             case .row(let r, let s, let a) where onSheet(s) && axis == .rows:
                 guard let m = moved(r) else { return nil }
                 return .row(m, sheet: s, abs: a)
+            case .range, .unary, .binary, .call, .array:
+                // A spill reference is an ANCHORARRAY call and may itself be a range endpoint. Reach its
+                // anchor just as we reach references in an ordinary function argument.
+                return go(e)
             default: return e
             }
         }
@@ -220,7 +224,11 @@ public indirect enum FormulaExpr: Hashable, Sendable {
     }
 
     static func sheetOf(_ e: FormulaExpr) -> String? {
-        switch e { case .ref(_, let s, _, _), .column(_, let s, _), .row(_, let s, _): s; default: nil }
+        switch e {
+        case .ref(_, let s, _, _), .column(_, let s, _), .row(_, let s, _): return s
+        case .call("_xlfn.ANCHORARRAY", let args) where args.count == 1: return sheetOf(args[0])
+        default: return nil
+        }
     }
 
     static func span(_ a: FormulaExpr, _ b: FormulaExpr, axis: Axis) -> (Int, Int)? {

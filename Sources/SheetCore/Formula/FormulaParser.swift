@@ -2,8 +2,8 @@ import Foundation
 
 /// Lexer + Pratt parser for XLSX and ODS (OpenFormula) formula text. Whitespace between tokens is dropped, except
 /// where it *is* a token: a space between two references is Excel's intersection operator (`A1:B5 B1:D5` is B1:B5).
-/// OpenFormula spells the same operator `!`. Only references, ranges and names take part — a space after `)` is
-/// still just whitespace, and such a formula falls back to `.unparsed`.
+/// OpenFormula spells the same operator `!`. Only references, ranges, names and stored spill references take
+/// part — a space after any other `)` is still just whitespace, and such a formula falls back to `.unparsed`.
 struct FormulaParser {
     enum Token: Equatable {
         case number(Decimal)
@@ -15,7 +15,7 @@ struct FormulaParser {
         case name(String, sheet: String?)
         case function(String)        // identifier followed by "("
         case op(String)              // + - * / ^ & = <> < <= > >= %
-        case lparen, rparen, lbrace, rbrace, colon, separator, rowSeparator   // "," / ";" per dialect
+        case lparen, rparen, lbrace, rbrace, colon, separator, rowSeparator, spill   // "," / ";" per dialect
         case end
     }
 
@@ -115,6 +115,8 @@ struct FormulaParser {
         case .ref(let r, nil, let ar, let ac): return .ref(r, sheet: s, absRow: ar, absCol: ac)
         case .column(let c, nil, let a): return .column(c, sheet: s, abs: a)
         case .row(let r, nil, let a): return .row(r, sheet: s, abs: a)
+        case .call("_xlfn.ANCHORARRAY", let args) where args.count == 1:
+            return .call(name: "_xlfn.ANCHORARRAY", args: [inheritSheet(from: lhs, args[0])])
         default: return rhs
         }
     }
@@ -125,7 +127,16 @@ struct FormulaParser {
         case .number(let d): advance(); return .number(d)
         case .string(let s): advance(); return .string(s)
         case .error(let e): advance(); return .error(e)
-        case .ref(let r, let s, let ar, let ac): advance(); return .ref(r, sheet: s, absRow: ar, absCol: ac)
+        case .ref(let r, let s, let ar, let ac):
+            advance()
+            let reference = FormulaExpr.ref(r, sheet: s, absRow: ar, absCol: ac)
+            if current == .spill {
+                advance()
+                // OOXML stores A1# as this call. Reusing it preserves the stable public AST and lets all
+                // existing reference walkers and structural edits reach the anchor (Appendix B.111).
+                return .call(name: "_xlfn.ANCHORARRAY", args: [reference])
+            }
+            return reference
         case .column(let c, let s, let a): advance(); return .column(c, sheet: s, abs: a)
         case .row(let r, let s, let a): advance(); return .row(r, sheet: s, abs: a)
         case .name(let n, let s):
@@ -249,6 +260,8 @@ struct FormulaLexer {
             case ">":
                 if peek(1) == "=" { tokens.append(.op(">=")); i += 2 } else { tokens.append(.op(">")); i += 1 }
             case "\"": tokens.append(.string(try lexString()))
+            case "#" where dialect == .xlsx && tokens.last.map({ if case .ref = $0 { return true }; return false }) == true:
+                tokens.append(.spill); i += 1
             case "#": tokens.append(.error(try lexError()))
             case "[" where dialect == .ods: try lexODSReference()
             case "'": try lexReferenceLike()
@@ -268,7 +281,8 @@ struct FormulaLexer {
     /// number, a closing bracket — makes it padding, which is what it is in `SUM(A1, B1)`.
     private func startsIntersection() -> Bool {
         switch tokens.last {
-        case .ref, .column, .row, .name: break
+        case .ref, .column, .row, .name, .spill: break
+        case .rparen where endsStoredSpillReference(): break
         default: return false
         }
         var j = i
@@ -280,6 +294,23 @@ struct FormulaLexer {
         guard next.isNumber else { return false }
         while j < chars.count, chars[j].isNumber { j += 1 }
         return j < chars.count && chars[j] == ":"
+    }
+
+    /// The emitter writes A1# as ANCHORARRAY(A1). Recognise that specific reference-producing call on the left
+    /// of an intersection too, so its stored spelling parses to the same tree; other calls remain out of scope.
+    private func endsStoredSpillReference() -> Bool {
+        var level = 0
+        for index in tokens.indices.reversed() {
+            if tokens[index] == .rparen { level += 1 }
+            else if tokens[index] == .lparen {
+                level -= 1
+                if level == 0 {
+                    guard index > 0, case .function(let name) = tokens[index - 1] else { return false }
+                    return FormulaFunctionNames.canonical(name, parsedAs: dialect) == "_xlfn.ANCHORARRAY"
+                }
+            }
+        }
+        return false
     }
 
     private mutating func lexString() throws -> String {

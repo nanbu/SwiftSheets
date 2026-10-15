@@ -1,9 +1,9 @@
 /// The small, evidence-backed part of function-name conversion that belongs at the file-format edge.
 ///
-/// This is deliberately not a function catalogue or evaluator. A row is present only when XLSX and OpenFormula
-/// have the same operation under different stored names, or when OOXML requires `_xlfn.` for an OpenFormula
-/// standard name. Similar-looking functions with different arguments or error rules do not belong here.
-enum FormulaFunctionNames {
+/// This is deliberately not a function catalogue or evaluator. The tables cover exact XLSX/OpenFormula aliases
+/// and known Excel input/storage spellings. Similar-looking functions with different arguments or error rules
+/// do not belong here.
+package enum FormulaFunctionNames {
     struct Mapping: Hashable, Sendable {
         /// The formula tree uses OOXML's invariant stored spelling as its canonical name.
         let xlsx: String
@@ -42,8 +42,33 @@ enum FormulaFunctionNames {
     private static let byXLSX = Dictionary(uniqueKeysWithValues: mappings.map { ($0.xlsx.uppercased(), $0) })
     private static let byODS = Dictionary(uniqueKeysWithValues: mappings.map { ($0.ods.uppercased(), $0) })
 
+    /// Excel's input spelling differs from its stored spelling for this measured dynamic-array family. This is
+    /// separate from `mappings`: none of these names has a verified ODF 1.3 OpenFormula equivalent (B.111).
+    static let dynamicArrayStoredNames: [String: String] = [
+        "FILTER": "_xlfn._xlws.FILTER", "SORT": "_xlfn._xlws.SORT",
+        "SORTBY": "_xlfn.SORTBY", "UNIQUE": "_xlfn.UNIQUE", "SEQUENCE": "_xlfn.SEQUENCE",
+        "RANDARRAY": "_xlfn.RANDARRAY", "XLOOKUP": "_xlfn.XLOOKUP", "XMATCH": "_xlfn.XMATCH",
+        "ANCHORARRAY": "_xlfn.ANCHORARRAY",
+    ]
+    private static let dynamicArrayInputNames = Dictionary(uniqueKeysWithValues:
+        dynamicArrayStoredNames.map { ($0.value.uppercased(), $0.key) })
+
+    /// A codec may look up a known storage name in its application registry. This does not claim that the
+    /// application supports the function: its registry must still contain the result. Unknown namespaces stay.
+    package static func applicationName(_ name: String) -> String {
+        let key = name.uppercased()
+        return dynamicArrayInputNames[key] ?? key
+    }
+
+    private static func dynamicArrayStoredName(_ key: String) -> String? {
+        if let stored = dynamicArrayStoredNames[key] { return stored }
+        guard let input = dynamicArrayInputNames[key] else { return nil }
+        return dynamicArrayStoredNames[input]
+    }
+
     static func canonical(_ name: String, parsedAs dialect: SheetFormat) -> String {
         let key = name.uppercased()
+        if let stored = dynamicArrayStoredName(key) { return stored }
         if dialect == .ods, let mapping = byODS[key] { return mapping.xlsx }
         if dialect != .ods, let mapping = byXLSX[key] { return mapping.xlsx }
 
@@ -55,13 +80,15 @@ enum FormulaFunctionNames {
 
     static func rendered(_ name: String, as dialect: SheetFormat) -> String {
         let key = name.uppercased()
+        if let stored = dynamicArrayStoredName(key) { return stored }
         let mapping = byXLSX[key] ?? byODS[key]
         guard let mapping else { return name }
         return dialect == .ods ? mapping.ods : mapping.xlsx
     }
 
-    static func hasOpenFormulaName(for name: String) -> Bool {
-        byXLSX[name.uppercased()] != nil
+    static func hasOnlyOOXMLName(_ name: String) -> Bool {
+        let key = name.uppercased()
+        return byXLSX[key] == nil && (key.hasPrefix("_XLFN.") || dynamicArrayStoredNames[key] != nil)
     }
 
     /// Preserve an unknown namespace exactly while upper-casing its local function name, matching the old parser

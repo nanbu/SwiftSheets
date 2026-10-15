@@ -120,6 +120,8 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     private(set) var failure: SheetError?
     private weak var parser: XMLParser?
     private var currentQualifiedName = ""
+    /// The current start tag, including its prefix, for handlers that must resolve a namespace precisely.
+    package var qualifiedName: String { currentQualifiedName }
     private var currentAttributes: [String: String] = [:]
     private(set) var captureDepth = 0
     private var captureBuffer = ""
@@ -285,12 +287,12 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
     }
 
     func scannerStart(qualified: String, attributes: [String: String], tagStart: Int, tagEnd: Int) throws {
+        currentQualifiedName = qualified
         if captureDepth > 0 {
             captureDepth += 1
             if deliverWhileCapturing { handler.start(XML.local(qualified), attributes) }
             return
         }
-        currentQualifiedName = qualified
         currentTagStart = tagStart
         handler.start(XML.local(qualified), attributes)
     }
@@ -430,12 +432,12 @@ package final class SAXDriver: NSObject, XMLParserDelegate {
 
     package func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes: [String: String] = [:]) {
         if !sawRoot { sawRoot = true; handler.rootAttributes = attributes }
+        currentQualifiedName = elementName
         if captureDepth > 0 {
             captureDepth += 1; openTag(elementName, attributes)
             if deliverWhileCapturing { handler.start(XML.local(elementName), attributes) }
             return
         }
-        currentQualifiedName = elementName
         currentAttributes = attributes
         handler.start(XML.local(elementName), attributes)
     }

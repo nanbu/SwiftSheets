@@ -12,10 +12,11 @@ struct DrawingContents {
     var unmodelled: [String] = []
     /// The parts the drawing referenced (media, charts), so a rebuild can retire them.
     var referencedParts: [String] = []
+    var info: DrawingInfo?
 }
 
 /// One anchor of `xdr:wsDr`, as the SAX pass collects it.
-struct DrawingAnchor {
+struct ParsedDrawingAnchor {
     enum Kind { case picture(relID: String), chart(relID: String), shape(Shape), other(String), none }
     enum Form { case oneCell, twoCell, absolute }
     var shape: Form
@@ -24,6 +25,23 @@ struct DrawingAnchor {
     var to = (column: 0, row: 0, columnOffset: 0, rowOffset: 0)
     var ext: (cx: Int, cy: Int)?
     var pos: (x: Int, y: Int)?
+    var editAs: String?
+    var exact: DrawingAnchor? {
+        func marker(_ p: (column: Int, row: Int, columnOffset: Int, rowOffset: Int)) -> DrawingAnchor.Marker {
+            .init(column: Int64(p.column), row: Int64(p.row), columnOffset: Int64(p.columnOffset), rowOffset: Int64(p.rowOffset))
+        }
+        switch shape {
+        case .oneCell:
+            guard let ext else { return nil }
+            let from = marker(from)
+            return .oneCell(from: from, width: Int64(ext.cx), height: Int64(ext.cy))
+        case .twoCell:
+            return .twoCell(from: marker(from), to: marker(to), editAs: editAs)
+        case .absolute:
+            guard let pos, let ext else { return nil }
+            return .absolute(x: Int64(pos.x), y: Int64(pos.y), width: Int64(ext.cx), height: Int64(ext.cy))
+        }
+    }
 }
 
 /// What an `xdr:sp` / `xdr:cxnSp` says, gathered while inside it (B.75): the preset, the text with its first
@@ -33,12 +51,14 @@ struct ShapeCollector {
     var name: String?
     var isTextBox = false
     var preset: String?
+    var hasCustomGeometry = false
     var fill: Color?, fillStated = false
     var line: Color?, lineWidthEMU: Int?, lineStated = false
     var styleFill: Color?, styleLine: Color?
     var paragraphs: [String] = []
     var paragraph = ""
     var inParagraph = false
+    var inText = false
     var alignment: Alignment.Horizontal?
     var font: Font?
     var fontTaken = false
@@ -71,7 +91,7 @@ struct ShapeCollector {
     }
 
     var shape: Shape {
-        var s = Shape(isTextBox && (preset == nil || preset == "rect") ? .textBox : Shape.Geometry(rawValue: preset ?? "rect"))
+        var s = Shape(isTextBox && !hasCustomGeometry && (preset == nil || preset == "rect") ? .textBox : Shape.Geometry(rawValue: hasCustomGeometry ? "custom" : (preset ?? "rect")))
         s.name = name
         if !paragraphs.isEmpty { s.text = paragraphs.joined(separator: "\n") }
         s.font = font
@@ -90,6 +110,7 @@ struct ShapeCollector {
         case "cNvPr": if self.name == nil { self.name = a["name"] }
         case "cNvSpPr": if a["txBox"] == "1" || a["txBox"] == "true" { isTextBox = true }
         case "prstGeom": if preset == nil { preset = a["prst"] }
+        case "custGeom": hasCustomGeometry = true
         case "spPr": inSpPr = true
         case "ln" where inSpPr: inLn = true; lineStated = true; lineWidthEMU = a["w"].flatMap { Int($0) }
         case "style": inStyle = true
@@ -116,6 +137,7 @@ struct ShapeCollector {
             if let u = a["u"], u != "none" { f.underline = u == "dbl" ? .double : .single }
             runFont = f
         case "latin" where inRPr: runFont?.name = a["typeface"]
+        case "t" where inParagraph: inText = true
         case "br" where inParagraph: paragraph += "\n"
         case "noFill":
             if inLn { line = nil } else if inSpPr { fillStated = true; fill = nil }
@@ -131,7 +153,7 @@ struct ShapeCollector {
         }
     }
 
-    mutating func text(_ s: String) { if inParagraph { paragraph += s } }
+    mutating func text(_ s: String) { if inText { paragraph += s } }
 
     private func tinted(_ c: Color?) -> Color? {
         guard case .theme(let i, _)? = c else { return c }
@@ -147,6 +169,7 @@ struct ShapeCollector {
         case "style": inStyle = false
         case "txBody": inTxBody = false
         case "p" where inParagraph: inParagraph = false; paragraphs.append(paragraph)
+        case "t": inText = false
         case "rPr" where inRPr:
             inRPr = false
             if !fontTaken { font = runFont; fontTaken = true }
@@ -170,8 +193,9 @@ struct ShapeCollector {
 final class DrawingParser: SAXHandler {
     var driver: SAXDriver?
     var rootAttributes: [String: String] = [:]
-    private(set) var anchors: [DrawingAnchor] = []
-    private var current: DrawingAnchor?
+    private(set) var anchors: [ParsedDrawingAnchor] = []
+    let info = DrawingInfoCollector()
+    private var current: ParsedDrawingAnchor?
     private var corner: String?          // "from" / "to"
     private var field: String?           // col / colOff / row / rowOff
     private var buffer = ""
@@ -187,12 +211,16 @@ final class DrawingParser: SAXHandler {
     }
 
     func start(_ name: String, _ a: [String: String]) {
-        if shape != nil { shapeDepth += 1; shape!.start(name, a); return }
+        let semantic = info.start(name, a, qualifiedName: driver?.qualifiedName ?? name, beginCapture: { self.beginCapture(deliveringEvents: true) }, nestingExceeded: {
+            self.fail(.unsupportedFeature("drawing inspection exceeds its nesting limit (128 objects or 256 XML levels)"))
+        })
+        if shape != nil { shapeDepth += 1; if semantic { shape!.start(name, a) }; return }
         if groupDepth > 0 { groupDepth += 1; return }
+        guard semantic else { return }
         switch name {
-        case "oneCellAnchor": current = DrawingAnchor(shape: .oneCell)
-        case "twoCellAnchor": current = DrawingAnchor(shape: .twoCell)
-        case "absoluteAnchor": current = DrawingAnchor(shape: .absolute)
+        case "oneCellAnchor": current = ParsedDrawingAnchor(shape: .oneCell)
+        case "twoCellAnchor": current = ParsedDrawingAnchor(shape: .twoCell); current?.editAs = a["editAs"]
+        case "absoluteAnchor": current = ParsedDrawingAnchor(shape: .absolute)
         case "from", "to": corner = name
         case "col", "colOff", "row", "rowOff": if corner != nil { field = name; buffer = "" }
         case "ext":
@@ -226,23 +254,29 @@ final class DrawingParser: SAXHandler {
         }
     }
     func text(_ s: String) {
+        info.text(s)
+        guard info.acceptsText else { return }
         if shape != nil { shape!.text(s); return }
         if field != nil { buffer += s }
     }
+    func captured(_ fragment: XMLFragment) { info.captured(fragment) }
     func end(_ name: String) {
+        let semantic = info.end(name)
         if shape != nil {
-            shape!.end(name)
+            if semantic { shape!.end(name) }
             shapeDepth -= 1
             if shapeDepth == 0 { current?.kind = .shape(shape!.shape); shape = nil }
             return
         }
         if groupDepth > 0 { groupDepth -= 1; return }
+        guard semantic else { return }
         switch name {
         case "oneCellAnchor", "twoCellAnchor", "absoluteAnchor":
             if var anchor = current {
                 if case .other("pic") = anchor.kind { anchor.kind = .other("pic without a blip") }
                 if inGraphicFrame, case .none = anchor.kind { anchor.kind = .other(graphicKind ?? "graphicFrame") }
                 anchors.append(anchor)
+                info.finishAnchor(anchor.exact)
             }
             current = nil; inGraphicFrame = false; objectDepth = 0
         case "from", "to": corner = nil
@@ -360,6 +394,7 @@ enum DrawingReader {
         let parser = DrawingParser()
         try parser.run(drawingData, part: part)
         var out = DrawingContents()
+        out.info = DrawingInfo(part: part, objects: parser.info.objects)
         let dir = (part as NSString).deletingLastPathComponent
         func target(_ id: String) -> String? {
             rels.first { $0.id == id }.map { WorkbookReader.resolvePart($0.target, relativeTo: dir) }
@@ -373,6 +408,7 @@ enum DrawingReader {
                     out.unmodelled.append("picture in a format the model cannot hold (\((path as NSString).pathExtension))"); continue
                 }
                 image.anchor = imageAnchor(anchor, image: image, sheet: sheet)
+                image.drawingAnchor = anchor.exact
                 out.images.append(image)
             case .chart(let relID):
                 guard let path = target(relID), let data = try read(path) else { out.unmodelled.append("chart \(relID) without a chart part"); continue }
@@ -380,9 +416,11 @@ enum DrawingReader {
                 let cp = ChartPartParser()
                 guard (try? cp.run(data, part: path)) != nil, var chart = cp.chart else { out.unmodelled.append("chart part \(path) could not be read"); continue }
                 chart.anchor = chartRange(anchor, sheet: sheet)
+                chart.drawingAnchor = anchor.exact
                 out.charts.append(chart)
             case .shape(var shape):
                 shape.anchor = shapeAnchor(anchor, sheet: sheet)
+                shape.drawingAnchor = anchor.exact
                 out.shapes.append(shape)
             case .other(let what): out.unmodelled.append(what)
             case .none: out.unmodelled.append("empty anchor")
@@ -393,10 +431,10 @@ enum DrawingReader {
 
     /// The model's anchor for a picture: a one-cell anchor is `.cell` (original size when the extent is the
     /// picture's own pixels, scaled otherwise), a two-cell anchor `.span`, an absolute anchor `.absolute` in points.
-    static func imageAnchor(_ a: DrawingAnchor, image: SheetImage, sheet: Sheet) -> SheetImage.Anchor {
+    static func imageAnchor(_ a: ParsedDrawingAnchor, image: SheetImage, sheet: Sheet) -> SheetImage.Anchor {
         switch a.shape {
         case .oneCell:
-            let ref = CellRef(row: a.from.row + 1, column: a.from.column + 1)
+            let ref = CellRef(row: min(max(a.from.row, 0), CellRef.maxRow - 1) + 1, column: min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1)
             guard let ext = a.ext else { return .cell(ref, sizing: .original) }
             let w = Units.emuToPixels(Double(ext.cx)), h = Units.emuToPixels(Double(ext.cy))
             return .cell(ref, sizing: w == image.pixelWidth && h == image.pixelHeight ? .original : .scaled(width: w, height: h))
@@ -410,10 +448,10 @@ enum DrawingReader {
 
     /// The model's anchor for a shape: a one-cell anchor is `.cell` at the extent's size, a two-cell anchor `.span`,
     /// an absolute anchor `.absolute` in points.
-    static func shapeAnchor(_ a: DrawingAnchor, sheet: Sheet) -> SheetImage.Anchor {
+    static func shapeAnchor(_ a: ParsedDrawingAnchor, sheet: Sheet) -> SheetImage.Anchor {
         switch a.shape {
         case .oneCell:
-            let ref = CellRef(row: a.from.row + 1, column: a.from.column + 1)
+            let ref = CellRef(row: min(max(a.from.row, 0), CellRef.maxRow - 1) + 1, column: min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1)
             guard let ext = a.ext else { return .cell(ref, sizing: .fitCell) }
             return .cell(ref, sizing: .scaled(width: Units.emuToPixels(Double(ext.cx)), height: Units.emuToPixels(Double(ext.cy))))
         case .twoCell: return .span(span(a))
@@ -425,11 +463,11 @@ enum DrawingReader {
 
     /// The cell range a chart covers: the two-cell anchor's own, or — for a one-cell or absolute anchor — the
     /// cells its extent reaches over from its top-left, measured against the sheet's column widths and row heights.
-    static func chartRange(_ a: DrawingAnchor, sheet: Sheet) -> CellRange {
+    static func chartRange(_ a: ParsedDrawingAnchor, sheet: Sheet) -> CellRange {
         switch a.shape {
         case .twoCell: return span(a)
         case .oneCell, .absolute:
-            var column = a.from.column + 1, row = a.from.row + 1
+            var column = min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1, row = min(max(a.from.row, 0), CellRef.maxRow - 1) + 1
             if a.shape == .absolute, let pos = a.pos {
                 (column, row) = cell(atEMU: (pos.x, pos.y), sheet: sheet)
             }
@@ -441,13 +479,16 @@ enum DrawingReader {
         }
     }
 
-    private static func span(_ a: DrawingAnchor) -> CellRange {
+    private static func span(_ a: ParsedDrawingAnchor) -> CellRange {
         // `to` is exclusive when its offset is 0 (the writer's own form); an offset into the cell means the
         // picture reaches into it
-        let toColumn = max(a.to.column + (a.to.columnOffset > 0 ? 1 : 0), a.from.column + 1)
-        let toRow = max(a.to.row + (a.to.rowOffset > 0 ? 1 : 0), a.from.row + 1)
-        return CellRange(from: CellRef(row: a.from.row + 1, column: a.from.column + 1), to: CellRef(row: toRow, column: toColumn))
+        let fromColumn = min(max(a.from.column, 0), CellRef.maxColumn - 1) + 1
+        let fromRow = min(max(a.from.row, 0), CellRef.maxRow - 1) + 1
+        let toColumn = max(min(max(a.to.column, 0), CellRef.maxColumn) + (a.to.column < CellRef.maxColumn && a.to.columnOffset > 0 ? 1 : 0), fromColumn)
+        let toRow = max(min(max(a.to.row, 0), CellRef.maxRow) + (a.to.row < CellRef.maxRow && a.to.rowOffset > 0 ? 1 : 0), fromRow)
+        return CellRange(from: CellRef(row: fromRow, column: fromColumn), to: CellRef(row: toRow, column: toColumn))
     }
+
     private static func columnEMU(_ column: Int, _ sheet: Sheet) -> Int {
         Units.pixelsToEMU(CellPixels.columnPixels(sheet.columnDimensions[column]?.width ?? CellPixels.defaultColumnWidth))
     }

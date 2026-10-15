@@ -245,9 +245,20 @@ public struct ConversionWarning: Sendable, Hashable, CustomStringConvertible {
     public let sheet: String?
     public let location: CellRef?
     public let message: String
+    /// Machine-readable details when the producer can identify the cause and preservation outcome.
+    /// Nil on older producers; neither the wording nor `kind` implies a preservation guarantee.
+    public let context: Context?
 
     public init(_ kind: Kind, subject: Subject = .other, sheet: String? = nil, location: CellRef? = nil, message: String) {
         self.kind = kind; self.subject = subject; self.sheet = sheet; self.location = location; self.message = message
+        self.context = nil
+    }
+
+    /// Adds structured details without changing the original initializer or its function type.
+    public init(_ kind: Kind, subject: Subject = .other, sheet: String? = nil, location: CellRef? = nil,
+                context: Context, message: String) {
+        self.kind = kind; self.subject = subject; self.sheet = sheet; self.location = location; self.message = message
+        self.context = context
     }
 
     public var description: String {

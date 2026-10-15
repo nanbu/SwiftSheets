@@ -52,7 +52,11 @@ public struct SheetImage: Hashable, Sendable {
     public let format: Format
     public let pixelWidth: Int
     public let pixelHeight: Int
-    public var anchor: Anchor
+    public var anchor: Anchor {
+        didSet { drawingAnchor = nil }
+    }
+    /// Exact source position in EMUs (B.109). Used by XLSX rebuilding until `anchor` is assigned.
+    public package(set) var drawingAnchor: DrawingAnchor?
 
     /// Reads the format and pixel size from the bytes. Unknown leading bytes throw `unsupportedFeature`; a
     /// recognized header too damaged to say its size throws `malformedPart`.

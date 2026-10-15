@@ -136,7 +136,8 @@ import SwiftSheets
         let result = try wb.write(as: .xlsx)
         let drawing = try Package.part("xl/drawings/drawing1.xml", of: result.data)
         #expect(drawing.contains("<a:t>Changed</a:t>") && !drawing.contains("<a:t>Hello</a:t>"))
-        #expect(result.warnings.isEmpty, "nothing in this drawing lay outside the model: \(result.warnings.map(\.message))")
+        #expect(result.warnings.contains { $0.context?.code == .drawingSimplified && $0.context?.preservation == .partial }, "the source body insets and wrapping cannot be rebuilt by the editable model")
+        #expect(!result.warnings.contains { $0.kind == .dropped }, "every remaining shape is carried")
         let back = try Workbook.read(result.data, format: .xlsx).workbook.sheets[0]
         #expect(back.shapes.count == 6 && back.shapes[0].text == "Changed" && back.shapes.map(\.geometry) == [.rectangle, .rightArrow, .ellipse, .textBox, .line, .diamond])
         #expect(back.shapes[0].fill == wb.sheets[0].shapes[0].fill && back.shapes[0].font == wb.sheets[0].shapes[0].font)
