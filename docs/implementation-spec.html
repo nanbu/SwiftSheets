@@ -599,7 +599,7 @@ pre .vr { color: var(--code-var); }
 <!-- ===================== HERO ===================== -->
 <header class="hero">
   <div class="container-hero hero-inner">
-    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 5.1 / SwiftSheets 2.x (unreleased additions)</div>
+    <div class="eyebrow">IMPLEMENTATION SPECIFICATION — Rev 5.1 / SwiftSheets 2.1.0-rc.1</div>
     <h1 class="hero-title">
       <span class="accent">SwiftSheets</span> Implementation Spec
     </h1>
@@ -621,7 +621,8 @@ pre .vr { color: var(--code-var); }
 <div class="container">
 
 <section aria-labelledby="current-spec"><h2 id="current-spec">Current specification and historical decisions</h2>
-<p>This document applies to SwiftSheets 2.x, including the unreleased additions below. The current revision is 5.1. The numbered chapters state the design;
+<p>This document applies to SwiftSheets 2.1.0-rc.1. The current revision is 5.1. This release candidate
+adds the APIs below; native Excel rendering/recalculation and the remaining manual release checks are pending. The numbered chapters state the design;
 Appendix B records dated decisions and corrections. Where an older decision conflicts with a later correction,
 the later correction applies. Earlier descriptions of missing features or unavailable applications are historical,
 not the current support policy. Use the <a href="spec-feature-matrix.html">feature matrix</a> for current read/write support.
@@ -1939,6 +1940,7 @@ wb.sheets[<span class="nm">0</span>] = sheet
     <tr><td>4.20 Draft</td><td>2026-09-05</td><td><strong>Three API items</strong> recorded in Appendix B.39.10. <code>ReadOptions.sheets</code> (XLSX carries the sheets it does not read as bytes and writes them back with the shared string table and the cellXfs numbers preserved; ODS / Numbers carry them empty and say so on both read and write), <code>CSVStreamingReader</code> / <code>CSVStreamingWriter</code>, and <code>for try await</code> over <code>rows(inSheet:)</code> / <code>rows()</code>. 1,017 tests</td></tr>
     <tr><td>4.23 Draft</td><td>2026-09-05</td><td><strong>Concurrent reading</strong> recorded in Appendix B.41 and merged into the main body. XLSX / XLSM sheets are read at the same time (the lazy dictionaries of the style tables are filled first, the work for one sheet is moved into a container that only reads, and the results are put back in sheet order). <code>ReadOptions.concurrency</code> (nil = automatic for 2 or more sheets declared at 4 MiB or more, 1 = one at a time, n = at most n). The extra memory is only the working area of the sheets running at once, so this integer is the cap. A column of 8 sheets on the bench: one at a time 2.7 s, 145 MB → concurrent 1.2 s, 257 MB</td></tr>
     <tr><td>4.24 Draft</td><td>2026-09-05</td><td>Added to Appendix B.38: <strong>"a part declaring another encoding passes through" was a hole</strong>. The Linux judge for 0.14.0 crashed once more in the same function, and the cause was that libxml2 keeps reading a part whose declared encoding name is broken as raw bytes in recovery mode (Snappy, suspected first, was unrelated; its rewrite stays as hardening). Pass-through is now limited to the 8-bit names the parser knows; an unknown name is <code>malformedPart</code>. The fuzzer puts the mutation it is reading on disk, and CI brings it back only when there is a crash</td></tr>
+    <tr><td>5.1</td><td>2026-10-15</td><td>Release candidate 2.1.0-rc.1 adds exact source drawing anchors and immutable group/text inspection, sparse dynamic-array origin and metadata support, spill-reference syntax and structured warning context (B.109–B.113). Native Excel rendering/recalculation and the remaining manual release checks are pending.</td></tr>
     <tr><td>5.0</td><td>2026-10-09</td><td>Async twins of read, inspect, write and convert (and the password forms) under the same names, which makes existing async code add <code>await</code>: the 2.0.0 source break announced in 4.98. Only async calls answer to cancellation; synchronous calls run to completion as in 1.x. <code>format: SheetFormat? = nil</code> replaces the URL functions without it (B.108).</td></tr>
     <tr><td>4.98</td><td>2026-10-09</td><td>A file takes <code>format: SheetFormat?</code> as bytes do, through a twin of each URL read, inspection and initializer. 2.0.0 announced: async twins under the same names, and the default argument that folds the twins into one (B.107).</td></tr>
     <tr><td>4.97</td><td>2026-09-24</td><td>A table sharing a sheet filter's range owns that filter in XLSX and ODS; criteria and sort move with it. Sheet-local named ranges have an explicit sheet context (B.106).</td></tr>

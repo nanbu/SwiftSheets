@@ -9,6 +9,12 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+## [2.1.0-rc.1] — 2026-10-15
+
+Release candidate for additive APIs; existing 2.0 source remains compatible. Native Excel rendering and
+dynamic-array recalculation, plus the remaining manual checklist in MAINTENANCE.md, are pending.
+This candidate is not the completed stable release.
+
 ### Added
 
 - XLSX drawing inspection through `Sheet.drawingInfo`: ordered groups, local transforms, paragraphs and runs,
@@ -1602,7 +1608,8 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/2.0.0...HEAD
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/2.1.0-rc.1...HEAD
+[2.1.0-rc.1]: https://github.com/nanbu/SwiftSheets/compare/2.0.0...2.1.0-rc.1
 [2.0.0]: https://github.com/nanbu/SwiftSheets/compare/1.2.0...2.0.0
 [1.2.0]: https://github.com/nanbu/SwiftSheets/compare/1.1.1...1.2.0
 [1.1.1]: https://github.com/nanbu/SwiftSheets/compare/1.1.0...1.1.1

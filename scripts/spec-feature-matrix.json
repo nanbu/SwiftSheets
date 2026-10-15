@@ -1,19 +1,19 @@
 {
   "meta": {
     "title": "The spec feature matrix — SwiftSheets against the public specifications of Excel / ODS / Numbers",
-    "library_version": "2.0.0",
-    "as_of": "2026-10-09",
-    "commit": "2.0.0",
+    "library_version": "2.1.0-rc.1",
+    "as_of": "2026-10-15",
+    "commit": "2.1.0-rc.1",
     "axis": "The rows are the features each format's public specification has; across them run SwiftSheets' read and write support and the API. The axes are the reverse of docs/format-support.html (the model's 48 features × 3 formats), which provides the measured evidence behind this table.",
     "granularity": "One row is one feature as a user sees it (not one row per XML element). The table does not cover every element of a specification; it lists the units a user can name, following the specification's chapters and part structure.",
-    "caveat": "A row described as dropped never vanishes in silence: it always comes back as a warning. FormatSupportTests pins the fact that warnings come back, by their count per format (xlsx 7 / ods 8 / numbers 24).",
+    "caveat": "A row described as dropped never vanishes in silence: it always comes back as a warning. FormatSupportTests pins the fact that warnings come back, by their count per format (xlsx 7 / ods 8 / numbers 24). The native-application judge environments below are historical baseline evidence recorded for 2.0.0 on 2026-10-09, not new measurements for 2.1.0-rc.1. Native Excel rendering and recalculation, and the manual pre-release gates, remain unverified for this candidate. Source-inspection and independent package checks do not establish those results.",
     "environments": [
-      "macOS 15",
-      "Swift 6.2 / Xcode 26",
-      "openpyxl 3.1.5 (judge for XLSX)",
-      "LibreOffice 26.2.3 (judge for ODF)",
-      "numbers-parser 4.16.3 / Numbers 15.3.1 (judge for Numbers)",
-      "Microsoft Excel 16.112.2 (judge for protection, pivots and advanced round trips, Appendices B.31, B.102–B.103)"
+      "Historical baseline (2026-10-09): macOS 15",
+      "Historical baseline (2026-10-09): Swift 6.2 / Xcode 26",
+      "Historical baseline (2026-10-09): openpyxl 3.1.5 (judge for XLSX)",
+      "Historical baseline (2026-10-09): LibreOffice 26.2.3 (judge for ODF)",
+      "Historical baseline (2026-10-09): numbers-parser 4.16.3 / Numbers 15.3.1 (judge for Numbers)",
+      "Historical baseline (2026-10-09): Microsoft Excel 16.112.2 (judge for protection, pivots and advanced round trips, Appendices B.31, B.102–B.103)"
     ],
     "status_vocabulary": {
       "full": {
@@ -583,11 +583,12 @@
               "read": "full",
               "write": "full",
               "api": [
-                "sheet.table.arrayFormulas[anchor] = CellRange(\"A2:A4\")"
+                "sheet.table.arrayFormulas[anchor] = CellRange(\"A2:A4\")",
+                "sheet.table.dynamicArrayOrigins.insert(anchor)"
               ],
               "warning": null,
               "evidence": "measured",
-              "note": null
+              "note": "arrayFormulas holds every array range; the sparse dynamicArrayOrigins set distinguishes confirmed dynamic spills from legacy CSE arrays without duplicating ranges (B.110). Detection follows the workbook metadata relationship, cm index, metadata type and XLDAPR namespace/GUID/fDynamic flag; function names alone do not decide array kind. Original metadata bytes and sparse cm/vm indices survive same-family writes. Pure dynamic records can be reused or newly authored; inconsistent origins and unsupported changes to mixed/unknown metadata are refused with SheetError. Shrinking a dynamic range clears former result values while retaining formatting. This records ranges and cached values; native Excel recalculation is unverified for this candidate."
             },
             {
               "id": "xlsx.formula.cached",
@@ -636,11 +637,13 @@
               "read": "partial",
               "write": "partial",
               "api": [
-                "FormulaExpr"
+                "FormulaExpr",
+                ".formula(\"=SUM(A1#)\")",
+                "FormulaExpr.call(name: \"_xlfn.ANCHORARRAY\", args: [reference])"
               ],
-              "warning": "None (carried by name)",
+              "warning": "None for XLSX name preservation; unsupported calls converted to another format retain cached values with a warning",
               "evidence": "code",
-              "note": "The meaning of a function is not interpreted. It is carried as a name and a tree of arguments, so it survives within the same format."
+              "note": "Function calls are carried by name and argument tree, without evaluation. A1# parses as the existing ANCHORARRAY call, so reference edits and sheet renames reach its anchor (B.111). An exact allow-list normalizes nine known bare names to their OOXML stored names; existing qualifications, unknown namespaces and string literals remain unchanged. ODS uses cached values for these unverified OpenFormula equivalents; Numbers resolves only known stored names through its existing registry and warns when unsupported. No spill calculation or native Excel recalculation result is claimed."
             }
           ]
         },
@@ -973,11 +976,14 @@
                 "SheetImage",
                 "ImagePlacement",
                 "sheet.images",
-                "SheetImage.Anchor.absolute"
+                "SheetImage.Anchor.absolute",
+                "SheetImage.drawingAnchor",
+                "DrawingAnchor",
+                "sheet.drawingInfo"
               ],
-              "warning": "Converting to another format: dropped",
+              "warning": "Unsupported picture formats are dropped on drawing rebuild; source-only drawing positions/details approximated by another-format writer are reported with a degraded warning",
               "evidence": "measured",
-              "note": "PNG / JPEG / GIF; the format and pixel size are read from the bytes. Reading: the drawing part's anchors (one-cell, two-cell, absolute) and the media parts go into sheet.images (B.72). Left untouched, the parts stay byte for byte; an addition is spliced in; a change or removal rebuilds the drawing, with a warning. Pictures in other formats (BMP, EMF and so on) are not taken into the model, and a rebuild drops them, with a warning."
+              "note": "PNG / JPEG / GIF; the format and pixel size are read from the bytes. The editable anchors and media enter sheet.images (B.72); the additional read-only drawingAnchor retains one-cell, two-cell or absolute coordinates, offsets and extents as Int64 EMUs, including editAs, and is used on XLSX rebuild (B.109). Assigning the editable anchor clears the exact counterpart. sheet.drawingInfo is a source snapshot, independent of later model edits. Untouched source drawing parts stay byte for byte; additions are spliced in; changing/removing existing objects rebuilds the drawing and reports resulting losses. Pictures in unsupported formats (BMP, EMF and others) remain source content and are dropped with a warning on rebuild."
             },
             {
               "id": "xlsx.draw.chart",
@@ -990,11 +996,13 @@
                 "chart.addSeries(values:categories:name:)",
                 "Chart.Kind",
                 "sheet.charts",
-                "Chart.Series.nameReference"
+                "Chart.Series.nameReference",
+                "Chart.drawingAnchor",
+                "sheet.drawingInfo"
               ],
-              "warning": "A chart with no series: \"a … chart with no series was not written\" / a kind it cannot draw: \"a … chart was not written: the writer draws column, bar, line and pie charts\" / to another format: dropped",
+              "warning": "A chart with no series or a kind the target writer cannot draw is dropped with a warning; source drawing details that the target cannot carry are reported as degraded",
               "evidence": "measured",
-              "note": "4 kinds are written, every kind is read (the kind stays in Chart.Kind's raw as the element name, B.69). A chart that was read stays byte for byte if untouched (B.72). openpyxl reads type, title, series and references in agreement, and the rendering was checked in LibreOffice's PDF (Appendix B.34)."
+              "note": "4 kinds are written, every kind is read (the kind stays in Chart.Kind raw as the element name, B.69). An untouched chart retains its source parts (B.72). Read-only drawingAnchor retains exact Int64 EMU placement for XLSX rebuild; assigning the editable anchor/frame clears it (B.109). sheet.drawingInfo exposes the independent as-read source snapshot. Historical openpyxl checks cover type, title, series and references, and LibreOffice PDF checks cover rendering (B.34); these do not verify the candidate in native Excel."
             },
             {
               "id": "xlsx.draw.comment",
@@ -1035,11 +1043,15 @@
                 "sheet.shapes",
                 "sheet.addShape(_:over:)",
                 "sheet.addTextBox(_:over:font:)",
-                "Shape.Geometry"
+                "Shape.Geometry",
+                "Shape.drawingAnchor",
+                "sheet.drawingInfo",
+                "DrawingInfo.Object.children",
+                "DrawingTextBody"
               ],
-              "warning": "What a rebuild drops: \"N object(s) of the sheet's drawing the model could not read (a group of shapes, SmartArt) dropped\" / a geometry with no preset: \"written as a rectangle\"",
+              "warning": "Reading source-only properties can report degraded with preserved context; rebuild reports groups/SmartArt dropped and source properties simplified, separately. A source geometry the writer cannot reproduce as a supported preset is rebuilt as a rectangle with a degraded warning",
               "evidence": "measured",
-              "note": "Shapes and text boxes (xdr:sp / xdr:cxnSp) are read and written: preset geometry, text with one font, alignment, fill, outline, anchor (B.75). Rotation, shadows, gradients and per-paragraph formatting are not held, and stay byte for byte if untouched. SmartArt (the 4 dgm: parts) and groups of shapes are not taken into the model but noted as present: saved untouched to the same format they stay byte for byte, and a rebuild of the drawing drops them by name. Background images remain under preservation. It reads 7 shapes LibreOffice wrote, and LibreOffice reads the shapes it writes (gated)."
+              "note": "The editable model reads/writes preset shapes and text boxes, with one font, alignment, fill, outline and anchor (B.75). Exact drawingAnchor retains source placement in Int64 EMUs. The immutable drawingInfo snapshot additionally exposes source order, nested groups, local transforms/rotation/flips, ordered paragraphs/runs, font/theme references, explicit insets/alignment and selected XML properties with namespace bindings (B.109). These inspection values are separate from the editable model and are not updated after edits. Unknown/custom geometry retains its source identity without claiming rectangle support. Untouched or appended-to XLSX drawings retain source bytes; rebuilding may simplify text/transforms/effects and drops groups/SmartArt with explicit diagnostics. Background images remain under preservation. Existing LibreOffice tests cover preset-shape interchange; synthetic inspection checks do not certify native Excel rendering or font layout."
             },
             {
               "id": "xlsx.draw.ole",
@@ -1184,9 +1196,9 @@
               "read": "none",
               "write": "none",
               "api": [],
-              "warning": "None (the README's known limits)",
+              "warning": "No rich-value semantic interpretation; unsupported metadata rewrites/imports are refused with SheetError",
               "evidence": "readme",
-              "note": "The cm / vm attributes are outside preservation. This is an honest gap, and the README says so."
+              "note": "Rich-value semantics have no editable model or data-type API. B.110 now retains source cm/vm indices sparsely and preserves their source metadata part on same-family writes, including unknown records. Unknown/mixed metadata requiring an unsupported rewrite or cross-workbook merge is refused. This is metadata preservation, not rich-value interpretation or native-application validation; the historical support statuses are unchanged."
             },
             {
               "id": "xlsx.macro.customxml",
