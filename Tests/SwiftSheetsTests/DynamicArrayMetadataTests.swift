@@ -19,7 +19,8 @@ import SwiftSheets
     }
 
     /// A synthetic package with relocated metadata, nontrivial indices, and unrelated metadata records.
-    static func source(dynamic: String = "1", mixed: Bool = false, namespace: String = DynamicArrayMetadata.namespace) throws -> Data {
+    static func source(dynamic: String = "1", mixed: Bool = false, namespace: String = DynamicArrayMetadata.namespace,
+                       uri: String = "{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}") throws -> Data {
         let data = try workbook().write(as: .xlsx).data
         let inspection = try ZipInspection(data: data)
         var writer = ZipWriter()
@@ -32,7 +33,7 @@ import SwiftSheets
                 <metadata xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:d="\(namespace)">
                   <metadataTypes count="2"><metadataType name="VENDOR"/><metadataType name="XLDAPR" cellMeta="1"/></metadataTypes>
                   <futureMetadata name="VENDOR" count="1"><bk><extLst><ext uri="vendor"><payload xmlns="urn:vendor" value="untouched"/></ext></extLst></bk></futureMetadata>
-                  <futureMetadata name="XLDAPR" count="2"><bk/><bk><extLst><ext uri="{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}"><d:dynamicArrayProperties fDynamic="\(dynamic)" fCollapsed="0"/></ext></extLst></bk></futureMetadata>
+                  <futureMetadata name="XLDAPR" count="2"><bk/><bk><extLst><ext uri="\(uri)"><d:dynamicArrayProperties fDynamic="\(dynamic)" fCollapsed="0"/></ext></extLst></bk></futureMetadata>
                   <cellMetadata count="2"><bk><rc t="1" v="0"/></bk><bk><rc t="2" v="1"/>\(mixed ? "<rc t=\"1\" v=\"0\"/>" : "")</bk></cellMetadata>
                   <valueMetadata count="1"><bk><rc t="1" v="0"/></bk></valueMetadata>
                 </metadata>
@@ -56,7 +57,9 @@ import SwiftSheets
         workbook.sheets[0].table.arrayFormulas[CellRef("D2")!] = CellRange("D2:E2")!
         let data = try workbook.write(as: .xlsx).data
         let metadata = try Package.part("xl/metadata.xml", of: data)
-        #expect(metadata.contains("uri=\"{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}\""))
+        // Native Excel repaired the former uppercase output; B.114 requires the observed lowercase spelling.
+        #expect(metadata.contains("uri=\"{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}\""))
+        #expect(!metadata.contains("uri=\"{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}\""))
         #expect(metadata.contains("fDynamic=\"1\" fCollapsed=\"0\""))
         let reread = try Workbook(data: data)
         #expect(reread.sheets[0].table.arrayFormulas == workbook.sheets[0].table.arrayFormulas)
@@ -77,6 +80,19 @@ import SwiftSheets
         #expect(sheet.contains("r=\"B2\" cm=\"2\" vm=\"1\""))
         #expect(sheet.contains("r=\"A1\" cm=\"1\""))
         #expect(try Workbook(data: output).sheets[0].table.dynamicArrayOrigins == [Self.origin])
+    }
+
+    @Test(arguments: ["{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}",
+                      "{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}",
+                      "{bDbB8cDc-Fa1E-496e-A857-3c3F30c029c3}"])
+    func sourceURICaseVariantsRemainReadableAndBytePreserved(uri: String) throws {
+        let source = try Self.source(uri: uri)
+        let workbook = try Workbook(data: source)
+        #expect(workbook.sheets[0].table.dynamicArrayOrigins == [Self.origin])
+        let output = try workbook.write(as: .xlsx).data
+        let path = "xl/custom/array-metadata.xml"
+        #expect(try ZipInspection(data: output).entry(named: path) == ZipInspection(data: source).entry(named: path))
+        #expect(try Package.part(path, of: output).contains("uri=\"\(uri)\""))
     }
 
     @Test(arguments: ["0", "false"])

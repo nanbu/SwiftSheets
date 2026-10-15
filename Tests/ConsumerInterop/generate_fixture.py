@@ -8,7 +8,7 @@ S = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 A = "http://schemas.openxmlformats.org/drawingml/2006/main"
 XDR = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
-GUID = "{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}"
+GUID = "{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"
 
 
 def marker(tag, col, row, x=31750, y=31750):

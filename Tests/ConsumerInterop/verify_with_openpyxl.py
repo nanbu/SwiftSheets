@@ -57,7 +57,7 @@ def verify_metadata(package, cells, expected_part="xl/metadata/arrays.xml", expe
     for record in future_records:
         extensions = record.findall("s:extLst/s:ext", NS)
         assert len(extensions) == 1
-        assert extensions[0].get("uri") == "{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}"
+        assert extensions[0].get("uri") == "{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"
         properties = extensions[0].find("xda:dynamicArrayProperties", NS)
         assert properties is not None
         assert properties.get("fCollapsed") == "0"
