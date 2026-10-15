@@ -21,3 +21,10 @@ Set `SWIFTSHEETS_CONSUMER_INTEROP_DIR` to an output directory to keep both gener
 application check; otherwise the script removes its temporary outputs after verification.
 openpyxl does not model grouped shapes; XML checks do not claim visual equivalence. The sample is not a measured
 claim of full DrawingML support, and does not change the generated interoperability or feature-support counts.
+
+A separate manual probe on 2026-10-16 with Excel for Mac 16.113.4 requested repair for an uppercase XLDAPR
+extension URI. Changing only that URI to lowercase opened without repair (spec Appendix B.114). Ordinary SUM
+and arithmetic formulas replaced deliberately wrong caches with their expected results. Modern dynamic-array
+functions and XLOOKUP returned `#NAME?`; an independently generated XlsxWriter SEQUENCE control did too.
+This establishes the URI spelling correction, not successful modern-function recalculation or a native drawing
+pass for this specimen. The automated judge above continues to report native recalculation as unverified.

@@ -9,6 +9,13 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+### Fixed
+
+- Emit newly authored XLDAPR metadata with the lowercase extension URI that Excel for Mac opens without repair.
+  Existing uppercase and mixed-case metadata remains readable and is preserved byte-for-byte. Native checks in
+  Excel 16.113.4 established repair-free opening and ordinary formula recalculation; modern-function/spill
+  recalculation and editing/saving gates remain unverified in the available unactivated Excel environment.
+
 ## [2.1.0-rc.1] — 2026-10-15
 
 Release candidate for additive APIs; existing 2.0 source remains compatible. Native Excel rendering and

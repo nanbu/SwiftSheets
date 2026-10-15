@@ -7784,6 +7784,29 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
   judges are explicitly unverified. No support-table count is inferred from these specimens.</p>
 </section>
 
+
+<section>
+  <h3>B.114 Excel-compatible dynamic-array extension URI spelling (Rev 5.2)</h3>
+  <p>Found 2026-10-16 in Excel for Mac 16.113.4. A newly authored dynamic-array workbook requested repair when
+  its metadata extension URI used the uppercase GUID spelling from the MS-XLSX table. A copy differing only in
+  that attribute opened without repair when it used
+  <code>{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}</code>, the spelling also emitted by XlsxWriter. An extension URI
+  is an identifier string: the table's uppercase presentation is not sufficient evidence of Excel interoperability.
+  Newly generated metadata must use the lowercase spelling. The reader continues to recognize the identifier
+  case-insensitively; it does not rewrite opaque source metadata or unknown records, whose byte-preservation
+  contract remains unchanged. The synthetic consumer fixture uses the interoperable spelling; regressions
+  separately cover reading both spellings and preserving source bytes.</p>
+  <p>The native probe placed intentionally wrong cached values in formula cells. In this unactivated Excel,
+  ordinary SUM and arithmetic changed to the expected values on open. SEQUENCE in an independently generated
+  XlsxWriter control also became <code>#NAME?</code>, so modern-function recalculation cannot be certified in
+  this environment. This result is not an assertion that every formula is unsupported, and it does not replace
+  the manual release checks. A stable release still requires the application checks in
+  <code>MAINTENANCE.md</code>.</p>
+  <p>References: <a href="https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/3dd44d53-847b-402f-a8c7-41a85024caf7">MS-XLSX 2.2.4.4</a>
+  and <a href="https://github.com/jmcnamara/XlsxWriter/blob/main/xlsxwriter/metadata.py">XlsxWriter's metadata writer</a>.
+  These sources inform the spelling comparison; the repair and calculation observations above came from Excel itself.</p>
+</section>
+
 </div><!-- /.container -->
 </body>
 </html>

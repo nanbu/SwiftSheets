@@ -6,7 +6,8 @@ enum DynamicArrayMetadata {
     static let relationshipType = "/sheetMetadata"
     static let contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"
     static let namespace = "http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"
-    static let extensionURI = "{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}"
+    // Emit the lowercase spelling that Excel opens without repair (B.114); source variants remain readable.
+    static let extensionURI = "{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"
 
     struct Indices: Sendable {
         var dynamic: Set<Int> = []
@@ -79,7 +80,7 @@ enum DynamicArrayMetadata {
             else if futureBlock != nil {
                 if main, name == "extLst", parent == "bk", stack.count == 4 { }
                 else if main, name == "ext", parent == "extLst", stack.count == 5 {
-                    extensionIsDynamic = a["uri"]?.uppercased() == DynamicArrayMetadata.extensionURI
+                    extensionIsDynamic = a["uri"]?.lowercased() == DynamicArrayMetadata.extensionURI
                     if !extensionIsDynamic || !a.keys.allSatisfy({ $0 == "uri" }) { futureBlock?.pure = false }
                 } else if name == "dynamicArrayProperties", namespaceURI == DynamicArrayMetadata.namespace,
                           parent == "ext", stack.count == 6, extensionIsDynamic {
