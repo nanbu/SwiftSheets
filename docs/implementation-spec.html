@@ -7422,6 +7422,10 @@ public var preservationSummary: PreservationSummary { get }</code></pre>
     (a minor release, under <em>Changed</em>), or when a patch release corrects a wrong result (under <em>Fixed</em>).
     Other changes to what a reader returns for the same file are avoided.</li>
   </ul>
+  <p><strong>Version checks (2026-10-15).</strong> Published page titles are checked against the complete
+  <code>SwiftSheetsInfo.version</code>, including any SemVer prerelease and build metadata suffixes. A candidate
+  title cannot pass as the corresponding stable version or as a different candidate. This check does not replace
+  the application checks required by <code>MAINTENANCE.md</code> before a stable release.</p>
   <h3>B.96 The builds the Swift Package Index runs: WASI and Android (Rev 4.87)</h3>
   <p>Found 2026-09-15 in the index's first builds of 0.28.0 and <code>main</code>. The Apple platforms and Linux build
   with Swift 6.3 and 6.2; Swift 6.1 and 6.0 fail by design, since the manifest needs tools version 6.2.</p>

@@ -255,6 +255,31 @@ import SwiftSheets
     /// tab and in a search result. Two of them sat at 0.7.2 for three releases, because nothing was watching:
     /// the README's numbers were pinned by the test above and the documents' were not. Now they are. A page that
     /// does not name a version at all is fine; a page that names the wrong one is not.
+    private static func namedLibraryVersion(in title: String) -> String? {
+        // Keep the complete version token, including prerelease/build suffixes and malformed suffixes: an
+        // unexpected spelling must compare unequal, rather than being truncated to a matching stable prefix.
+        title.firstMatch(of: #/SwiftSheets [0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.+-]*/#).map { String($0.output) }
+    }
+
+    @Test(arguments: ["2.1.0", "2.1.0-rc.1", "2.1.0-alpha-beta.2", "2.1.0+build.42", "2.1.0-rc.1+build.42"])
+    func documentVersionIncludesSemVerSuffixes(_ version: String) {
+        #expect(Self.namedLibraryVersion(in: "A guide (SwiftSheets \(version))") == "SwiftSheets \(version)")
+    }
+
+    @Test func documentVersionChecksDoNotAcceptAPrefixOrDifferentSuffix() {
+        let stable = "SwiftSheets 2.1.0"
+        let candidate = "SwiftSheets 2.1.0-rc.1"
+        #expect(Self.namedLibraryVersion(in: "A guide (\(candidate))") != stable)
+        for other in ["2.0.0", "2.1.0", "2.1.0-rc.2", "2.1.0-rc.10", "2.1.0-rc.1+build.42", "2.1.0-rc.01"] {
+            let named = Self.namedLibraryVersion(in: "A guide (SwiftSheets \(other))")
+            #expect(named == "SwiftSheets \(other)")
+            #expect(named != candidate)
+        }
+        #expect(Self.namedLibraryVersion(in: "A guide (SwiftSheets 2.1.0-rc.1+build.43)")
+                != "SwiftSheets 2.1.0-rc.1+build.42")
+        #expect(Self.namedLibraryVersion(in: "SwiftSheets implementation spec") == nil)
+    }
+
     @Test func everyPublishedDocumentNamesTheCurrentVersion() throws {
         let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let docs = root.appending(path: "docs")
@@ -264,10 +289,10 @@ import SwiftSheets
             let text = try String(contentsOf: file, encoding: .utf8)
             guard let open = text.range(of: "<title>"), let close = text.range(of: "</title>") else { continue }
             let title = String(text[open.upperBound..<close.lowerBound])
-            guard let named = title.firstMatch(of: #/SwiftSheets \d+\.\d+\.\d+/#) else { continue }
+            guard let named = Self.namedLibraryVersion(in: title) else { continue }
             checked += 1
-            #expect(String(named.output) == "SwiftSheets \(SwiftSheetsInfo.version)",
-                    Comment(rawValue: "\(file.lastPathComponent) names \(named.output) in its title, "
+            #expect(named == "SwiftSheets \(SwiftSheetsInfo.version)",
+                    Comment(rawValue: "\(file.lastPathComponent) names \(named) in its title, "
                             + "but the library is \(SwiftSheetsInfo.version)"))
         }
         #expect(checked >= 3, "the documents that name a version should still be naming it")
