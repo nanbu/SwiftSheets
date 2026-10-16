@@ -8,13 +8,13 @@ template. Check read and write warnings for unsupported content. This page gets 
 
 ## 1. Add the package
 
-The pin below selects 2.1.0. See the [release validation record](release-2.1.0.md) for the native Excel
-checks and the remaining modern-function recalculation and edit/save verification limits.
+The pin below selects the 2.1.0 release candidate. Native Excel rendering/recalculation and the remaining
+manual release checks are pending; 2.0.0 remains the stable release.
 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "2.1.0")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "2.1.0-rc.1")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])
