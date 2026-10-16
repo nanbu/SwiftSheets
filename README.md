@@ -87,7 +87,7 @@ its new name; [llms.txt](llms.txt) is the short map written for AI coding agents
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "2.1.0-rc.1")
+    .package(url: "https://github.com/nanbu/SwiftSheets.git", from: "2.1.0")
 ],
 targets: [
     .target(name: "App", dependencies: [.product(name: "SwiftSheets", package: "SwiftSheets")])   // or SheetCore / SheetXLSX / SheetCSV
@@ -117,9 +117,10 @@ links only the plain products can declare that it carries no cipher, and one tha
 decrypts; CI reads both promises off the symbol tables on every push (`scripts/check-no-crypto.sh`, spec Appendix
 B.39.9).
 
-Status: **2.1.0-rc.1** — a release candidate for the additive drawing, dynamic-array and diagnostic APIs.
-Native Excel rendering/recalculation and the remaining manual release checklist are pending;
-[2.0.0](https://github.com/nanbu/SwiftSheets/releases/tag/2.0.0) remains the stable release.
+Status: **2.1.0** — additive drawing inspection, dynamic-array metadata and diagnostic APIs.
+Read-only Excel checks covered repair-free opening and selected drawing/text rendering. Modern-function/spill
+recalculation and Excel edit/refresh/save round trips remain unverified in the available environment;
+see the [2.1.0 validation record](docs/release-2.1.0.md) for the scope and limitations.
 The public API follows the [stability policy](docs/api-stability.md). What changed in each release
 is in [CHANGELOG.md](CHANGELOG.md). The version here is what the library writes into the files it generates, and a
 test keeps the constant, this line and the pin above in step.

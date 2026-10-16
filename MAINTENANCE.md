@@ -71,6 +71,11 @@ Bump the version and tag that same release commit. In the commit, update:
 Run `swift build`, `swift test`, the generated-page `--check` commands, and `python3 Tests/OpenpyxlParity/check.py`.
 Complete the manual checklist and require green CI on the release commit. Do not hand-edit generated pages.
 
+For 2.1.0, the maintainer explicitly authorized release after the native checks available in read-only Excel.
+The [version-specific validation record](docs/release-2.1.0.md) identifies the checks performed and the
+modern-function recalculation and edit/refresh/save checks that remain unverified. This exception does not
+mark unavailable checks as passed or change the default checklist for later releases.
+
 ```bash
 git tag -a x.y.z -m "x.y.z"
 git push origin x.y.z
