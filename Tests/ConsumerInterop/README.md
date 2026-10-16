@@ -12,7 +12,7 @@ records in a relationship-resolved nonstandard part path, a spill reference, and
 |---|---|---|
 | Codec and source preservation | `swift test --filter ConsumerInteropTests` | Readable drawing/array information and unchanged drawing, metadata and opaque bytes after an unrelated edit |
 | Independent reader | `python3 Tests/ConsumerInterop/verify_with_openpyxl.py` (openpyxl 3.1.5) | Formula storage, array ranges and cached values through openpyxl; source structure through Python XML; both source and SwiftSheets output |
-| Viewport image | Unverified here | Belongs to the rendering application's acceptance suite |
+| Native specimen display | Manual check in Excel 16.114 (2026-10-17) | Source and SwiftSheets output opened without repair and displayed nested groups and transformed Japanese/mixed text; no exhaustive viewport/pixel comparison |
 | Native Excel recalculation | Unverified by the automated tests above | Requires Excel opening without repair and recalculating; cached values and independent-reader checks do not establish this |
 
 The Swift export test visibly skips unless the independent-reader script supplies its output directory.
@@ -28,3 +28,8 @@ and arithmetic formulas replaced deliberately wrong caches with their expected r
 functions and XLOOKUP returned `#NAME?`; an independently generated XlsxWriter SEQUENCE control did too.
 This establishes the URI spelling correction, not successful modern-function recalculation or a native drawing
 pass for this specimen. The automated judge above continues to report native recalculation as unverified.
+
+On 2026-10-17, Excel 16.114 (26101123) displayed the source and SwiftSheets-rewritten specimen without repair,
+including its nested groups and transformed text. Modern-function/spill recalculation remained unverified: both
+the SwiftSheets probe and independent XlsxWriter SEQUENCE control returned `#NAME?`, while ordinary arithmetic
+recalculated correctly. See [the release record](../../docs/release-2.1.0.md) for the read-only validation scope.

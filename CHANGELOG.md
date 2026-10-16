@@ -9,12 +9,42 @@ writes, so the constant, the README's status line and the tag always name the sa
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-10-17
+
+Additive drawing, dynamic-array and diagnostic APIs; existing 2.0 source remains compatible.
+Native Excel validation used the maintainer-authorized read-only scope. Repair-free opening and selected
+rendering were observed; modern-function/spill recalculation and Excel edit/refresh/save round trips remain
+unverified. See [the validation record](docs/release-2.1.0.md). The library records formulas and cached values;
+it does not calculate spills.
+
+### Added
+
+- XLSX drawing inspection through `Sheet.drawingInfo`: ordered groups, local transforms, paragraphs and runs,
+  body properties, theme typefaces, and selected source geometry/effect properties. This immutable source snapshot
+  supplements the editable shape/image/chart lists; it does not perform rendering or update after edits.
+- Exact EMU `drawingAnchor` information on read shapes, images and charts, retained when XLSX drawings are rebuilt.
+  Assigning the existing anchor clears its source precision so an explicit move takes effect.
+- `Table.dynamicArrayOrigins` distinguishes spill origins from legacy entries in `arrayFormulas`. XLSX resolves
+  XLDAPR through the metadata relationship, retains unknown metadata and cell/value indices, and writes canonical
+  dynamic-array metadata for new workbooks. Changes requiring an unsafe rewrite of unknown records are refused.
+- `ConversionWarning.context` optionally identifies a stable cause code, package part, object and source
+  preservation outcome independently of the message. Existing initializers and messages remain usable.
+- A deterministic synthetic consumer specimen and an independent openpyxl/package verification script under
+  `Tests/ConsumerInterop`; rendering and native Excel recalculation are separate acceptance checks.
+
 ### Fixed
 
+- Parse Excel spill references such as `A1#` and `'Other Sheet'!B2#` as the existing
+  `_xlfn.ANCHORARRAY` call AST, so sheet renames and structural edits follow the origin without a new public enum
+  case. Known FILTER/SORT and related function input names are written with their required OOXML namespaces;
+  quoted strings and unknown namespaces are retained. Numbers retains its existing known-function registry lookup.
+- Clear former dynamic-array result values when a spill range shrinks or is removed, and move array ranges,
+  origins and source metadata indices with structural edits.
+- Report source drawing properties that are simplified on rebuilding or conversion, including rotation and
+  per-run formatting, rather than silently presenting those properties as preserved.
+
 - Emit newly authored XLDAPR metadata with the lowercase extension URI that Excel for Mac opens without repair.
-  Existing uppercase and mixed-case metadata remains readable and is preserved byte-for-byte. Native checks in
-  Excel 16.113.4 established repair-free opening and ordinary formula recalculation; modern-function/spill
-  recalculation and editing/saving gates remain unverified in the available unactivated Excel environment.
+  Existing uppercase and mixed-case metadata remains readable and is preserved byte-for-byte.
 
 ## [2.1.0-rc.1] — 2026-10-15
 
@@ -1615,7 +1645,8 @@ Both existed as working version numbers in the source tree while the features of
 neither was ever tagged or released. Nothing is missing from the history: the work they carried is listed under
 0.6.0 above. They are skipped here rather than invented after the fact.
 
-[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/2.1.0-rc.1...HEAD
+[Unreleased]: https://github.com/nanbu/SwiftSheets/compare/2.1.0...HEAD
+[2.1.0]: https://github.com/nanbu/SwiftSheets/compare/2.0.0...2.1.0
 [2.1.0-rc.1]: https://github.com/nanbu/SwiftSheets/compare/2.0.0...2.1.0-rc.1
 [2.0.0]: https://github.com/nanbu/SwiftSheets/compare/1.2.0...2.0.0
 [1.2.0]: https://github.com/nanbu/SwiftSheets/compare/1.1.1...1.2.0

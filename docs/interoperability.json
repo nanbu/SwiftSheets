@@ -1,9 +1,9 @@
 {
   "meta": {
-    "library_version": "2.1.0-rc.1",
-    "measured": "2026-10-15T14:17:05.382443+00:00",
+    "library_version": "2.1.0",
+    "measured": "2026-10-16T22:34:42.229259+00:00",
     "swift": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0",
-    "commit": "61d7ee78b0f122c3a802c5b90f7141c3acaa81fb",
+    "commit": "e38e4dbb48c061acb096e0600a4cf45ef0dfbc9d",
     "scope": "Synthetic 48-feature whole-workbook write/read probe; library reader, not an application rendering measurement"
   },
   "directions": [
